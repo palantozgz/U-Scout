@@ -1,7 +1,8 @@
 import { useLocation } from "wouter";
-import { ArrowLeft, Globe, Check } from "lucide-react";
+import { ArrowLeft, Globe, Check, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale, type Locale } from "@/lib/i18n";
+import { useAuth } from "@/lib/useAuth";
 
 const LANGUAGES: { code: Locale; label: string; native: string; flag: string }[] = [
   { code: "en", label: "English",  native: "English", flag: "🇬🇧" },
@@ -12,6 +13,12 @@ const LANGUAGES: { code: Locale; label: string; native: string; flag: string }[]
 export default function Settings() {
   const [, setLocation] = useLocation();
   const { locale, changeLocale, t } = useLocale();
+  const { profile, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    setLocation("/login");
+  };
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-slate-50 dark:bg-slate-950">
@@ -74,7 +81,7 @@ export default function Settings() {
               <span>U Scout</span>
               <span className="font-semibold text-slate-700 dark:text-slate-300">v0.1</span>
             </div>
-            <div className="flex justify-between">
+        <div className="flex justify-between">
               <span>{t("settings_motor")}</span>
               <span className="font-semibold text-slate-700 dark:text-slate-300">v3 — Archetypal</span>
             </div>
@@ -83,6 +90,29 @@ export default function Settings() {
               <span className="font-semibold text-slate-700 dark:text-slate-300">18</span>
             </div>
           </div>
+        </div>
+
+        {/* Account */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
+            <User className="w-4 h-4 text-primary" />
+            <p className="font-bold text-slate-900 dark:text-white text-sm">{t("settings_account")}</p>
+          </div>
+          {profile && (
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-80space-y-1">
+              <p className="text-xs text-slate-400">{t("settings_email")}</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{profile.email}</p>
+              <p className="text-xs text-slate-400 capitalize">{profile.role}</p>
+            </div>
+          )}
+          <button
+            type="button"
+            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors text-left"
+            onClick={handleSignOut}
+          >
+            <LogOut className="w-4 h-4 text-red-500" />
+            <span className="text-sm font-semibold text-red-500">{t("settings_sign_out")}</span>
+          </button>
         </div>
 
       </main>

@@ -167,7 +167,7 @@ function ScrollSlide({ children, accentColor }: { children: React.ReactNode; acc
         </div>
       )}
 
-      <div ref={ref} className="h-full flex flex-col px-5 pt-20 pb-24 gap-3 overflow-y-auto bg-slate-950 scroll-smooth">
+      <div ref={ref} className="h-full flex flex-col px-5 pt-20 pb-24 gap-3 overflow-y-auto bg-[#060a14] scroll-smooth">
         {children}
       </div>
 
@@ -192,26 +192,27 @@ function ScrollSlide({ children, accentColor }: { children: React.ReactNode; acc
 export default function PlayerProfileViewer() {
   const { t } = useLocale();
   const [, params] = useRoute("/player/:id");
+  const [, paramsCoach] = useRoute("/coach/player/:id/profile");
   const [, setLocation] = useLocation();
   const [page, setPage] = useState(0);
   const [dir,  setDir]  = useState(0);
   const [deepReport, setDeepReport] = useState(false);
 
-  const { data: player, isLoading: pLoad } = usePlayer(params?.id ?? "");
+  const { data: player, isLoading: pLoad } = usePlayer(params?.id ?? paramsCoach?.id ?? "");
   const { data: teams = [], isLoading: tLoad } = useTeams();
   const team = teams.find(t => t.id === player?.teamId);
 
   if (pLoad || tLoad) return (
-    <div className="flex items-center justify-center h-[100dvh] bg-slate-950">
+    <div className="flex items-center justify-center h-[100dvh] bg-[#060a14]">
       <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (!player || !team) return (
-    <div className="flex flex-col items-center justify-center h-[100dvh] bg-slate-950 p-6 text-center gap-4">
+    <div className="flex flex-col items-center justify-center h-[100dvh] bg-[#060a14] p-6 text-center gap-4">
       <ShieldAlert className="w-16 h-16 text-slate-700" />
       <h2 className="text-xl font-bold text-white">{t("profile_not_found")}</h2>
-      <Button onClick={() => setLocation("/player")} variant="outline">{t("back")}</Button>
+      <Button onClick={() => setLocation(paramsCoach ? "/coach/reports" : "/player")} variant="outline">{t("back")}</Button>
     </div>
   );
 
@@ -294,7 +295,7 @@ export default function PlayerProfileViewer() {
 
   // ── SLIDE 1 — Identity ────────────────────────────────────────────────────
   const S1 = (
-    <div className="h-full flex flex-col items-center justify-center text-center px-6 gap-5 bg-slate-950">
+    <div className="h-full flex flex-col items-center justify-center text-center px-6 gap-5 bg-[#060a14]">
       <div className="absolute top-0 left-0 w-full h-1 bg-orange-500" />
       <div className="relative mt-4">
         <div className="absolute inset-0 blur-2xl opacity-25 rounded-full bg-orange-500" />
@@ -354,7 +355,7 @@ export default function PlayerProfileViewer() {
 
   // ── SLIDE 2 — How she attacks ─────────────────────────────────────────────
   const S2 = (
-    <div className="relative h-full bg-slate-950">
+    <div className="relative h-full bg-[#060a14]">
       <div className="absolute top-0 left-0 w-full h-1 bg-red-500 z-20" />
       <ScrollSlide accentColor="text-red-400">
       <h2 className="text-lg font-black text-white">⚠ {t("how_she_attacks")}</h2>
@@ -378,7 +379,7 @@ export default function PlayerProfileViewer() {
   // ── SLIDE 3 — Where dangerous ─────────────────────────────────────────────
   const slide3TranslatedItems = slide3Items.map(s => translateOutput(s, t));
   const S3 = (
-    <div className="relative h-full bg-slate-950">
+    <div className="relative h-full bg-[#060a14]">
       <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 z-20" />
       <ScrollSlide accentColor="text-amber-400">
       <h2 className="text-lg font-black text-white">📍 {t("where_dangerous")}</h2>
@@ -396,7 +397,7 @@ export default function PlayerProfileViewer() {
 
   // ── SLIDE 4 — Screens ─────────────────────────────────────────────────────
   const S4 = (
-    <div className="relative h-full bg-slate-950">
+    <div className="relative h-full bg-[#060a14]">
       <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 z-20" />
       <ScrollSlide accentColor="text-blue-400">
       <h2 className="text-lg font-black text-white">⚡ {t("screens_actions")}</h2>
@@ -422,7 +423,7 @@ export default function PlayerProfileViewer() {
   const hasPlan  = defender.length > 0 || forzar.length > 0 || concede.length > 0;
 
   const S5 = (
-    <div className="relative h-full bg-slate-950">
+    <div className="relative h-full bg-[#060a14]">
       <div className="absolute top-0 left-0 w-full h-1 bg-slate-500 z-20" />
       <ScrollSlide accentColor="text-slate-400">
       <div className="flex items-center gap-2">
@@ -464,11 +465,11 @@ export default function PlayerProfileViewer() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-slate-950 overflow-hidden relative">
+    <div className="flex flex-col h-[100dvh] bg-[#060a14] overflow-hidden relative">
 
       {/* Header */}
       <header className="absolute top-0 w-full z-50 px-4 pt-4 flex justify-between items-center">
-        <Button variant="ghost" size="icon" onClick={() => setLocation("/player")}
+        <Button variant="ghost" size="icon" onClick={() => setLocation(paramsCoach ? "/coach/reports" : "/player")}
           className="bg-slate-800/80 backdrop-blur rounded-full border-0 text-white hover:bg-slate-700">
           <ArrowLeft className="w-5 h-5" />
         </Button>

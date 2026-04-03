@@ -65,34 +65,37 @@
   --radius: 1rem;
 }
 
+/* NBA 2K / dark sports tech — #060a14 base, cards #0d1526, borders #1e2d4a */
 .dark {
-  --background: 215 25% 15%;
-  --foreground: 210 40% 98%;
+  --background: 222 47% 5%;
+  --foreground: 210 40% 96%;
   
-  --card: 215 25% 18%;
-  --card-foreground: 210 40% 98%;
+  --card: 220 40% 10%;
+  --card-foreground: 210 40% 96%;
   
-  --popover: 215 25% 15%;
-  --popover-foreground: 210 40% 98%;
+  --popover: 222 47% 5%;
+  --popover-foreground: 210 40% 96%;
   
-  --primary: 217 91% 60%;
-  --primary-foreground: 222 47% 11%;
+  --primary: 217 100% 58%;
+  --primary-foreground: 210 40% 98%;
   
-  --secondary: 215 25% 22%;
-  --secondary-foreground: 210 40% 98%;
+  --secondary: 220 32% 14%;
+  --secondary-foreground: 210 40% 96%;
   
-  --muted: 215 25% 22%;
-  --muted-foreground: 215 20% 65%;
+  --muted: 220 28% 12%;
+  --muted-foreground: 215 16% 52%;
   
   --accent: 24 98% 55%;
   --accent-foreground: 210 40% 98%;
   
-  --destructive: 0 62% 40%;
+  --destructive: 0 62% 45%;
   --destructive-foreground: 210 40% 98%;
   
-  --border: 215 25% 22%;
-  --input: 215 25% 22%;
-  --ring: 212 96% 61%;
+  --border: 217 32% 20%;
+  --input: 217 32% 20%;
+  --ring: 213 100% 60%;
+  
+  --radius: 0.5rem;
 }
 
 @layer base {
