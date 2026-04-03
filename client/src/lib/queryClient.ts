@@ -9,6 +9,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
+import { supabase } from "./supabase";
 
 const CACHE_BUSTER = "v2"; // ← bump this to invalidate all cached data
 
@@ -73,9 +74,15 @@ export async function apiRequest(
   url:    string,
   body?:  unknown,
 ): Promise<Response> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
   const res = await fetch(url, {
     method,
-    headers:     body ? { "Content-Type": "application/json" } : {},
+    headers: {
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body:        body ? JSON.stringify(body) : undefined,
     credentials: "include",
   });

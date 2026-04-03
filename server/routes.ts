@@ -2,12 +2,13 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertTeamSchema, insertPlayerSchema } from "@shared/schema";
+import { requireAuth } from "./auth";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  app.get("/api/teams", async (_req, res) => {
+  app.get("/api/teams", requireAuth, async (_req, res) => {
     try {
       const result = await storage.getTeams();
       res.json(result);
@@ -16,7 +17,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/teams", async (req, res) => {
+  app.post("/api/teams", requireAuth, async (req, res) => {
     try {
       const parsed = insertTeamSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -29,7 +30,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/teams/:id", async (req, res) => {
+  app.patch("/api/teams/:id", requireAuth, async (req, res) => {
     try {
       const parsed = insertTeamSchema.partial().safeParse(req.body);
       if (!parsed.success) {
@@ -43,7 +44,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/teams/:id", async (req, res) => {
+  app.delete("/api/teams/:id", requireAuth, async (req, res) => {
     try {
       await storage.deleteTeam(req.params.id);
       res.status(204).send();
@@ -52,7 +53,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/players", async (req, res) => {
+  app.get("/api/players", requireAuth, async (req, res) => {
     try {
       const teamId = req.query.teamId as string | undefined;
       const result = await storage.getPlayers(teamId);
@@ -62,7 +63,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/players/:id", async (req, res) => {
+  app.get("/api/players/:id", requireAuth, async (req, res) => {
     try {
       const player = await storage.getPlayer(req.params.id);
       if (!player) return res.status(404).json({ error: "Player not found" });
@@ -72,7 +73,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/players", async (req, res) => {
+  app.post("/api/players", requireAuth, async (req, res) => {
     try {
       const parsed = insertPlayerSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -85,7 +86,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/players/:id", async (req, res) => {
+  app.patch("/api/players/:id", requireAuth, async (req, res) => {
     try {
       const parsed = insertPlayerSchema.partial().safeParse(req.body);
       if (!parsed.success) {
@@ -99,7 +100,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/players/:id", async (req, res) => {
+  app.delete("/api/players/:id", requireAuth, async (req, res) => {
     try {
       await storage.deletePlayer(req.params.id);
       res.status(204).send();
