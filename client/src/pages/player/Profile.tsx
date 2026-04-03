@@ -46,6 +46,7 @@ const isAct = (f?: string) => f === "Primary" || f === "Secondary";
 const isPri = (f?: string) => f === "Primary";
 
 // Translate trait labels from motor — maps motor label to i18n key
+/** Legacy motor labels → i18n keys (persisted players). New motor uses `trait_*` keys directly. */
 const TRAIT_KEY_MAP: Record<string, string> = {
   "Backdoor": "trait_backdoor",
   "Closeout": "trait_closeout",
@@ -64,7 +65,15 @@ const TRAIT_KEY_MAP: Record<string, string> = {
   "Screen Coverage": "trait_screen_coverage",
   "Slip Threat": "trait_slip_threat",
   "Transition": "trait_transition",
+  "Primary Post Scorer": "trait_primary_post_scorer",
+  "Post Threat": "trait_post_threat",
+  "Primary Scorer": "trait_primary_scorer",
+  "Secondary Creator": "trait_secondary_creator",
 };
+
+function keyTraitI18nKey(trait: string): string {
+  return TRAIT_KEY_MAP[trait] ?? trait;
+}
 
 // ─── BulletCard — respects deepReport mode ────────────────────────────────────
 function BulletCard({
@@ -231,10 +240,10 @@ export default function PlayerProfileViewer() {
 
   // Threats ordered by danger
   const allThreatSections = [
-    { label: "Post",     traits: postTraits,    score: postScore,    freq: inp.postFrequency,       accent: "text-purple-400", bg: "bg-purple-950/40", border: "border-purple-800/30" },
-    { label: "ISO",      traits: isoTraits,     score: isoScore,     freq: inp.isoFrequency,        accent: "text-orange-400", bg: "bg-orange-950/40", border: "border-orange-800/30" },
-    { label: "PnR",      traits: pnrTraits,     score: pnrScore,     freq: inp.pnrFrequency,        accent: "text-blue-400",   bg: "bg-blue-950/40",   border: "border-blue-800/30"   },
-    { label: "Off-Ball", traits: offBallTraits, score: offBallScore, freq: inp.transitionFrequency, accent: "text-emerald-400", bg: "bg-emerald-950/40", border: "border-emerald-800/30" },
+    { label: "tab_post",     traits: postTraits,    score: postScore,    freq: inp.postFrequency,       accent: "text-purple-400", bg: "bg-purple-950/40", border: "border-purple-800/30" },
+    { label: "tab_iso",      traits: isoTraits,     score: isoScore,     freq: inp.isoFrequency,        accent: "text-orange-400", bg: "bg-orange-950/40", border: "border-orange-800/30" },
+    { label: "tab_pnr",      traits: pnrTraits,     score: pnrScore,     freq: inp.pnrFrequency,        accent: "text-blue-400",   bg: "bg-blue-950/40",   border: "border-blue-800/30"   },
+    { label: "tab_offball", traits: offBallTraits, score: offBallScore, freq: inp.transitionFrequency, accent: "text-emerald-400", bg: "bg-emerald-950/40", border: "border-emerald-800/30" },
   ].filter(s => s.traits.length > 0).sort((a, b) => b.score - a.score);
 
   // Slide 3 — spatial
@@ -313,10 +322,10 @@ export default function PlayerProfileViewer() {
       {/* Archetype + subarchetype */}
       <div className="w-full bg-orange-500/10 border border-orange-500/20 rounded-2xl px-5 py-4">
         <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-1">{t("archetype")}</p>
-        <p className="text-2xl font-black italic text-white leading-tight">{archetype ?? "—"}</p>
+        <p className="text-2xl font-black italic text-white leading-tight">{archetype ? t(archetype as any) : "—"}</p>
         {subArch && (
           <p className="text-xs font-bold text-orange-400/60 uppercase tracking-widest mt-1">
-            {t("subarchetype")} {subArch}
+            {t("subarchetype_label")} {subArch ? t(subArch as any) : ""}
           </p>
         )}
       </div>
@@ -325,8 +334,7 @@ export default function PlayerProfileViewer() {
       {keyTraits && keyTraits.length > 0 && (
         <div className="flex flex-wrap justify-center gap-2">
           {keyTraits.slice(0, 3).map((trait, i) => {
-            const key = TRAIT_KEY_MAP[trait];
-            const label = key ? t(key as any) : trait;
+            const label = t(keyTraitI18nKey(trait) as any);
             return <span key={i} className="px-3 py-1 bg-slate-800 text-slate-300 rounded-full text-xs font-bold border border-slate-700">{label}</span>;
           })}
         </div>
@@ -355,7 +363,7 @@ export default function PlayerProfileViewer() {
         ? <EmptySlate text={t("no_threats")} />
         : allThreatSections.map((s, i) => (
           <BulletCard key={i}
-            title={`${s.label} · ${s.freq ?? ""}`}
+            title={`${t(s.label as any)} · ${s.freq ? t(("freq_" + s.freq.toLowerCase()) as any) : ""}`}
             top={s.traits.slice(0, 2)}
             rest={s.traits.slice(2)}
             accent={s.accent} bg={s.bg} border={s.border}
@@ -395,7 +403,7 @@ export default function PlayerProfileViewer() {
       <p className="text-xs text-slate-500 -mt-1">{t("pnr_coverage")}</p>
       {slide4Items.length > 0
         ? <BulletCard
-            title={`PnR · ${inp.pnrFrequency ?? ""}`}
+            title={`${t("tab_pnr")} · ${inp.pnrFrequency ? t(("freq_" + inp.pnrFrequency.toLowerCase()) as any) : ""}`}
             top={slide4Items.slice(0, 2)}
             rest={slide4Items.slice(2)}
             accent="text-blue-400" bg="bg-blue-950/40" border="border-blue-800/30"

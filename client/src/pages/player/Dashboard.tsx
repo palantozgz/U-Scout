@@ -3,8 +3,10 @@ import { ArrowLeft, Search, Target } from "lucide-react";
 import { useTeams, usePlayers } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useLocale } from "@/lib/i18n";
 
 export default function PlayerModeDashboard() {
+  const { t } = useLocale();
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const { data: teams = [], isLoading: teamsLoading } = useTeams();
@@ -34,8 +36,8 @@ export default function PlayerModeDashboard() {
           </div>
         </div>
         
-        <h1 className="text-3xl font-extrabold tracking-tight mb-2">Scouting Reports</h1>
-        <p className="text-slate-400 text-sm font-medium">Select a matchup to study your opponent.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight mb-2">{t("scouting_reports")}</h1>
+        <p className="text-slate-400 text-sm font-medium">{t("scouting_reports_subtitle")}</p>
         
         <div className="mt-6 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />

@@ -21,7 +21,7 @@ export interface PostQuadrants {
   leftBaseline?: QuadrantMove;
   leftMiddle?: QuadrantMove;
 }
-export type PostProfile = "Back to Basket" | "Face-Up" | "Mixed" | "High Post" | "Stretch Big";
+export type PostProfile = "Back to Basket" | "Face-Up" | "Mixed" | "High Post" | "arch_stretch_big";
 export type DoubleTeamReaction = "Forces Through" | "Kicks Out" | "Resets" | "Mixed";
 export type InteriorIsoAction = "Back Down" | "Face-Up Drive" | "Post Jumper" | "Turnaround" | "Spin" | "Mixed";
 export type ScreenerAction = "Roll" | "Pop" | "Pop (Elbow / Mid)" | "Short Roll" | "Slip" | "Lob Only";
@@ -145,6 +145,12 @@ const isPrimary = (f: IntensityLevel) => f === "Primary";
 const isNeverRare = (f: IntensityLevel) => f === "Never" || f === "Rare";
 const isNever = isNeverRare;
 
+/** Threat radar row labels (i18n keys, not display English). */
+const TRAIT_RADAR_POST = "trait_radar_post";
+const TRAIT_RADAR_ISO = "trait_radar_iso";
+const TRAIT_RADAR_PNR = "trait_radar_pnr";
+const TRAIT_RADAR_OFFBALL = "trait_radar_offball";
+
 function postQuadrantMoveI18nKey(moveName?: string): string {
   if (!moveName) return "";
   switch (moveName) {
@@ -256,7 +262,7 @@ function postProfileTraitToken(postProfile: PostProfile | undefined, physHigh: b
     return "trait_txt_post_profile_face_neutral";
   }
   if (p === "High Post") return "trait_txt_post_profile_high_post";
-  if (p === "Stretch Big") {
+  if (p === "arch_stretch_big") {
     if (physHigh) return "trait_txt_post_profile_stretch_bully";
     if (physLow) return "trait_txt_post_profile_stretch_finesse";
     return "trait_txt_post_profile_stretch_neutral";
@@ -351,7 +357,7 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     teamId, name: "", number: "",
     imageUrl: `https://i.pravatar.cc/150?u=${Date.now()}`,
     inputs,
-    internalModel: defaultInternal, archetype: "Role Player", keyTraits: [],
+    internalModel: defaultInternal, archetype: "arch_role_player", keyTraits: [],
     defensivePlan: { defender: [], forzar: [], concede: [] },
   };
 }
@@ -448,22 +454,22 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
 
   // ── Sort threats ──────────────────────────────────────────────────────────
   const threats = [
-    { label: "Post",     score: postDanger    },
-    { label: "ISO",      score: isoDanger     },
-    { label: "PnR",      score: pnrDanger     },
-    { label: "Off-Ball", score: offBallDanger },
+    { label: TRAIT_RADAR_POST,    score: postDanger    },
+    { label: TRAIT_RADAR_ISO,     score: isoDanger     },
+    { label: TRAIT_RADAR_PNR,     score: pnrDanger     },
+    { label: TRAIT_RADAR_OFFBALL, score: offBallDanger },
   ].sort((a, b) => {
     // Interior + post Primary → post ALWAYS wins regardless of other scores
     if (isInterior && isPrimary(inputs.postFrequency)) {
-      if (a.label === "Post") return -1;
-      if (b.label === "Post") return 1;
+      if (a.label === TRAIT_RADAR_POST) return -1;
+      if (b.label === TRAIT_RADAR_POST) return 1;
     }
     if (b.score !== a.score) return b.score - a.score;
     // Tiebreak: ISO beats Off-Ball for non-big positions (G, G/F, SF, F)
     const isoBig = (inputs.position === "C" || inputs.position === "PF" || inputs.position === "F/C" || inputs.position === "C/F");
     if (!isoBig) {
-      if (a.label === "ISO") return -1;
-      if (b.label === "ISO") return 1;
+      if (a.label === TRAIT_RADAR_ISO) return -1;
+      if (b.label === TRAIT_RADAR_ISO) return 1;
     }
     return 0;
   });
@@ -472,13 +478,13 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
 
   // ── Scoring type — from PRIMARY situation only ────────────────────────────
   let scoringType: InternalProfileModel["scoringType"] = "Balanced";
-  if (primary.label === "Post") {
+  if (primary.label === TRAIT_RADAR_POST) {
     scoringType = "Post Scorer";
-  } else if (primary.label === "ISO") {
+  } else if (primary.label === TRAIT_RADAR_ISO) {
     if (isoDecision === "Finish")      scoringType = athHigh ? "Driver" : "Balanced";
     else if (isoDecision === "Shoot")  scoringType = "Shooter";
     else if (isoDecision === "Pass")   scoringType = "Playmaker";
-  } else if (primary.label === "PnR") {
+  } else if (primary.label === TRAIT_RADAR_PNR) {
     // Pass First = Playmaker. vision=5 + Balanced = also Playmaker (elite distributors like Clark/CP3).
     // visionHigh + Balanced = NOT Playmaker (Luka/Harden score AND distribute — stay Shooter/Driver).
     if (inputs.pnrScoringPriority === "Pass First" || (courtVision >= 5 && inputs.pnrScoringPriority !== "Score First"))
@@ -492,99 +498,103 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
   internal.scoringType = scoringType;
 
   // ── Archetype map ─────────────────────────────────────────────────────────
-  let mainArchetype = "Role Player";
+  let mainArchetype = "arch_role_player";
   let subArchetype  = "";
 
   // Special interior cases (highest priority)
   if (isInterior && isPrimary(inputs.postFrequency) && pnrIsHandler
       && isActive(inputs.pnrFrequency) && (visionHigh || inputs.pnrScoringPriority === "Pass First")) {
-    mainArchetype = "Versatile Big";                          // Jokic
+    mainArchetype = "arch_versatile_big";                          // Jokic
   } else if (isInterior && isActive(inputs.postFrequency)
       && (isPrimary(inputs.isoFrequency) || (isActive(inputs.isoFrequency) && isoDanger >= 8 && isoDecision === "Shoot"))
       && postDanger >= 7 && isoDanger >= 7) {
-    mainArchetype = "Multi-Level Scorer";                      // Embiid, Stewart, Jonquel — post active + PERIMETER threat (Shoot decision)
+    mainArchetype = "arch_multi_level_scorer";                      // Embiid, Stewart, Jonquel — post active + PERIMETER threat (Shoot decision)
   } else if (isInterior && internal.isConnector) {
-    mainArchetype = "Playmaking Big";                          // Draymond, Bam
+    mainArchetype = "arch_playmaking_big";                          // Draymond, Bam
   } else if (isInterior && isNever(inputs.postFrequency) && isActive(inputs.pnrFrequency)
       && pnrIsScreener
       && (inputs.pnrScreenerAction === "Pop" || inputs.pnrScreenerAction === "Pop (Elbow / Mid)")
       && inputs.closeoutReaction === "Catch & Shoot") {
-    mainArchetype = "Stretch Big";                             // Brook Lopez
-  } else if (primary.label === "Post") {
+    mainArchetype = "arch_stretch_big";                             // Brook Lopez
+  } else if (primary.label === TRAIT_RADAR_POST) {
     if (isInterior && !isPrimary(inputs.isoFrequency) && !isPrimary(inputs.pnrFrequency))
-      mainArchetype = "Traditional Post Scorer";               // A'ja Wilson, Kalani Brown — post dominant, no other PRIMARY threat
+      mainArchetype = "arch_traditional_post_scorer";               // A'ja Wilson, Kalani Brown — post dominant, no other PRIMARY threat
     else if (isInterior)
-      mainArchetype = "Low Post Scorer";                       // Lofton, Willy — post + active PnR handler or ISO Primary
+      mainArchetype = "arch_low_post_scorer";                       // Lofton, Willy — post + active PnR handler or ISO Primary
     else if (postProfile === "Face-Up" || postProfile === "High Post")
-      mainArchetype = "Inside-Out Threat";
+      mainArchetype = "arch_inside_out_threat";
     else
-      mainArchetype = "Low Post Scorer";
-  } else if (primary.label === "ISO") {
+      mainArchetype = "arch_low_post_scorer";
+  } else if (primary.label === TRAIT_RADAR_ISO) {
     if (scoringType === "Driver")
       mainArchetype = (isPrimary(inputs.isoFrequency) && isPrimary(inputs.pnrFrequency) && pnrIsHandler)
-        ? "Offensive Engine" : (athHigh ? "Isolation Driver" : "Isolation Scorer");
+        ? "arch_offensive_engine" : (athHigh ? "arch_isolation_driver" : "arch_isolation_scorer");
     else if (scoringType === "Shooter")
       mainArchetype = (isPrimary(inputs.isoFrequency) && isPrimary(inputs.pnrFrequency) && pnrIsHandler)
-        ? "Offensive Engine" : "Shot Creator";
+        ? "arch_offensive_engine" : "arch_shot_creator";
     else if (scoringType === "Playmaker")
-      mainArchetype = "Combo Guard";
+      mainArchetype = "arch_combo_guard";
     else
-      mainArchetype = "Isolation Scorer";
-  } else if (primary.label === "PnR") {
+      mainArchetype = "arch_isolation_scorer";
+  } else if (primary.label === TRAIT_RADAR_PNR) {
     if (pnrIsHandler) {
-      if      (scoringType === "Playmaker")  mainArchetype = "PnR Maestro";
+      if      (scoringType === "Playmaker")  mainArchetype = "arch_pnr_maestro";
       else if (scoringType === "Driver")
         mainArchetype = (isActive(inputs.isoFrequency) && isoDanger >= 8)
-          ? "Offensive Engine" : "PnR Maestro";
+          ? "arch_offensive_engine" : "arch_pnr_maestro";
       else if (scoringType === "Shooter")
         mainArchetype = (isPrimary(inputs.isoFrequency) && isPrimary(inputs.pnrFrequency))
-          ? "Offensive Engine" : "PnR Shooter";
-      else mainArchetype = "PnR Creator";
+          ? "arch_offensive_engine" : "arch_pnr_shooter";
+      else mainArchetype = "arch_pnr_creator";
     } else {
       if      (inputs.pnrScreenerAction === "Roll" || inputs.pnrScreenerAction === "Lob Only")
-        mainArchetype = "Roll Man / Lob Threat";
+        mainArchetype = "arch_roll_lob_threat";
       else if (inputs.pnrScreenerAction === "Pop" || inputs.pnrScreenerAction === "Pop (Elbow / Mid)")
-        mainArchetype = isInterior ? "Stretch Big" : "Pick & Pop Wing";
+        mainArchetype = isInterior ? "arch_stretch_big" : "arch_pick_pop_wing";
       else if (inputs.pnrScreenerAction === "Short Roll")
-        mainArchetype = internal.isConnector ? "Playmaking Big" : "Short Roll Big";
+        mainArchetype = internal.isConnector ? "arch_playmaking_big" : "arch_short_roll_big";
       else
-        mainArchetype = "Slip Threat";
+        mainArchetype = "arch_slip_threat";
     }
   } else { // Off-Ball primary
     if (scoringType === "Shooter")
-      mainArchetype = isPrimary(inputs.indirectsFrequency) ? "Movement Shooter" : "Spot-up Shooter";
+      mainArchetype = isPrimary(inputs.indirectsFrequency) ? "arch_movement_shooter" : "arch_spotup_shooter";
     else if (scoringType === "Driver")
-      mainArchetype = "Cutting Threat";
+      mainArchetype = "arch_cutting_threat";
     else
-      mainArchetype = "3&D Wing";
+      mainArchetype = "arch_3d_wing";
   }
 
-  if (internal.isConnector && mainArchetype === "Role Player")
-    mainArchetype = isInterior ? "Playmaking Big" : "Connector";
-  if (mainArchetype === "Role Player" && threats[0].score >= 5)
-    mainArchetype = "Complementary Piece";
+  if (internal.isConnector && mainArchetype === "arch_role_player")
+    mainArchetype = isInterior ? "arch_playmaking_big" : "arch_connector";
+  if (mainArchetype === "arch_role_player" && threats[0].score >= 5)
+    mainArchetype = "arch_complementary_piece";
 
   // Guard rail: never assign post archetype when postFrequency is Never/Rare
   if (isNever(inputs.postFrequency) &&
-      (mainArchetype === "Traditional Post Scorer" || mainArchetype === "Low Post Scorer"
-       || mainArchetype === "Inside-Out Threat")) {
-    mainArchetype = inputs.closeoutReaction === "Catch & Shoot" ? "3&D Wing" : "Complementary Piece";
+      (mainArchetype === "arch_traditional_post_scorer" || mainArchetype === "arch_low_post_scorer"
+       || mainArchetype === "arch_inside_out_threat")) {
+    mainArchetype = inputs.closeoutReaction === "Catch & Shoot" ? "arch_3d_wing" : "arch_complementary_piece";
   }
   // Guard rail: 3&D Wing when all danger scores very low + catch & shoot
   if (threats[0].score < 4 && inputs.closeoutReaction === "Catch & Shoot") {
-    mainArchetype = "3&D Wing";
+    mainArchetype = "arch_3d_wing";
   }
 
   // Sub-archetype — only if secondary is genuinely significant AND comes from active input
   const secondaryIsReal = secondary.score >= 6 && (
-    (secondary.label === "Post"     && isActive(inputs.postFrequency))  ||
-    (secondary.label === "ISO"      && isActive(inputs.isoFrequency))   ||
-    (secondary.label === "PnR"      && isActive(inputs.pnrFrequency))   ||
-    (secondary.label === "Off-Ball" && isActive(inputs.transitionFrequency))
+    (secondary.label === TRAIT_RADAR_POST    && isActive(inputs.postFrequency))  ||
+    (secondary.label === TRAIT_RADAR_ISO     && isActive(inputs.isoFrequency))   ||
+    (secondary.label === TRAIT_RADAR_PNR     && isActive(inputs.pnrFrequency))   ||
+    (secondary.label === TRAIT_RADAR_OFFBALL && isActive(inputs.transitionFrequency))
   );
   if (secondaryIsReal)
-    subArchetype = { Post: "Post Threat", ISO: "ISO Threat",
-      PnR: "PnR Threat", "Off-Ball": "Off-Ball Threat" }[secondary.label] ?? "";
+    subArchetype = {
+      [TRAIT_RADAR_POST]: "sub_post_threat",
+      [TRAIT_RADAR_ISO]: "sub_iso_threat",
+      [TRAIT_RADAR_PNR]: "sub_pnr_threat",
+      [TRAIT_RADAR_OFFBALL]: "sub_offball_threat",
+    }[secondary.label] ?? "";
 
   // ── Interpreted traits ────────────────────────────────────────────────────
   // Rule: interpret, don't echo. Max 3 per section. Score drives selection.
@@ -594,7 +604,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
   if (postDanger >= 5) {
     // 1. Profile — what kind of post scorer
     internal.postTraits.push({
-      label: isPrimary(inputs.postFrequency) ? "Primary Post Scorer" : "Post Threat",
+      label: isPrimary(inputs.postFrequency) ? "trait_primary_post_scorer" : "trait_post_threat",
       value: postProfileTraitToken(postProfile, physHigh, physLow),
       score: postDanger,
       type: "Strength",
@@ -624,14 +634,14 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
         moveToken = "trait_txt_post_move_multi_quadrants";
       }
       if (moveToken) {
-        internal.postTraits.push({ label: "Move Pattern", value: moveToken, score: postDanger - 1, type: "Strength" });
+        internal.postTraits.push({ label: "trait_move_pattern", value: moveToken, score: postDanger - 1, type: "Strength" });
       }
     }
 
     // 3. Double team behavior — critical for help defense
     if (isPrimary(inputs.postFrequency) && inputs.postDoubleTeamReaction) {
       internal.postTraits.push({
-        label: "On the Double",
+        label: "trait_on_the_double",
         value: `trait_txt_post_double|kind=${doubleTeamKindI18nKey(inputs.postDoubleTeamReaction)}`,
         score: postDanger - 2,
         type: "Strength",
@@ -641,7 +651,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
     // 4. Duck-in / opportunistic interior
     if (isActive(inputs.duckInFrequency ?? "Never")) {
       internal.postTraits.push({
-        label: "Duck-In",
+        label: "trait_duck_in",
         value: isPrimary(inputs.duckInFrequency ?? "Never")
           ? "trait_txt_duck_in_primary"
           : "trait_txt_duck_in_secondary",
@@ -674,7 +684,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
       attackToken = visionHigh ? "trait_txt_iso_attack_pass_vision" : "trait_txt_iso_attack_pass_normal";
     }
     internal.isoTraits.push({
-      label: isPrimary(inputs.isoFrequency) ? "Primary Scorer" : "Secondary Creator",
+      label: isPrimary(inputs.isoFrequency) ? "trait_primary_scorer" : "trait_secondary_creator",
       value: attackToken, score: isoDanger, type: "Strength",
     });
 
@@ -684,7 +694,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
       const dominant = internal.dominantSide.toLowerCase();
       const wlKey = isoOppositeFinishI18nKey(inputs.isoOppositeFinish) || "opt_finish_pullup";
       internal.isoTraits.push({
-        label: "Force Direction",
+        label: "trait_force_direction",
         value: `trait_txt_iso_force_dir|weak=${weak}|dominant=${dominant}|wl=${wlKey}`,
         score: 9, type: "Strength",
       });
@@ -704,12 +714,12 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
       const rk = closeoutReactionI18nKey(inputs.closeoutReaction);
       closeoutToken = rk ? `trait_txt_iso_closeout_one|rxn=${rk}` : "trait_txt_iso_closeout_unknown";
     }
-    internal.isoTraits.push({ label: "Closeout", value: closeoutToken, score: 8, type: "Strength" });
+    internal.isoTraits.push({ label: "trait_closeout", value: closeoutToken, score: 8, type: "Strength" });
 
     // Interior perimeter threat
     if (isInterior && isActive(perimeterThreat)) {
       internal.isoTraits.push({
-        label: "Perimeter Threat",
+        label: "trait_perimeter_threat",
         value: isPrimary(perimeterThreat)
           ? "trait_txt_iso_perim_primary"
           : "trait_txt_iso_perim_secondary",
@@ -731,12 +741,12 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
           ? "trait_txt_pnr_cov_under_pullup3"
           : "trait_txt_pnr_cov_under_attack"
         : "trait_txt_pnr_cov_under_safe";
-      internal.pnrTraits.push({ label: "Screen Coverage", value: coverageToken, score: pnrDanger, type: "Strength" });
+      internal.pnrTraits.push({ label: "trait_screen_coverage", value: coverageToken, score: pnrDanger, type: "Strength" });
 
       // 2. Scoring vs passing — pass-first changes the entire defensive assignment
       if (inputs.pnrScoringPriority === "Pass First" && isPrimary(inputs.pnrFrequency)) {
         internal.pnrTraits.push({
-          label: "Pass-First",
+          label: "trait_pass_first",
           value: visionHigh ? "trait_txt_pnr_pass_first_vision" : "trait_txt_pnr_pass_first",
           score: pnrDanger - 1,
           type: "Strength",
@@ -746,7 +756,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
       // 3. Timing — drag screens change transition rules
       if (inputs.pnrTiming === "Early (Drag)" && isActive(inputs.pnrFrequency)) {
         internal.pnrTraits.push({
-          label: "Drag Screen",
+          label: "trait_drag_screen",
           value: "trait_txt_pnr_drag",
           score: pnrDanger - 1, type: "Strength",
         });
@@ -758,7 +768,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
         const weakKey = pnrFinishI18nKey(inputs.pnrOppositeFinish);
         if (domKey && weakKey) {
           internal.pnrTraits.push({
-            label: "Funnel Direction",
+            label: "trait_funnel_direction",
             value: `trait_txt_pnr_funnel|dominant=${domKey}|weak=${weakKey}`,
             score: pnrDanger - 2, type: "Strength",
           });
@@ -788,13 +798,13 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
           : `trait_txt_pnr_scr_primary|action=${primaryKey}`;
       }
 
-      internal.pnrTraits.push({ label: "Screen Action", value: screenerToken, score: pnrDanger, type: "Strength" });
+      internal.pnrTraits.push({ label: "trait_screen_action", value: screenerToken, score: pnrDanger, type: "Strength" });
     }
 
     // Dual role note
     if (inputs.pnrRole === "Both" && isActive(inputs.pnrFrequency)) {
       internal.pnrTraits.push({
-        label: "Dual Role",
+        label: "trait_dual_role",
         value: "trait_txt_pnr_dual_role",
         score: pnrDanger - 2, type: "Strength",
       });
@@ -816,7 +826,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
         transitionToken = athElite ? "trait_txt_offball_trans_rim_elite" : "trait_txt_offball_trans_rim_playback";
 
       internal.offBallTraits.push({
-        label: "Transition",
+        label: "trait_transition",
         value: transitionToken,
         score: offBallDanger, type: "Strength",
       });
@@ -824,7 +834,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
 
     if (isPrimary(inputs.backdoorFrequency) || (isActive(inputs.backdoorFrequency) && athHigh)) {
       internal.offBallTraits.push({
-        label: "Backdoor",
+        label: "trait_backdoor",
         value: athElite ? "trait_txt_offball_backdoor_elite" : "trait_txt_offball_backdoor_active",
         score: offBallDanger - 1, type: "Strength",
       });
@@ -832,7 +842,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
 
     if (isPrimary(inputs.indirectsFrequency)) {
       internal.offBallTraits.push({
-        label: "Off Screens",
+        label: "trait_off_screens",
         value: isActive(inputs.slipFrequency ?? "Never")
           ? "trait_txt_offball_offscreens_slip"
           : "trait_txt_offball_offscreens",
@@ -840,7 +850,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
       });
     } else if (isActive(inputs.slipFrequency ?? "Never")) {
       internal.offBallTraits.push({
-        label: "Slip Threat",
+        label: "trait_slip_threat",
         value: "trait_txt_offball_slip_threat",
         score: offBallDanger - 2, type: "Strength",
       });
@@ -848,7 +858,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
 
     if (isPrimary(inputs.offensiveReboundFrequency)) {
       internal.offBallTraits.push({
-        label: "Crashing",
+        label: "trait_crashing",
         value: physHigh ? "trait_txt_offball_crash_phys" : "trait_txt_offball_crash",
         score: offBallDanger - 2, type: "Strength",
       });

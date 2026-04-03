@@ -120,12 +120,16 @@ function IntensitySelector({ label, value, onChange, tooltip }: {
 }
 
 // ─── Closeout select ──────────────────────────────────────────────────────────
-function CloseoutSelect({ label, value, onChange, fallback }: {
+function CloseoutSelect({ label, value, onChange, fallback, tooltip }: {
   label: string; value?: CloseoutReaction; onChange: (v: CloseoutReaction) => void; fallback: CloseoutReaction;
+  tooltip?: string;
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="font-semibold text-slate-700 dark:text-slate-300 text-xs">{label}</Label>
+      <div className="flex items-center gap-0.5">
+        <Label className="font-semibold text-slate-700 dark:text-slate-300 text-xs">{label}</Label>
+        {tooltip && <Tooltip text={tooltip} />}
+      </div>
       <Select value={value ?? fallback} onValueChange={v => onChange(v as CloseoutReaction)}>
         <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-xs">
           <SelectValue />
@@ -174,7 +178,7 @@ function HalfCourtDiagram({ dominant }: { dominant?: "Right" | "Left" }) {
         <line x1="208" y1="103" x2="208" y2="148" stroke="#94a3b8" strokeWidth="0.8" strokeDasharray="2,2"/>
 
         {/* CENTER COURT direction label */}
-        <text x="120" y="13" textAnchor="middle" fontSize="6" fill="#94a3b8">↑ center court</text>
+        <text x="120" y="13" textAnchor="middle" fontSize="6" fill="#94a3b8">↑ {t("center_court")}</text>
 
         {/* L block — LEFT side of diagram = player's left when back to baseline */}
         <rect x="52" y="120" width="24" height="18"
@@ -203,8 +207,8 @@ function HalfCourtDiagram({ dominant }: { dominant?: "Right" | "Left" }) {
         <path d="M 164 129 L 145 129" stroke="#ef4444" strokeWidth="1" markerEnd="url(#arrowRed)" opacity="0.5"/>
 
         {/* Block labels — below court, clear of lines */}
-        <text x="64" y="168" textAnchor="middle" fontSize="7" fontWeight="700" fill="#2563eb">LEFT BLOCK</text>
-        <text x="176" y="168" textAnchor="middle" fontSize="7" fontWeight="700" fill="#dc2626">RIGHT BLOCK</text>
+        <text x="64" y="168" textAnchor="middle" fontSize="7" fontWeight="700" fill="#2563eb">{t("left_block")}</text>
+        <text x="176" y="168" textAnchor="middle" fontSize="7" fontWeight="700" fill="#dc2626">{t("right_block_label")}</text>
 
         <defs>
           <marker id="arrowRed" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto">
@@ -252,21 +256,21 @@ const QUADRANT_MOVES = {
 } as const;
 
 const MOVE_DESC: Record<string, string> = {
-  "Drop Step (Baseline)": "Power step toward the baseline, sealing the defender.",
-  "Drop Step (Middle)": "Power step toward the middle of the paint.",
-  "Jump Hook": "Hook with the near hand. Hard to block due to angle.",
-  "Cross Hook": "Hook with the far hand. Catches defenders who overplay.",
+  "Drop Step (Baseline)": t("move_desc_drop_step"),
+  "Drop Step (Middle)": t("move_desc_drop_step"),
+  "Jump Hook": t("move_desc_jump_hook"),
+  "Cross Hook": t("move_desc_cross_hook"),
   "Up & Under": "Fakes a hook, makes the defender jump, steps through.",
   "Spin Move (Baseline)": "Explosive spin toward the baseline.",
-  "Fadeaway": "Backward jump shot, creates space against physical defenders.",
-  "Turnaround Jumper": "Pivot and jump shot — Tim Duncan style.",
-  "Face-up Drive": "Faces the defender and attacks off the dribble.",
-  "Back Down": "Uses body strength to push defender to the rim.",
-  "Baby Hook": "Short hook from mid-distance. Does not need to reach the rim.",
-  "Dream Shake": "Series of fakes to make the defender commit early.",
-  "Pass to cutter": "Her first option in this quadrant is finding the cutter.",
-  "Kick out to perimeter": "Draws the double team and kicks to the open shooter.",
-  "High-low pass": "Finds the other post player cutting from the high post.",
+  "Fadeaway": t("move_desc_fadeaway"),
+  "Turnaround Jumper": t("move_desc_turnaround"),
+  "Face-up Drive": t("move_desc_face_up_drive"),
+  "Back Down": t("move_desc_back_down"),
+  "Baby Hook": t("move_desc_baby_hook"),
+  "Dream Shake": t("move_desc_dream_shake"),
+  "Pass to cutter": t("move_desc_pass_cutter"),
+  "Kick out to perimeter": t("move_desc_kick_out"),
+  "High-low pass": t("move_desc_high_low"),
 };
 
 function PostQuadrantSelector({ value, onChange, dominantHand }: {
@@ -275,10 +279,10 @@ function PostQuadrantSelector({ value, onChange, dominantHand }: {
   const quadrants: {
     key: keyof PostQuadrants; label: string; side: "right" | "left"; dir: "baseline" | "middle";
   }[] = [
-    { key: "rightBaseline", label: "Right block → Baseline", side: "right", dir: "baseline" },
-    { key: "rightMiddle",   label: "Right block → Middle",   side: "right", dir: "middle"   },
-    { key: "leftBaseline",  label: "Left block → Baseline",  side: "left",  dir: "baseline" },
-    { key: "leftMiddle",    label: "Left block → Middle",    side: "left",  dir: "middle"   },
+    { key: "rightBaseline", label: t("block_right_baseline"), side: "right", dir: "baseline" },
+    { key: "rightMiddle",   label: t("block_right_middle"),   side: "right", dir: "middle"   },
+    { key: "leftBaseline",  label: t("block_left_baseline"),  side: "left",  dir: "baseline" },
+    { key: "leftMiddle",    label: t("block_left_middle"),    side: "left",  dir: "middle"   },
   ];
 
   const updateQ = (key: keyof PostQuadrants, moveName: string | null) =>
@@ -287,8 +291,8 @@ function PostQuadrantSelector({ value, onChange, dominantHand }: {
   return (
     <div className="space-y-3">
       <FieldLabel
-        label="Moves by quadrant"
-        tooltip="For each combination of receiving block and attack direction, select what she typically does. All fields optional — only fill what you have actually observed. Score options and pass options are both available."
+        label={t("post_moves_quadrant")}
+        tooltip={t("hint_post_quadrant")}
       />
       <HalfCourtDiagram dominant={dominantHand} />
       <div className="grid grid-cols-2 gap-2">
@@ -575,7 +579,7 @@ export default function PlayerEditor() {
             <div>
               <h1 className="font-bold text-sm leading-tight text-slate-900 dark:text-white line-clamp-1 max-w-[120px]">{player.name || "New Player"}</h1>
               <div className="flex items-center gap-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{isNew ? "Create" : "Edit"}</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{isNew ? t("create") : t("edit")}</p>
                 {draftSaved && (
                   <span className="flex items-center gap-0.5 text-[10px] text-emerald-500 font-bold animate-in fade-in">
                     <Check className="w-2.5 h-2.5" /> Saved
@@ -650,7 +654,7 @@ export default function PlayerEditor() {
                   <Input value={player.number} onChange={e => um("number", e.target.value)} placeholder="e.g. 23" className="bg-slate-50 dark:bg-slate-950/50 h-12 rounded-xl dark:border-slate-800" />
                 </div>
                 <div className="space-y-1.5">
-                  <FieldLabel label={t("position")} tooltip="Primary position. Add a secondary position for hybrid players — e.g. F/C for Giannis, G/F for LeBron. The motor uses this to detect hybrid archetypes correctly." />
+                  <FieldLabel label={t("position")} tooltip={t("hint_position")} />
                   <div className="flex gap-2 flex-wrap">
                     {(["PG","SG","SF","PF","C"] as const).map(pos => {
                       const current = inputs.position ?? "";
@@ -674,7 +678,7 @@ export default function PlayerEditor() {
                     })}
                   </div>
                   {inputs.position && inputs.position.includes("/") && (
-                    <p className="text-xs text-primary font-semibold">{inputs.position} selected — hybrid detection active</p>
+                    <p className="text-xs text-primary font-semibold">{t("hybrid_detection_active").replace("{position}", inputs.position)}</p>
                   )}
                 </div>
               </div>
@@ -703,11 +707,11 @@ export default function PlayerEditor() {
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm">
               <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">💪 {t("physical_profile")}</h3>
               <PowerBar label={t("athleticism")} value={inputs.athleticism} onChange={v => ui("athleticism", v)}
-                tooltip="1 = very limited athlete. 5 = elite explosiveness. Affects drive danger, backdoor cut risk, and transition threat level." />
+                tooltip={t("hint_athleticism")} />
               <PowerBar label={t("physical_strength")} value={inputs.physicalStrength} onChange={v => ui("physicalStrength", v)}
-                tooltip="1 = weak in contact situations. 5 = physically dominant. Affects post danger, back-down effectiveness, and finishing through contact." />
+                tooltip={t("hint_physical_strength")} />
               <PowerBar label={t("court_vision")} value={inputs.courtVision} onChange={v => ui("courtVision", v)} color="green"
-                tooltip="1 = limited passer. 5 = elite playmaker. Unlocks Versatile Big, Playmaking Big, and Connector archetypes. Affects pass-first PnR reads and defensive plan." />
+                tooltip={t("hint_court_vision")} />
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -717,18 +721,15 @@ export default function PlayerEditor() {
                 value={(inputs as any).ftShooting ?? 3}
                 onChange={v => ui("ftShooting" as any, v)}
                 color="green"
-                tooltip="1 = poor FT shooter (< 55%), very hackable. 5 = elite FT shooter (> 88%), never foul intentionally. Affects 'concede' recommendations."
+                tooltip={t("hint_ft_shooting")}
               />
               <PowerBar
                 label={t("foul_drawing")}
                 value={(inputs as any).foulDrawing ?? 2}
                 onChange={v => ui("foulDrawing" as any, v)}
                 color="amber"
-                tooltip="How often does she draw fouls and get to the line? 1 = rarely draws fouls. 5 = elite at drawing contact — fouling her is very costly."
+                tooltip={t("hint_foul_drawing")}
               />
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                💡 <strong className="text-slate-700 dark:text-slate-300">Foul strategy:</strong> Low FT% + Low foul drawing = safe to foul on post catches. High FT% + High foul drawing = avoid all contact.
-              </div>
             </div>
           </TabsContent>
 
@@ -737,28 +738,28 @@ export default function PlayerEditor() {
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-purple-500">
               <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">
                 <svg className="w-5 h-5 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M12 2v20"/><path d="M9 10h6"/><path d="M9 14h6"/></svg>
-                Post &amp; Interior Game
+                {t("section_post")}
               </h3>
 
               <IntensitySelector label={t("post_frequency")} value={inputs.postFrequency} onChange={v => ui("postFrequency", v)}
-                tooltip="How often does she look to score from the low or high post? Primary = major weapon. Secondary = uses it selectively. Rare = almost never. Never = no post game." />
+                tooltip={t("hint_post_frequency")} />
 
               {postActive && (<>
                 <div className="space-y-2">
-                  <FieldLabel label="Dominant post hand" tooltip="The hand she prefers to finish with in the post. Determines which block is her strong side — shown with ★ in the diagram below." />
+                  <FieldLabel label={t("post_dominant_hand")} tooltip={t("hint_post_dominant_hand")} />
                   <div className="flex gap-2">
                     {(["Right", "Left"] as const).map(h => (
                       <Button key={h} type="button" variant={inputs.postDominantHand === h ? "default" : "outline"}
                         className={`flex-1 rounded-xl font-bold ${inputs.postDominantHand === h ? "bg-purple-500 border-purple-500 text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
                         onClick={() => ui("postDominantHand", h)}>
-                        {h === "Right" ? "🤜 Right hand" : "🤛 Left hand"}
+                        {h === "Right" ? `🤜 ${t("right_hand")}` : `🤛 ${t("left_hand")}`}
                       </Button>
                     ))}
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <FieldLabel label="Interior game profile" tooltip="What type of post player is she? Affects how the defensive plan is generated." />
+                  <FieldLabel label={t("post_profile")} tooltip={t("hint_post_profile")} />
                   <Select value={inputs.postProfile ?? "Back to Basket"} onValueChange={v => ui("postProfile", v)}>
                     <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -780,10 +781,10 @@ export default function PlayerEditor() {
                 <IntensitySelector label={t("post_duck_in")}
                   value={(inputs as any).duckInFrequency ?? "Never"}
                   onChange={v => ui("duckInFrequency" as any, v)}
-                  tooltip="A duck-in is when she seals the defender on her back during live play and calls for the ball — not a set play, an opportunistic read. Common for interior players who recognize a size mismatch mid-possession." />
+                  tooltip={t("hint_duck_in")} />
 
                 <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                  <FieldLabel label={t("post_double_team")} tooltip="What does she do when two defenders collapse on her in the post?" />
+                  <FieldLabel label={t("post_double_team")} tooltip={t("hint_post_double_team")} />
                   <Select value={inputs.postDoubleTeamReaction ?? "Kicks Out"} onValueChange={v => ui("postDoubleTeamReaction", v)}>
                     <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -801,7 +802,7 @@ export default function PlayerEditor() {
           {/* ── ISO ── */}
           <TabsContent value="iso" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-orange-500">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Flame className="w-5 h-5 text-orange-500" /> Isolation Tendencies</h3>
+              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Flame className="w-5 h-5 text-orange-500" /> {t("section_iso")}</h3>
 
               {isInterior && (
                 <div className="flex gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800">
@@ -813,12 +814,12 @@ export default function PlayerEditor() {
               )}
 
               <IntensitySelector label={t("iso_frequency")} value={inputs.isoFrequency} onChange={v => ui("isoFrequency", v)}
-                tooltip="How often does she create 1-on-1 from the PERIMETER — receiving outside the paint and attacking with the dribble. For interior creation from the block or elbow, use the Post tab (Post-Up Frequency + Interior creation style). Mixing these up will produce incorrect archetypes." />
+                tooltip={t("hint_iso_frequency")} />
 
               {/* Interior ISO style — only for pure interior (not hybrid) */}
               {isInterior && !isHybridBig && (
                 <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-xl border border-purple-200 dark:border-purple-800 space-y-2">
-                  <FieldLabel label="Interior ISO style" tooltip="For pure interior players, ISO happens from the post or elbow — not perimeter dribble creation." />
+                  <FieldLabel label="Interior ISO style" tooltip={t("hint_iso_interior_style")} />
                   <Select value={inputs.postIsoAction ?? "Mixed"} onValueChange={v => ui("postIsoAction", v)}>
                     <SelectTrigger className="h-12 rounded-xl bg-white dark:bg-slate-900 dark:border-slate-800"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -837,7 +838,7 @@ export default function PlayerEditor() {
               {isHybridBig && (
                 <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-800 space-y-2">
                   <p className="text-xs font-bold text-amber-700 dark:text-amber-400">⚡ Hybrid big detected — showing full ISO options</p>
-                  <FieldLabel label="Primary ISO style" tooltip="This player creates from both the interior and perimeter. Select the most common ISO style." />
+                  <FieldLabel label="Primary ISO style" tooltip={t("hint_iso_primary_style")} />
                   <Select value={inputs.postIsoAction ?? "Mixed"} onValueChange={v => ui("postIsoAction", v)}>
                     <SelectTrigger className="h-12 rounded-xl bg-white dark:bg-slate-900 dark:border-slate-800"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -853,12 +854,12 @@ export default function PlayerEditor() {
               )}
 
               <div className="space-y-2">
-                <FieldLabel label={t("iso_dominant_direction")} tooltip="Left = attacks to her left. Right = attacks to her right. Balanced = comfortable both ways. Feeds the 'Force' recommendation in the defensive plan." />
+                <FieldLabel label={t("iso_dominant_direction")} tooltip={t("hint_iso_dominant_direction")} />
                 <div className="flex gap-2">
                   {(["Left", "Right", "Balanced"] as const).map(dir => (
                     <Button key={dir} type="button" variant={inputs.isoDominantDirection === dir ? "default" : "outline"}
                       className={`flex-1 rounded-xl ${inputs.isoDominantDirection === dir ? "bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
-                      onClick={() => ui("isoDominantDirection", dir)}>{dir}</Button>
+                      onClick={() => ui("isoDominantDirection", dir)}>{dir === "Left" ? t("dir_left") : dir === "Right" ? t("dir_right") : t("dir_balanced")}</Button>
                   ))}
                 </div>
               </div>
@@ -866,7 +867,7 @@ export default function PlayerEditor() {
               {/* Perimeter ISO options — show for guards/wings AND hybrid bigs */}
               {(!isInterior || isHybridBig) && (<>
                 <div className="space-y-2">
-                  <FieldLabel label={t("iso_initiation")} tooltip="Controlled = sets up with a jab step or reads the defense. Quick Attack = attacks immediately off the catch before the defense can set." />
+                  <FieldLabel label={t("iso_initiation")} tooltip={t("hint_iso_initiation")} />
                   <Select value={inputs.isoInitiation ?? "Controlled"} onValueChange={v => ui("isoInitiation", v)}>
                     <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -877,7 +878,7 @@ export default function PlayerEditor() {
                 </div>
 
                 <div className="space-y-2">
-                  <FieldLabel label={t("iso_decision")} tooltip="Once she beats her defender, what does she typically do?" />
+                  <FieldLabel label={t("iso_decision")} tooltip={t("hint_iso_decision")} />
                   <Select value={inputs.isoDecision ?? "Finish"} onValueChange={v => ui("isoDecision", v)}>
                     <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -891,8 +892,8 @@ export default function PlayerEditor() {
                 {inputs.isoDominantDirection !== "Balanced" && (
                   <div className="space-y-2 animate-in fade-in">
                     <FieldLabel
-                      label={`Off-hand finish — ${inputs.isoDominantDirection === "Right" ? "going left" : "going right"}`}
-                      tooltip="When forced to her weaker side, what does she do? This becomes the 'Force' direction in the defensive plan."
+                      label={`${t("offhand_finish_going").replace("{direction}", inputs.isoDominantDirection === "Right" ? t("going_left") : t("going_right"))}`}
+                      tooltip={t("hint_iso_opposite_finish")}
                     />
                     <Select value={inputs.isoOppositeFinish ?? "Drive"} onValueChange={v => ui("isoOppositeFinish", v)}>
                       <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
@@ -907,7 +908,7 @@ export default function PlayerEditor() {
               </>)}
 
               <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
-                <FieldLabel label={t("closeout_general")} tooltip="What does she do when a defender runs at her on a closeout? Default for both wings unless overridden below." />
+                <FieldLabel label={t("closeout_general")} tooltip={t("hint_closeout_general")} />
                 <Select value={inputs.closeoutReaction} onValueChange={v => ui("closeoutReaction", v)}>
                   <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -919,10 +920,10 @@ export default function PlayerEditor() {
                     <SelectItem value="Extra Pass">{t("opt_closeout_extra_pass")}</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Per-wing override <span className="normal-case font-normal">(optional)</span></p>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("per_wing_override")}</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <CloseoutSelect label="⬅️ Left Wing" value={inputs.closeoutLeft} onChange={v => ui("closeoutLeft", v)} fallback={inputs.closeoutReaction} />
-                  <CloseoutSelect label="➡️ Right Wing" value={inputs.closeoutRight} onChange={v => ui("closeoutRight", v)} fallback={inputs.closeoutReaction} />
+                  <CloseoutSelect label={`⬅️ ${t("left_wing")}`} value={inputs.closeoutLeft} onChange={v => ui("closeoutLeft", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
+                  <CloseoutSelect label={`➡️ ${t("right_wing")}`} value={inputs.closeoutRight} onChange={v => ui("closeoutRight", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
                 </div>
               </div>
             </div>
@@ -931,25 +932,25 @@ export default function PlayerEditor() {
           {/* ── PNR ── */}
           <TabsContent value="pnr" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-blue-500">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Zap className="w-5 h-5 text-blue-500" /> Pick &amp; Roll</h3>
+              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Zap className="w-5 h-5 text-blue-500" /> {t("section_pnr")}</h3>
 
               <IntensitySelector label={t("pnr_frequency")} value={inputs.pnrFrequency} onChange={v => ui("pnrFrequency", v)}
-                tooltip="How often does she participate in pick-and-roll actions, as handler or screener?" />
+                tooltip={t("hint_pnr_frequency")} />
 
               <div className="space-y-2">
-                <FieldLabel label={t("pnr_role")} tooltip="Handler = uses the screen as the ball handler. Screener = sets the screen. Both = can do either depending on the lineup (e.g. Draymond, Lofton, Jokic)." />
+                <FieldLabel label={t("pnr_role")} tooltip={t("hint_pnr_role")} />
                 <div className="flex gap-2">
                   {["Handler", "Screener", "Both"].map(v => (
                     <Button key={v} type="button" variant={(inputs.pnrRole as any) === v ? "default" : "outline"}
                       className={`flex-1 rounded-xl text-sm font-bold ${(inputs.pnrRole as any) === v ? "bg-slate-800 text-white dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
-                      onClick={() => ui("pnrRole", v as any)}>{v}</Button>
+                      onClick={() => ui("pnrRole", v as any)}>{v === "Handler" ? t("handler") : v === "Screener" ? t("screener") : t("both")}</Button>
                   ))}
                 </div>
               </div>
 
               {pnrBoth && (
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800 space-y-2">
-                  <FieldLabel label={t("pnr_primary_role")} tooltip="When she plays both roles, which one is more common?" />
+                  <FieldLabel label={t("pnr_primary_role")} tooltip={t("hint_pnr_primary_role")} />
                   <div className="flex gap-2">
                     {["Handler", "Screener", "Balanced"].map(v => (
                       <Button key={v} type="button" variant={inputs.pnrRoleSecondary === v ? "default" : "outline"}
@@ -964,7 +965,7 @@ export default function PlayerEditor() {
                 <div className={`space-y-4 ${pnrBoth ? "border border-slate-200 dark:border-slate-700 rounded-xl p-3" : ""} animate-in fade-in`}>
                   {pnrBoth && <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("as_handler")}</p>}
                   <div className="space-y-2">
-                    <FieldLabel label={t("pnr_scoring_priority")} tooltip="Score First = attacks the basket. Pass First = looks for the open screener. Balanced = reads the defense." />
+                    <FieldLabel label={t("pnr_scoring_priority")} tooltip={t("hint_pnr_scoring")} />
                     <Select value={inputs.pnrScoringPriority} onValueChange={v => ui("pnrScoringPriority", v)}>
                       <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -975,7 +976,7 @@ export default function PlayerEditor() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <FieldLabel label={t("pnr_reaction_under")} tooltip="When the defender goes under the screen, what does she do? This determines whether going under is safe." />
+                    <FieldLabel label={t("pnr_reaction_under")} tooltip={t("hint_pnr_under")} />
                     <Select value={inputs.pnrReactionVsUnder} onValueChange={v => ui("pnrReactionVsUnder", v)}>
                       <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -986,7 +987,7 @@ export default function PlayerEditor() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <FieldLabel label={t("pnr_timing")} tooltip="Drag/Step-up = early in the shot clock or in transition. Half-court = deliberate set plays." />
+                    <FieldLabel label={t("pnr_timing")} tooltip={t("hint_pnr_timing")} />
                     <Select value={inputs.pnrTiming} onValueChange={v => ui("pnrTiming", v)}>
                       <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1000,7 +1001,7 @@ export default function PlayerEditor() {
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("finish_by_direction")}</p>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Primary option</Label>
+                          <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t("pnr_primary_option")}</Label>
                           <Select value={inputs.pnrDominantFinish ?? "Drive to Rim"} onValueChange={v => ui("pnrDominantFinish", v)}>
                             <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -1012,7 +1013,7 @@ export default function PlayerEditor() {
                           </Select>
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Weaker option</Label>
+                          <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t("pnr_weaker_option")}</Label>
                           <Select value={inputs.pnrOppositeFinish ?? "Pull-up"} onValueChange={v => ui("pnrOppositeFinish", v)}>
                             <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -1046,13 +1047,13 @@ export default function PlayerEditor() {
           {/* ── OFF-BALL ── */}
           <TabsContent value="offball" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-emerald-500">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Target className="w-5 h-5 text-emerald-500" /> Off-Ball Activity</h3>
+              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Target className="w-5 h-5 text-emerald-500" /> {t("section_offball_activity")}</h3>
 
               <IntensitySelector label={t("transition_frequency")} value={inputs.transitionFrequency} onChange={v => ui("transitionFrequency", v)}
-                tooltip="How active is she when her team gets a live-ball transition opportunity? Primary = key weapon in the open floor." />
+                tooltip={t("hint_transition_frequency")} />
 
               <div className="space-y-2">
-                <FieldLabel label={t("transition_role")} tooltip="Pusher = pushes ball up the floor herself. Outlet = runs wide open for catch-and-shoot. Rim Runner = sprints ahead for the lob at the rim. Trailer = arrives late for the pull-up three." />
+                <FieldLabel label={t("transition_role")} tooltip={t("hint_transition_role")} />
                 <Select value={inputs.transitionRole} onValueChange={v => ui("transitionRole", v)}>
                   <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -1065,19 +1066,19 @@ export default function PlayerEditor() {
               </div>
 
               <IntensitySelector label={t("indirects")} value={inputs.indirectsFrequency} onChange={v => ui("indirectsFrequency", v)}
-                tooltip="How often does she use away-from-ball screens to get open? Includes pin-downs, flare screens, curls, and stagger screens — any screen used to free up a cutter or shooter off the ball." />
+                tooltip={t("hint_indirects")} />
 
               <IntensitySelector label={t("slip")} value={(inputs as any).slipFrequency ?? "Never"} onChange={v => ui("slipFrequency" as any, v)}
-                tooltip="How often does she slip (cut early before the screen is fully set) when using off-ball screens? She fakes using the screen and cuts backdoor or to the rim — catches the defense completely off guard." />
+                tooltip={t("hint_slip")} />
 
               <IntensitySelector label={t("backdoor")} value={inputs.backdoorFrequency} onChange={v => ui("backdoorFrequency", v)}
-                tooltip="How often does she cut backdoor when over-defended on the perimeter? Primary = reads any over-play and cuts immediately. Combined with high athleticism, this becomes a major threat." />
+                tooltip={t("hint_backdoor")} />
 
               <IntensitySelector label={t("duck_in_offball")} value={(inputs as any).duckInFrequency ?? "Never"} onChange={v => ui("duckInFrequency" as any, v)}
-                tooltip="A duck-in is when she seals the defender mid-play and calls for the ball — opportunistic interior scoring without a set play. Common for physical interior players who recognize mismatches." />
+                tooltip={t("hint_duck_in")} />
 
               <IntensitySelector label={t("orb")} value={inputs.offensiveReboundFrequency} onChange={v => ui("offensiveReboundFrequency", v)}
-                tooltip="How aggressively does she pursue offensive rebounds? Primary = crashes the glass every possession, must be boxed out constantly." />
+                tooltip={t("hint_orb")} />
             </div>
           </TabsContent>
         </Tabs>

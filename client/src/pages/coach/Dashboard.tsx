@@ -122,7 +122,7 @@ export default function CoachDashboard() {
             className="text-xs h-9 font-bold bg-white dark:bg-slate-900"
             data-testid="button-add-team"
           >
-            <Plus className="w-3 h-3 mr-1" /> Team
+            <Plus className="w-3 h-3 mr-1" />{`+ ${t("team")}`}
           </Button>
         </div>
       </header>
@@ -301,7 +301,7 @@ function PlayerRow({
         className="h-9 px-3 shrink-0 rounded-xl text-xs font-bold border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
         data-testid={`button-edit-player-${player.id}`}
       >
-        <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+        <Pencil className="w-3.5 h-3.5 mr-1.5" /> {t("edit")}
       </Button>
       <Button
         size="icon"
