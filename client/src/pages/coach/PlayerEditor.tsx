@@ -260,7 +260,7 @@ const MOVE_DESC: Record<string, string> = {
   "Drop Step (Middle)": t("move_desc_drop_step"),
   "Jump Hook": t("move_desc_jump_hook"),
   "Cross Hook": t("move_desc_cross_hook"),
-  "Up & Under": "Fakes a hook, makes the defender jump, steps through.",
+  "Up & Under": t("move_desc_up_under"),
   "Spin Move (Baseline)": "Explosive spin toward the baseline.",
   "Fadeaway": t("move_desc_fadeaway"),
   "Turnaround Jumper": t("move_desc_turnaround"),
@@ -808,7 +808,7 @@ export default function PlayerEditor() {
                 <div className="flex gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800">
                   <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                    <strong>ISO = perimeter creation only.</strong> For block/elbow creation (drop step, hook, face-up drive), use the <strong>Post tab</strong>. Only fill ISO frequency if she creates from outside the paint with the dribble.
+                    {t("iso_perimeter_note")}
                   </p>
                 </div>
               )}
@@ -834,11 +834,11 @@ export default function PlayerEditor() {
                 </div>
               )}
 
-              {/* Hybrid big — show both interior style AND perimeter options */}
+              {/* Hybrid: show interior + perimeter ISO options */}
               {isHybridBig && (
                 <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-800 space-y-2">
-                  <p className="text-xs font-bold text-amber-700 dark:text-amber-400">⚡ Hybrid big detected — showing full ISO options</p>
-                  <FieldLabel label="Primary ISO style" tooltip={t("hint_iso_primary_style")} />
+                  <p className="text-xs font-bold text-amber-700 dark:text-amber-400">⚡ {t("hybrid_big_detected")}</p>
+                  <FieldLabel label={t("iso_primary_style")} tooltip={t("hint_iso_primary_style")} />
                   <Select value={inputs.postIsoAction ?? "Mixed"} onValueChange={v => ui("postIsoAction", v)}>
                     <SelectTrigger className="h-12 rounded-xl bg-white dark:bg-slate-900 dark:border-slate-800"><SelectValue /></SelectTrigger>
                     <SelectContent>

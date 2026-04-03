@@ -4,6 +4,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import { useAuth } from "@/lib/useAuth";
+import Login from "@/pages/Login";
 
 import Home from "@/pages/Home";
 import CoachDashboard from "@/pages/coach/Dashboard";
@@ -17,6 +19,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/login" component={Login} />
 
       {/* Coach Mode */}
       <Route path="/coach" component={CoachDashboard} />
@@ -36,6 +39,16 @@ function Router() {
 }
 
 function App() {
+  const { user, loading } = useAuth();
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[100dvh]">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!user) return <Login />;
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
