@@ -363,12 +363,12 @@ function PostQuadrantSelector({ value, onChange, dominantHand }: {
 // SCREENER_OPTIONS uses static t() (no hook) — safe outside component
 // To translate desc strings, add hint_screen_* keys to i18n.ts
 const getScreenerOptions = () => [
-  { value: "Roll" as ScreenerAction,              label: t("opt_screen_roll"),       desc: "Cuts directly to the rim — lob or deep pass threat." },
-  { value: "Pop" as ScreenerAction,               label: t("opt_screen_pop"),        desc: "Opens to the three-point line — must be picked up immediately." },
-  { value: "Pop (Elbow / Mid)" as ScreenerAction, label: t("opt_screen_pop_elbow"),  desc: "Opens to the elbow — shoot mid-range or pass to the cutter." },
-  { value: "Short Roll" as ScreenerAction,        label: t("opt_screen_short_roll"), desc: "Stops at the free throw line — shoot, drive, or find the cutter." },
-  { value: "Slip" as ScreenerAction,              label: t("opt_screen_slip"),       desc: "Cuts before the screen is set — catches the defense off guard." },
-  { value: "Lob Only" as ScreenerAction,          label: t("opt_screen_lob"),        desc: "Purely a lob/alley-oop threat — no other option." },
+  { value: "Roll" as ScreenerAction,              label: t("opt_screen_roll"),       desc: t("screen_desc_roll") },
+  { value: "Pop" as ScreenerAction,               label: t("opt_screen_pop"),        desc: t("screen_desc_pop") },
+  { value: "Pop (Elbow / Mid)" as ScreenerAction, label: t("opt_screen_pop_elbow"),  desc: t("screen_desc_pop_elbow") },
+  { value: "Short Roll" as ScreenerAction,        label: t("opt_screen_short_roll"), desc: t("screen_desc_short_roll") },
+  { value: "Slip" as ScreenerAction,              label: t("opt_screen_slip"),       desc: t("screen_desc_slip") },
+  { value: "Lob Only" as ScreenerAction,          label: t("opt_screen_lob"),        desc: t("screen_desc_lob") },
 ];
 
 function ScreenerActionSelector({ primaryValue, secondaryValue, onPrimaryChange, onSecondaryChange }: {
@@ -379,7 +379,7 @@ function ScreenerActionSelector({ primaryValue, secondaryValue, onPrimaryChange,
   return (
     <div className="space-y-3">
       <div className="space-y-2">
-        <FieldLabel label="Primary screener action" tooltip={t("hint_screener_primary")} />
+        <FieldLabel label={t("pnr_screener_action")} tooltip={t("hint_screener_primary")} />
         <div className="space-y-1.5">
           {getScreenerOptions().map(opt => (
             <button key={opt.value} type="button"
@@ -399,7 +399,7 @@ function ScreenerActionSelector({ primaryValue, secondaryValue, onPrimaryChange,
         </div>
       </div>
       <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-        <FieldLabel label="Secondary action" tooltip={t("hint_screener_secondary")} />
+        <FieldLabel label={t("pnr_screener_action_secondary")} tooltip={t("hint_screener_secondary")} />
         <Select value={secondaryValue ?? "none"} onValueChange={v => onSecondaryChange(v === "none" ? undefined : v as ScreenerAction)}>
           <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-sm"><SelectValue placeholder="None" /></SelectTrigger>
           <SelectContent>
@@ -955,7 +955,9 @@ export default function PlayerEditor() {
                     {["Handler", "Screener", "Balanced"].map(v => (
                       <Button key={v} type="button" variant={inputs.pnrRoleSecondary === v ? "default" : "outline"}
                         className={`flex-1 rounded-xl text-xs font-bold ${inputs.pnrRoleSecondary === v ? "bg-blue-500 border-blue-500 text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
-                        onClick={() => ui("pnrRoleSecondary", v as any)}>{v}</Button>
+                        onClick={() => ui("pnrRoleSecondary", v as any)}>
+                        {v === "Handler" ? t("handler") : v === "Screener" ? t("screener") : t("balanced")}
+                      </Button>
                     ))}
                   </div>
                 </div>
