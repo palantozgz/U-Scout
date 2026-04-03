@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useRoute, useLocation } from "wouter";
-import { usePlayer, useTeams } from "@/lib/mock-data";
+import { usePlayer, useTeams, generateProfile } from "@/lib/mock-data";
 import { useLocale } from "@/lib/i18n";
 import { ArrowLeft, ChevronRight, ChevronLeft, ShieldAlert, Shield, Plus, X, BookOpen, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,11 @@ function translateOutput(item: string, tFn: (key: any) => string): string {
     // If t() returned the key itself, it's not in i18n — show raw
     if (s === key) return item;
     Object.entries(params).forEach(([k, v]) => {
-      s = s.replace(new RegExp(`\\{${k}\\}`, "g"), v);
+      // Translate param values too (e.g. {side}=left, {wl}=opt_finish_pullup)
+      // If there's no i18n entry for the param value, fallback to the raw one.
+      const translatedParam = tFn(v as any);
+      const replacement = translatedParam === v ? v : translatedParam;
+      s = s.replace(new RegExp(`\\{${k}\\}`, "g"), replacement);
     });
     return s;
   }
@@ -121,6 +125,7 @@ function EmptySlate({ text }: { text: string }) {
 
 // ScrollSlide — slide wrapper with top/bottom scroll indicators
 function ScrollSlide({ children, accentColor }: { children: React.ReactNode; accentColor: string }) {
+  const { t } = useLocale();
   const ref = React.useRef<HTMLDivElement>(null);
   const [canScrollDown, setCanScrollDown] = React.useState(false);
   const [canScrollUp,   setCanScrollUp]   = React.useState(false);
@@ -164,7 +169,7 @@ function ScrollSlide({ children, accentColor }: { children: React.ReactNode; acc
           <div className="flex justify-center absolute bottom-3 w-full">
             <div className={`flex items-center gap-1 opacity-70 ${accentColor}`}>
               <svg viewBox="0 0 10 6" className="w-3 h-3 fill-current rotate-180"><path d="M5 0L10 6H0z"/></svg>
-              <span className="text-[9px] font-black uppercase tracking-widest">scroll</span>
+              <span className="text-[9px] font-black uppercase tracking-widest">{t("scroll")}</span>
               <svg viewBox="0 0 10 6" className="w-3 h-3 fill-current rotate-180"><path d="M5 0L10 6H0z"/></svg>
             </div>
           </div>
@@ -201,13 +206,16 @@ export default function PlayerProfileViewer() {
     </div>
   );
 
-  const inp = player.inputs;
-  const im  = player.internalModel;
-  const dp  = player.defensivePlan ?? { defender: [], forzar: [], concede: [] };
+  const inp = player.scoutingInputs ?? player.inputs;
+  const generated = React.useMemo(() => generateProfile(inp, player.name), [player?.id, inp, player?.name]);
+  const im  = generated.internalModel;
+  const dp  = generated.defensivePlan ?? { defender: [], forzar: [], concede: [] };
+  const archetype = generated.archetype ?? player.archetype;
+  const keyTraits = generated.keyTraits ?? player.keyTraits;
 
   const getTraits = (arr: any[] = []) =>
     arr.map((item: any) => {
-      const raw = typeof item === "string" ? item : item?.value;
+      const raw = typeof item === "string" ? item : (item?.valueToken ?? item?.value);
       return raw ? translateOutput(raw, t) : null;
     }).filter(Boolean) as string[];
 
@@ -233,49 +241,47 @@ export default function PlayerProfileViewer() {
   const slide3Items: string[] = [];
   if (im?.dominantSide && im.dominantSide !== "Ambidextrous") {
     const weak = im.dominantSide === "Right" ? "left" : "right";
-    slide3Items.push(`Goes ${im.dominantSide.toLowerCase()} almost exclusively — force ${weak}.`);
+    slide3Items.push(`spatial_goes|side=${im.dominantSide.toLowerCase()}|weak=${weak}`);
   } else if (im?.dominantSide === "Ambidextrous") {
-    slide3Items.push("Comfortable both directions — no safe side.");
+    slide3Items.push("spatial_ambidextrous");
   }
   if (isAct(inp.postFrequency) && inp.postPreferredBlock && inp.postPreferredBlock !== "Any") {
-    slide3Items.push(`Prefers the ${inp.postPreferredBlock.toLowerCase().replace(" block", "")} block — deny the catch there.`);
+    const block = inp.postPreferredBlock.toLowerCase().replace(" block", "");
+    slide3Items.push(`spatial_post_block|block=${block}`);
   }
   if (isPri(inp.transitionFrequency)) {
-    const roleMap: Record<string, string> = {
-      "Pusher":     "Primary transition threat — pushes immediately. No let-up.",
-      "Rim Runner": "Sprints to the rim in transition — wall up before arrival.",
-      "Outlet":     "Runs the outlet wing for transition threes — tag immediately.",
-      "Trailer":    "Trails for the pull-up three — tag on every made basket.",
-    };
-    const line = inp.transitionRole ? roleMap[inp.transitionRole] : "Active in transition.";
-    if (line) slide3Items.push(line);
+    if (inp.transitionRole === "Pusher") slide3Items.push("spatial_trans_pusher");
+    else if (inp.transitionRole === "Rim Runner") slide3Items.push("spatial_trans_runner");
+    else if (inp.transitionRole === "Outlet") slide3Items.push("spatial_trans_outlet");
+    else if (inp.transitionRole === "Trailer") slide3Items.push("spatial_trans_trailer");
+    else slide3Items.push("spatial_transition_active");
   }
   if (isPri(inp.backdoorFrequency)) {
-    slide3Items.push("Constant backdoor threat — never over-deny. Any overplay is a layup.");
+    slide3Items.push("spatial_backdoor_primary");
   } else if (isAct(inp.backdoorFrequency)) {
-    slide3Items.push("Will cut backdoor when over-defended — stay connected.");
+    slide3Items.push("spatial_backdoor_active");
   }
   if (isPri(inp.indirectsFrequency)) {
-    slide3Items.push("Constant movement off screens — never leave unattended.");
+    slide3Items.push("spatial_indirects");
   }
   if (isPri(inp.offensiveReboundFrequency)) {
-    slide3Items.push("Crashes every shot — box out before the ball leaves the shooter's hands.");
+    slide3Items.push("spatial_crashing");
   }
   if ((inp as any).pnrTiming === "Early (Drag)") {
-    slide3Items.push("Runs drag screens in transition — pick up before defense is set.");
+    slide3Items.push("spatial_drag_screens");
   }
-  if (slide3Items.length === 0) slide3Items.push(t("no_spatial"));
+  if (slide3Items.length === 0) slide3Items.push("no_spatial");
 
   // Slide 4 — PnR
   const slide4Items = [...pnrTraits];
   if ((inp as any).slipFrequency && isAct((inp as any).slipFrequency)) {
-    slide4Items.push("Slips off-ball screens — defend the cut, not just the screen.");
+    slide4Items.push(translateOutput("spatial_slips", t));
   }
 
   const ath  = toNum(inp.athleticism, 3);
   const phys = toNum(inp.physicalStrength, 3);
   const vis  = toNum((inp as any).courtVision, 3);
-  const subArch = (player as any).subArchetype;
+  const subArch = generated.subArchetype;
 
   // ── SLIDE 1 — Identity ────────────────────────────────────────────────────
   const S1 = (
@@ -307,7 +313,7 @@ export default function PlayerProfileViewer() {
       {/* Archetype + subarchetype */}
       <div className="w-full bg-orange-500/10 border border-orange-500/20 rounded-2xl px-5 py-4">
         <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-1">{t("archetype")}</p>
-        <p className="text-2xl font-black italic text-white leading-tight">{player.archetype ?? "—"}</p>
+        <p className="text-2xl font-black italic text-white leading-tight">{archetype ?? "—"}</p>
         {subArch && (
           <p className="text-xs font-bold text-orange-400/60 uppercase tracking-widest mt-1">
             {t("subarchetype")} {subArch}
@@ -316,9 +322,9 @@ export default function PlayerProfileViewer() {
       </div>
 
       {/* Key traits */}
-      {player.keyTraits && player.keyTraits.length > 0 && (
+      {keyTraits && keyTraits.length > 0 && (
         <div className="flex flex-wrap justify-center gap-2">
-          {player.keyTraits.slice(0, 3).map((trait, i) => {
+          {keyTraits.slice(0, 3).map((trait, i) => {
             const key = TRAIT_KEY_MAP[trait];
             const label = key ? t(key as any) : trait;
             return <span key={i} className="px-3 py-1 bg-slate-800 text-slate-300 rounded-full text-xs font-bold border border-slate-700">{label}</span>;
@@ -362,6 +368,7 @@ export default function PlayerProfileViewer() {
   );
 
   // ── SLIDE 3 — Where dangerous ─────────────────────────────────────────────
+  const slide3TranslatedItems = slide3Items.map(s => translateOutput(s, t));
   const S3 = (
     <div className="relative h-full bg-slate-950">
       <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 z-20" />
@@ -370,8 +377,8 @@ export default function PlayerProfileViewer() {
       <p className="text-xs text-slate-500 -mt-1">{t("direction_space")}</p>
       <BulletCard
         title={t("spatial_reads")}
-        top={slide3Items.slice(0, 2)}
-        rest={slide3Items.slice(2)}
+        top={slide3TranslatedItems.slice(0, 2)}
+        rest={slide3TranslatedItems.slice(2)}
         accent="text-amber-400" bg="bg-amber-950/40" border="border-amber-800/30"
         deepReport={deepReport}
       />
@@ -480,7 +487,7 @@ export default function PlayerProfileViewer() {
         >
           <BookOpen className={`w-4 h-4 transition-colors ${deepReport ? "text-amber-400" : "text-slate-500"}`} />
           <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${deepReport ? "text-amber-400" : "text-slate-600"}`}>
-            {deepReport ? "deep" : "basic"}
+            {deepReport ? t("deep") : t("basic")}
           </span>
         </button>
         </div>

@@ -12,7 +12,7 @@
 //
 // HOW TO ADD A NEW LANGUAGE:
 //   1. Add the locale to the Locale type: "en" | "es" | "zh" | "fr"
-//   2. Create a new const block: const fr: typeof en = { ... }
+//   2. Create a new const block: const fr: I18nStrings = { ... }
 //   3. Add to translations map: const translations = { en, es, zh, fr }
 //   4. Add to Settings selector
 //
@@ -214,7 +214,6 @@ const en = {
   opt_finish_pullup3: "Pull-up 3",
   opt_finish_floater: "Floater",
   opt_finish_midrange: "Mid-range",
-  opt_finish_pullup3: "Pull-up 3",
 
   // ── SelectItem options — PnR scoring priority ─────────────────────────────
   opt_pnr_score_first: "Score First",
@@ -268,6 +267,24 @@ const en = {
   screens_actions: "Screens & actions",
   top_threats: "Top threats · ordered by danger",
   spatial_reads: "Spatial reads",
+  scroll: "Scroll",
+  deep: "deep",
+  basic: "basic",
+  // Spatial reads (Profile viewer)
+  spatial_goes: "Goes {side} almost exclusively — force {weak}.",
+  spatial_ambidextrous: "Comfortable both directions — no safe side.",
+  spatial_post_block: "Prefers the {block} block — deny the catch there.",
+  spatial_trans_pusher: "Primary transition threat — pushes immediately. No let-up.",
+  spatial_trans_runner: "Sprints to the rim in transition — wall up before arrival.",
+  spatial_trans_outlet: "Runs the outlet wing for transition threes — tag immediately.",
+  spatial_trans_trailer: "Trails for the pull-up three — tag on every made basket.",
+  spatial_transition_active: "Active in transition.",
+  spatial_backdoor_primary: "Constant backdoor threat — never over-deny. Any overplay is a layup.",
+  spatial_backdoor_active: "Will cut backdoor when over-defended — stay connected.",
+  spatial_indirects: "Constant movement off screens — never leave unattended.",
+  spatial_crashing: "Crashes every shot — box out before the ball leaves the shooter's hands.",
+  spatial_drag_screens: "Runs drag screens in transition — pick up before defense is set.",
+  spatial_slips: "Slips off-ball screens — defend the cut, not just the screen.",
   direction_space: "Direction · space · movement",
   pnr_coverage: "What to expect in PnR situations",
   full_plan: "Your complete game plan",
@@ -310,6 +327,20 @@ const en = {
   kick_out: "Kick out to perimeter",
   high_low: "High-low pass",
 
+  // Post quadrant move names (used as i18n param values inside trait tokens)
+  post_move_drop_step_baseline: "Drop step (baseline)",
+  post_move_drop_step_middle: "Drop step (middle)",
+  post_move_jump_hook: "Jump hook",
+  post_move_spin_baseline: "Spin move (baseline)",
+  post_move_fadeaway: "Fadeaway",
+  post_move_baby_hook: "Baby hook",
+  post_move_back_down: "Back down",
+  post_move_cross_hook: "Cross hook",
+  post_move_up_and_under: "Up-and-under",
+  post_move_turnaround_jumper: "Turnaround jumper",
+  post_move_face_up_drive: "Face-up drive",
+  post_move_dream_shake: "Dream shake",
+
   // Screener tooltips
   hint_screener_primary: "What does the player do most of the time after setting the screen?",
   hint_screener_secondary: "When the defense takes away the primary action, what do they do instead?",
@@ -337,14 +368,101 @@ const en = {
   trait_slip_threat: "Slip Threat",
   trait_transition: "Transition",
 
+  // Trait narrative tokens (motor -> Profile)
+  trait_txt_post_profile_btb_bully: "Classic physical bully. Back to the basket, works both blocks.",
+  trait_txt_post_profile_btb_finesse: "Classic finesse post scorer. Back to the basket, works both blocks.",
+  trait_txt_post_profile_btb_neutral: "Classic post scorer. Back to the basket, works both blocks.",
+  trait_txt_post_profile_face_bully: "Face-up physical bully. Can attack off the dribble from the elbow.",
+  trait_txt_post_profile_face_finesse: "Face-up finesse post scorer. Can attack off the dribble from the elbow.",
+  trait_txt_post_profile_face_neutral: "Face-up post scorer. Can attack off the dribble from the elbow.",
+  trait_txt_post_profile_high_post: "High post threat. Operates from the elbow — shoot, drive, or pass.",
+  trait_txt_post_profile_stretch_bully: "Interior + perimeter threat (physical). Can score from the post and the arc.",
+  trait_txt_post_profile_stretch_finesse: "Interior + perimeter threat (finesse). Can score from the post and the arc.",
+  trait_txt_post_profile_stretch_neutral: "Interior + perimeter threat. Can score from the post and the arc.",
+  trait_txt_post_profile_mixed_bully: "Versatile post scorer (physical) — back-to-basket and face-up. No safe angle.",
+  trait_txt_post_profile_mixed_finesse: "Versatile post scorer (finesse) — back-to-basket and face-up. No safe angle.",
+  trait_txt_post_profile_mixed_neutral: "Versatile post scorer — back-to-basket and face-up. No safe angle.",
+  trait_txt_post_profile_generic: "Post scorer. Watch both blocks.",
+
+  trait_txt_post_move_both_dirs: "Dominates the {strongBlock} block in both directions: {sb} to the baseline, {sm} to the middle. No safe coverage from that side.",
+  trait_txt_post_move_strong_baseline_only: "Go-to: {sb} from the {strongBlock} block baseline. No established move on the {weakBlock} block baseline — push there.",
+  trait_txt_post_move_strong_middle_only: "Primary: {sm} to the middle from the {strongBlock} block. Weak quadrant: {weakBlock} block middle.",
+  trait_txt_post_move_multi_quadrants: "Comfortable in multiple quadrants. No easy forced side — double early.",
+
+  trait_txt_post_double: "Double-team tendency: {kind} — adjust help rules accordingly.",
+
+  trait_txt_duck_in_primary: "Seals constantly on duck-ins. Body up before the catch — do not allow free seals.",
+  trait_txt_duck_in_secondary: "Reads mismatches and ducks in. Watch for the seal every possession.",
+
+  trait_txt_iso_interior: "Interior ISO tendency: {action}.",
+  trait_txt_iso_interior_generic: "Interior creator — multiple counters from the post.",
+
+  trait_txt_iso_attack_finish_elite_quick: "Elite athlete — {init}. Gets downhill instantly and finishes through contact.",
+  trait_txt_iso_attack_finish_elite_controlled: "Elite athlete — {init}. Gets downhill instantly and finishes through contact.",
+  trait_txt_iso_attack_finish_high_quick: "Explosive — {init}. Drives hard to the rim.",
+  trait_txt_iso_attack_finish_high_controlled: "Explosive — {init}. Drives hard to the rim.",
+  trait_txt_iso_attack_finish_neutral_quick: "Finisher — {init}. Not an explosive athlete, but reads angles well.",
+  trait_txt_iso_attack_finish_neutral_controlled: "Finisher — {init}. Not an explosive athlete, but reads angles well.",
+  trait_txt_iso_attack_shoot_quick: "Pull-up shooter — {init}. Creates space off the dribble for the jumper.",
+  trait_txt_iso_attack_shoot_controlled: "Pull-up shooter — {init}. Creates space off the dribble for the jumper.",
+  trait_txt_iso_attack_pass_vision: "Creates advantage and distributes. Elite vision — the open player always gets it.",
+  trait_txt_iso_attack_pass_normal: "Creates and distributes. Watch for the kick-out.",
+
+  trait_txt_iso_force_dir: "Force {weak} — almost exclusively goes {dominant}. The only reliable answer on {weak} is a {wl}.",
+
+  trait_txt_iso_closeout_wing: "Left wing: {left} · Right wing: {right}.",
+  trait_txt_iso_closeout_one: "On closeouts: {rxn}.",
+  trait_txt_iso_closeout_unknown: "Reads the closeout well — stay disciplined and contest without gambling.",
+
+  trait_txt_iso_perim_primary: "Primary three-point threat for an interior player. Cannot be left open at the arc — contest every catch.",
+  trait_txt_iso_perim_secondary: "Secondary perimeter shooter. Do not sag off entirely — she will take the open three.",
+
+  trait_txt_pnr_cov_under_pullup3: "Punishes under coverage with the pull-up three. Go over every screen — no exceptions.",
+  trait_txt_pnr_cov_under_attack: "Attacks under coverage downhill. Going under is a drive layup risk — go over.",
+  trait_txt_pnr_cov_under_safe: "Does not punish going under the screen. Under coverage is safe — pack the paint.",
+  trait_txt_pnr_pass_first_vision: "Pass-first handler with elite vision. Tag the roll early — tag all shooters before the screen is set.",
+  trait_txt_pnr_pass_first: "Pass-first handler. Finds the roll on tags/switches — communicate coverage early.",
+  trait_txt_pnr_drag: "Runs drag screens in transition — sets the PnR before the defense is organized. Pick up full court or risk an early mismatch.",
+  trait_txt_pnr_funnel: "Funnel PnR to the weaker side — primary: {dominant}. Weaker counter: {weak}.",
+  trait_txt_pnr_dual_role: "Plays handler and screener. Communicate the assignment before the action — know who checks what.",
+
+  trait_txt_pnr_scr_primary: "Primary screener read: {action}.",
+  trait_txt_pnr_scr_primary_sec: "Primary screener read: {action}. When the defense takes it away: {secondary}.",
+  trait_txt_pnr_scr_short_roll: "Short rolls to the free throw line — shoot, drive, or distribute.",
+  trait_txt_pnr_scr_short_roll_sec: "Short rolls to the free throw line — shoot, drive, or distribute. When the defense takes it away: {secondary}.",
+  trait_txt_pnr_scr_short_roll_vision: "Short rolls to the free throw line with elite vision — makes the right read every time.",
+  trait_txt_pnr_scr_short_roll_vision_sec: "Short rolls to the free throw line with elite vision — makes the right read every time. When the defense takes it away: {secondary}.",
+
+  trait_txt_pnr_scr_sec_roll: "rolls if tagged",
+  trait_txt_pnr_scr_sec_pop: "pops to the arc if tagged",
+  trait_txt_pnr_scr_sec_pop_elbow: "pops to the elbow if tagged",
+  trait_txt_pnr_scr_sec_short_roll: "short rolls if tagged",
+  trait_txt_pnr_scr_sec_slip: "slips early if tagged",
+  trait_txt_pnr_scr_sec_lob: "lob threat if tagged",
+  trait_txt_pnr_scr_sec_read: "reads the coverage",
+
+  trait_txt_offball_trans_pusher: "Pushes the ball full court. Pick up before half court — she does not stop.",
+  trait_txt_offball_trans_outlet: "Runs the outlet wing for transition threes — tag the catch.",
+  trait_txt_offball_trans_outlet_fast: "Runs the outlet wing for transition threes with elite speed — deny the catch.",
+  trait_txt_offball_trans_rim_elite: "Sprints to the rim in transition — wall up early; she beats most defenses there.",
+  trait_txt_offball_trans_rim_playback: "Sprints to the rim in transition — get back first and protect the rim.",
+  trait_txt_offball_trans_trailer: "Trailers for pull-up threes on kick-backs — tag on every made basket.",
+  trait_txt_offball_trans_generic: "Active in transition — communicate matchups early.",
+
+  trait_txt_offball_backdoor_elite: "Elite backdoor cutter — any over-denial is an uncontested layup. Stay connected at all times.",
+  trait_txt_offball_backdoor_active: "Active backdoor cutter — any reach or over-denial gets punished.",
+
+  trait_txt_offball_offscreens: "Constant movement off screens — never leave her unattended for a second.",
+  trait_txt_offball_offscreens_slip: "Constant movement off screens — never leave her unattended. Also slips screens: defend the cut, not just the screen.",
+  trait_txt_offball_slip_threat: "Slips off-ball screens — cuts before the screen is set. Defend the cut.",
+
+  trait_txt_offball_crash_phys: "Crashes every shot with physicality — must be bodied, not just found.",
+  trait_txt_offball_crash: "Crashes every shot — box out before the shot, not after.",
+
 
   // Motor output strings — defender/forzar/concede
     def_deny_block: "Deny the {side} block entry. Front before the catch — dominant there.",
   def_shade_side: "Shade {side} from the start — almost never goes the other way.",
-    def_deny_block: "Niega la entrada al bloque {side}. Fronta antes de la recepción — domina allí.",
-  def_shade_side: "Sombrea {side} desde el inicio — casi nunca va por el otro lado.",
-    def_deny_block: "拒绝{side}侧低位接球。接球前正面防守 — 那里是强侧。",
-  def_shade_side: "从一开始就遮蔽{side}侧 — 几乎从不走另一侧。",
   def_high_post_meet: "Meet at the elbow. No free catches at the high post — body up before the catch.",
   def_post_physical: "Use your most physical defender. Soft coverage loses every time in the post.",
   def_post_front: "Front on the block. Do not allow a catch in position.",
@@ -401,10 +519,13 @@ const en = {
 
 } as const;
 
+/** All locales share the same keys as `en`; values are plain strings (translations). */
+type I18nStrings = { [K in keyof typeof en]: string };
+
 // ─── SPANISH ──────────────────────────────────────────────────────────────────
 // TypeScript enforces that every key in `en` exists here.
 // Missing keys will cause a build error — intentional.
-const es: typeof en = {
+const es: I18nStrings = {
 
   sign_in: "Iniciar sesión",
   sign_up: "Crear cuenta",
@@ -614,6 +735,24 @@ const es: typeof en = {
   screens_actions: "Pantallas y acciones",
   top_threats: "Principales amenazas · por peligro",
   spatial_reads: "Lecturas espaciales",
+  scroll: "Desliza",
+  deep: "profundo",
+  basic: "básico",
+  // Lecturas espaciales (visor de perfil)
+  spatial_goes: "Va casi siempre por {side} — fuerza el {weak}.",
+  spatial_ambidextrous: "Cómoda en ambas direcciones — sin lado seguro.",
+  spatial_post_block: "Prefiere el bloque {block} — niega la recepción allí.",
+  spatial_trans_pusher: "Principal amenaza en transición — entra empujando al instante. Sin pausa.",
+  spatial_trans_runner: "Corre directo al aro en transición — ponte para el choque antes de que llegue.",
+  spatial_trans_outlet: "Ataca por la salida para triples en transición — marca al instante.",
+  spatial_trans_trailer: "Se queda atrás para el triple en bote — marca en cada canasta conseguida.",
+  spatial_transition_active: "Activa en transición.",
+  spatial_backdoor_primary: "Amenaza constante de backdoor — no te pases con la negación. Si te sobrepasas, es bandeja.",
+  spatial_backdoor_active: "Cortará al backdoor cuando la sobreprotejan — mantente conectado.",
+  spatial_indirects: "Movimiento constante fuera de pantallas — no la dejes sola.",
+  spatial_crashing: "Va a por cada tiro — haz la caja antes de que el balón salga de las manos del tirador.",
+  spatial_drag_screens: "Ejecuta pantallas drag en transición — recógele antes de que la defensa esté colocada.",
+  spatial_slips: "Se cuela fuera de las pantallas — defiende la carrera, no solo la pantalla.",
   direction_space: "Dirección · espacio · movimiento",
   pnr_coverage: "Qué esperar en bloqueos directos",
   full_plan: "Plan de juego completo",
@@ -647,6 +786,19 @@ const es: typeof en = {
   pass_to_cutter: "Pase al cortador",
   kick_out: "Pase al abierto",
   high_low: "Pase alto-bajo",
+
+  post_move_drop_step_baseline: "Drop paso (línea de fondo)",
+  post_move_drop_step_middle: "Drop paso (hacia el medio)",
+  post_move_jump_hook: "Gancho con mano cercana",
+  post_move_spin_baseline: "Giro explosivo (línea de fondo)",
+  post_move_fadeaway: "Tiro en suspensión hacia atrás",
+  post_move_baby_hook: "Gancho corto",
+  post_move_back_down: "Empuje de espaldas",
+  post_move_cross_hook: "Gancho con mano lejana",
+  post_move_up_and_under: "Finta arriba y paso debajo",
+  post_move_turnaround_jumper: "Tiro de media vuelta",
+  post_move_face_up_drive: "Ataque de frente con bote",
+  post_move_dream_shake: "Fintas en cadena (dream shake)",
   hint_screener_primary: "¿Qué hace el jugador después de poner la pantalla normalmente?",
   hint_screener_secondary: "Cuando la defensa elimina la acción principal, ¿qué hace en su lugar?",
   subarchetype: "También:",
@@ -670,14 +822,100 @@ const es: typeof en = {
   trait_slip_threat: "Slip",
   trait_transition: "Transición",
 
+  trait_txt_post_profile_btb_bully: "Clásica dominadora física de espaldas. Juega de espaldas y amenaza en ambos bloqueos.",
+  trait_txt_post_profile_btb_finesse: "Clásica anotadora de espaldas con fino. Juega de espaldas y amenaza en ambos bloqueos.",
+  trait_txt_post_profile_btb_neutral: "Clásica anotadora de espaldas. Juega de espaldas y amenaza en ambos bloqueos.",
+  trait_txt_post_profile_face_bully: "De frente, dominio físico. Puede atacar con bote desde el codo.",
+  trait_txt_post_profile_face_finesse: "De frente, juego fino. Puede atacar con bote desde el codo.",
+  trait_txt_post_profile_face_neutral: "De frente, amenaza real. Puede atacar con bote desde el codo.",
+  trait_txt_post_profile_high_post: "Amenaza en poste alto. Opera desde el codo: tiro, penetración o pase.",
+  trait_txt_post_profile_stretch_bully: "Amenaza interior + exterior (física). Puede anotar de espaldas y desde el perímetro.",
+  trait_txt_post_profile_stretch_finesse: "Amenaza interior + exterior (fina). Puede anotar de espaldas y desde el perímetro.",
+  trait_txt_post_profile_stretch_neutral: "Amenaza interior + exterior. Puede anotar de espaldas y desde el perímetro.",
+  trait_txt_post_profile_mixed_bully: "Anotadora versátil (física): espaldas y de frente. No hay ángulo seguro.",
+  trait_txt_post_profile_mixed_finesse: "Anotadora versátil (fina): espaldas y de frente. No hay ángulo seguro.",
+  trait_txt_post_profile_mixed_neutral: "Anotadora versátil: espaldas y de frente. No hay ángulo seguro.",
+  trait_txt_post_profile_generic: "Anotadora de bloqueo bajo. Vigila ambos lados.",
+
+  trait_txt_post_move_both_dirs: "Domina el bloqueo {strongBlock} en las dos direcciones: {sb} hacia la línea de fondo y {sm} hacia el medio. No hay cobertura cómoda por ese lado.",
+  trait_txt_post_move_strong_baseline_only: "Arma principal: {sb} desde la línea de fondo del bloqueo {strongBlock}. En la línea de fondo del bloqueo {weakBlock} no hay movimiento claro — empuja ahí.",
+  trait_txt_post_move_strong_middle_only: "Prioridad: {sm} hacia el medio desde el bloqueo {strongBlock}. Cuadrante débil: medio del bloqueo {weakBlock}.",
+  trait_txt_post_move_multi_quadrants: "Cómoda en varios cuadrantes — no hay lado fácil para forzar; prepara ayudas y dobles pronto.",
+
+  trait_txt_post_double: "Tendencia ante el doble: {kind} — ajusta las reglas de ayuda.",
+
+  trait_txt_duck_in_primary: "Se sella constantemente en duck-in. Cuerpo antes de la recepción — no dejes sellos libres.",
+  trait_txt_duck_in_secondary: "Lee desajustes y entra en duck-in. Vigila el sello en cada posesión.",
+
+  trait_txt_iso_interior: "Tendencia ISO interior: {action}.",
+  trait_txt_iso_interior_generic: "Creadora interior — varias respuestas desde el poste.",
+
+  trait_txt_iso_attack_finish_elite_quick: "Atleta de élite — {init}. Se va al aro al instante y remata con contacto.",
+  trait_txt_iso_attack_finish_elite_controlled: "Atleta de élite — {init}. Se va al aro al instante y remata con contacto.",
+  trait_txt_iso_attack_finish_high_quick: "Muy explosiva — {init}. Ataque duro a la canasta.",
+  trait_txt_iso_attack_finish_high_controlled: "Muy explosiva — {init}. Ataque duro a la canasta.",
+  trait_txt_iso_attack_finish_neutral_quick: "Rematadora — {init}. No es explosiva, pero lee muy bien los ángulos.",
+  trait_txt_iso_attack_finish_neutral_controlled: "Rematadora — {init}. No es explosiva, pero lee muy bien los ángulos.",
+  trait_txt_iso_attack_shoot_quick: "Tiradora en suspensión — {init}. Crea espacio con el bote para el tiro.",
+  trait_txt_iso_attack_shoot_controlled: "Tiradora en suspensión — {init}. Crea espacio con el bote para el tiro.",
+  trait_txt_iso_attack_pass_vision: "Genera ventaja y reparte. Visión de élite — siempre encuentra al compañero libre.",
+  trait_txt_iso_attack_pass_normal: "Genera ventaja y reparte. Vigila el kick-out.",
+
+  trait_txt_iso_force_dir: "Fuerza {weak} — casi siempre va {dominant}. La respuesta fiable por {weak} es un {wl}.",
+
+  trait_txt_iso_closeout_wing: "Ala izquierda: {left} · Ala derecha: {right}.",
+  trait_txt_iso_closeout_one: "En el closeout: {rxn}.",
+  trait_txt_iso_closeout_unknown: "Lee bien el closeout — sé disciplinada y contesta sin arriesgar de más.",
+
+  trait_txt_iso_perim_primary: "Amenaza exterior primaria para una interior. No se puede dejar sola en el arco — contesta cada recepción.",
+  trait_txt_iso_perim_secondary: "Tiradora secundaria desde fuera. No te quedes pegada al aro — castigará el triple abierto.",
+
+  trait_txt_pnr_cov_under_pullup3: "Castiga el pasar por debajo con el triple en suspensión. Hay que ir por encima en cada pantalla — sin excepciones.",
+  trait_txt_pnr_cov_under_attack: "Ataca si pasas por debajo en carrera. Pasar por debajo es riesgo de entrada — hay que ir por encima.",
+  trait_txt_pnr_cov_under_safe: "No castiga pasar por debajo. Pasar por debajo es seguro — cierra la pintura.",
+  trait_txt_pnr_pass_first_vision: "Manejadora pasadora con visión de élite. Marca el roll pronto — marca a todas las tiradoras antes de la pantalla.",
+  trait_txt_pnr_pass_first: "Manejadora pasadora. Encuentra el roll en cambios/marcajes — comunica la cobertura pronto.",
+  trait_txt_pnr_drag: "Usa pantallas drag en transición — monta el PnR antes de que la defensa esté colocada. Recoge full court o te pillan en desajuste temprano.",
+  trait_txt_pnr_funnel: "Canaliza el PnR hacia el lado débil — prioridad: {dominant}. Contrapartida débil: {weak}.",
+  trait_txt_pnr_dual_role: "Juega de manejadora y bloqueadora. Comunica el rol antes de la acción — sabe quién lleva a quién.",
+
+  trait_txt_pnr_scr_primary: "Lectura principal como bloqueadora: {action}.",
+  trait_txt_pnr_scr_primary_sec: "Lectura principal como bloqueadora: {action}. Si la defensa la quita: {secondary}.",
+  trait_txt_pnr_scr_short_roll: "Corta corto a la línea de libres — tiro, penetración o pase.",
+  trait_txt_pnr_scr_short_roll_sec: "Corta corto a la línea de libres — tiro, penetración o pase. Si la defensa la quita: {secondary}.",
+  trait_txt_pnr_scr_short_roll_vision: "Corta corto a la línea de libres con visión de élite — elige bien casi siempre.",
+  trait_txt_pnr_scr_short_roll_vision_sec: "Corta corto a la línea de libres con visión de élite — elige bien casi siempre. Si la defensa la quita: {secondary}.",
+
+  trait_txt_pnr_scr_sec_roll: "tira el roll si la marcan",
+  trait_txt_pnr_scr_sec_pop: "sale al triple si la marcan",
+  trait_txt_pnr_scr_sec_pop_elbow: "sale al codo si la marcan",
+  trait_txt_pnr_scr_sec_short_roll: "corta corto si la marcan",
+  trait_txt_pnr_scr_sec_slip: "hace slip temprano si la marcan",
+  trait_txt_pnr_scr_sec_lob: "amenaza de mate/alley-oop si la marcan",
+  trait_txt_pnr_scr_sec_read: "lee la cobertura",
+
+  trait_txt_offball_trans_pusher: "Empuja el balón en transición. Recoge antes de medio campo — no para.",
+  trait_txt_offball_trans_outlet: "Corre el ala de salida para triples en transición — niega la recepción.",
+  trait_txt_offball_trans_outlet_fast: "Corre el ala de salida para triples en transición con velocidad de élite — niega la recepción.",
+  trait_txt_offball_trans_rim_elite: "Sprinta a aro en transición — anticipa el muro; llega antes que muchas defensas.",
+  trait_txt_offball_trans_rim_playback: "Sprinta a aro en transición — vuelve primero y protege aro.",
+  trait_txt_offball_trans_trailer: "Va de trailer buscando triple en devoluciones — marca en cada canasta encajada.",
+  trait_txt_offball_trans_generic: "Muy activa en transición — comunica emparejamientos pronto.",
+
+  trait_txt_offball_backdoor_elite: "Cortadora elite al backdoor — cualquier sobre-negación es bandeja. Mantén contacto siempre.",
+  trait_txt_offball_backdoor_active: "Cortadora activa al backdoor — cualquier mano o sobre-negación la castiga.",
+
+  trait_txt_offball_offscreens: "Movimiento constante en bloqueos indirectos — no la dejes sola ni un segundo.",
+  trait_txt_offball_offscreens_slip: "Movimiento constante en bloqueos indirectos — no la dejes sola. Además hace slip: defiende el corte, no solo la pantalla.",
+  trait_txt_offball_slip_threat: "Hace slip en bloqueos sin balón — corta antes de que se fije la pantalla. Defiende el corte.",
+
+  trait_txt_offball_crash_phys: "Va a todos los rebotes con físico — hay que empujarla, no solo localizarla.",
+  trait_txt_offball_crash: "Va a todos los rebotes — haz la caja antes del tiro, no después.",
+
 
   // Motor output strings — defender/forzar/concede
-    def_deny_block: "Deny the {side} block entry. Front before the catch — dominant there.",
-  def_shade_side: "Shade {side} from the start — almost never goes the other way.",
-    def_deny_block: "Niega la entrada al bloque {side}. Fronta antes de la recepción — domina allí.",
+  def_deny_block: "Niega la entrada al bloque {side}. Fronta antes de la recepción — domina allí.",
   def_shade_side: "Sombrea {side} desde el inicio — casi nunca va por el otro lado.",
-    def_deny_block: "拒绝{side}侧低位接球。接球前正面防守 — 那里是强侧。",
-  def_shade_side: "从一开始就遮蔽{side}侧 — 几乎从不走另一侧。",
   def_high_post_meet: "Salir al codo. Sin recepciones fáciles en el poste alto — cuerpo antes de la recepción.",
   def_post_physical: "Usa tu defensor más físico. La cobertura blanda pierde siempre en el poste.",
   def_post_front: "Fronta en el bloque. No permitir recepción en posición.",
@@ -724,7 +962,6 @@ const es: typeof en = {
   con_no_transition: "Transición — no es amenaza en campo abierto.",
   con_no_perimeter: "Retrasate en el arco — sin amenaza perimetral.",
   con_iso_weak: "ISO hacia {weak} — acéptalo, es el lado débil.",
-  where_dangerous: "Zona de peligro",
 
   settings_title: "Ajustes",
   settings_language: "Idioma",
@@ -733,11 +970,11 @@ const es: typeof en = {
   settings_archetypes: "Arquetipos",
   settings_zh_warning: "La terminología en chino está pendiente de revisión por un profesional. Algunos términos pueden ser imprecisos.",
 
-} as const;
+};
 
 // ─── CHINESE (Simplified) ─────────────────────────────────────────────────────
 // ⚠ Pending professional review — basketball terminology may need refinement
-const zh: typeof en = {
+const zh: I18nStrings = {
 
   sign_in: "登录",
   sign_up: "创建账户",
@@ -901,7 +1138,6 @@ const zh: typeof en = {
   opt_finish_pullup3: "急停三分",
   opt_finish_floater: "挑篮",
   opt_finish_midrange: "中距离",
-  opt_finish_pullup3: "急停三分",
 
   opt_pnr_score_first: "优先得分",
   opt_pnr_pass_first: "优先传球",
@@ -948,6 +1184,24 @@ const zh: typeof en = {
   screens_actions: "掩护与配合",
   top_threats: "主要威胁 · 按危险程度排序",
   spatial_reads: "空间解读",
+  scroll: "滑动",
+  deep: "深度",
+  basic: "基础",
+  // 空间解读（档案页）
+  spatial_goes: "几乎总是从{side}方向推进 — 迫使{weak}侧。",
+  spatial_ambidextrous: "两边都很舒服 — 没有绝对安全的一侧。",
+  spatial_post_block: "更偏好{block}区 — 在那里不给接球。",
+  spatial_trans_pusher: "主要的快攻威胁 — 一拿球就推进。不给喘息。",
+  spatial_trans_runner: "快攻直接冲向篮筐 — 到达前就要顶住。",
+  spatial_trans_outlet: "从底线/出球侧跑到外线三分 — 立刻盯防。",
+  spatial_trans_trailer: "落在后侧等接球出手三分 — 每次进球都要跟防。",
+  spatial_transition_active: "过渡进攻非常活跃。",
+  spatial_backdoor_primary: "后门威胁持续存在 — 别过度压迫；一过头就会是上篮。",
+  spatial_backdoor_active: "当对手防守过度时会切后门 — 保持连接。",
+  spatial_indirects: "挡拆外的持续移动 — 别让她空位。",
+  spatial_crashing: "每个出手都冲篮板 — 球离开投手手之前就要卡位。",
+  spatial_drag_screens: "反向拖拽掩护在过渡中启动 — 防守站稳前就要跟上。",
+  spatial_slips: "无球掩护里突然溜出 — 防守的是切入，不只是掩护点。",
   direction_space: "方向 · 空间 · 跑动",
   pnr_coverage: "掩护配合预期",
   full_plan: "完整防守方案",
@@ -981,6 +1235,19 @@ const zh: typeof en = {
   pass_to_cutter: "传给切入者",
   kick_out: "传给外线空位",
   high_low: "高低位传球",
+
+  post_move_drop_step_baseline: "沉底步（底线方向）",
+  post_move_drop_step_middle: "沉底步（中路方向）",
+  post_move_jump_hook: "近手勾手",
+  post_move_spin_baseline: "底线转身突破",
+  post_move_fadeaway: "后仰跳投",
+  post_move_baby_hook: "小勾手",
+  post_move_back_down: "背身强推",
+  post_move_cross_hook: "远手勾手",
+  post_move_up_and_under: "上下步假动作",
+  post_move_turnaround_jumper: "翻身跳投",
+  post_move_face_up_drive: "面框突破",
+  post_move_dream_shake: "连续假动作（梦幻步）",
   hint_screener_primary: "掩护后球员通常会做什么？",
   hint_screener_secondary: "当防守封堵主要动作时，球员会改做什么？",
   subarchetype: "兼：",
@@ -1004,13 +1271,99 @@ const zh: typeof en = {
   trait_slip_threat: "溜走威胁",
   trait_transition: "快攻",
 
+  trait_txt_post_profile_btb_bully: "典型力量型背身：背身接球，两侧低位都能制造威胁。",
+  trait_txt_post_profile_btb_finesse: "典型技巧型背身：背身接球，两侧低位都能制造威胁。",
+  trait_txt_post_profile_btb_neutral: "典型背身得分手：背身接球，两侧低位都能制造威胁。",
+  trait_txt_post_profile_face_bully: "面框力量型：能从肘区运球发起攻击。",
+  trait_txt_post_profile_face_finesse: "面框技巧型：能从肘区运球发起攻击。",
+  trait_txt_post_profile_face_neutral: "面框威胁明显：能从肘区运球发起攻击。",
+  trait_txt_post_profile_high_post: "高位威胁：在肘区作业，可投可突可传。",
+  trait_txt_post_profile_stretch_bully: "内外结合（力量）：低位与外线都能得分。",
+  trait_txt_post_profile_stretch_finesse: "内外结合（技巧）：低位与外线都能得分。",
+  trait_txt_post_profile_stretch_neutral: "内外结合：低位与外线都能得分。",
+  trait_txt_post_profile_mixed_bully: "全能低位（力量）：背身与面框兼具，没有绝对安全角度。",
+  trait_txt_post_profile_mixed_finesse: "全能低位（技巧）：背身与面框兼具，没有绝对安全角度。",
+  trait_txt_post_profile_mixed_neutral: "全能低位：背身与面框兼具，没有绝对安全角度。",
+  trait_txt_post_profile_generic: "低位得分手：两侧都要盯紧。",
+
+  trait_txt_post_move_both_dirs: "在{strongBlock}侧低位两个方向都强：底线方向是{sb}，中路方向是{sm} — 这一侧没有轻松防守。",
+  trait_txt_post_move_strong_baseline_only: "主攻：{strongBlock}侧底线{sb}。{weakBlock}侧底线没有稳定套路 — 往那边推。",
+  trait_txt_post_move_strong_middle_only: "主武器：{strongBlock}侧中路{sm}。弱点区域：{weakBlock}侧中路。",
+  trait_txt_post_move_multi_quadrants: "多个区域都舒服 — 很难强行逼一侧；提前准备协防与夹击。",
+
+  trait_txt_post_double: "面对夹击的倾向：{kind} — 相应调整协防策略。",
+
+  trait_txt_duck_in_primary: "频繁用 duck-in 要位：接球前就要顶住身体，别让她轻松卡位。",
+  trait_txt_duck_in_secondary: "会读错位并 duck-in：每个回合都要警惕卡位。",
+
+  trait_txt_iso_interior: "内线单打倾向：{action}。",
+  trait_txt_iso_interior_generic: "内线创造者 — 低位有多种应对方式。",
+
+  trait_txt_iso_attack_finish_elite_quick: "精英运动能力 — {init}。接球后立刻起速，对抗下也能终结。",
+  trait_txt_iso_attack_finish_elite_controlled: "精英运动能力 — {init}。接球后立刻起速，对抗下也能终结。",
+  trait_txt_iso_attack_finish_high_quick: "爆发力强 — {init}。直线冲击篮筐很凶。",
+  trait_txt_iso_attack_finish_high_controlled: "爆发力强 — {init}。直线冲击篮筐很凶。",
+  trait_txt_iso_attack_finish_neutral_quick: "以终结为主 — {init}。爆发力一般，但角度与节奏读得很好。",
+  trait_txt_iso_attack_finish_neutral_controlled: "以终结为主 — {init}。爆发力一般，但角度与节奏读得很好。",
+  trait_txt_iso_attack_shoot_quick: "急停投篮型 — {init}。运球创造空间出手。",
+  trait_txt_iso_attack_shoot_controlled: "急停投篮型 — {init}。运球创造空间出手。",
+  trait_txt_iso_attack_pass_vision: "突破分球型：视野顶级，总能找到空位队友。",
+  trait_txt_iso_attack_pass_normal: "突破分球型：注意她的突分与外传。",
+
+  trait_txt_iso_force_dir: "逼她走{weak} — 她几乎只走{dominant}。在{weak}侧最靠谱的回应是{wl}。",
+
+  trait_txt_iso_closeout_wing: "左翼：{left} · 右翼：{right}。",
+  trait_txt_iso_closeout_one: "补防时：{rxn}。",
+  trait_txt_iso_closeout_unknown: "补防阅读很好 — 保持纪律，别赌博式扑防。",
+
+  trait_txt_iso_perim_primary: "内线球员里的主要外线威胁：弧顶不能放空 — 接球就要干扰。",
+  trait_txt_iso_perim_secondary: "次要外线投手：别完全缩在内线 — 她会投空位三分。",
+
+  trait_txt_pnr_cov_under_pullup3: "会惩罚绕下防守的急停三分 — 每次掩护都要绕上，没有例外。",
+  trait_txt_pnr_cov_under_attack: "绕下会被直线突破上篮 — 绕下风险很大，必须绕上。",
+  trait_txt_pnr_cov_under_safe: "绕下不会被惩罚 — 绕下安全，可以收缩禁区。",
+  trait_txt_pnr_pass_first_vision: "传球优先 + 顶级视野：早点管顺下，掩护落位前就要盯好所有投手。",
+  trait_txt_pnr_pass_first: "传球优先：换防/延误时总能找到顺下 — 提前沟通防守。",
+  trait_txt_pnr_drag: "过渡段打拖拽掩护：防守落位前就发起挡拆。要全场领防，否则容易早期错位。",
+  trait_txt_pnr_funnel: "把挡拆引向弱侧 — 主攻方向：{dominant}。弱侧回应：{weak}。",
+  trait_txt_pnr_dual_role: "既打持球人也打掩护人：每次进攻前沟通分工 — 明确谁防谁。",
+
+  trait_txt_pnr_scr_primary: "掩护后第一选择：{action}。",
+  trait_txt_pnr_scr_primary_sec: "掩护后第一选择：{action}。如果被防住：{secondary}。",
+  trait_txt_pnr_scr_short_roll: "短顺到罚球线 — 可投可突可传。",
+  trait_txt_pnr_scr_short_roll_sec: "短顺到罚球线 — 可投可突可传。如果被防住：{secondary}。",
+  trait_txt_pnr_scr_short_roll_vision: "短顺到罚球线且视野顶级 — 几乎总能做出正确选择。",
+  trait_txt_pnr_scr_short_roll_vision_sec: "短顺到罚球线且视野顶级 — 几乎总能做出正确选择。如果被防住：{secondary}。",
+
+  trait_txt_pnr_scr_sec_roll: "被盯防时顺下",
+  trait_txt_pnr_scr_sec_pop: "被盯防时外弹三分",
+  trait_txt_pnr_scr_sec_pop_elbow: "被盯防时外弹肘区",
+  trait_txt_pnr_scr_sec_short_roll: "被盯防时短顺",
+  trait_txt_pnr_scr_sec_slip: "被盯防时提前溜走",
+  trait_txt_pnr_scr_sec_lob: "被盯防时空接威胁",
+  trait_txt_pnr_scr_sec_read: "阅读防守再处理",
+
+  trait_txt_offball_trans_pusher: "全场推速度：半场前就要贴住 — 她不会停。",
+  trait_txt_offball_trans_outlet: "快攻跑外线接球投三分 — 要紧贴她的接球。",
+  trait_txt_offball_trans_outlet_fast: "快攻外线接球投三分 + 极快速度 — 必须拒绝她轻松接球。",
+  trait_txt_offball_trans_rim_elite: "快攻直杀篮下 — 要提前站位护筐；她经常比防守先到。",
+  trait_txt_offball_trans_rim_playback: "快攻直杀篮下 — 先回防保护篮筐。",
+  trait_txt_offball_trans_trailer: "跟进投追身三分 — 每次对方得分后都要跟住她。",
+  trait_txt_offball_trans_generic: "快攻很活跃 — 提前沟通对位。",
+
+  trait_txt_offball_backdoor_elite: "顶级背切：任何过度顶防都可能是空篮 — 全程保持身体接触。",
+  trait_txt_offball_backdoor_active: "积极背切：伸手或过度顶防都会被惩罚。",
+
+  trait_txt_offball_offscreens: "无球掩护持续跑动 — 一秒都不能放她空。",
+  trait_txt_offball_offscreens_slip: "无球掩护持续跑动 — 一秒都不能放她空。还会溜掩护：防切入，不只防掩护墙。",
+  trait_txt_offball_slip_threat: "无球掩护里会溜掩护 — 掩护还没挂实就可能切出，重点防切入。",
+
+  trait_txt_offball_crash_phys: "每个回合都冲抢前场篮板且身体对抗强 — 必须顶人，不只是找人。",
+  trait_txt_offball_crash: "每个回合都冲抢前场篮板 — 球离手前就要卡位。",
+
 
   // Motor output strings — defender/forzar/concede
-    def_deny_block: "Deny the {side} block entry. Front before the catch — dominant there.",
-  def_shade_side: "Shade {side} from the start — almost never goes the other way.",
-    def_deny_block: "Niega la entrada al bloque {side}. Fronta antes de la recepción — domina allí.",
-  def_shade_side: "Sombrea {side} desde el inicio — casi nunca va por el otro lado.",
-    def_deny_block: "拒绝{side}侧低位接球。接球前正面防守 — 那里是强侧。",
+  def_deny_block: "拒绝{side}侧低位接球。接球前正面防守 — 那里是强侧。",
   def_shade_side: "从一开始就遮蔽{side}侧 — 几乎从不走另一侧。",
   def_high_post_meet: "在肘区迎上。高位不能自由接球 — 接球前就要顶住身体。",
   def_post_physical: "用最强壮的防守球员。低位软防守每次都会输。",
@@ -1066,11 +1419,11 @@ const zh: typeof en = {
   settings_archetypes: "球员类型数量",
   settings_zh_warning: "中文篮球术语正在等待专业人士审核，部分术语可能不准确。",
 
-} as const;
+};
 
 // ─── Runtime ──────────────────────────────────────────────────────────────────
 // To add a language: add it to this map and extend Locale type above.
-const translations: Record<Locale, typeof en> = { en, es, zh };
+const translations: Record<Locale, I18nStrings> = { en, es, zh };
 
 let globalLocale: Locale = "en";
 const listeners = new Set<() => void>();

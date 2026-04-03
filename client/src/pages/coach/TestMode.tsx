@@ -8,20 +8,42 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { generateProfile, type PlayerInput, type PlayerProfile } from "@/lib/mock-data";
+import {
+  generateProfile,
+  type PhysicalLevel,
+  type PlayerInput,
+  type PlayerProfile,
+  type PostMove,
+} from "@/lib/mock-data";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
-function maybe<T>(arr: T[], prob = 0.5): T | undefined { return Math.random() < prob ? pick(arr) : undefined; }
+function pick<T>(arr: readonly T[]): T { return arr[Math.floor(Math.random() * arr.length)]!; }
+function maybe<T>(arr: readonly T[], prob = 0.5): T | undefined {
+  return Math.random() < prob ? pick(arr) : undefined;
+}
 
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"] as const;
 const INTENSITIES = ["Primary", "Secondary", "Rare", "Never"] as const;
 const DIRECTIONS = ["Left", "Right", "Balanced"] as const;
-const PHYSICAL = ["Low", "Medium", "High"] as const;
+const PHYSICAL_LEVELS = [0, 1, 2, 3, 4, 5] as const satisfies readonly PhysicalLevel[];
 const CLOSEOUTS = ["Catch & Shoot", "Attack Baseline", "Attack Middle", "Extra Pass"] as const;
 const PNR_FINISHES = ["Drive to Rim", "Pull-up", "Floater", "Mid-range"] as const;
-const POST_MOVES_POOL = ["Hook Shot", "Fadeaway", "Drop Step", "Jump Hook", "Spin Baseline", "Spin Middle", "Up & Under"];
+/** Names must match `postQuadrantMoveI18nKey` cases in mock-data. */
+const POST_MOVES_POOL: string[] = [
+  "Drop Step (Baseline)",
+  "Drop Step (Middle)",
+  "Jump Hook",
+  "Spin Move (Baseline)",
+  "Fadeaway",
+  "Baby Hook",
+  "Back Down",
+  "Cross Hook",
+  "Up & Under",
+  "Turnaround Jumper",
+  "Face-Up Drive",
+  "Dream Shake",
+];
 
 let playerCounter = 1;
 
@@ -29,13 +51,13 @@ function randomInputs(): PlayerInput {
   const postFrequency = pick(INTENSITIES);
   const pnrFrequency  = pick(INTENSITIES);
   const isoFrequency  = pick(INTENSITIES);
-  const postMoves: string[] = [];
+  const postMoves: PostMove[] = [];
   if (postFrequency === "Primary" || postFrequency === "Secondary") {
     const count = 1 + Math.floor(Math.random() * 3);
     const pool = [...POST_MOVES_POOL];
     for (let i = 0; i < count && pool.length; i++) {
       const idx = Math.floor(Math.random() * pool.length);
-      postMoves.push(pool.splice(idx, 1)[0]);
+      postMoves.push({ name: pool.splice(idx, 1)[0]! });
     }
   }
   return {
@@ -43,8 +65,8 @@ function randomInputs(): PlayerInput {
     height: String(170 + Math.floor(Math.random() * 40)),
     weight: String(65 + Math.floor(Math.random() * 50)),
     minutesPerGame: 10 + Math.floor(Math.random() * 28),
-    athleticism: pick([...PHYSICAL]),
-    physicalStrength: pick([...PHYSICAL]),
+    athleticism: pick(PHYSICAL_LEVELS),
+    physicalStrength: pick(PHYSICAL_LEVELS),
     postFrequency,
     postPreferredBlock: pick(["Left Block", "Right Block", "Any"]),
     postPlayType: pick(["Back to Basket", "Face-Up", "Mixed"]),
@@ -120,8 +142,8 @@ function getBehaviorTags(p: TestPlayer): string[] {
   if (p.inputs.backdoorFrequency === "Primary" || p.inputs.backdoorFrequency === "Secondary") tags.push("Backdoor Cutter");
   if (p.inputs.indirectsFrequency === "Primary") tags.push("Off-Screen Shooter");
   if (p.inputs.isoInitiation === "Quick Attack") tags.push("Quick Attacker");
-  if (p.inputs.athleticism === "High") tags.push("Explosive");
-  if (p.inputs.physicalStrength === "High") tags.push("Physical");
+  if (p.inputs.athleticism >= 4) tags.push("Explosive");
+  if (p.inputs.physicalStrength >= 4) tags.push("Physical");
   return tags;
 }
 
@@ -129,7 +151,7 @@ function getBehaviorTags(p: TestPlayer): string[] {
 
 const defaultManualInputs: PlayerInput = {
   position: "PG", height: "185", weight: "80", minutesPerGame: 25,
-  athleticism: "Medium", physicalStrength: "Medium",
+  athleticism: 3, physicalStrength: 3,
   postFrequency: "Never", postPreferredBlock: "Any", postPlayType: "Mixed", postMoves: [],
   isoFrequency: "Primary", isoDominantDirection: "Right",
   isoInitiation: "Controlled", isoDecision: "Finish",
@@ -239,21 +261,31 @@ function PlayerCard({ player }: { player: TestPlayer }) {
   );
 }
 
-function ManualField({ label, value, options, onChange }: {
+function ManualField<T extends string | number>({ label, value, options, onChange, formatOption }: {
   label: string;
-  value: string;
-  options: readonly string[];
-  onChange: (v: string) => void;
+  value: T;
+  options: readonly T[];
+  onChange: (v: T) => void;
+  /** Optional display label when option values are not human-readable (e.g. 0–5 scale). */
+  formatOption?: (o: T) => string;
 }) {
+  const strVal = String(value);
   return (
     <div className="space-y-1">
       <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</Label>
-      <Select value={value} onValueChange={onChange}>
+      <Select value={strVal} onValueChange={v => onChange(v as T)}>
         <SelectTrigger className="h-9 text-xs rounded-lg bg-slate-50 dark:bg-slate-950/50 dark:border-slate-700">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+          {options.map(o => {
+            const sv = String(o);
+            return (
+              <SelectItem key={sv} value={sv}>
+                {formatOption ? formatOption(o) : sv}
+              </SelectItem>
+            );
+          })}
         </SelectContent>
       </Select>
     </div>
@@ -298,8 +330,8 @@ export default function TestMode() {
     });
   }, [players, filterArchetype, filterBehavior]);
 
-  const updateManual = (key: keyof PlayerInput, v: string) =>
-    setManualInputs(prev => ({ ...prev, [key]: v }));
+  const updateManual = (key: keyof PlayerInput, v: string | number) =>
+    setManualInputs(prev => ({ ...prev, [key]: v as any }));
 
   const runManual = () => {
     const result = generateTestPlayer(`manual-${Date.now()}`, manualInputs);
@@ -458,8 +490,20 @@ export default function TestMode() {
                 <ManualField label="PnR Role" value={manualInputs.pnrRole} options={["Handler", "Screener"]} onChange={v => updateManual("pnrRole", v as any)} />
                 <ManualField label="PnR Priority" value={manualInputs.pnrScoringPriority} options={["Score First", "Pass First", "Balanced"]} onChange={v => updateManual("pnrScoringPriority", v as any)} />
                 <ManualField label="PnR vs Under" value={manualInputs.pnrReactionVsUnder} options={["Pull-up 3", "Re-screen", "Reject / Attack"]} onChange={v => updateManual("pnrReactionVsUnder", v as any)} />
-                <ManualField label="Athleticism" value={manualInputs.athleticism!} options={[...PHYSICAL]} onChange={v => updateManual("athleticism", v as any)} />
-                <ManualField label="Strength" value={manualInputs.physicalStrength!} options={[...PHYSICAL]} onChange={v => updateManual("physicalStrength", v as any)} />
+                <ManualField<PhysicalLevel>
+                  label="Athleticism"
+                  value={manualInputs.athleticism}
+                  options={PHYSICAL_LEVELS}
+                  formatOption={lvl => (lvl === 0 ? "0 (unset)" : `${lvl}/5`)}
+                  onChange={v => updateManual("athleticism", v)}
+                />
+                <ManualField<PhysicalLevel>
+                  label="Strength"
+                  value={manualInputs.physicalStrength}
+                  options={PHYSICAL_LEVELS}
+                  formatOption={lvl => (lvl === 0 ? "0 (unset)" : `${lvl}/5`)}
+                  onChange={v => updateManual("physicalStrength", v)}
+                />
                 <ManualField label="Post Frequency" value={manualInputs.postFrequency} options={[...INTENSITIES]} onChange={v => updateManual("postFrequency", v)} />
                 <ManualField label="Transition" value={manualInputs.transitionFrequency} options={[...INTENSITIES]} onChange={v => updateManual("transitionFrequency", v)} />
                 <ManualField label="Indirects" value={manualInputs.indirectsFrequency} options={[...INTENSITIES]} onChange={v => updateManual("indirectsFrequency", v)} />

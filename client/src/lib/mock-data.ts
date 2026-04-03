@@ -1,13 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, enqueueOfflinePlayerMutation } from "./queryClient";
-// Motor translation helpers — tm() static, tmp() with params
-import { t as tm_raw } from "./i18n";
-const tm = (key: string): string => tm_raw(key as any);
-const tmp = (key: string, params: Record<string, string>): string => {
-  let s = tm_raw(key as any);
-  Object.entries(params).forEach(([k, v]) => { s = s.replace(new RegExp("{" + k + "}", "g"), v); });
-  return s;
-};
 
 // ─── Base types ───────────────────────────────────────────────────────────────
 export type IntensityLevel = "Primary" | "Secondary" | "Rare" | "Never";
@@ -105,7 +97,17 @@ export interface PlayerInput {
   [key: string]: any;
 }
 
-export interface ScoredTrait { label: string; value: string; score: number; type?: "Strength" | "Weakness" | "Neutral"; }
+export interface ScoredTrait {
+  label: string;
+  /**
+   * i18n-ready token string.
+   * - Static:  "trait_txt_post_profile_high_post"
+   * - Dynamic: "trait_txt_iso_force_dir|weak=left|dominant=right|wl=opt_finish_pullup"
+   */
+  value: string;
+  score: number;
+  type?: "Strength" | "Weakness" | "Neutral";
+}
 
 export interface InternalProfileModel {
   dominantSide: "Left" | "Right" | "Ambidextrous";
@@ -128,6 +130,7 @@ export interface PlayerProfile {
    * Canonical scouting input payload used to generate outputs.
    * `inputs` is kept for backward-compatibility with older saved players.
    */
+  scoutingInputs?: PlayerInput;
   inputs: PlayerInput;
   internalModel: InternalProfileModel;
   archetype: string; subArchetype?: string; keyTraits: string[];
@@ -141,6 +144,130 @@ const isActive = (f: IntensityLevel) => f === "Primary" || f === "Secondary";
 const isPrimary = (f: IntensityLevel) => f === "Primary";
 const isNeverRare = (f: IntensityLevel) => f === "Never" || f === "Rare";
 const isNever = isNeverRare;
+
+function postQuadrantMoveI18nKey(moveName?: string): string {
+  if (!moveName) return "";
+  switch (moveName) {
+    case "Pass to cutter": return "pass_to_cutter";
+    case "Kick out to perimeter": return "kick_out";
+    case "High-low pass": return "high_low";
+    case "Drop Step (Baseline)": return "post_move_drop_step_baseline";
+    case "Drop Step (Middle)": return "post_move_drop_step_middle";
+    case "Jump Hook": return "post_move_jump_hook";
+    case "Spin Move (Baseline)": return "post_move_spin_baseline";
+    case "Fadeaway": return "post_move_fadeaway";
+    case "Baby Hook": return "post_move_baby_hook";
+    case "Back Down": return "post_move_back_down";
+    case "Cross Hook": return "post_move_cross_hook";
+    case "Up & Under": return "post_move_up_and_under";
+    case "Turnaround Jumper": return "post_move_turnaround_jumper";
+    case "Face-Up Drive": return "post_move_face_up_drive";
+    case "Dream Shake": return "post_move_dream_shake";
+    default: return "";
+  }
+}
+
+function closeoutReactionI18nKey(reaction?: CloseoutReaction | string): string {
+  switch (reaction) {
+    case "Catch & Shoot": return "opt_closeout_catch_shoot";
+    case "Attack Baseline": return "opt_closeout_attack_baseline";
+    case "Attack Middle": return "opt_closeout_attack_middle";
+    case "Attacks Strong Hand": return "opt_closeout_strong_hand";
+    case "Attacks Weak Hand": return "opt_closeout_weak_hand";
+    case "Extra Pass": return "opt_closeout_extra_pass";
+    default: return "";
+  }
+}
+
+function postIsoInteriorI18nKey(action?: InteriorIsoAction): string {
+  switch (action) {
+    case "Back Down": return "opt_iso_interior_back_down";
+    case "Face-Up Drive": return "opt_iso_interior_face_up_drive";
+    case "Post Jumper": return "opt_iso_interior_post_jumper";
+    case "Turnaround": return "opt_iso_interior_turnaround";
+    case "Spin": return "opt_iso_interior_spin";
+    default: return "";
+  }
+}
+
+function pnrFinishI18nKey(finish?: PnrFinish): string {
+  switch (finish) {
+    case "Pull-up": return "opt_finish_pullup";
+    case "Drive to Rim": return "opt_finish_drive";
+    case "Floater": return "opt_finish_floater";
+    case "Mid-range": return "opt_finish_midrange";
+    default: return "";
+  }
+}
+
+function screenerActionI18nKey(action?: ScreenerAction): string {
+  switch (action) {
+    case "Roll": return "opt_screen_roll";
+    case "Pop": return "opt_screen_pop";
+    case "Pop (Elbow / Mid)": return "opt_screen_pop_elbow";
+    case "Short Roll": return "opt_screen_short_roll";
+    case "Slip": return "opt_screen_slip";
+    case "Lob Only": return "opt_screen_lob";
+    default: return "";
+  }
+}
+
+function screenerSecondaryVerbI18nKey(action?: ScreenerAction): string {
+  switch (action) {
+    case "Roll": return "trait_txt_pnr_scr_sec_roll";
+    case "Pop": return "trait_txt_pnr_scr_sec_pop";
+    case "Pop (Elbow / Mid)": return "trait_txt_pnr_scr_sec_pop_elbow";
+    case "Short Roll": return "trait_txt_pnr_scr_sec_short_roll";
+    case "Slip": return "trait_txt_pnr_scr_sec_slip";
+    case "Lob Only": return "trait_txt_pnr_scr_sec_lob";
+    default: return "trait_txt_pnr_scr_sec_read";
+  }
+}
+
+function isoOppositeFinishI18nKey(finish?: "Drive" | "Pull-up" | "Floater"): string {
+  switch (finish) {
+    case "Pull-up": return "opt_finish_pullup";
+    case "Drive": return "opt_finish_drive";
+    case "Floater": return "opt_finish_floater";
+    default: return "";
+  }
+}
+
+function doubleTeamKindI18nKey(kind?: DoubleTeamReaction): string {
+  switch (kind) {
+    case "Forces Through": return "opt_dt_forces_through";
+    case "Kicks Out": return "opt_dt_kicks_out";
+    case "Resets": return "opt_dt_resets";
+    case "Mixed": return "opt_dt_variable";
+    default: return "opt_dt_variable";
+  }
+}
+
+function postProfileTraitToken(postProfile: PostProfile | undefined, physHigh: boolean, physLow: boolean): string {
+  const p = postProfile ?? "Mixed";
+  if (p === "Back to Basket") {
+    if (physHigh) return "trait_txt_post_profile_btb_bully";
+    if (physLow) return "trait_txt_post_profile_btb_finesse";
+    return "trait_txt_post_profile_btb_neutral";
+  }
+  if (p === "Face-Up") {
+    if (physHigh) return "trait_txt_post_profile_face_bully";
+    if (physLow) return "trait_txt_post_profile_face_finesse";
+    return "trait_txt_post_profile_face_neutral";
+  }
+  if (p === "High Post") return "trait_txt_post_profile_high_post";
+  if (p === "Stretch Big") {
+    if (physHigh) return "trait_txt_post_profile_stretch_bully";
+    if (physLow) return "trait_txt_post_profile_stretch_finesse";
+    return "trait_txt_post_profile_stretch_neutral";
+  }
+  if (p === "Mixed") {
+    if (physHigh) return "trait_txt_post_profile_mixed_bully";
+    if (physLow) return "trait_txt_post_profile_mixed_finesse";
+    return "trait_txt_post_profile_mixed_neutral";
+  }
+  return "trait_txt_post_profile_generic";
+}
 
 function danger(freq: IntensityLevel, base: number): number {
   if (freq === "Primary") return base;
@@ -466,17 +593,9 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
   // ── POST TRAITS ────────────────────────────────────────────────────────────
   if (postDanger >= 5) {
     // 1. Profile — what kind of post scorer
-    const physDesc = physHigh ? "physical bully" : physLow ? "finesse post scorer" : "post scorer";
-    const profileLine =
-      postProfile === "Back to Basket"  ? `Classic ${physDesc}. Back to the basket, works both blocks.` :
-      postProfile === "Face-Up"         ? `Face-up ${physDesc}. Can attack off the dribble from the elbow.` :
-      postProfile === "High Post"       ? `High post threat. Operates from the elbow — shoot, drive, or pass.` :
-      postProfile === "Stretch Big"     ? `Interior + perimeter threat. Can score from the post AND the arc.` :
-      postProfile === "Mixed"           ? `Versatile post scorer — back-to-basket and face-up. No safe angle.` :
-      `Post scorer. Watch both blocks.`;
     internal.postTraits.push({
       label: isPrimary(inputs.postFrequency) ? "Primary Post Scorer" : "Post Threat",
-      value: profileLine,
+      value: postProfileTraitToken(postProfile, physHigh, physLow),
       score: postDanger,
       type: "Strength",
     });
@@ -491,30 +610,32 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
       const strongBlock    = dominantHand === "Right" ? "right" : "left";
       const weakBlock      = dominantHand === "Right" ? "left"  : "right";
 
-      // Build an interpreted sentence, not a list
-      let moveRead = "";
-      if (strongBaseline && strongMiddle) {
-        moveRead = `Dominates the ${strongBlock} block in both directions: ${strongBaseline.moveName} to the baseline, ${strongMiddle.moveName} to the middle. No safe coverage from that side.`;
-      } else if (strongBaseline && !weakBaseline) {
-        moveRead = `Go-to: ${strongBaseline.moveName} from the ${strongBlock} block baseline. No established move on the ${weakBlock} block baseline — push there.`;
-      } else if (strongMiddle && !weakMiddle) {
-        moveRead = `Primary: ${strongMiddle.moveName} to the middle from the ${strongBlock} block. Weak quadrant: ${weakBlock} block middle.`;
+      const sbKey = postQuadrantMoveI18nKey(strongBaseline?.moveName);
+      const smKey = postQuadrantMoveI18nKey(strongMiddle?.moveName);
+
+      let moveToken = "";
+      if (strongBaseline && strongMiddle && sbKey && smKey) {
+        moveToken = `trait_txt_post_move_both_dirs|strongBlock=${strongBlock}|sb=${sbKey}|sm=${smKey}`;
+      } else if (strongBaseline && !weakBaseline && sbKey) {
+        moveToken = `trait_txt_post_move_strong_baseline_only|strongBlock=${strongBlock}|weakBlock=${weakBlock}|sb=${sbKey}`;
+      } else if (strongMiddle && !weakMiddle && smKey) {
+        moveToken = `trait_txt_post_move_strong_middle_only|strongBlock=${strongBlock}|weakBlock=${weakBlock}|sm=${smKey}`;
       } else if (Object.values(q).filter(Boolean).length >= 3) {
-        moveRead = `Comfortable in multiple quadrants. No easy forced side — double early.`;
+        moveToken = "trait_txt_post_move_multi_quadrants";
       }
-      if (moveRead) {
-        internal.postTraits.push({ label: "Move Pattern", value: moveRead, score: postDanger - 1, type: "Strength" });
+      if (moveToken) {
+        internal.postTraits.push({ label: "Move Pattern", value: moveToken, score: postDanger - 1, type: "Strength" });
       }
     }
 
     // 3. Double team behavior — critical for help defense
     if (isPrimary(inputs.postFrequency) && inputs.postDoubleTeamReaction) {
-      const dtLine =
-        inputs.postDoubleTeamReaction === "Forces Through" ? "Forces through doubles — aggressive doubling can backfire. Be selective." :
-        inputs.postDoubleTeamReaction === "Kicks Out"      ? "Smart on doubles — kicks out immediately. Tag all perimeter players before helping." :
-        inputs.postDoubleTeamReaction === "Resets"         ? "Resets on doubles — safe to double. No penalty." :
-        "Variable on doubles — read in-game.";
-      internal.postTraits.push({ label: "On the Double", value: dtLine, score: postDanger - 2, type: "Strength" });
+      internal.postTraits.push({
+        label: "On the Double",
+        value: `trait_txt_post_double|kind=${doubleTeamKindI18nKey(inputs.postDoubleTeamReaction)}`,
+        score: postDanger - 2,
+        type: "Strength",
+      });
     }
 
     // 4. Duck-in / opportunistic interior
@@ -522,8 +643,8 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
       internal.postTraits.push({
         label: "Duck-In",
         value: isPrimary(inputs.duckInFrequency ?? "Never")
-          ? "Seals defenders mid-play constantly. Must be bodied before they catch — body up before."
-          : "Reads mismatches and ducks in. Watch for the seal on every possession.",
+          ? "trait_txt_duck_in_primary"
+          : "trait_txt_duck_in_secondary",
         score: postDanger - 2, type: "Strength",
       });
     }
@@ -535,48 +656,36 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
   // ── ISO TRAITS ─────────────────────────────────────────────────────────────
   if (isoDanger >= 5) {
     // 1. Attack style — interpret isoDecision + athleticism + initiation together
-    const initStyle = inputs.isoInitiation === "Quick Attack"
-      ? "attacks immediately off the catch — no time to get set"
-      : "jab-step reader — wait for the jab — read before closing out";
+    const quick = inputs.isoInitiation === "Quick Attack";
+    const initKey = quick ? "opt_iso_init_quick" : "opt_iso_init_controlled";
 
-    let attackLine = "";
+    let attackToken = "";
     if (isInterior && !internal.isHybridBig && inputs.postIsoAction && inputs.postIsoAction !== "Mixed") {
-      const interior: Record<string, string> = {
-        "Back Down":    "backs defenders into the paint from the high post.",
-        "Face-Up Drive":"faces up and attacks off the dribble from the elbow.",
-        "Post Jumper":  "pull-up mid-range from post position — hard to time.",
-        "Turnaround":   "turnaround jumper — spins before you can react.",
-        "Spin":         "spin move creates separation in tight spaces.",
-      };
-      attackLine = interior[inputs.postIsoAction] ?? "interior creator.";
+      const interiorKey = postIsoInteriorI18nKey(inputs.postIsoAction);
+      attackToken = interiorKey ? `trait_txt_iso_interior|action=${interiorKey}` : "trait_txt_iso_interior_generic";
     } else if (isoDecision === "Finish") {
-      attackLine = athElite
-        ? `Elite athlete — ${initStyle}. Gets downhill instantly, finishes through contact.`
-        : athHigh
-        ? `Explosive — ${initStyle}. Drives hard to the rim.`
-        : `Drives to finish — ${initStyle}. Not an athlete but reads well.`;
+      if (athElite) attackToken = quick ? "trait_txt_iso_attack_finish_elite_quick" : "trait_txt_iso_attack_finish_elite_controlled";
+      else if (athHigh) attackToken = quick ? "trait_txt_iso_attack_finish_high_quick" : "trait_txt_iso_attack_finish_high_controlled";
+      else attackToken = quick ? "trait_txt_iso_attack_finish_neutral_quick" : "trait_txt_iso_attack_finish_neutral_controlled";
+      attackToken += `|init=${initKey}`;
     } else if (isoDecision === "Shoot") {
-      attackLine = `Pull-up shooter — ${initStyle}. Creates space off the dribble for the jumper.`;
+      attackToken = `${quick ? "trait_txt_iso_attack_shoot_quick" : "trait_txt_iso_attack_shoot_controlled"}|init=${initKey}`;
     } else {
-      attackLine = visionHigh
-        ? `Creates advantage and distributes. Elite vision — the open man always gets it.`
-        : `Creates and distributes. Watch for the kick-out.`;
+      attackToken = visionHigh ? "trait_txt_iso_attack_pass_vision" : "trait_txt_iso_attack_pass_normal";
     }
     internal.isoTraits.push({
       label: isPrimary(inputs.isoFrequency) ? "Primary Scorer" : "Secondary Creator",
-      value: attackLine, score: isoDanger, type: "Strength",
+      value: attackToken, score: isoDanger, type: "Strength",
     });
 
     // 2. Directional — most actionable single piece of info
     if (internal.dominantSide !== "Ambidextrous" && isActive(inputs.isoFrequency)) {
       const weak = internal.dominantSide === "Right" ? "left" : "right";
-      const wl   = inputs.isoOppositeFinish === "Pull-up" ? "pull-up jumper"
-                 : inputs.isoOppositeFinish === "Drive"   ? "rim drive"
-                 : inputs.isoOppositeFinish === "Floater"  ? "floater"
-                 : "weaker option";
+      const dominant = internal.dominantSide.toLowerCase();
+      const wlKey = isoOppositeFinishI18nKey(inputs.isoOppositeFinish) || "opt_finish_pullup";
       internal.isoTraits.push({
         label: "Force Direction",
-        value: `Force ${weak} — almost exclusively goes ${internal.dominantSide.toLowerCase()}. Only answer going ${weak} is a ${wl}.`,
+        value: `trait_txt_iso_force_dir|weak=${weak}|dominant=${dominant}|wl=${wlKey}`,
         score: 9, type: "Strength",
       });
     }
@@ -584,31 +693,26 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
     // 3. Closeout — uses per-wing data when available, falls back to general
     const leftCloseout  = inputs.closeoutLeft  ?? inputs.closeoutReaction;
     const rightCloseout = inputs.closeoutRight ?? inputs.closeoutReaction;
-    const closeLinesMap: Record<string, string> = {
-      "Catch & Shoot":      "shoots immediately — never leave open.",
-      "Attack Baseline":    "attacks baseline — cut off the baseline — no room to turn.",
-      "Attack Middle":      "attacks middle — stay balanced, do not fly at them.",
-      "Attacks Strong Hand":"always attacks dominant side on closeouts — predictable but explosive.",
-      "Attacks Weak Hand":  "attacks weak hand on closeouts — unexpected move.",
-      "Extra Pass":         "swings on closeouts — find the skip-pass target.",
-    };
-
-    let closeoutLine = "";
+    let closeoutToken = "";
     if (leftCloseout !== rightCloseout) {
-      // Per-wing data available — give specific read
-      closeoutLine = `Left wing: ${closeLinesMap[leftCloseout] ?? leftCloseout} Right wing: ${closeLinesMap[rightCloseout] ?? rightCloseout}`;
+      const lk = closeoutReactionI18nKey(leftCloseout);
+      const rk = closeoutReactionI18nKey(rightCloseout);
+      closeoutToken = (lk && rk)
+        ? `trait_txt_iso_closeout_wing|left=${lk}|right=${rk}`
+        : "trait_txt_iso_closeout_unknown";
     } else {
-      closeoutLine = closeLinesMap[inputs.closeoutReaction] ?? "reads the closeout.";
+      const rk = closeoutReactionI18nKey(inputs.closeoutReaction);
+      closeoutToken = rk ? `trait_txt_iso_closeout_one|rxn=${rk}` : "trait_txt_iso_closeout_unknown";
     }
-    internal.isoTraits.push({ label: "Closeout", value: closeoutLine, score: 8, type: "Strength" });
+    internal.isoTraits.push({ label: "Closeout", value: closeoutToken, score: 8, type: "Strength" });
 
     // Interior perimeter threat
     if (isInterior && isActive(perimeterThreat)) {
       internal.isoTraits.push({
         label: "Perimeter Threat",
         value: isPrimary(perimeterThreat)
-          ? "Primary three-point threat for an interior player. Cannot be left open at the arc — contests every catch."
-          : "Secondary perimeter shooter. Do not sag off entirely — will take the the open triple.",
+          ? "trait_txt_iso_perim_primary"
+          : "trait_txt_iso_perim_secondary",
         score: 8, type: "Strength",
       });
     }
@@ -622,65 +726,76 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
     if (pnrIsHandler) {
       // 1. Coverage instruction — most important
       const punishesUnder = inputs.pnrReactionVsUnder !== "Re-screen";
-      const coverageLine = punishesUnder
+      const coverageToken = punishesUnder
         ? inputs.pnrReactionVsUnder === "Pull-up 3"
-          ? "Punishes under-coverage with the pull-up three. Must go OVER every screen — no exceptions."
-          : "Attacks under-coverage downhill. Going under is a drive layup. Must go OVER."
-        : "Does not punish going under the screen. Under coverage is safe — pack the paint.";
-      internal.pnrTraits.push({ label: "Screen Coverage", value: coverageLine, score: pnrDanger, type: "Strength" });
+          ? "trait_txt_pnr_cov_under_pullup3"
+          : "trait_txt_pnr_cov_under_attack"
+        : "trait_txt_pnr_cov_under_safe";
+      internal.pnrTraits.push({ label: "Screen Coverage", value: coverageToken, score: pnrDanger, type: "Strength" });
 
       // 2. Scoring vs passing — pass-first changes the entire defensive assignment
       if (inputs.pnrScoringPriority === "Pass First" && isPrimary(inputs.pnrFrequency)) {
-        const visionLine = visionHigh
-          ? "Pass-first handler with elite vision. Tags the roll man instantly. All shooters must be tagged before the screen is set."
-          : "Pass-first handler. Finds the roll man on every switch or tag — communicate coverage early.";
-        internal.pnrTraits.push({ label: "Pass-First", value: visionLine, score: pnrDanger - 1, type: "Strength" });
+        internal.pnrTraits.push({
+          label: "Pass-First",
+          value: visionHigh ? "trait_txt_pnr_pass_first_vision" : "trait_txt_pnr_pass_first",
+          score: pnrDanger - 1,
+          type: "Strength",
+        });
       }
 
       // 3. Timing — drag screens change transition rules
       if (inputs.pnrTiming === "Early (Drag)" && isActive(inputs.pnrFrequency)) {
         internal.pnrTraits.push({
           label: "Drag Screen",
-          value: "Runs drag screens in transition — sets the PnR before the defense is set. Pick up full court or get caught in an early mismatch.",
+          value: "trait_txt_pnr_drag",
           score: pnrDanger - 1, type: "Strength",
         });
       }
 
       // 4. Dominant finish — funnel instruction
       if (inputs.pnrDominantFinish && inputs.pnrOppositeFinish && inputs.pnrDominantFinish !== inputs.pnrOppositeFinish) {
-        const wl = { "Pull-up": "pull-up", "Drive to Rim": "rim drive", "Floater": "floater", "Mid-range": "mid-range" }[inputs.pnrOppositeFinish] ?? inputs.pnrOppositeFinish;
-        internal.pnrTraits.push({
-          label: "Funnel Direction",
-          value: `Funnel PnR to weaker side — primary: ${inputs.pnrDominantFinish}. Weaker option: ${wl}.`,
-          score: pnrDanger - 2, type: "Strength",
-        });
+        const domKey = pnrFinishI18nKey(inputs.pnrDominantFinish);
+        const weakKey = pnrFinishI18nKey(inputs.pnrOppositeFinish);
+        if (domKey && weakKey) {
+          internal.pnrTraits.push({
+            label: "Funnel Direction",
+            value: `trait_txt_pnr_funnel|dominant=${domKey}|weak=${weakKey}`,
+            score: pnrDanger - 2, type: "Strength",
+          });
+        }
       }
     } else { // Screener
-      const screenerReads: Record<string, string> = {
-        "Roll":              "Hard roll to the rim. Tag immediately or catches at the dunker spot.",
-        "Pop":               "Pops to the arc. Must be picked up — open three.",
-        "Pop (Elbow / Mid)": "Elbow pop — shoot mid-range or find the cutter. Two reads for the defense.",
-        "Short Roll":        `Short rolls to the free throw line. Shoot, drive, or distribute.${visionHigh ? " Elite vision — makes the right read every time." : ""}`,
-        "Slip":              "Slips before the screen is set. Treat as a cutter on every PnR.",
-        "Lob Only":          "Lob-only threat. Deny the alley-oop — no other option.",
-      };
-      let screenerLine = screenerReads[inputs.pnrScreenerAction] ?? "Active screener.";
-      if (inputs.pnrScreenerActionSecondary) {
-        const secLine: Record<string, string> = {
-          "Roll": "rolls if tagged", "Pop": "pops to arc if tagged",
-          "Pop (Elbow / Mid)": "pops to elbow if tagged", "Short Roll": "short rolls",
-          "Slip": "slips early", "Lob Only": "lob threat",
-        };
-        screenerLine += ` When stopped: ${secLine[inputs.pnrScreenerActionSecondary] ?? "reads coverage"}.`;
+      const primary = inputs.pnrScreenerAction;
+      const primaryKey = screenerActionI18nKey(primary);
+      const secVerb = inputs.pnrScreenerActionSecondary
+        ? screenerSecondaryVerbI18nKey(inputs.pnrScreenerActionSecondary)
+        : "";
+
+      let screenerToken = "";
+      if (primary === "Short Roll") {
+        if (visionHigh) {
+          screenerToken = secVerb
+            ? `trait_txt_pnr_scr_short_roll_vision_sec|secondary=${secVerb}`
+            : "trait_txt_pnr_scr_short_roll_vision";
+        } else {
+          screenerToken = secVerb
+            ? `trait_txt_pnr_scr_short_roll_sec|secondary=${secVerb}`
+            : "trait_txt_pnr_scr_short_roll";
+        }
+      } else {
+        screenerToken = secVerb
+          ? `trait_txt_pnr_scr_primary_sec|action=${primaryKey}|secondary=${secVerb}`
+          : `trait_txt_pnr_scr_primary|action=${primaryKey}`;
       }
-      internal.pnrTraits.push({ label: "Screen Action", value: screenerLine, score: pnrDanger, type: "Strength" });
+
+      internal.pnrTraits.push({ label: "Screen Action", value: screenerToken, score: pnrDanger, type: "Strength" });
     }
 
     // Dual role note
     if (inputs.pnrRole === "Both" && isActive(inputs.pnrFrequency)) {
       internal.pnrTraits.push({
         label: "Dual Role",
-        value: "Plays handler AND screener. Defense must communicate the role before each action — reads who checks.",
+        value: "trait_txt_pnr_dual_role",
         score: pnrDanger - 2, type: "Strength",
       });
     }
@@ -691,16 +806,18 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
 
   // ── OFF-BALL TRAITS ────────────────────────────────────────────────────────
   if (offBallDanger >= 5) {
-    const transReads: Record<string, string> = {
-      Pusher:       "Pushes the ball full court. Pick up before half court — does not stop.",
-      Outlet:       `Runs the outlet wing for catch-and-shoot threes.${athHigh ? " Elite speed — deny the catch." : ""}`,
-      "Rim Runner": `Sprints to the rim.${athElite ? " Gets there before most defenses — wall up early." : " Get back first."}`,
-      Trailer:      "Trailers for pull-up threes on kick-backs. Tag on every made basket.",
-    };
     if (isPrimary(inputs.transitionFrequency)) {
+      let transitionToken = "trait_txt_offball_trans_generic";
+      if (inputs.transitionRole === "Pusher") transitionToken = "trait_txt_offball_trans_pusher";
+      else if (inputs.transitionRole === "Trailer") transitionToken = "trait_txt_offball_trans_trailer";
+      else if (inputs.transitionRole === "Outlet")
+        transitionToken = athHigh ? "trait_txt_offball_trans_outlet_fast" : "trait_txt_offball_trans_outlet";
+      else if (inputs.transitionRole === "Rim Runner")
+        transitionToken = athElite ? "trait_txt_offball_trans_rim_elite" : "trait_txt_offball_trans_rim_playback";
+
       internal.offBallTraits.push({
         label: "Transition",
-        value: transReads[inputs.transitionRole] ?? "Active transition player.",
+        value: transitionToken,
         score: offBallDanger, type: "Strength",
       });
     }
@@ -708,25 +825,23 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
     if (isPrimary(inputs.backdoorFrequency) || (isActive(inputs.backdoorFrequency) && athHigh)) {
       internal.offBallTraits.push({
         label: "Backdoor",
-        value: athElite
-          ? "Elite backdoor cutter — any over-denial is an uncontested layup. Stay connected at all times."
-          : "Active backdoor cutter. Any reach or over-denial gets punished.",
+        value: athElite ? "trait_txt_offball_backdoor_elite" : "trait_txt_offball_backdoor_active",
         score: offBallDanger - 1, type: "Strength",
       });
     }
 
     if (isPrimary(inputs.indirectsFrequency)) {
-      const slipNote = isActive(inputs.slipFrequency ?? "Never")
-        ? " Also slips screens — defend the cut, not just the screen." : "";
       internal.offBallTraits.push({
         label: "Off Screens",
-        value: `Constant off-screen movement. Cannot be left for a second.${slipNote}`,
+        value: isActive(inputs.slipFrequency ?? "Never")
+          ? "trait_txt_offball_offscreens_slip"
+          : "trait_txt_offball_offscreens",
         score: offBallDanger - 1, type: "Strength",
       });
     } else if (isActive(inputs.slipFrequency ?? "Never")) {
       internal.offBallTraits.push({
         label: "Slip Threat",
-        value: "Slips off-ball screens — cuts before the screen is set. Defend the cut.",
+        value: "trait_txt_offball_slip_threat",
         score: offBallDanger - 2, type: "Strength",
       });
     }
@@ -734,9 +849,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
     if (isPrimary(inputs.offensiveReboundFrequency)) {
       internal.offBallTraits.push({
         label: "Crashing",
-        value: physHigh
-          ? "Crashes every shot with physical box-out. Must be bodied, not just found."
-          : "Crashes every shot. Box out before the shot, not after.",
+        value: physHigh ? "trait_txt_offball_crash_phys" : "trait_txt_offball_crash",
         score: offBallDanger - 2, type: "Strength",
       });
     }
@@ -843,10 +956,10 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
   // Use directional data when available — per-wing closeout > general
   if (internal.dominantSide !== "Ambidextrous" && isActive(inputs.isoFrequency)) {
     const weak = internal.dominantSide === "Right" ? "left" : "right";
-    const wl   = inputs.isoOppositeFinish === "Pull-up" ? "pull-up"
-               : inputs.isoOppositeFinish === "Drive"   ? "rim drive"
-               : inputs.isoOppositeFinish === "Floater"  ? "floater"
-               : "weaker option";
+    const wl   = inputs.isoOppositeFinish === "Pull-up" ? "opt_finish_pullup"
+               : inputs.isoOppositeFinish === "Drive"   ? "opt_finish_drive"
+               : inputs.isoOppositeFinish === "Floater"  ? "opt_finish_floater"
+               : "opt_finish_pullup";
     forzar.push(`for_direction|weak=${weak}|wl=${wl}`);
   }
 
@@ -873,7 +986,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
   if (pnrIsHandler && isActive(inputs.pnrFrequency)
       && inputs.pnrDominantFinish && inputs.pnrOppositeFinish
       && inputs.pnrDominantFinish !== inputs.pnrOppositeFinish && forzar.length < 3) {
-    const wl = { "Pull-up": "pull-up", "Drive to Rim": "rim drive", "Floater": "floater", "Mid-range": "mid-range" }[inputs.pnrOppositeFinish] ?? inputs.pnrOppositeFinish;
+    const wl = { "Pull-up": "opt_finish_pullup", "Drive to Rim": "opt_finish_drive", "Floater": "opt_finish_floater", "Mid-range": "opt_finish_midrange" }[inputs.pnrOppositeFinish] ?? "opt_finish_pullup";
     forzar.push(`for_pnr_funnel|wl=${wl}`);
   }
 
