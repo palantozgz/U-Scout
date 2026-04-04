@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocale, t } from "@/lib/i18n";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useRoute, useLocation, useSearch } from "wouter";
 import {
   usePlayer, useTeams, useCreatePlayer, useUpdatePlayer, useDeletePlayer,
@@ -9,7 +9,7 @@ import {
   type CloseoutReaction, type PlayerProfile, type PhysicalLevel,
   type PostQuadrants, type ScreenerAction,
 } from "@/lib/mock-data";
-import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check } from "lucide-react";
+import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -63,6 +63,50 @@ function FieldLabel({ label, tooltip }: { label: string; tooltip?: string }) {
     <div className="flex items-center gap-0.5">
       <Label className="font-semibold text-slate-700 dark:text-slate-300 text-sm">{label}</Label>
       {tooltip && <Tooltip text={tooltip} />}
+    </div>
+  );
+}
+
+function PlayerAvatarUpload({ imageUrl, onUpload }: { imageUrl: string; onUpload: (url: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const real = isRealPhoto(imageUrl);
+
+  const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 200;
+        const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, w, h);
+        onUpload(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="flex justify-center mb-2">
+      <div className="relative cursor-pointer" onClick={() => inputRef.current?.click()}>
+        <div className="w-24 h-24 rounded-full overflow-hidden">
+          {real
+            ? <img src={imageUrl} className="w-full h-full object-cover" />
+            : <BasketballPlaceholderAvatar size={96} />}
+        </div>
+        <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+          <Plus className="w-8 h-8 text-white" />
+        </div>
+        <input ref={inputRef} type="file" accept="image/*" capture className="hidden" onChange={handleFile} />
+      </div>
     </div>
   );
 }
@@ -645,6 +689,7 @@ export default function PlayerEditor() {
           <TabsContent value="context" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-4 border border-slate-200 dark:border-slate-800 shadow-sm">
               <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Info className="w-5 h-5 text-primary" /> {t("identity")}</h3>
+              <PlayerAvatarUpload imageUrl={player.imageUrl} onUpload={url => um("imageUrl", url)} />
               <div className="space-y-1.5">
                 <FieldLabel label={t("player_name")} />
                 <Input value={player.name} onChange={e => um("name", e.target.value)} placeholder="e.g. Jane Doe" className="bg-slate-50 dark:bg-slate-950/50 h-12 rounded-xl dark:border-slate-800" />
