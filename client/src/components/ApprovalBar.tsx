@@ -5,12 +5,9 @@ import {
   useApprovalStatus,
   useApproveReport,
   useUnapproveReport,
-  usePublishReport,
-  useUnpublishReport,
 } from "@/lib/approval-api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useLocation } from "wouter";
 import { toast } from "@/hooks/use-toast";
 import { Check, HelpCircle } from "lucide-react";
 
@@ -20,7 +17,6 @@ export const APPROVAL_ONBOARDING_LS = "uscout_approval_onboarding_seen";
 export function ApprovalBar({ playerId }: { playerId: string }) {
   const { t } = useLocale();
   const { user, profile } = useAuth();
-  const [, setLocation] = useLocation();
   const [helpOpen, setHelpOpen] = useState(false);
   const helpWrapRef = useRef<HTMLDivElement>(null);
 
@@ -30,8 +26,6 @@ export function ApprovalBar({ playerId }: { playerId: string }) {
   });
   const approve = useApproveReport(safePlayerId);
   const unapprove = useUnapproveReport(safePlayerId);
-  const publish = usePublishReport(safePlayerId);
-  const unpublish = useUnpublishReport(safePlayerId);
 
   const myId = profile?.id ?? user?.id ?? "";
   const iApproved = Boolean(data?.approvals.some((a) => a.coachId === myId));
@@ -73,46 +67,10 @@ export function ApprovalBar({ playerId }: { playerId: string }) {
     }
   };
 
-  const onPublish = () => {
-    if (!window.confirm(t("approval_publish_confirm"))) return;
-    publish.mutate(undefined, {
-      onSuccess: () => {
-        toast({ title: t("approval_publish_success") });
-        setLocation("/coach/editor");
-      },
-      onError: (e) => {
-        toast({
-          variant: "destructive",
-          title: t("approval_publish_error"),
-          description: (e as Error)?.message ?? "",
-        });
-      },
-    });
-  };
-
-  const onUnpublish = () => {
-    if (!window.confirm(t("approval_unpublish_confirm"))) return;
-    unpublish.mutate(undefined, {
-      onSuccess: () => {
-        toast({ title: t("approval_unpublish_success") });
-      },
-      onError: (e) => {
-        toast({
-          variant: "destructive",
-          title: t("approval_unpublish_error"),
-          description: (e as Error)?.message ?? "",
-        });
-      },
-    });
-  };
-
-  const isPublished = Boolean(data?.isPublished);
-
   const helpSteps = (
     <ul className="mt-2 space-y-2 text-xs text-muted-foreground">
       <li className="leading-snug">{t("onboarding_save_step")}</li>
       <li className="leading-snug">{t("onboarding_approve_step")}</li>
-      <li className="leading-snug">{t("onboarding_publish_step")}</li>
     </ul>
   );
 
@@ -184,39 +142,6 @@ export function ApprovalBar({ playerId }: { playerId: string }) {
               t("approval_btn_approve")
             )}
           </Button>
-          {isPublished ? (
-            <>
-              <Badge
-                variant="outline"
-                className="text-[10px] font-bold h-8 px-2 gap-1 border-primary/40 bg-primary/10 text-primary"
-              >
-                <Check className="w-3.5 h-3.5" />
-                {t("dashboard_player_published_badge")}
-              </Badge>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 text-[10px] font-bold border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                disabled={unpublish.isPending}
-                onClick={onUnpublish}
-              >
-                {unpublish.isPending ? t("saving") : t("approval_unpublish")}
-              </Button>
-            </>
-          ) : (
-            count >= 1 && (
-              <Button
-                type="button"
-                size="sm"
-                className="font-bold flex-1 min-w-0"
-                disabled={publish.isPending}
-                onClick={onPublish}
-              >
-                {publish.isPending ? t("saving") : t("approval_publish")}
-              </Button>
-            )
-          )}
         </div>
       </div>
     </div>
