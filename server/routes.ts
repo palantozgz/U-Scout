@@ -29,6 +29,11 @@ const reportAssignmentBodySchema = z.object({
   playerId: z.string().min(1),
 });
 
+const playerSlideViewBodySchema = z.object({
+  playerId: z.string().min(1),
+  slideIndex: z.number().int().min(0).max(4),
+});
+
 const clubInviteBodySchema = z.object({
   role: z.enum(["head_coach", "coach", "player"]),
   email: z.string().email().optional().or(z.literal("")),
@@ -376,6 +381,69 @@ export async function registerRoutes(
       });
     } catch (err) {
       res.status(500).json({ error: "Failed to load player home" });
+    }
+  });
+
+  app.get("/api/player/teams", requireAuth, async (req, res) => {
+    try {
+      const rows = await storage.listPlayerTeamsReportSummary(req.user!.id);
+      res.json({
+        teams: rows.map((r) => ({
+          team: { id: r.team.id, name: r.team.name, logo: r.team.logo },
+          totalReports: r.totalReports,
+          unseenCount: r.unseenCount,
+          reportsPending: r.unseenCount,
+        })),
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load player teams" });
+    }
+  });
+
+  app.get("/api/player/team/:teamId", requireAuth, async (req, res) => {
+    try {
+      const teamId = req.params.teamId as string;
+      const team = await storage.getTeam(teamId);
+      if (!team) return res.status(404).json({ error: "Team not found" });
+      const rows = await storage.listAssignedPlayersInTeamForUser(req.user!.id, teamId);
+      if (!rows.length) {
+        return res.status(404).json({ error: "No assigned reports for this team" });
+      }
+      res.json({
+        team: { id: team.id, name: team.name, logo: team.logo },
+        players: rows.map(({ player, viewStatus }) => {
+          const inp = player.inputs as Record<string, unknown> | undefined;
+          const position = typeof inp?.position === "string" ? inp.position : "—";
+          return {
+            playerId: player.id,
+            name: player.name || "—",
+            number: player.number || "",
+            imageUrl: player.imageUrl || "",
+            position,
+            viewStatus,
+          };
+        }),
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load team reports" });
+    }
+  });
+
+  app.post("/api/player/views", requireAuth, async (req, res) => {
+    try {
+      const parsed = playerSlideViewBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+      }
+      const { playerId, slideIndex } = parsed.data;
+      const allowed = await storage.userHasScoutingReportAssignment(req.user!.id, playerId);
+      if (!allowed) {
+        return res.status(403).json({ error: "Not assigned to this report" });
+      }
+      await storage.recordPlayerReportSlideView(req.user!.id, playerId, slideIndex);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: "Failed to record view" });
     }
   });
 

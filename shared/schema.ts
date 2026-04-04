@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, timestamp, unique, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, jsonb, timestamp, unique, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -100,6 +100,26 @@ export const scoutingReportAssignments = pgTable("scouting_report_assignments", 
 
 export type ScoutingReportAssignment = typeof scoutingReportAssignments.$inferSelect;
 export type InsertScoutingReportAssignment = typeof scoutingReportAssignments.$inferInsert;
+
+/** Slide-level view log for player-mode report reading (5 slides, indices 0–4). */
+export const playerReportViews = pgTable(
+  "player_report_views",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull(),
+    playerId: varchar("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    slideIndex: integer("slide_index").notNull(),
+    viewedAt: timestamp("viewed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("player_report_views_user_player_slide").on(table.userId, table.playerId, table.slideIndex),
+  ],
+);
+
+export type PlayerReportView = typeof playerReportViews.$inferSelect;
+export type InsertPlayerReportView = typeof playerReportViews.$inferInsert;
 
 /** User's home club (not rival scout teams). */
 export const clubs = pgTable("clubs", {

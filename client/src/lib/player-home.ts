@@ -57,6 +57,74 @@ export function usePlayerHome() {
   });
 }
 
+export interface PlayerTeamSummary {
+  team: { id: string; name: string; logo: string };
+  totalReports: number;
+  /** Assigned reports with no view_log rows yet (same as reportsPending). */
+  unseenCount: number;
+  reportsPending: number;
+}
+
+export interface PlayerTeamDetailPlayer {
+  playerId: string;
+  name: string;
+  number: string;
+  imageUrl: string;
+  position: string;
+  viewStatus: "none" | "partial" | "complete";
+}
+
+async function fetchPlayerTeams(): Promise<{ teams: PlayerTeamSummary[] }> {
+  const res = await apiRequest("GET", "/api/player/teams");
+  return res.json() as Promise<{ teams: PlayerTeamSummary[] }>;
+}
+
+export function usePlayerTeams() {
+  const { user, loading } = useAuth();
+  return useQuery({
+    queryKey: ["player-teams"],
+    queryFn: fetchPlayerTeams,
+    enabled: !loading && Boolean(user),
+    networkMode: "offlineFirst",
+  });
+}
+
+async function fetchPlayerTeamDetail(teamId: string): Promise<{
+  team: { id: string; name: string; logo: string };
+  players: PlayerTeamDetailPlayer[];
+}> {
+  const res = await apiRequest("GET", `/api/player/team/${encodeURIComponent(teamId)}`);
+  return res.json() as Promise<{
+    team: { id: string; name: string; logo: string };
+    players: PlayerTeamDetailPlayer[];
+  }>;
+}
+
+export function usePlayerTeamDetail(teamId: string | undefined) {
+  const { user, loading } = useAuth();
+  return useQuery({
+    queryKey: ["player-team", teamId],
+    queryFn: () => fetchPlayerTeamDetail(teamId!),
+    enabled: !loading && Boolean(user) && Boolean(teamId),
+    networkMode: "offlineFirst",
+  });
+}
+
+function markPlayerTeamQueriesStale(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: ["player-teams"], refetchType: "none" });
+  void qc.invalidateQueries({ queryKey: ["player-team"], refetchType: "none" });
+}
+
+export function useRecordPlayerSlideView() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { playerId: string; slideIndex: number }) => {
+      await apiRequest("POST", "/api/player/views", body);
+    },
+    onSuccess: () => markPlayerTeamQueriesStale(qc),
+  });
+}
+
 export async function fetchInvitationPublic(token: string) {
   const res = await fetch(`/api/invitations/${encodeURIComponent(token)}`);
   const data = await res.json().catch(() => ({}));
@@ -94,6 +162,7 @@ export function useAcceptInvitation() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["player-home"] });
+      void qc.invalidateQueries({ queryKey: ["player-teams"] });
     },
   });
 }

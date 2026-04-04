@@ -33,6 +33,7 @@ import {
   reportApprovals,
   reportOverrides,
   reportPublications,
+  playerReportViews,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -128,6 +129,16 @@ export interface IStorage {
   deleteReportOverride(playerId: string, coachId: string, itemKey: string): Promise<void>;
   publishPlayerReport(playerId: string, publishedBy: string): Promise<Player | undefined>;
   unpublishPlayerReport(playerId: string): Promise<Player | undefined>;
+
+  userHasScoutingReportAssignment(userId: string, playerId: string): Promise<boolean>;
+  recordPlayerReportSlideView(userId: string, playerId: string, slideIndex: number): Promise<void>;
+  listPlayerTeamsReportSummary(
+    userId: string,
+  ): Promise<Array<{ team: Team; totalReports: number; unseenCount: number }>>;
+  listAssignedPlayersInTeamForUser(
+    userId: string,
+    teamId: string,
+  ): Promise<Array<{ player: Player; viewStatus: "none" | "partial" | "complete" }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -647,6 +658,95 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updated;
     });
+  }
+
+  async userHasScoutingReportAssignment(userId: string, playerId: string): Promise<boolean> {
+    const [r] = await db
+      .select({ id: scoutingReportAssignments.id })
+      .from(scoutingReportAssignments)
+      .where(
+        and(eq(scoutingReportAssignments.userId, userId), eq(scoutingReportAssignments.playerId, playerId)),
+      )
+      .limit(1);
+    return Boolean(r);
+  }
+
+  async recordPlayerReportSlideView(userId: string, playerId: string, slideIndex: number): Promise<void> {
+    const now = new Date();
+    await db
+      .insert(playerReportViews)
+      .values({ userId, playerId, slideIndex, viewedAt: now })
+      .onConflictDoUpdate({
+        target: [playerReportViews.userId, playerReportViews.playerId, playerReportViews.slideIndex],
+        set: { viewedAt: now },
+      });
+  }
+
+  async listPlayerTeamsReportSummary(
+    userId: string,
+  ): Promise<Array<{ team: Team; totalReports: number; unseenCount: number }>> {
+    const reports = await this.listScoutingReportsForUser(userId);
+    if (!reports.length) return [];
+    const viewRows = await db
+      .select({ playerId: playerReportViews.playerId })
+      .from(playerReportViews)
+      .where(eq(playerReportViews.userId, userId));
+    const playersWithAnyView = new Set(viewRows.map((r) => r.playerId));
+    const byTeam = new Map<string, { team: Team; playerIds: Set<string> }>();
+    for (const r of reports) {
+      const tid = r.team.id;
+      if (!byTeam.has(tid)) {
+        byTeam.set(tid, { team: r.team, playerIds: new Set() });
+      }
+      byTeam.get(tid)!.playerIds.add(r.player.id);
+    }
+    const out = Array.from(byTeam.values()).map(({ team, playerIds }) => {
+      const totalReports = playerIds.size;
+      let unseenCount = 0;
+      for (const pid of Array.from(playerIds)) {
+        if (!playersWithAnyView.has(pid)) unseenCount++;
+      }
+      return { team, totalReports, unseenCount };
+    });
+    out.sort((a, b) => a.team.name.localeCompare(b.team.name));
+    return out;
+  }
+
+  async listAssignedPlayersInTeamForUser(
+    userId: string,
+    teamId: string,
+  ): Promise<Array<{ player: Player; viewStatus: "none" | "partial" | "complete" }>> {
+    const reports = await this.listScoutingReportsForUser(userId);
+    const inTeam = reports.filter((r) => r.team.id === teamId);
+    const uniquePlayers = new Map<string, Player>();
+    for (const r of inTeam) {
+      uniquePlayers.set(r.player.id, r.player);
+    }
+    const playerIds = Array.from(uniquePlayers.keys());
+    if (!playerIds.length) return [];
+    const viewRows = await db
+      .select({
+        playerId: playerReportViews.playerId,
+        slideIndex: playerReportViews.slideIndex,
+      })
+      .from(playerReportViews)
+      .where(and(eq(playerReportViews.userId, userId), inArray(playerReportViews.playerId, playerIds)));
+    const slidesByPlayer = new Map<string, Set<number>>();
+    for (const row of viewRows) {
+      if (!slidesByPlayer.has(row.playerId)) slidesByPlayer.set(row.playerId, new Set());
+      slidesByPlayer.get(row.playerId)!.add(row.slideIndex);
+    }
+    const fullSlides = [0, 1, 2, 3, 4];
+    const statusFor = (pid: string): "none" | "partial" | "complete" => {
+      const s = slidesByPlayer.get(pid) ?? new Set<number>();
+      if (s.size === 0) return "none";
+      if (fullSlides.every((i) => s.has(i))) return "complete";
+      return "partial";
+    };
+    return playerIds.map((id) => ({
+      player: uniquePlayers.get(id)!,
+      viewStatus: statusFor(id),
+    }));
   }
 }
 

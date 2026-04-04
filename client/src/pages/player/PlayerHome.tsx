@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { Settings } from "lucide-react";
+import { Settings, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
@@ -25,20 +25,32 @@ export default function PlayerHome() {
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background">
-      <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-4 py-4 flex items-center justify-between">
-        <h1 className="text-lg font-bold text-foreground tracking-widest uppercase">
+      <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between gap-2">
+        <h1 className="text-lg font-bold text-foreground tracking-widest uppercase truncate min-w-0">
           {t("player_home_title")}
         </h1>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground hover:text-foreground"
-          onClick={() => setLocation("/player/home-settings")}
-          aria-label={t("player_settings_aria")}
-          data-testid="player-home-settings"
-        >
-          <Settings className="w-5 h-5" />
-        </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 px-2.5 text-xs font-bold border-border"
+            onClick={() => setLocation("/player/teams")}
+            data-testid="player-home-by-team"
+          >
+            <Users className="w-3.5 h-3.5 mr-1" />
+            {t("player_teams_by_team")}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setLocation("/player/home-settings")}
+            aria-label={t("player_settings_aria")}
+            data-testid="player-home-settings"
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 px-3 pb-10 space-y-4 pt-4">

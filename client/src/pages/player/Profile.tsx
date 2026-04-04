@@ -25,6 +25,7 @@ import {
   useDeleteReportOverride,
   type ApprovalSlide,
 } from "@/lib/approval-api";
+import { useRecordPlayerSlideView } from "@/lib/player-home";
 
 // ─── translateOutput ──────────────────────────────────────────────────────────
 // Converts motor output keys to translated strings at render time.
@@ -453,6 +454,12 @@ export default function PlayerProfileViewer() {
   const overridePending = setOverrideMut.isPending || deleteOverrideMut.isPending;
   const labelHide = t("approval_hide_line");
   const labelRestore = t("approval_restore_line");
+
+  const { mutate: recordSlideView } = useRecordPlayerSlideView();
+  useEffect(() => {
+    if (!params?.id || isReviewMode) return;
+    recordSlideView({ playerId: params.id, slideIndex: page });
+  }, [params?.id, page, isReviewMode, recordSlideView]);
 
   const { data: player, isLoading: pLoad } = usePlayer(playerIdRoute);
   const { data: teams = [], isLoading: tLoad } = useTeams();

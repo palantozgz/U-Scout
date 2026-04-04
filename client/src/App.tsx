@@ -18,6 +18,7 @@ import TestMode from "@/pages/coach/TestMode";
 import Settings from "@/pages/coach/Settings";
 import PlayerHome from "@/pages/player/PlayerHome";
 import PlayerHomeSettingsStub from "@/pages/player/PlayerHomeSettingsStub";
+import PlayerTeamList from "@/pages/player/PlayerTeamList";
 import { PlayerTeamView } from "@/pages/player/Dashboard";
 import PlayerProfileViewer from "@/pages/player/Profile";
 import JoinPage from "@/pages/Join";
@@ -71,6 +72,7 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       {/* Player Mode */}
       <Route path="/player" component={PlayerHome} />
       <Route path="/player/home-settings" component={PlayerHomeSettingsStub} />
+      <Route path="/player/teams" component={PlayerTeamList} />
       <Route path="/player/team/:teamId" component={PlayerTeamView} />
       <Route path="/player/:id" component={PlayerProfileViewer} />
 

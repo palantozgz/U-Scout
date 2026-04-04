@@ -1,80 +1,105 @@
 import { useLocation, useRoute } from "wouter";
 import { ArrowLeft } from "lucide-react";
-import { useTeams, usePlayers } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useLocale } from "@/lib/i18n";
+import { usePlayerTeamDetail } from "@/lib/player-home";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
 
-// ── Team drill-down (optional browse by team) ────────────────────────────────
 export function PlayerTeamView() {
   const { t } = useLocale();
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/player/team/:teamId");
-  const { data: teams = [] } = useTeams();
-  const { data: allPlayers = [], isLoading } = usePlayers();
-
-  const team = teams.find(t => t.id === params?.teamId);
-  const players = allPlayers.filter(p => p.teamId === params?.teamId);
+  const teamId = params?.teamId;
+  const { data, isLoading, isError } = usePlayerTeamDetail(teamId);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-[#060a14]">
+      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  if (isError || !data) {
+    return (
+      <div className="flex flex-col min-h-[100dvh] bg-background px-4 pt-10">
+        <Button variant="ghost" size="icon" onClick={() => setLocation("/player/teams")} className="mb-4 w-10 h-10 shrink-0">
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <p className="text-sm text-destructive text-center">{t("player_team_load_error")}</p>
+      </div>
+    );
+  }
+
+  const { team, players } = data;
+
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-[#060a14]">
-      <header className="px-4 pt-10 pb-4 flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => setLocation("/player")} className="text-slate-400 hover:bg-[#1e2d4a] rounded-full shrink-0" data-testid="button-back">
+    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground">
+      <header className="sticky top-0 z-10 bg-card/90 backdrop-blur-md border-b border-border px-3 py-3 flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setLocation("/player/teams")}
+          className="text-muted-foreground hover:text-foreground shrink-0"
+          data-testid="button-back"
+        >
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xl">{team?.logo}</span>
-          <h1 className="text-lg font-extrabold tracking-widest uppercase text-[#f1f5f9] truncate">{team?.name}</h1>
+          <span className="text-xl shrink-0" aria-hidden>
+            {team.logo}
+          </span>
+          <h1 className="text-lg font-extrabold tracking-tight uppercase truncate">{team.name}</h1>
         </div>
       </header>
 
-      <main className="flex-1 px-3 pb-10">
+      <main className="flex-1 px-3 pb-10 pt-4">
         <div className="grid grid-cols-2 gap-3">
-          {players.map(player => (
+          {players.map((p) => (
             <button
-              key={player.id}
-              onClick={() => setLocation(`/player/${player.id}`)}
-              className="bg-[#0d1526] border border-[#1e2d4a] hover:border-primary/60 rounded-xl overflow-hidden transition-all active:scale-95 group"
-              data-testid={`card-player-${player.id}`}
+              key={p.playerId}
+              type="button"
+              onClick={() => setLocation(`/player/${p.playerId}`)}
+              className="bg-card border border-border hover:border-primary/60 rounded-xl overflow-hidden transition-all active:scale-[0.98] text-left relative"
+              data-testid={`card-player-${p.playerId}`}
             >
-              {/* Imagen full-width con overlay */}
               <div className="relative w-full aspect-square">
-                {isRealPhoto(player.imageUrl) ? (
-                  <img
-                    src={player.imageUrl}
-                    alt={player.name}
-                    className="w-full h-full object-cover"
-                  />
+                {isRealPhoto(p.imageUrl) ? (
+                  <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="relative w-full aspect-square flex items-center justify-center overflow-hidden bg-[#0d1526]">
+                  <div className="relative w-full aspect-square flex items-center justify-center overflow-hidden bg-muted">
                     <BasketballPlaceholderAvatar size={200} />
                   </div>
                 )}
-                {/* Overlay gradiente bottom */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#060a14] via-[#060a14]/40 to-transparent" />
-                {/* Número badge top-right */}
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
                 <span
-                  className="absolute top-2 right-2 inline-flex min-w-[1.75rem] h-6 items-center justify-center px-1.5 text-[10px] font-black text-[#93c5fd] bg-[#060a14]/80 border border-[#1e2d4a] -skew-x-12 backdrop-blur-sm"
+                  className="absolute top-2 right-2 inline-flex min-w-[1.75rem] h-6 items-center justify-center px-1.5 text-[10px] font-black text-primary bg-card/80 border border-border -skew-x-12 backdrop-blur-sm"
                   style={{ clipPath: "polygon(8% 0, 100% 0, 100% 100%, 0 100%, 0 28%)" }}
                 >
-                  <span className="skew-x-12">{player.number || "—"}</span>
+                  <span className="skew-x-12">{p.number || "—"}</span>
                 </span>
+                {p.viewStatus === "complete" && (
+                  <Badge
+                    className="absolute bottom-2 left-2 text-[10px] font-bold border-emerald-500/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"
+                    variant="outline"
+                  >
+                    {t("player_view_badge_seen")}
+                  </Badge>
+                )}
+                {p.viewStatus === "partial" && (
+                  <Badge
+                    className="absolute bottom-2 left-2 text-[10px] font-bold border-amber-500/40 bg-amber-500/15 text-amber-900 dark:text-amber-200"
+                    variant="outline"
+                  >
+                    {t("player_view_badge_partial")}
+                  </Badge>
+                )}
               </div>
-              {/* Info */}
               <div className="px-3 py-2.5 text-left">
-                <p className="font-extrabold text-sm text-[#f1f5f9] truncate">{player.name || "Unnamed"}</p>
-                <p className="text-[10px] font-bold text-[#93c5fd] uppercase tracking-wider mt-0.5">
-                  {player.inputs?.position ?? "—"}
-                </p>
+                <p className="font-extrabold text-sm text-foreground truncate">{p.name || t("dashboard_unnamed_player")}</p>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-wider mt-0.5 truncate">{p.position}</p>
               </div>
             </button>
           ))}
