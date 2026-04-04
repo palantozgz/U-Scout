@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
+import { isRealPhoto } from "@/lib/utils";
 
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 function Tooltip({ text }: { text: string }) {
@@ -575,7 +577,13 @@ export default function PlayerEditor() {
             <ArrowLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
           </Button>
           <div className="flex items-center gap-2">
-            <img src={player.imageUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
+            {isRealPhoto(player.imageUrl) ? (
+              <img src={player.imageUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
+            ) : (
+              <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 flex items-center justify-center bg-slate-100 dark:bg-slate-800">
+                <BasketballPlaceholderAvatar size={32} />
+              </div>
+            )}
             <div>
               <h1 className="font-bold text-sm leading-tight text-slate-900 dark:text-white line-clamp-1 max-w-[120px]">{player.name || "New Player"}</h1>
               <div className="flex items-center gap-1">

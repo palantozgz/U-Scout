@@ -36,7 +36,7 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.flatten() });
       }
-      const team = await storage.updateTeam(req.params.id, parsed.data);
+      const team = await storage.updateTeam((req.params.id as string), parsed.data);
       if (!team) return res.status(404).json({ error: "Team not found" });
       res.json(team);
     } catch (err) {
@@ -46,7 +46,7 @@ export async function registerRoutes(
 
   app.delete("/api/teams/:id", requireAuth, async (req, res) => {
     try {
-      await storage.deleteTeam(req.params.id);
+      await storage.deleteTeam((req.params.id as string));
       res.status(204).send();
     } catch (err) {
       res.status(500).json({ error: "Failed to delete team" });
@@ -65,7 +65,7 @@ export async function registerRoutes(
 
   app.get("/api/players/:id", requireAuth, async (req, res) => {
     try {
-      const player = await storage.getPlayer(req.params.id);
+      const player = await storage.getPlayer((req.params.id as string));
       if (!player) return res.status(404).json({ error: "Player not found" });
       res.json(player);
     } catch (err) {
@@ -92,7 +92,7 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.flatten() });
       }
-      const player = await storage.updatePlayer(req.params.id, parsed.data);
+      const player = await storage.updatePlayer((req.params.id as string), parsed.data);
       if (!player) return res.status(404).json({ error: "Player not found" });
       res.json(player);
     } catch (err) {
@@ -102,7 +102,7 @@ export async function registerRoutes(
 
   app.delete("/api/players/:id", requireAuth, async (req, res) => {
     try {
-      await storage.deletePlayer(req.params.id);
+      await storage.deletePlayer((req.params.id as string));
       res.status(204).send();
     } catch (err) {
       res.status(500).json({ error: "Failed to delete player" });

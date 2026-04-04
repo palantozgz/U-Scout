@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import { usePlayer, useTeams, generateProfile } from "@/lib/mock-data";
 import { useLocale } from "@/lib/i18n";
+import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
+import { isRealPhoto } from "@/lib/utils";
 import { ArrowLeft, ChevronRight, ChevronLeft, ShieldAlert, Shield, Plus, X, BookOpen, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -86,13 +88,13 @@ function BulletCard({
   if (!top.length) return null;
   const visible = deepReport ? [...top, ...rest] : top;
   return (
-    <div className={`rounded-2xl border overflow-hidden ${bg} ${border}`}>
-      <div className="px-4 pt-3 pb-3">
+    <div className={`w-full rounded-2xl border ${bg} ${border}`}>
+      <div className="px-4 pt-3 pb-3 w-full">
         <p className={`text-[10px] font-black uppercase tracking-widest mb-2.5 ${accent}`}>{title}</p>
         {visible.map((item, i) => (
-          <div key={i} className="flex gap-2 items-start mb-2 last:mb-0">
+          <div key={i} className="flex gap-2 items-start mb-2 last:mb-0 w-full min-w-0">
             <span className={`font-black text-sm shrink-0 leading-snug ${accent}`}>—</span>
-            <span className="text-sm font-semibold leading-snug text-slate-100">{item}</span>
+            <span className="text-sm font-semibold leading-snug text-slate-100 min-w-0 flex-1 break-words whitespace-normal">{item}</span>
           </div>
         ))}
       </div>
@@ -109,13 +111,13 @@ function PlanCard({ label, symbol, items, accent, bg, border, deepReport }: {
   if (!items.length) return null;
   const visible = deepReport ? items : items.slice(0, 2);
   return (
-    <div className={`rounded-2xl border overflow-hidden ${bg} ${border}`}>
-      <div className="px-4 pt-3 pb-3">
+    <div className={`w-full rounded-2xl border ${bg} ${border}`}>
+      <div className="px-4 pt-3 pb-3 w-full">
         <p className={`text-[10px] font-black uppercase tracking-widest mb-2.5 ${accent}`}>{symbol} {label}</p>
         {visible.map((item, i) => (
-          <div key={i} className="flex gap-2 items-start mb-2 last:mb-0">
+          <div key={i} className="flex gap-2 items-start mb-2 last:mb-0 w-full min-w-0">
             <span className={`font-black text-sm shrink-0 leading-snug ${accent}`}>{symbol}</span>
-            <span className="text-sm font-semibold leading-snug text-slate-100">{item}</span>
+            <span className="text-sm font-semibold leading-snug text-slate-100 min-w-0 flex-1 break-words whitespace-normal">{item}</span>
           </div>
         ))}
       </div>
@@ -154,7 +156,10 @@ function ScrollSlide({ children, accentColor }: { children: React.ReactNode; acc
   }, [children]);
 
   return (
-    <div className="relative h-full">
+    <div
+      ref={ref}
+      className="relative flex-1 min-h-0 flex flex-col w-full overflow-y-auto overflow-x-hidden bg-[#060a14] scroll-smooth"
+    >
       {/* Top fade + indicator */}
       {canScrollUp && (
         <div className="absolute top-0 left-0 w-full h-12 z-10 pointer-events-none"
@@ -167,7 +172,7 @@ function ScrollSlide({ children, accentColor }: { children: React.ReactNode; acc
         </div>
       )}
 
-      <div ref={ref} className="h-full flex flex-col px-5 pt-20 pb-24 gap-3 overflow-y-auto bg-[#060a14] scroll-smooth">
+      <div className="w-full flex flex-col px-5 pt-20 pb-24 gap-3">
         {children}
       </div>
 
@@ -295,17 +300,15 @@ export default function PlayerProfileViewer() {
 
   // ── SLIDE 1 — Identity ────────────────────────────────────────────────────
   const S1 = (
-    <div className="h-full flex flex-col items-center justify-center text-center px-6 gap-5 bg-[#060a14]">
+    <div className="h-full min-h-0 flex flex-col items-center justify-center text-center px-6 gap-5 bg-[#060a14] overflow-y-auto">
       <div className="absolute top-0 left-0 w-full h-1 bg-orange-500" />
       <div className="relative mt-4">
         <div className="absolute inset-0 blur-2xl opacity-25 rounded-full bg-orange-500" />
-        {player.imageUrl
+        {isRealPhoto(player.imageUrl)
           ? <img src={player.imageUrl} alt={player.name}
               className="w-32 h-32 rounded-full object-cover border-4 border-orange-500/30 shadow-2xl relative z-10" />
-          : <div className="w-32 h-32 rounded-full border-4 border-orange-500/30 shadow-2xl relative z-10 bg-slate-800 flex items-center justify-center">
-              <span className="text-4xl font-black text-orange-400 uppercase">
-                {player.name?.charAt(0) ?? "?"}
-              </span>
+          : <div className="w-32 h-32 rounded-full border-4 border-orange-500/30 shadow-2xl relative z-10 overflow-hidden">
+              <BasketballPlaceholderAvatar size={128} />
             </div>
         }
         <div className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full border-2 border-slate-950 flex items-center justify-center text-white font-black text-sm z-20 bg-orange-500 shadow-lg">
@@ -355,7 +358,7 @@ export default function PlayerProfileViewer() {
 
   // ── SLIDE 2 — How she attacks ─────────────────────────────────────────────
   const S2 = (
-    <div className="relative h-full bg-[#060a14]">
+    <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-red-500 z-20" />
       <ScrollSlide accentColor="text-red-400">
       <h2 className="text-lg font-black text-white">⚠ {t("how_she_attacks")}</h2>
@@ -379,7 +382,7 @@ export default function PlayerProfileViewer() {
   // ── SLIDE 3 — Where dangerous ─────────────────────────────────────────────
   const slide3TranslatedItems = slide3Items.map(s => translateOutput(s, t));
   const S3 = (
-    <div className="relative h-full bg-[#060a14]">
+    <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 z-20" />
       <ScrollSlide accentColor="text-amber-400">
       <h2 className="text-lg font-black text-white">📍 {t("where_dangerous")}</h2>
@@ -397,7 +400,7 @@ export default function PlayerProfileViewer() {
 
   // ── SLIDE 4 — Screens ─────────────────────────────────────────────────────
   const S4 = (
-    <div className="relative h-full bg-[#060a14]">
+    <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 z-20" />
       <ScrollSlide accentColor="text-blue-400">
       <h2 className="text-lg font-black text-white">⚡ {t("screens_actions")}</h2>
@@ -423,7 +426,7 @@ export default function PlayerProfileViewer() {
   const hasPlan  = defender.length > 0 || forzar.length > 0 || concede.length > 0;
 
   const S5 = (
-    <div className="relative h-full bg-[#060a14]">
+    <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-slate-500 z-20" />
       <ScrollSlide accentColor="text-slate-400">
       <div className="flex items-center gap-2">
@@ -503,12 +506,12 @@ export default function PlayerProfileViewer() {
       </header>
 
       {/* Swipeable content */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative min-h-0">
         <AnimatePresence initial={false} custom={dir} mode="popLayout">
           <motion.div key={`${page}-${deepReport}`} custom={dir}
             variants={variants} initial="enter" animate="center" exit="exit"
             transition={{ type: "tween", duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="absolute inset-0 w-full h-full"
+            className="absolute inset-0 w-full h-full min-h-0 overflow-hidden"
             drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.12}
             onDragEnd={(_, { offset, velocity }) => {
               if (Math.abs(velocity.x) > 400) { velocity.x < 0 ? next() : prev(); }

@@ -14,8 +14,18 @@ import CoachDashboard from "@/pages/coach/Dashboard";
 import PlayerEditor from "@/pages/coach/PlayerEditor";
 import TestMode from "@/pages/coach/TestMode";
 import Settings from "@/pages/coach/Settings";
-import PlayerModeDashboard from "@/pages/player/Dashboard";
+import PlayerModeDashboard, { PlayerTeamView } from "@/pages/player/Dashboard";
 import PlayerProfileViewer from "@/pages/player/Profile";
+
+const SPLASH_SHOWN_KEY = "splashShown";
+
+function readSplashAlreadyShown(): boolean {
+  try {
+    return sessionStorage.getItem(SPLASH_SHOWN_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
 
 function RootRedirect({ to }: { to: string }) {
   const [, setLocation] = useLocation();
@@ -61,6 +71,7 @@ function Router({
 
       {/* Player Mode */}
       <Route path="/player" component={PlayerModeDashboard} />
+      <Route path="/player/team/:teamId" component={PlayerTeamView} />
       <Route path="/player/:id" component={PlayerProfileViewer} />
 
       <Route component={NotFound} />
@@ -70,20 +81,50 @@ function Router({
 
 function App() {
   const { user, profile, loading, signOut } = useAuth();
-  const [splashPhase, setSplashPhase] = useState<"on" | "fade" | "off">("on");
+  const [skipSplash] = useState(readSplashAlreadyShown);
+  const [splashDone, setSplashDone] = useState(skipSplash);
+  const [splashPhase, setSplashPhase] = useState<"on" | "fade" | "off">(
+    skipSplash ? "off" : "on",
+  );
 
   useEffect(() => {
-    if (!loading && splashPhase === "on") setSplashPhase("fade");
-  }, [loading, splashPhase]);
+    if (skipSplash) return;
+    const id = window.setTimeout(() => setSplashDone(true), 3500);
+    return () => window.clearTimeout(id);
+  }, [skipSplash]);
+
+  const showSplash = !skipSplash && (loading || !splashDone);
 
   useEffect(() => {
+    if (skipSplash) return;
+    if (showSplash || splashPhase !== "on") return;
+    setSplashPhase("fade");
+  }, [skipSplash, showSplash, splashPhase]);
+
+  useEffect(() => {
+    if (skipSplash) return;
     if (splashPhase !== "fade") return;
-    const id = window.setTimeout(() => setSplashPhase("off"), 400);
-    return () => clearTimeout(id);
-  }, [splashPhase]);
+    const id = window.setTimeout(() => {
+      try {
+        sessionStorage.setItem(SPLASH_SHOWN_KEY, "true");
+      } catch {
+        /* ignore quota / private mode */
+      }
+      setSplashPhase("off");
+    }, 400);
+    return () => window.clearTimeout(id);
+  }, [skipSplash, splashPhase]);
 
-  if (splashPhase !== "off") {
+  if (!skipSplash && splashPhase !== "off") {
     return <NbaAuthSplash fadeOut={splashPhase === "fade"} />;
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   if (!user || !profile) return <Login />;

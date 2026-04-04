@@ -634,6 +634,9 @@ const en = {
   settings_about: "About",
   settings_motor: "Motor version",
   settings_archetypes: "Archetypes",
+  settings_account: "Account",
+  settings_email: "Email",
+  settings_sign_out: "Sign out",
   settings_zh_warning: "Chinese basketball terminology is pending review by a professional. Some terms may be inaccurate.",
 
 } as const;
@@ -1206,6 +1209,9 @@ const es: I18nStrings = {
   settings_about: "Acerca de",
   settings_motor: "Versión del motor",
   settings_archetypes: "Arquetipos",
+  settings_account: "Cuenta",
+  settings_email: "Correo electrónico",
+  settings_sign_out: "Cerrar sesión",
   settings_zh_warning: "La terminología en chino está pendiente de revisión por un profesional. Algunos términos pueden ser imprecisos.",
 
 };
@@ -1774,6 +1780,9 @@ const zh: I18nStrings = {
   settings_about: "关于",
   settings_motor: "引擎版本",
   settings_archetypes: "球员类型数量",
+  settings_account: "账户",
+  settings_email: "电子邮件",
+  settings_sign_out: "退出登录",
   settings_zh_warning: "中文篮球术语正在等待专业人士审核，部分术语可能不准确。",
 
 };
