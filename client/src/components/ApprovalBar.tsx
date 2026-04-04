@@ -94,7 +94,7 @@ export function ApprovalBar({ playerId }: { playerId: string }) {
             size="sm"
             className={
               iApproved
-                ? "font-bold shrink-0 bg-emerald-600 text-white hover:bg-emerald-700 border-0 shadow-sm"
+                ? "font-bold shrink-0 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 border-0"
                 : "font-bold shrink-0"
             }
             disabled={approve.isPending || unapprove.isPending || !myId}
@@ -113,7 +113,7 @@ export function ApprovalBar({ playerId }: { playerId: string }) {
             <>
               <Badge
                 variant="outline"
-                className="text-[10px] font-bold h-8 px-2 gap-1 border-emerald-500/50 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+                className="text-[10px] font-bold h-8 px-2 gap-1 border-primary/40 bg-primary/10 text-primary"
               >
                 <Check className="w-3.5 h-3.5" />
                 {t("dashboard_player_published_badge")}

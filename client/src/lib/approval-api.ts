@@ -89,7 +89,7 @@ export function useUnpublishReport(playerId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("DELETE", `/api/players/${encodeURIComponent(playerId)}/publish`);
+      const res = await apiRequest("POST", `/api/players/${encodeURIComponent(playerId)}/unpublish`, {});
       return res.json() as Promise<Record<string, unknown>>;
     },
     onSuccess: () => invalidatePlayerApprovalQueries(qc, playerId),

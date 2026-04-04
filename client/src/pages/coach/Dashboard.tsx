@@ -10,7 +10,7 @@ import { UScoutWatermark } from "@/components/branding/UScoutBrand";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { useApprovalStatus, usePublishReport } from "@/lib/approval-api";
+import { useApprovalStatus, usePublishReport, useUnpublishReport } from "@/lib/approval-api";
 import { toast } from "@/hooks/use-toast";
 
 export type CoachDashboardMode = "editor" | "reports";
@@ -320,6 +320,7 @@ function PlayerRow({
     enabled: mode === "editor",
   });
   const publishMut = usePublishReport(player.id);
+  const unpublishMut = useUnpublishReport(player.id);
 
   const published = Boolean(approvalStatus?.isPublished ?? player.published);
   const approvalCount = approvalStatus?.approvals.length ?? 0;
@@ -380,25 +381,51 @@ function PlayerRow({
           <div className="flex items-center gap-1 flex-wrap justify-end">
             <Badge
               variant="secondary"
-              className="text-[10px] font-bold px-1.5 py-0 h-6 min-w-[2.25rem] justify-center tabular-nums border-border"
+              className="text-[10px] font-bold px-1.5 py-0.5 h-auto min-h-6 max-w-[9rem] sm:max-w-none justify-center tabular-nums border-border text-center leading-tight"
               data-testid={`badge-approval-fraction-${player.id}`}
             >
-              {approvalLoading ? "—" : approvalFraction}
+              {approvalLoading ? "—" : `${approvalFraction} ${t("dashboard_player_coaches_label")}`}
             </Badge>
             {published ? (
-              <Badge
-                variant="outline"
-                className="text-[10px] font-bold h-7 px-2 border-primary/40 bg-primary/10 text-primary gap-1"
-                data-testid={`badge-published-${player.id}`}
-              >
-                <Check className="w-3 h-3" />
-                {t("dashboard_player_published_badge")}
-              </Badge>
+              <>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-bold h-7 px-2 border-primary/40 bg-primary/10 text-primary gap-1 shrink-0"
+                  data-testid={`badge-published-${player.id}`}
+                >
+                  <Check className="w-3 h-3" />
+                  {t("dashboard_player_published_badge")}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-[10px] font-bold rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                  disabled={unpublishMut.isPending}
+                  data-testid={`button-unpublish-player-${player.id}`}
+                  onClick={() => {
+                    if (!window.confirm(t("approval_unpublish_confirm"))) return;
+                    unpublishMut.mutate(undefined, {
+                      onSuccess: () => {
+                        toast({ title: t("approval_unpublish_success") });
+                      },
+                      onError: (err) => {
+                        toast({
+                          variant: "destructive",
+                          title: t("approval_unpublish_error"),
+                          description: (err as Error)?.message ?? "",
+                        });
+                      },
+                    });
+                  }}
+                >
+                  {unpublishMut.isPending ? t("saving") : t("approval_unpublish")}
+                </Button>
+              </>
             ) : (
               <Button
                 size="sm"
                 variant="secondary"
-                className="h-7 px-2 text-[10px] font-bold rounded-lg"
+                className="h-7 px-2 text-[10px] font-bold rounded-lg shrink-0"
                 disabled={publishMut.isPending}
                 data-testid={`button-publish-player-${player.id}`}
                 onClick={() =>

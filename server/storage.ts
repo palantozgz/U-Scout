@@ -632,18 +632,10 @@ export class DatabaseStorage implements IStorage {
 
   async unpublishPlayerReport(playerId: string): Promise<Player | undefined> {
     return await db.transaction(async (tx) => {
-      const [latest] = await tx
-        .select()
-        .from(reportPublications)
-        .where(eq(reportPublications.playerId, playerId))
-        .orderBy(desc(reportPublications.publishedAt))
-        .limit(1);
-      if (latest) {
-        await tx
-          .update(reportPublications)
-          .set({ isActive: false })
-          .where(eq(reportPublications.id, latest.id));
-      }
+      await tx
+        .update(reportPublications)
+        .set({ isActive: false })
+        .where(eq(reportPublications.playerId, playerId));
       const [updated] = await tx
         .update(players)
         .set({

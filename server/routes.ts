@@ -331,7 +331,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/players/:id/publish", requireAuth, async (req, res) => {
+  app.post("/api/players/:id/unpublish", requireAuth, async (req, res) => {
     try {
       const playerId = req.params.id as string;
       const player = await storage.getPlayer(playerId);
