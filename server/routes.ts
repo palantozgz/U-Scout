@@ -252,6 +252,7 @@ export async function registerRoutes(
         hasDiscrepancy: computeHasDiscrepancy(overrides),
       });
     } catch (err) {
+      console.error("[approval-status]", err);
       res.status(500).json({ error: "Failed to load approval status" });
     }
   });
