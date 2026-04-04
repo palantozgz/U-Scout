@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, jsonb, timestamp, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -39,8 +39,113 @@ export const players = pgTable("players", {
   archetype: text("archetype").notNull().default("Role Player"),
   keyTraits: text("key_traits").array().notNull().default(sql`'{}'::text[]`),
   defensivePlan: jsonb("defensive_plan").notNull(),
+  /** Supabase user id of coach who created this scouting profile (optional). */
+  createdByUserId: varchar("created_by_user_id"),
 });
 
 export const insertPlayerSchema = createInsertSchema(players).omit({ id: true });
 export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
 export type Player = typeof players.$inferSelect;
+
+/** Supabase auth user id + team membership (from invitations / roster). */
+export const teamMembers = pgTable(
+  "team_members",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull(),
+    teamId: varchar("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 32 }).notNull(),
+    jerseyNumber: text("jersey_number").notNull().default(""),
+    position: text("position").notNull().default(""),
+    displayName: text("display_name").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique("team_members_user_team_unique").on(table.userId, table.teamId)],
+);
+
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type InsertTeamMember = typeof teamMembers.$inferInsert;
+
+export const invitations = pgTable("invitations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id")
+    .notNull()
+    .references(() => teams.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 32 }).notNull(),
+  token: varchar("token").notNull().unique().default(sql`gen_random_uuid()::text`),
+  createdBy: varchar("created_by").notNull(),
+  usedBy: varchar("used_by"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Invitation = typeof invitations.$inferSelect;
+export type InsertInvitation = typeof invitations.$inferInsert;
+
+/** Scouting report (player row) shared with an app user (player role). */
+export const scoutingReportAssignments = pgTable("scouting_report_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  playerId: varchar("player_id")
+    .notNull()
+    .references(() => players.id, { onDelete: "cascade" }),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ScoutingReportAssignment = typeof scoutingReportAssignments.$inferSelect;
+export type InsertScoutingReportAssignment = typeof scoutingReportAssignments.$inferInsert;
+
+/** User's home club (not rival scout teams). */
+export const clubs = pgTable("clubs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  logo: text("logo").notNull().default("🏀"),
+  ownerId: varchar("owner_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Club = typeof clubs.$inferSelect;
+export type InsertClub = typeof clubs.$inferInsert;
+
+export const clubMembers = pgTable(
+  "club_members",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    clubId: varchar("club_id")
+      .notNull()
+      .references(() => clubs.id, { onDelete: "cascade" }),
+    userId: varchar("user_id").notNull(),
+    role: varchar("role", { length: 32 }).notNull(),
+    displayName: text("display_name").notNull().default(""),
+    jerseyNumber: text("jersey_number").notNull().default(""),
+    position: text("position").notNull().default(""),
+    status: varchar("status", { length: 16 }).notNull().default("active"),
+    invitedEmail: text("invited_email"),
+    joinedAt: timestamp("joined_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique("club_members_club_user_unique").on(table.clubId, table.userId)],
+);
+
+export type ClubMember = typeof clubMembers.$inferSelect;
+export type InsertClubMember = typeof clubMembers.$inferInsert;
+
+export const clubInvitations = pgTable("club_invitations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clubId: varchar("club_id")
+    .notNull()
+    .references(() => clubs.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 32 }).notNull(),
+  token: varchar("token").notNull().unique().default(sql`gen_random_uuid()::text`),
+  invitedEmail: text("invited_email"),
+  createdBy: varchar("created_by").notNull(),
+  usedBy: varchar("used_by"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ClubInvitation = typeof clubInvitations.$inferSelect;
+export type InsertClubInvitation = typeof clubInvitations.$inferInsert;

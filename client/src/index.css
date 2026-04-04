@@ -131,3 +131,55 @@
     scrollbar-width: none;
   }
 }
+/* ── OFFICE (work) ─────────────────────────────────────────── */
+.theme-office {
+  --background: 0 0% 98%;
+  --foreground: 220 13% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 13% 18%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 13% 18%;
+  --primary: 221 83% 45%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 94%;
+  --secondary-foreground: 220 13% 18%;
+  --muted: 220 14% 94%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 220 14% 88%;
+  --accent-foreground: 220 13% 18%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 13% 88%;
+  --input: 220 13% 88%;
+  --ring: 221 83% 45%;
+  --radius: 0.5rem;
+}
+
+/* ── OLDSCHOOL (classic) — warm palette + basketball leather texture ─ */
+.theme-oldschool {
+  --background: 35 28% 91%;
+  --foreground: 20 14% 12%;
+  --card: 35 25% 88%;
+  --card-foreground: 20 14% 12%;
+  --popover: 35 28% 94%;
+  --popover-foreground: 20 14% 12%;
+  --primary: 24 80% 38%;
+  --primary-foreground: 35 28% 96%;
+  --secondary: 35 22% 85%;
+  --secondary-foreground: 20 14% 12%;
+  --muted: 35 20% 84%;
+  --muted-foreground: 25 12% 40%;
+  --accent: 15 70% 40%;
+  --accent-foreground: 35 28% 96%;
+  --destructive: 0 65% 45%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 30 18% 78%;
+  --input: 30 18% 78%;
+  --ring: 24 80% 35%;
+  --radius: 0.75rem;
+}
+
+html.theme-oldschool body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='48' fill='none' stroke='%23c1440e' stroke-width='1.5' opacity='0.15'/%3E%3Cpath d='M2 50 Q25 25 50 2' fill='none' stroke='%23c1440e' stroke-width='1' opacity='0.12'/%3E%3Cpath d='M50 2 Q75 25 98 50' fill='none' stroke='%23c1440e' stroke-width='1' opacity='0.12'/%3E%3Cpath d='M2 50 Q25 75 50 98' fill='none' stroke='%23c1440e' stroke-width='1' opacity='0.12'/%3E%3Cpath d='M50 98 Q75 75 98 50' fill='none' stroke='%23c1440e' stroke-width='1' opacity='0.12'/%3E%3Cline x1='50' y1='2' x2='50' y2='98' stroke='%23c1440e' stroke-width='1' opacity='0.1'/%3E%3C/svg%3E");
+  background-size: 100px 100px;
+}

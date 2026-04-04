@@ -2,19 +2,20 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n";
-import { ArrowLeft, Users, Plus, UserPlus, Trash2, Check, X, Pencil, FlaskConical, Settings, FileText, ChevronDown } from "lucide-react";
+import { ArrowLeft, Users, Plus, UserPlus, Trash2, Check, X, Pencil, FlaskConical, Settings, FileText, ChevronDown, MailPlus } from "lucide-react";
 import { useTeams, usePlayers, useCreateTeam, useUpdateTeam, useDeleteTeam, useDeletePlayer, type Team, type PlayerProfile } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UScoutWatermark } from "@/components/branding/UScoutBrand";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
+import { InviteTeamDialog } from "@/pages/coach/InviteTeamDialog";
 
 export type CoachDashboardMode = "editor" | "reports";
 
 function teamAvatarRingClass(primaryColor: string): string {
   const ring = primaryColor.startsWith("bg-") ? primaryColor.replace(/^bg-/, "ring-") : "ring-primary";
-  return cn("ring-2 ring-offset-2 ring-offset-[#0d1526]", ring);
+  return cn("ring-2 ring-offset-2 ring-offset-background", ring);
 }
 
 export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
@@ -34,6 +35,7 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
   const [pendingDeletePlayer, setPendingDeletePlayer] = useState<string | null>(null);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editingTeamName, setEditingTeamName] = useState("");
+  const [inviteTeam, setInviteTeam] = useState<{ id: string; name: string } | null>(null);
 
   const isEditor = mode === "editor";
   const playersByTeam = (teamId: string) => allPlayers.filter(p => p.teamId === teamId);
@@ -195,14 +197,14 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
           const isEditing = editingTeamId === team.id;
 
           return (
-            <div key={team.id} className="rounded-lg border border-[#1e2d4a] overflow-hidden">
+            <div key={team.id} className="rounded-lg border border-border overflow-hidden">
 
               {/* Team header row — clickable to expand */}
               <div
                 className={cn(
-                  "flex items-center justify-between px-4 py-3 bg-[#0d1526] cursor-pointer select-none transition-colors",
-                  isExpanded ? "border-b border-[#1e2d4a]" : "",
-                  !isEditing && "hover:bg-[#1e2d4a]/60"
+                  "flex items-center justify-between px-4 py-3 bg-card cursor-pointer select-none transition-colors",
+                  isExpanded ? "border-b border-border" : "",
+                  !isEditing && "hover:bg-muted/60"
                 )}
                 onClick={() => !isEditing && !isDeleting && toggleTeam(team.id)}
                 data-testid={`row-team-${team.id}`}
@@ -251,6 +253,19 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
                       <>
                         {isEditor && (
                           <>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setInviteTeam({ id: team.id, name: team.name });
+                              }}
+                              className="w-8 h-8 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg"
+                              title={t("invite_button")}
+                              data-testid={`button-invite-team-${team.id}`}
+                            >
+                              <MailPlus className="w-3.5 h-3.5" />
+                            </Button>
                             <Button size="icon" variant="ghost" onClick={() => startEditTeam(team)} className="w-8 h-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg" data-testid={`button-edit-team-${team.id}`}>
                               <Pencil className="w-3.5 h-3.5" />
                             </Button>
@@ -302,6 +317,15 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
           );
         })}
       </main>
+
+      <InviteTeamDialog
+        teamId={inviteTeam?.id ?? null}
+        teamName={inviteTeam?.name ?? ""}
+        open={Boolean(inviteTeam)}
+        onOpenChange={(open) => {
+          if (!open) setInviteTeam(null);
+        }}
+      />
     </div>
   );
 }
@@ -331,7 +355,7 @@ function PlayerRow({
   const num = player.number || "—";
 
   return (
-    <div className="relative bg-[#0d1526] rounded-lg p-3 flex items-center gap-3 border border-[#1e2d4a] hover:border-primary/55 transition-colors" data-testid={`card-player-${player.id}`}>
+    <div className="relative bg-card rounded-lg p-3 flex items-center gap-3 border border-border hover:border-primary/55 transition-colors" data-testid={`card-player-${player.id}`}>
       <div className="relative shrink-0">
         {isRealPhoto(player.imageUrl)
           ? <img src={player.imageUrl} alt={player.name} className={cn("w-12 h-12 rounded-full object-cover shadow-md", teamAvatarRingClass(team.primaryColor))} />
@@ -339,24 +363,24 @@ function PlayerRow({
         }
         {/* Badge: bottom-left of image, no overlap with buttons */}
         <span
-          className="absolute -bottom-1 -left-1 z-10 inline-flex min-w-[1.5rem] h-5 items-center justify-center px-1 text-[9px] font-black tracking-tight text-[#93c5fd] bg-[#1e2d4a] border border-[#334155] -skew-x-12 shadow-md"
+          className="absolute -bottom-1 -left-1 z-10 inline-flex min-w-[1.5rem] h-5 items-center justify-center px-1 text-[9px] font-black tracking-tight text-primary bg-secondary border border-border -skew-x-12 shadow-md"
           style={{ clipPath: "polygon(8% 0, 100% 0, 100% 100%, 0 100%, 0 28%)" }}
         >
           <span className="skew-x-12">{num}</span>
         </span>
       </div>
       <div className="flex-1 min-w-0">
-        <h3 className="font-extrabold text-sm truncate text-[#f1f5f9]">{player.name || "Unnamed"}</h3>
-        <div className="flex items-center gap-1 text-xs font-bold text-[#93c5fd]">
+        <h3 className="font-extrabold text-sm truncate text-foreground">{player.name || "Unnamed"}</h3>
+        <div className="flex items-center gap-1 text-xs font-bold text-primary">
           <span>{inp?.position ?? "—"}</span>
-          <span className="text-[#334155]">·</span>
-          <span className="text-[#93c5fd]/90">{inp?.height ?? "—"}</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-primary/90">{inp?.height ?? "—"}</span>
         </div>
       </div>
 
       {mode === "editor" ? (
         <>
-          <Button size="sm" variant="outline" onClick={onEdit} className="h-8 px-3 shrink-0 rounded-lg text-xs font-bold border-border bg-transparent text-[#f1f5f9] hover:bg-[#1e2d4a]" data-testid={`button-edit-player-${player.id}`}>
+          <Button size="sm" variant="outline" onClick={onEdit} className="h-8 px-3 shrink-0 rounded-lg text-xs font-bold border-border bg-transparent text-foreground hover:bg-muted" data-testid={`button-edit-player-${player.id}`}>
             <Pencil className="w-3 h-3 mr-1" /> {t("edit")}
           </Button>
           <Button size="icon" variant="ghost" onClick={onDelete} className="w-7 h-7 shrink-0 text-muted-foreground hover:text-red-400 hover:bg-red-950/30 rounded-lg" data-testid={`button-delete-player-${player.id}`}>

@@ -1,0 +1,167 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "./queryClient";
+
+export const clubQueryKey = ["/api/club"] as const;
+export const clubStatsQueryKey = ["/api/club/stats"] as const;
+
+export interface ClubMemberDto {
+  id: string;
+  clubId: string;
+  userId: string;
+  role: string;
+  displayName: string;
+  jerseyNumber: string;
+  position: string;
+  status: string;
+  invitedEmail: string | null;
+  joinedAt: string | null;
+  createdAt: string;
+}
+
+export interface ClubInvitationDto {
+  id: string;
+  clubId: string;
+  role: string;
+  token: string;
+  invitedEmail: string | null;
+  createdBy: string;
+  expiresAt: string;
+  createdAt: string;
+  link: string;
+}
+
+export interface ClubPayload {
+  club: { id: string; name: string; logo: string; ownerId: string; createdAt: string };
+  members: ClubMemberDto[];
+  pendingInvitations: ClubInvitationDto[];
+}
+
+export function useClub() {
+  return useQuery({
+    queryKey: clubQueryKey,
+    queryFn: async (): Promise<ClubPayload> => (await apiRequest("GET", "/api/club")).json(),
+    networkMode: "offlineFirst",
+  });
+}
+
+export function usePatchClub() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { name?: string; logo?: string }) => {
+      const res = await apiRequest("PATCH", "/api/club", body);
+      return res.json() as Promise<ClubPayload["club"]>;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: clubQueryKey });
+    },
+  });
+}
+
+export function useClubInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { role: "head_coach" | "coach" | "player"; email?: string }) => {
+      const payload =
+        body.email && body.email.trim().length > 0
+          ? { role: body.role, email: body.email.trim() }
+          : { role: body.role };
+      const res = await apiRequest("POST", "/api/club/invite", payload);
+      return res.json() as Promise<{ token: string; link: string }>;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: clubQueryKey });
+    },
+  });
+}
+
+export function useDeleteClubMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (memberId: string) => {
+      await apiRequest("DELETE", `/api/club/members/${encodeURIComponent(memberId)}`);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: clubQueryKey });
+      void qc.invalidateQueries({ queryKey: clubStatsQueryKey });
+    },
+  });
+}
+
+export function useBanClubMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ban }: { id: string; ban: boolean }) => {
+      const path = ban
+        ? `/api/club/members/${encodeURIComponent(id)}/ban`
+        : `/api/club/members/${encodeURIComponent(id)}/unban`;
+      await apiRequest("PATCH", path, {});
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: clubQueryKey });
+    },
+  });
+}
+
+export function useRevokeClubInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (invitationId: string) => {
+      await apiRequest("DELETE", `/api/club/invitations/${encodeURIComponent(invitationId)}`);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: clubQueryKey });
+    },
+  });
+}
+
+export function useClubStats(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: clubStatsQueryKey,
+    enabled: options?.enabled !== false,
+    queryFn: async () =>
+      (await apiRequest("GET", "/api/club/stats")).json() as Promise<{
+        players: Array<{
+          memberId: string;
+          userId: string;
+          displayName: string;
+          reportsAssigned: number;
+          lastSeen: string | null;
+        }>;
+        coaches: Array<{
+          memberId: string;
+          userId: string;
+          displayName: string;
+          role: string;
+          playersScouted: number;
+        }>;
+      }>,
+    networkMode: "offlineFirst",
+  });
+}
+
+export async function fetchClubInvitationPublic(token: string) {
+  const res = await fetch(`/api/club/invitations/${encodeURIComponent(token)}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "load_failed");
+  return data as {
+    club: { id: string; name: string; logo: string };
+    role: string;
+    expiresAt: string;
+    expired: boolean;
+    used: boolean;
+  };
+}
+
+export function useAcceptClubInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (token: string) => {
+      const res = await apiRequest("POST", `/api/club/invitations/${encodeURIComponent(token)}/accept`, {});
+      return res.json() as Promise<{ ok: boolean; clubId: string; role: string }>;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: clubQueryKey });
+      void qc.invalidateQueries({ queryKey: clubStatsQueryKey });
+    },
+  });
+}

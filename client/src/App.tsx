@@ -10,12 +10,17 @@ import Login from "@/pages/Login";
 
 import { NbaAuthSplash } from "@/components/branding/UScoutBrand";
 import CoachHome from "@/pages/coach/CoachHome";
+import ClubManagement from "@/pages/coach/ClubManagement";
+import JoinClub from "@/pages/JoinClub";
 import CoachDashboard from "@/pages/coach/Dashboard";
 import PlayerEditor from "@/pages/coach/PlayerEditor";
 import TestMode from "@/pages/coach/TestMode";
 import Settings from "@/pages/coach/Settings";
-import PlayerModeDashboard, { PlayerTeamView } from "@/pages/player/Dashboard";
+import PlayerHome from "@/pages/player/PlayerHome";
+import PlayerHomeSettingsStub from "@/pages/player/PlayerHomeSettingsStub";
+import { PlayerTeamView } from "@/pages/player/Dashboard";
 import PlayerProfileViewer from "@/pages/player/Profile";
+import JoinPage from "@/pages/Join";
 
 const SPLASH_SHOWN_KEY = "splashShown";
 
@@ -35,14 +40,7 @@ function RootRedirect({ to }: { to: string }) {
   return null;
 }
 
-function Router({
-  defaultPath,
-  signOut,
-}: {
-  defaultPath: string;
-  signOut: () => Promise<void>;
-}) {
-  void signOut;
+function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
   return (
     <Switch>
       <Route path="/">
@@ -55,6 +53,7 @@ function Router({
       {/* Coach Mode — specific paths before /coach */}
       <Route path="/coach/player/:id/profile" component={PlayerProfileViewer} />
       <Route path="/coach/player/:id" component={PlayerEditor} />
+      <Route path="/coach/club" component={ClubManagement} />
       <Route path="/coach/team/:id">
         <CoachDashboard mode="editor" />
       </Route>
@@ -70,7 +69,8 @@ function Router({
       <Route path="/player/settings" component={Settings} />
 
       {/* Player Mode */}
-      <Route path="/player" component={PlayerModeDashboard} />
+      <Route path="/player" component={PlayerHome} />
+      <Route path="/player/home-settings" component={PlayerHomeSettingsStub} />
       <Route path="/player/team/:teamId" component={PlayerTeamView} />
       <Route path="/player/:id" component={PlayerProfileViewer} />
 
@@ -79,8 +79,17 @@ function Router({
   );
 }
 
+function AuthGate() {
+  const { user, profile } = useAuth();
+  if (!user || !profile) return <Login />;
+  const defaultPath = profile.role === "player" ? "/player" : "/coach";
+  return <AuthenticatedRoutes defaultPath={defaultPath} />;
+}
+
 function App() {
-  const { user, profile, loading, signOut } = useAuth();
+  const { loading } = useAuth();
+  const [loc] = useLocation();
+  const isJoinRoute = loc.startsWith("/join/") || loc.startsWith("/join-club/");
   const [skipSplash] = useState(readSplashAlreadyShown);
   const [splashDone, setSplashDone] = useState(skipSplash);
   const [splashPhase, setSplashPhase] = useState<"on" | "fade" | "off">(
@@ -119,24 +128,22 @@ function App() {
     return <NbaAuthSplash fadeOut={splashPhase === "fade"} />;
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user || !profile) return <Login />;
-
-  const defaultPath = profile.role === "player" ? "/player" : "/coach";
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <div className="min-h-[100dvh] bg-background max-w-md mx-auto relative shadow-2xl overflow-hidden overflow-y-auto border-x border-border">
-          <Router defaultPath={defaultPath} signOut={signOut} />
+          {loading && !isJoinRoute ? (
+            <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <Switch>
+              <Route path="/join/:token" component={JoinPage} />
+              <Route path="/join-club/:token" component={JoinClub} />
+              <Route component={AuthGate} />
+            </Switch>
+          )}
         </div>
       </TooltipProvider>
     </QueryClientProvider>
