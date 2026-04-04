@@ -358,23 +358,14 @@ function PlayerRow({
       </div>
       <div className="flex-1 min-w-0">
         <h3 className="font-extrabold text-sm truncate text-foreground">{player.name || "Unnamed"}</h3>
-        {mode === "editor" && (
+        {mode === "editor" && approvalStatus?.hasDiscrepancy && (
           <div className="flex flex-wrap items-center gap-1 mt-1">
-            <Badge
-              variant="secondary"
-              className="text-[10px] font-bold px-1.5 py-0 h-5 tabular-nums border-border"
-              data-testid={`badge-approval-${player.id}`}
+            <span
+              className="inline-flex items-center justify-center min-w-6 h-5 px-1 rounded-md border border-destructive/40 bg-destructive/10 text-destructive text-xs font-black"
+              title={t("approval_discrepancy")}
             >
-              {approvalLoading ? "—" : `${approvalFraction} ${t("dashboard_player_coaches_label")}`}
-            </Badge>
-            {approvalStatus?.hasDiscrepancy && (
-              <span
-                className="inline-flex items-center justify-center min-w-6 h-5 px-1 rounded-md border border-destructive/40 bg-destructive/10 text-destructive text-xs font-black"
-                title={t("approval_discrepancy")}
-              >
-                ⚠
-              </span>
-            )}
+              ⚠
+            </span>
           </div>
         )}
         <div className="flex items-center gap-1 text-xs font-bold text-primary mt-0.5">
@@ -386,40 +377,49 @@ function PlayerRow({
 
       {mode === "editor" ? (
         <div className="flex flex-col items-end gap-1.5 shrink-0">
-          {published ? (
+          <div className="flex items-center gap-1 flex-wrap justify-end">
             <Badge
-              variant="outline"
-              className="text-[10px] font-bold h-7 px-2 border-primary/40 bg-primary/10 text-primary gap-1"
-              data-testid={`badge-published-${player.id}`}
-            >
-              <Check className="w-3 h-3" />
-              {t("dashboard_player_published_badge")}
-            </Badge>
-          ) : (
-            <Button
-              size="sm"
               variant="secondary"
-              className="h-7 px-2 text-[10px] font-bold rounded-lg"
-              disabled={publishMut.isPending}
-              data-testid={`button-publish-player-${player.id}`}
-              onClick={() =>
-                publishMut.mutate(undefined, {
-                  onSuccess: () => {
-                    toast({ title: t("approval_publish_success") });
-                  },
-                  onError: (err) => {
-                    toast({
-                      variant: "destructive",
-                      title: t("approval_publish_error"),
-                      description: (err as Error)?.message ?? "",
-                    });
-                  },
-                })
-              }
+              className="text-[10px] font-bold px-1.5 py-0 h-6 min-w-[2.25rem] justify-center tabular-nums border-border"
+              data-testid={`badge-approval-fraction-${player.id}`}
             >
-              {publishMut.isPending ? t("saving") : t("dashboard_player_publish")}
-            </Button>
-          )}
+              {approvalLoading ? "—" : approvalFraction}
+            </Badge>
+            {published ? (
+              <Badge
+                variant="outline"
+                className="text-[10px] font-bold h-7 px-2 border-primary/40 bg-primary/10 text-primary gap-1"
+                data-testid={`badge-published-${player.id}`}
+              >
+                <Check className="w-3 h-3" />
+                {t("dashboard_player_published_badge")}
+              </Badge>
+            ) : (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 px-2 text-[10px] font-bold rounded-lg"
+                disabled={publishMut.isPending}
+                data-testid={`button-publish-player-${player.id}`}
+                onClick={() =>
+                  publishMut.mutate(undefined, {
+                    onSuccess: () => {
+                      toast({ title: t("approval_publish_success") });
+                    },
+                    onError: (err) => {
+                      toast({
+                        variant: "destructive",
+                        title: t("approval_publish_error"),
+                        description: (err as Error)?.message ?? "",
+                      });
+                    },
+                  })
+                }
+              >
+                {publishMut.isPending ? t("saving") : t("dashboard_player_publish")}
+              </Button>
+            )}
+          </div>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" onClick={onEdit} className="h-8 px-3 shrink-0 rounded-lg text-xs font-bold border-border bg-transparent text-foreground hover:bg-muted" data-testid={`button-edit-player-${player.id}`}>
               <Pencil className="w-3 h-3 mr-1" /> {t("edit")}

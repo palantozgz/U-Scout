@@ -5,6 +5,7 @@ import {
   useApproveReport,
   useUnapproveReport,
   usePublishReport,
+  useUnpublishReport,
 } from "@/lib/approval-api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ export function ApprovalBar({ playerId }: { playerId: string }) {
   const approve = useApproveReport(playerId);
   const unapprove = useUnapproveReport(playerId);
   const publish = usePublishReport(playerId);
+  const unpublish = useUnpublishReport(playerId);
 
   const myId = profile?.id ?? "";
   const iApproved = Boolean(data?.approvals.some((a) => a.coachId === myId));
@@ -51,6 +53,24 @@ export function ApprovalBar({ playerId }: { playerId: string }) {
     });
   };
 
+  const onUnpublish = () => {
+    if (!window.confirm(t("approval_unpublish_confirm"))) return;
+    unpublish.mutate(undefined, {
+      onSuccess: () => {
+        toast({ title: t("approval_unpublish_success") });
+      },
+      onError: (e) => {
+        toast({
+          variant: "destructive",
+          title: t("approval_unpublish_error"),
+          description: (e as Error)?.message ?? "",
+        });
+      },
+    });
+  };
+
+  const isPublished = Boolean(data?.isPublished);
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[100] border-t border-border bg-card/95 backdrop-blur-md px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_24px_hsl(var(--background)/0.6)] max-w-md mx-auto">
       <div className="flex flex-col gap-2">
@@ -67,15 +87,15 @@ export function ApprovalBar({ playerId }: { playerId: string }) {
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             type="button"
-            variant={iApproved ? "secondary" : "default"}
+            variant="default"
             size="sm"
             className={
               iApproved
-                ? "font-bold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
-                : "font-bold"
+                ? "font-bold shrink-0 bg-emerald-600 text-white hover:bg-emerald-700 border-0 shadow-sm"
+                : "font-bold shrink-0"
             }
             disabled={approve.isPending || unapprove.isPending || !myId}
             onClick={onToggleApprove}
@@ -89,16 +109,38 @@ export function ApprovalBar({ playerId }: { playerId: string }) {
               t("approval_btn_approve")
             )}
           </Button>
-          {count >= 1 && (
-            <Button
-              type="button"
-              size="sm"
-              className="font-bold flex-1"
-              disabled={publish.isPending}
-              onClick={onPublish}
-            >
-              {publish.isPending ? t("saving") : t("approval_publish")}
-            </Button>
+          {isPublished ? (
+            <>
+              <Badge
+                variant="outline"
+                className="text-[10px] font-bold h-8 px-2 gap-1 border-emerald-500/50 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+              >
+                <Check className="w-3.5 h-3.5" />
+                {t("dashboard_player_published_badge")}
+              </Badge>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-[10px] font-bold border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                disabled={unpublish.isPending}
+                onClick={onUnpublish}
+              >
+                {unpublish.isPending ? t("saving") : t("approval_unpublish")}
+              </Button>
+            </>
+          ) : (
+            count >= 1 && (
+              <Button
+                type="button"
+                size="sm"
+                className="font-bold flex-1 min-w-0"
+                disabled={publish.isPending}
+                onClick={onPublish}
+              >
+                {publish.isPending ? t("saving") : t("approval_publish")}
+              </Button>
+            )
           )}
         </div>
       </div>

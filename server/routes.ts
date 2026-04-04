@@ -331,6 +331,18 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/players/:id/publish", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      const updated = await storage.unpublishPlayerReport(playerId);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to unpublish report" });
+    }
+  });
+
   // ── Player home (membership + assigned scouting reports) ─────────────────
   app.get("/api/player/home", requireAuth, async (req, res) => {
     try {
