@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRoute, useLocation, useSearch } from "wouter";
 import { usePlayer, useTeams, generateProfile } from "@/lib/mock-data";
 import { useLocale } from "@/lib/i18n";
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { ApprovalBar } from "@/components/ApprovalBar";
+import { ApprovalBar, APPROVAL_ONBOARDING_LS } from "@/components/ApprovalBar";
 import {
   useApprovalStatus,
   useSetReportOverride,
@@ -400,7 +400,7 @@ export default function PlayerProfileViewer() {
   const [, paramsCoach] = useRoute("/coach/player/:id/profile");
   const [, setLocation] = useLocation();
   const search = useSearch();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [page, setPage] = useState(0);
   const [dir, setDir] = useState(0);
   const [deepReport, setDeepReport] = useState(false);
@@ -410,20 +410,39 @@ export default function PlayerProfileViewer() {
     Boolean(paramsCoach) &&
     new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).get("mode") === "review";
 
+  const [approvalOnboardingDismissed, setApprovalOnboardingDismissed] = useState(() => {
+    try {
+      if (typeof window === "undefined") return false;
+      return localStorage.getItem(APPROVAL_ONBOARDING_LS) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const showApprovalOnboarding = isReviewMode && !approvalOnboardingDismissed;
+  const dismissApprovalOnboarding = () => {
+    try {
+      localStorage.setItem(APPROVAL_ONBOARDING_LS, "1");
+    } catch {
+      /* ignore */
+    }
+    setApprovalOnboardingDismissed(true);
+  };
+
   const { data: approvalStatus } = useApprovalStatus(playerIdRoute, {
     enabled: Boolean(playerIdRoute) && isReviewMode,
   });
   const setOverrideMut = useSetReportOverride(playerIdRoute);
   const deleteOverrideMut = useDeleteReportOverride(playerIdRoute);
 
+  const coachIdForReview = profile?.id ?? user?.id ?? "";
   const hiddenKeys = useMemo(() => {
-    if (!approvalStatus?.overrides || !profile?.id) return new Set<string>();
+    if (!approvalStatus?.overrides || !coachIdForReview) return new Set<string>();
     return new Set(
       approvalStatus.overrides
-        .filter((o) => o.coachId === profile.id && o.action === "hide")
+        .filter((o) => o.coachId === coachIdForReview && o.action === "hide")
         .map((o) => o.itemKey),
     );
-  }, [approvalStatus?.overrides, profile?.id]);
+  }, [approvalStatus?.overrides, coachIdForReview]);
 
   const onHideLine = (slide: ApprovalSlide, itemKey: string) => {
     setOverrideMut.mutate({ slide, itemKey, action: "hide" });
@@ -970,6 +989,27 @@ export default function PlayerProfileViewer() {
         </div>
       </header>
 
+      {showApprovalOnboarding && (
+        <div className="relative z-40 shrink-0 px-3 pt-16 pb-2">
+          <div className="rounded-xl border border-border bg-card/95 text-card-foreground shadow-md backdrop-blur-sm p-3 max-w-md mx-auto">
+            <p className="text-xs font-bold text-foreground mb-2">{t("onboarding_review_title")}</p>
+            <ul className="space-y-2 text-xs text-muted-foreground mb-3">
+              <li className="leading-snug">{t("onboarding_save_step")}</li>
+              <li className="leading-snug">{t("onboarding_approve_step")}</li>
+              <li className="leading-snug">{t("onboarding_publish_step")}</li>
+            </ul>
+            <Button
+              type="button"
+              size="sm"
+              className="w-full font-bold"
+              onClick={dismissApprovalOnboarding}
+            >
+              {t("onboarding_dismiss")}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Swipeable content */}
       <div className="flex-1 relative min-h-0">
         <AnimatePresence initial={false} custom={dir} mode="popLayout">
@@ -1004,7 +1044,7 @@ export default function PlayerProfileViewer() {
         </Button>
       </div>
 
-      {isReviewMode && paramsCoach && <ApprovalBar playerId={player.id} />}
+      {isReviewMode && paramsCoach && <ApprovalBar playerId={playerIdRoute} />}
     </div>
   );
 }
