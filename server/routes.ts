@@ -251,8 +251,7 @@ export async function registerRoutes(
         isPublished: Boolean(player.published),
         hasDiscrepancy: computeHasDiscrepancy(overrides),
       });
-    } catch (err) {
-      console.error("[approval-status]", err);
+    } catch (_err) {
       res.status(500).json({ error: "Failed to load approval status" });
     }
   });

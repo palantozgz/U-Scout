@@ -98,13 +98,13 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
               <Users className="w-8 h-8 text-muted-foreground" />
             </div>
             <h2 className="text-2xl font-extrabold tracking-tight text-foreground mb-2">{t("coach_mode")}</h2>
-            <p className="text-muted-foreground mb-8 max-w-[250px] mx-auto text-sm">Create your first team to start building scouting reports.</p>
+            <p className="text-muted-foreground mb-8 max-w-[250px] mx-auto text-sm">{t("dashboard_empty_teams_hint")}</p>
             <Button
               onClick={() => setShowAddTeam(true)}
               className="rounded-lg px-8 py-6 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg text-lg border-0"
               data-testid="button-create-team"
             >
-              <Plus className="w-5 h-5 mr-2" /> Create Team
+              <Plus className="w-5 h-5 mr-2" /> {t("create_team")}
             </Button>
           </div>
         </div>
@@ -177,14 +177,14 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
               value={newTeamName}
               onChange={e => setNewTeamName(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") handleCreateTeam(); if (e.key === "Escape") setShowAddTeam(false); }}
-              placeholder="e.g. Rival A"
+              placeholder={t("team_name_placeholder")}
               className="h-11 rounded-lg bg-background border-border"
               data-testid="input-team-name"
             />
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setShowAddTeam(false)} className="flex-1 rounded-lg" data-testid="button-cancel-team">Cancel</Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowAddTeam(false)} className="flex-1 rounded-lg" data-testid="button-cancel-team">{t("cancel")}</Button>
               <Button size="sm" onClick={handleCreateTeam} className="flex-1 rounded-lg font-bold bg-primary text-primary-foreground" data-testid="button-confirm-team">
-                <Check className="w-3.5 h-3.5 mr-1" /> Create
+                <Check className="w-3.5 h-3.5 mr-1" /> {t("create")}
               </Button>
             </div>
           </div>
@@ -232,7 +232,9 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
                     <span className="text-lg">{team.logo}</span>
                     <div className="min-w-0">
                       <h2 className="text-sm font-extrabold tracking-tight text-foreground truncate" data-testid={`text-team-name-${team.id}`}>{team.name}</h2>
-                      <p className="text-xs text-muted-foreground font-medium" data-testid={`text-player-count-${team.id}`}>{players.length} {players.length === 1 ? "player" : "players"}</p>
+                      <p className="text-xs text-muted-foreground font-medium" data-testid={`text-player-count-${team.id}`}>
+                        {players.length} {players.length === 1 ? t("dashboard_player_singular") : t("dashboard_player_plural")}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -279,7 +281,7 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
                       <p className="text-muted-foreground text-sm font-medium">{t("no_players")}</p>
                       {isEditor && (
                         <Button variant="link" onClick={() => setLocation(`/coach/player/new?team=${team.id}`)} className="mt-1 text-primary text-sm">
-                          Add first player
+                          {t("add_first_player")}
                         </Button>
                       )}
                     </div>
@@ -330,7 +332,11 @@ function PlayerRow({
   if (isPendingDelete) {
     return (
       <div className="bg-card rounded-lg p-4 flex items-center justify-between border border-red-500/35" data-testid={`card-player-delete-${player.id}`}>
-        <span className="text-sm font-semibold text-red-400">Delete {player.name || "this player"}?</span>
+        <span className="text-sm font-semibold text-red-400">
+          {player.name?.trim()
+            ? t("dashboard_delete_player_named").replace("{name}", player.name.trim())
+            : t("dashboard_delete_player_anon")}
+        </span>
         <div className="flex gap-2">
           <Button size="sm" variant="ghost" onClick={onCancelDelete} className="h-8 px-3 text-xs text-muted-foreground rounded-lg" data-testid={`button-cancel-delete-player-${player.id}`}>{t("cancel")}</Button>
           <Button size="sm" onClick={onDelete} className="h-8 px-3 text-xs font-bold bg-red-500 hover:bg-red-600 text-white rounded-lg" data-testid={`button-confirm-delete-player-${player.id}`}>{t("delete")}</Button>
@@ -358,7 +364,7 @@ function PlayerRow({
         </span>
       </div>
       <div className="flex-1 min-w-0">
-        <h3 className="font-extrabold text-sm truncate text-foreground">{player.name || "Unnamed"}</h3>
+        <h3 className="font-extrabold text-sm truncate text-foreground">{player.name?.trim() || t("dashboard_unnamed_player")}</h3>
         {mode === "editor" && approvalStatus?.hasDiscrepancy && (
           <div className="flex flex-wrap items-center gap-1 mt-1">
             <span
@@ -458,7 +464,7 @@ function PlayerRow({
         </div>
       ) : (
         <Button size="sm" onClick={onViewReport} className="h-8 px-3 shrink-0 rounded-lg text-xs font-black bg-primary text-primary-foreground border-0 shadow-[0_0_18px_hsl(var(--primary)/0.35)] hover:bg-primary/90" data-testid={`button-report-player-${player.id}`}>
-          <FileText className="w-3 h-3 mr-1" /> Report
+          <FileText className="w-3 h-3 mr-1" /> {t("dashboard_view_report")}
         </Button>
       )}
     </div>

@@ -2,25 +2,26 @@ import { useLocation } from "wouter";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Pencil, FileText, Settings, LogOut, ChevronRight, Users } from "lucide-react";
 import { UScoutLogoStatic } from "@/components/branding/UScoutBrand";
+import type { AppUserRole } from "@/lib/useAuth";
 
-function formatRole(role: string): string {
-  return role
-    .split("_")
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
+const ROLE_LABEL_KEY: Record<AppUserRole, "role_master" | "role_head_coach" | "role_coach" | "role_player"> = {
+  master: "role_master",
+  head_coach: "role_head_coach",
+  coach: "role_coach",
+  player: "role_player",
+};
 
 export default function CoachHome() {
   const { t } = useLocale();
   const [, setLocation] = useLocation();
   const { signOut, profile } = useAuth();
 
-  const displayName = profile?.username?.trim() || profile?.email || "Coach";
-  const roleLabel = profile?.role ? formatRole(profile.role) : "";
-  const showTeamMenu =
-    profile?.role === "head_coach" || profile?.role === "master" || profile?.role === "coach";
+  const displayName = profile?.username?.trim() || profile?.email || t("coach_home_name_fallback");
+  const roleLabel = profile?.role ? t(ROLE_LABEL_KEY[profile.role]) : "";
+  const hideClubButton = profile?.role === "player";
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
@@ -39,7 +40,7 @@ export default function CoachHome() {
         <div className="flex flex-col items-center pt-4">
           <UScoutLogoStatic />
           <p className="mt-4 text-[10px] sm:text-[11px] font-semibold tracking-[0.45em] text-muted-foreground uppercase">
-            SCOUTING PLATFORM
+            {t("coach_home_tagline")}
           </p>
         </div>
 
@@ -56,8 +57,8 @@ export default function CoachHome() {
               <Pencil className="w-9 h-9" strokeWidth={2} />
             </div>
             <div className="flex-1 min-w-0 py-0.5">
-              <p className="text-lg font-black text-foreground tracking-tight">SCOUT</p>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">Build scouting reports</p>
+              <p className="text-lg font-black text-foreground tracking-tight">{t("coach_home_scout_title")}</p>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">{t("coach_home_scout_sub")}</p>
             </div>
             <div className="flex items-center pr-1 text-muted-foreground group-hover:text-primary transition-transform duration-200 group-hover:translate-x-1">
               <ChevronRight className="w-6 h-6" />
@@ -74,33 +75,38 @@ export default function CoachHome() {
               <FileText className="w-9 h-9" strokeWidth={2} />
             </div>
             <div className="flex-1 min-w-0 py-0.5">
-              <p className="text-lg font-black text-foreground tracking-tight">REPORTS</p>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">Game preparation</p>
+              <p className="text-lg font-black text-foreground tracking-tight">{t("coach_home_reports_title")}</p>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">{t("coach_home_reports_sub")}</p>
             </div>
             <div className="flex items-center pr-1 text-muted-foreground group-hover:text-primary transition-transform duration-200 group-hover:translate-x-1">
               <ChevronRight className="w-6 h-6" />
             </div>
           </button>
 
-          {showTeamMenu && (
-            <button
-              type="button"
-              onClick={() => setLocation("/coach/club")}
-              className="group w-full text-left rounded-lg border border-border bg-card p-4 flex items-stretch gap-4 transition-all duration-200 hover:border-primary hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.35)]"
-              data-testid="coach-home-team"
-            >
-              <div className="flex items-center justify-center w-14 shrink-0 text-primary">
-                <Users className="w-9 h-9" strokeWidth={2} />
-              </div>
-              <div className="flex-1 min-w-0 py-0.5">
-                <p className="text-lg font-black text-foreground tracking-tight">{t("menu_team")}</p>
-                <p className="text-xs text-muted-foreground mt-1 font-medium">{t("menu_team_sub")}</p>
-              </div>
-              <div className="flex items-center pr-1 text-muted-foreground group-hover:text-primary transition-transform duration-200 group-hover:translate-x-1">
-                <ChevronRight className="w-6 h-6" />
-              </div>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (!hideClubButton) setLocation("/coach/club");
+            }}
+            className={cn(
+              "group w-full text-left rounded-lg border border-border bg-card p-4 flex items-stretch gap-4 transition-all duration-200 hover:border-primary hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.35)]",
+              hideClubButton && "opacity-0 pointer-events-none select-none",
+            )}
+            tabIndex={hideClubButton ? -1 : undefined}
+            aria-hidden={hideClubButton || undefined}
+            data-testid="coach-home-team"
+          >
+            <div className="flex items-center justify-center w-14 shrink-0 text-primary">
+              <Users className="w-9 h-9" strokeWidth={2} />
+            </div>
+            <div className="flex-1 min-w-0 py-0.5">
+              <p className="text-lg font-black text-foreground tracking-tight">{t("menu_team")}</p>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">{t("menu_team_sub")}</p>
+            </div>
+            <div className="flex items-center pr-1 text-muted-foreground group-hover:text-primary transition-transform duration-200 group-hover:translate-x-1">
+              <ChevronRight className="w-6 h-6" />
+            </div>
+          </button>
         </div>
 
         <div className="mt-auto pt-8 flex flex-col items-center gap-3 border-t border-border/80">

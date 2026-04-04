@@ -18,7 +18,8 @@ export interface UserProfile {
   email: string;
   role: AppUserRole;
   username: string;
-  avatar_url: string | null;
+  /** From user_metadata.avatar_url, or empty string when unset */
+  avatar_url: string;
 }
 
 export interface AuthState {
@@ -38,34 +39,15 @@ function normalizeRole(raw: unknown): AppUserRole {
 
 function profileFromUser(user: User): UserProfile {
   const md = user.user_metadata ?? {};
-  const fullName = typeof md.full_name === "string" ? md.full_name.trim() : "";
   const email = user.email ?? "";
+  const fullName = typeof md.full_name === "string" ? md.full_name.trim() : "";
+  const avatarRaw = md.avatar_url;
   return {
     id: user.id,
     email,
-    role: normalizeRole(md.role),
-    username: fullName || email.split("@")[0] || "user",
-    avatar_url: typeof md.avatar_url === "string" ? md.avatar_url : null,
-  };
-}
-
-async function loadProfile(user: User): Promise<UserProfile> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, email, role, username, avatar_url")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (error || !data) return profileFromUser(user);
-
-  return {
-    id: data.id as string,
-    email: (data.email as string) ?? user.email ?? "",
-    role: normalizeRole(data.role),
-    username: typeof data.username === "string" && data.username
-      ? data.username
-      : profileFromUser(user).username,
-    avatar_url: typeof data.avatar_url === "string" ? data.avatar_url : null,
+    role: normalizeRole(md.role ?? "coach"),
+    username: fullName || email || "user",
+    avatar_url: typeof avatarRaw === "string" ? avatarRaw : "",
   };
 }
 
@@ -88,19 +70,11 @@ export function useAuth(): AuthState {
       }
       const u = session.user;
       if (!cancelled) setLoading(true);
-      try {
-        const p = await loadProfile(u);
-        if (!cancelled) {
-          setUser(u);
-          setProfile(p);
-        }
-      } catch {
-        if (!cancelled) {
-          setUser(u);
-          setProfile(profileFromUser(u));
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+      const p = profileFromUser(u);
+      if (!cancelled) {
+        setUser(u);
+        setProfile(p);
+        setLoading(false);
       }
     }
 
