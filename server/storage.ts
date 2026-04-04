@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   type User,
@@ -19,6 +19,8 @@ import {
   type InsertClubMember,
   type ClubInvitation,
   type InsertClubInvitation,
+  type ReportApproval,
+  type ReportOverride,
   users,
   teams,
   players,
@@ -28,6 +30,9 @@ import {
   clubs,
   clubMembers,
   clubInvitations,
+  reportApprovals,
+  reportOverrides,
+  reportPublications,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -105,6 +110,21 @@ export interface IStorage {
 
   getAssignmentStatsForUsers(userIds: string[]): Promise<Map<string, { count: number; lastAt: Date | null }>>;
   getPlayerCountsByCreator(userIds: string[]): Promise<Map<string, number>>;
+
+  countClubStaffCoaches(clubId: string): Promise<number>;
+  listReportApprovalsForPlayer(playerId: string): Promise<ReportApproval[]>;
+  upsertReportApproval(playerId: string, coachId: string): Promise<void>;
+  deleteReportApproval(playerId: string, coachId: string): Promise<void>;
+  listReportOverridesForPlayer(playerId: string): Promise<ReportOverride[]>;
+  upsertReportOverride(row: {
+    playerId: string;
+    coachId: string;
+    slide: string;
+    itemKey: string;
+    action: "hide" | "keep";
+  }): Promise<void>;
+  deleteReportOverride(playerId: string, coachId: string, itemKey: string): Promise<void>;
+  publishPlayerReport(playerId: string, publishedBy: string): Promise<Player | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -480,6 +500,119 @@ export class DatabaseStorage implements IStorage {
       if (r.uid) map.set(r.uid, Number(r.cnt));
     }
     return map;
+  }
+
+  async countClubStaffCoaches(clubId: string): Promise<number> {
+    const rows = await db
+      .select({ id: clubMembers.id })
+      .from(clubMembers)
+      .where(
+        and(
+          eq(clubMembers.clubId, clubId),
+          eq(clubMembers.status, "active"),
+          or(eq(clubMembers.role, "coach"), eq(clubMembers.role, "head_coach")),
+        ),
+      );
+    return rows.length;
+  }
+
+  async listReportApprovalsForPlayer(playerId: string): Promise<ReportApproval[]> {
+    return db.select().from(reportApprovals).where(eq(reportApprovals.playerId, playerId));
+  }
+
+  async upsertReportApproval(playerId: string, coachId: string): Promise<void> {
+    const now = new Date();
+    const [existing] = await db
+      .select()
+      .from(reportApprovals)
+      .where(and(eq(reportApprovals.playerId, playerId), eq(reportApprovals.coachId, coachId)));
+    if (existing) {
+      await db
+        .update(reportApprovals)
+        .set({ approvedAt: now })
+        .where(eq(reportApprovals.id, existing.id));
+    } else {
+      await db.insert(reportApprovals).values({ playerId, coachId, approvedAt: now });
+    }
+  }
+
+  async deleteReportApproval(playerId: string, coachId: string): Promise<void> {
+    await db
+      .delete(reportApprovals)
+      .where(and(eq(reportApprovals.playerId, playerId), eq(reportApprovals.coachId, coachId)));
+  }
+
+  async listReportOverridesForPlayer(playerId: string): Promise<ReportOverride[]> {
+    return db.select().from(reportOverrides).where(eq(reportOverrides.playerId, playerId));
+  }
+
+  async upsertReportOverride(row: {
+    playerId: string;
+    coachId: string;
+    slide: string;
+    itemKey: string;
+    action: "hide" | "keep";
+  }): Promise<void> {
+    const now = new Date();
+    const [existing] = await db
+      .select()
+      .from(reportOverrides)
+      .where(
+        and(
+          eq(reportOverrides.playerId, row.playerId),
+          eq(reportOverrides.coachId, row.coachId),
+          eq(reportOverrides.slide, row.slide),
+          eq(reportOverrides.itemKey, row.itemKey),
+        ),
+      );
+    if (existing) {
+      await db
+        .update(reportOverrides)
+        .set({ action: row.action, createdAt: now })
+        .where(eq(reportOverrides.id, existing.id));
+    } else {
+      await db.insert(reportOverrides).values({
+        playerId: row.playerId,
+        coachId: row.coachId,
+        slide: row.slide,
+        itemKey: row.itemKey,
+        action: row.action,
+      });
+    }
+  }
+
+  async deleteReportOverride(playerId: string, coachId: string, itemKey: string): Promise<void> {
+    await db
+      .delete(reportOverrides)
+      .where(
+        and(
+          eq(reportOverrides.playerId, playerId),
+          eq(reportOverrides.coachId, coachId),
+          eq(reportOverrides.itemKey, itemKey),
+        ),
+      );
+  }
+
+  async publishPlayerReport(playerId: string, publishedBy: string): Promise<Player | undefined> {
+    const now = new Date();
+    return await db.transaction(async (tx) => {
+      await tx
+        .update(reportPublications)
+        .set({ isActive: false })
+        .where(eq(reportPublications.playerId, playerId));
+      await tx.insert(reportPublications).values({
+        playerId,
+        publishedBy,
+        publishedAt: now,
+        isActive: true,
+      });
+      const [updated] = await tx
+        .update(players)
+        .set({ published: true, publishedBy, publishedAt: now })
+        .where(eq(players.id, playerId))
+        .returning();
+      return updated;
+    });
   }
 }
 

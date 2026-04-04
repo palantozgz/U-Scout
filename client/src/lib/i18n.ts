@@ -731,6 +731,20 @@ const en = {
   join_club_verify_body:
     "We sent a confirmation link. Activate your account, then return here and sign in to join.",
 
+  approval_preview_button: "Preview & approve",
+  approval_coaches_approved_suffix: "coaches approved",
+  approval_coaches_no_staff_suffix: "approvals (add staff in My Club for a full tally)",
+  approval_btn_approve: "Approve",
+  approval_btn_approved: "Approved ✓",
+  approval_publish: "Publish",
+  approval_publish_confirm:
+    "Publish this scouting report? At least one coach must have approved. Continue?",
+  approval_publish_success: "Report published.",
+  approval_publish_error: "Could not publish the report.",
+  approval_discrepancy: "⚠ Coaches disagree on some line items",
+  approval_hide_line: "Hide this line in your review",
+  approval_restore_line: "Restore this line",
+
   theme_gamenight: "Game Night",
   theme_office: "Office",
   theme_oldschool: "Old School",
@@ -1402,6 +1416,20 @@ const es: I18nStrings = {
   join_club_verify_body:
     "Te enviamos un enlace de confirmación. Activa tu cuenta, vuelve aquí e inicia sesión para unirte.",
 
+  approval_preview_button: "Vista previa y aprobar",
+  approval_coaches_approved_suffix: "entrenadores aprobaron",
+  approval_coaches_no_staff_suffix: "aprobaciones (configura el staff en Mi club para ver el total)",
+  approval_btn_approve: "Aprobar",
+  approval_btn_approved: "Aprobado ✓",
+  approval_publish: "Publicar",
+  approval_publish_confirm:
+    "¿Publicar este informe de scouting? Debe haber al menos una aprobación. ¿Continuar?",
+  approval_publish_success: "Informe publicado.",
+  approval_publish_error: "No se pudo publicar el informe.",
+  approval_discrepancy: "⚠ Hay discrepancias entre entrenadores",
+  approval_hide_line: "Ocultar esta línea en tu revisión",
+  approval_restore_line: "Mostrar de nuevo esta línea",
+
   theme_gamenight: "Noche de juego",
   theme_office: "Oficina",
   theme_oldschool: "Old School",
@@ -2067,6 +2095,19 @@ const zh: I18nStrings = {
   join_club_accept_error: "加入俱乐部失败，请重试。",
   join_club_verify_title: "请查收邮件",
   join_club_verify_body: "我们已发送确认链接。请先激活账户，再回到此处登录以完成加入。",
+
+  approval_preview_button: "预览并审批",
+  approval_coaches_approved_suffix: "位教练已批准",
+  approval_coaches_no_staff_suffix: "次批准（在「我的俱乐部」添加工作人员可显示完整人数）",
+  approval_btn_approve: "批准",
+  approval_btn_approved: "已批准 ✓",
+  approval_publish: "发布",
+  approval_publish_confirm: "发布此球探报告？至少需要一名教练批准。是否继续？",
+  approval_publish_success: "报告已发布。",
+  approval_publish_error: "发布失败。",
+  approval_discrepancy: "⚠ 教练对部分条目意见不一致",
+  approval_hide_line: "在预览中隐藏此行",
+  approval_restore_line: "恢复显示此行",
 
   theme_gamenight: "比赛之夜",
   theme_office: "办公",

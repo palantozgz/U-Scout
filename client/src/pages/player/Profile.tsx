@@ -1,12 +1,30 @@
-import React, { useState } from "react";
-import { useRoute, useLocation } from "wouter";
+import React, { useMemo, useState } from "react";
+import { useRoute, useLocation, useSearch } from "wouter";
 import { usePlayer, useTeams, generateProfile } from "@/lib/mock-data";
 import { useLocale } from "@/lib/i18n";
+import { useAuth } from "@/lib/useAuth";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
-import { isRealPhoto } from "@/lib/utils";
-import { ArrowLeft, ChevronRight, ChevronLeft, ShieldAlert, Shield, Plus, X, BookOpen, Settings } from "lucide-react";
+import { isRealPhoto, cn } from "@/lib/utils";
+import {
+  ArrowLeft,
+  ChevronRight,
+  ChevronLeft,
+  ShieldAlert,
+  Shield,
+  BookOpen,
+  Settings,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { ApprovalBar } from "@/components/ApprovalBar";
+import {
+  useApprovalStatus,
+  useSetReportOverride,
+  useDeleteReportOverride,
+  type ApprovalSlide,
+} from "@/lib/approval-api";
 
 // ─── translateOutput ──────────────────────────────────────────────────────────
 // Converts motor output keys to translated strings at render time.
@@ -77,49 +95,223 @@ function keyTraitI18nKey(trait: string): string {
   return TRAIT_KEY_MAP[trait] ?? trait;
 }
 
+function ProfileReviewToggle({
+  reviewMode,
+  itemKey,
+  slide,
+  hidden,
+  pending,
+  onHide,
+  onRestore,
+  labelHide,
+  labelRestore,
+}: {
+  reviewMode: boolean;
+  itemKey: string;
+  slide: ApprovalSlide;
+  hidden: boolean;
+  pending: boolean;
+  onHide: (slide: ApprovalSlide, itemKey: string) => void;
+  onRestore: (itemKey: string) => void;
+  labelHide: string;
+  labelRestore: string;
+}) {
+  if (!reviewMode) return null;
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      title={hidden ? labelRestore : labelHide}
+      aria-label={hidden ? labelRestore : labelHide}
+      className="shrink-0 mt-0.5 p-1 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-800/80 border border-transparent transition-colors"
+      onClick={() => (hidden ? onRestore(itemKey) : onHide(slide, itemKey))}
+    >
+      {hidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+    </button>
+  );
+}
+
 // ─── BulletCard — respects deepReport mode ────────────────────────────────────
 function BulletCard({
-  title, top, rest = [], accent, bg, border, deepReport,
+  title,
+  top,
+  rest = [],
+  accent,
+  bg,
+  border,
+  deepReport,
+  reviewMode,
+  slide,
+  itemKeys,
+  hiddenKeys,
+  overridePending,
+  onHideLine,
+  onRestoreLine,
+  labelHide,
+  labelRestore,
 }: {
-  title: string; top: string[]; rest?: string[];
-  accent: string; bg: string; border: string;
+  title: string;
+  top: string[];
+  rest?: string[];
+  accent: string;
+  bg: string;
+  border: string;
   deepReport: boolean;
+  reviewMode?: boolean;
+  slide?: ApprovalSlide;
+  itemKeys?: string[];
+  hiddenKeys?: Set<string>;
+  overridePending?: boolean;
+  onHideLine?: (slide: ApprovalSlide, itemKey: string) => void;
+  onRestoreLine?: (itemKey: string) => void;
+  labelHide?: string;
+  labelRestore?: string;
 }) {
   if (!top.length) return null;
   const visible = deepReport ? [...top, ...rest] : top;
+  const rm = Boolean(
+    reviewMode &&
+      slide &&
+      itemKeys &&
+      hiddenKeys &&
+      onHideLine &&
+      onRestoreLine &&
+      labelHide &&
+      labelRestore,
+  );
   return (
     <div className={`w-full rounded-2xl border ${bg} ${border}`}>
       <div className="px-4 pt-3 pb-3 w-full">
         <p className={`text-[10px] font-black uppercase tracking-widest mb-2.5 ${accent}`}>{title}</p>
-        {visible.map((item, i) => (
-          <div key={i} className="flex gap-2 items-start mb-2 last:mb-0 w-full min-w-0">
-            <span className={`font-black text-sm shrink-0 leading-snug ${accent}`}>—</span>
-            <span className="text-sm font-semibold leading-snug text-slate-100 min-w-0 flex-1 break-words whitespace-normal">{item}</span>
-          </div>
-        ))}
+        {visible.map((item, i) => {
+          const ik = itemKeys?.[i];
+          const hidden = Boolean(ik && hiddenKeys?.has(ik));
+          return (
+            <div
+              key={i}
+              className={cn(
+                "flex gap-2 items-start mb-2 last:mb-0 w-full min-w-0",
+                hidden && "opacity-45",
+              )}
+            >
+              {rm && ik ? (
+                <ProfileReviewToggle
+                  reviewMode
+                  itemKey={ik}
+                  slide={slide!}
+                  hidden={hidden}
+                  pending={Boolean(overridePending)}
+                  onHide={onHideLine!}
+                  onRestore={onRestoreLine!}
+                  labelHide={labelHide!}
+                  labelRestore={labelRestore!}
+                />
+              ) : null}
+              <span className={`font-black text-sm shrink-0 leading-snug ${accent}`}>—</span>
+              <span
+                className={cn(
+                  "text-sm font-semibold leading-snug text-slate-100 min-w-0 flex-1 break-words whitespace-normal",
+                  hidden && "line-through",
+                )}
+              >
+                {item}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
 // ─── PlanCard — respects deepReport mode ──────────────────────────────────────
-function PlanCard({ label, symbol, items, accent, bg, border, deepReport }: {
-  label: string; symbol: string; items: string[];
-  accent: string; bg: string; border: string;
+function PlanCard({
+  label,
+  symbol,
+  items,
+  accent,
+  bg,
+  border,
+  deepReport,
+  reviewMode,
+  slide,
+  itemKeys,
+  hiddenKeys,
+  overridePending,
+  onHideLine,
+  onRestoreLine,
+  labelHide,
+  labelRestore,
+}: {
+  label: string;
+  symbol: string;
+  items: string[];
+  accent: string;
+  bg: string;
+  border: string;
   deepReport: boolean;
+  reviewMode?: boolean;
+  slide?: ApprovalSlide;
+  itemKeys?: string[];
+  hiddenKeys?: Set<string>;
+  overridePending?: boolean;
+  onHideLine?: (slide: ApprovalSlide, itemKey: string) => void;
+  onRestoreLine?: (itemKey: string) => void;
+  labelHide?: string;
+  labelRestore?: string;
 }) {
   if (!items.length) return null;
   const visible = deepReport ? items : items.slice(0, 2);
+  const keys = itemKeys ?? [];
+  const rm = Boolean(
+    reviewMode &&
+      slide &&
+      itemKeys &&
+      hiddenKeys &&
+      onHideLine &&
+      onRestoreLine &&
+      labelHide &&
+      labelRestore,
+  );
   return (
     <div className={`w-full rounded-2xl border ${bg} ${border}`}>
       <div className="px-4 pt-3 pb-3 w-full">
-        <p className={`text-[10px] font-black uppercase tracking-widest mb-2.5 ${accent}`}>{symbol} {label}</p>
-        {visible.map((item, i) => (
-          <div key={i} className="flex gap-2 items-start mb-2 last:mb-0 w-full min-w-0">
-            <span className={`font-black text-sm shrink-0 leading-snug ${accent}`}>{symbol}</span>
-            <span className="text-sm font-semibold leading-snug text-slate-100 min-w-0 flex-1 break-words whitespace-normal">{item}</span>
-          </div>
-        ))}
+        <p className={`text-[10px] font-black uppercase tracking-widest mb-2.5 ${accent}`}>
+          {symbol} {label}
+        </p>
+        {visible.map((item, i) => {
+          const ik = keys[i];
+          const hidden = Boolean(ik && hiddenKeys?.has(ik));
+          return (
+            <div
+              key={i}
+              className={cn("flex gap-2 items-start mb-2 last:mb-0 w-full min-w-0", hidden && "opacity-45")}
+            >
+              {rm && ik ? (
+                <ProfileReviewToggle
+                  reviewMode
+                  itemKey={ik}
+                  slide={slide!}
+                  hidden={hidden}
+                  pending={Boolean(overridePending)}
+                  onHide={onHideLine!}
+                  onRestore={onRestoreLine!}
+                  labelHide={labelHide!}
+                  labelRestore={labelRestore!}
+                />
+              ) : null}
+              <span className={`font-black text-sm shrink-0 leading-snug ${accent}`}>{symbol}</span>
+              <span
+                className={cn(
+                  "text-sm font-semibold leading-snug text-slate-100 min-w-0 flex-1 break-words whitespace-normal",
+                  hidden && "line-through",
+                )}
+              >
+                {item}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -135,7 +327,15 @@ function EmptySlate({ text }: { text: string }) {
 }
 
 // ScrollSlide — slide wrapper with top/bottom scroll indicators
-function ScrollSlide({ children, accentColor }: { children: React.ReactNode; accentColor: string }) {
+function ScrollSlide({
+  children,
+  accentColor,
+  bottomPadClass = "pb-24",
+}: {
+  children: React.ReactNode;
+  accentColor: string;
+  bottomPadClass?: string;
+}) {
   const { t } = useLocale();
   const ref = React.useRef<HTMLDivElement>(null);
   const [canScrollDown, setCanScrollDown] = React.useState(false);
@@ -172,7 +372,7 @@ function ScrollSlide({ children, accentColor }: { children: React.ReactNode; acc
         </div>
       )}
 
-      <div className="w-full flex flex-col px-5 pt-20 pb-24 gap-3">
+      <div className={cn("w-full flex flex-col px-5 pt-20 gap-3", bottomPadClass)}>
         {children}
       </div>
 
@@ -199,11 +399,43 @@ export default function PlayerProfileViewer() {
   const [, params] = useRoute("/player/:id");
   const [, paramsCoach] = useRoute("/coach/player/:id/profile");
   const [, setLocation] = useLocation();
+  const search = useSearch();
+  const { profile } = useAuth();
   const [page, setPage] = useState(0);
-  const [dir,  setDir]  = useState(0);
+  const [dir, setDir] = useState(0);
   const [deepReport, setDeepReport] = useState(false);
 
-  const { data: player, isLoading: pLoad } = usePlayer(params?.id ?? paramsCoach?.id ?? "");
+  const playerIdRoute = params?.id ?? paramsCoach?.id ?? "";
+  const isReviewMode =
+    Boolean(paramsCoach) &&
+    new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).get("mode") === "review";
+
+  const { data: approvalStatus } = useApprovalStatus(playerIdRoute, {
+    enabled: Boolean(playerIdRoute) && isReviewMode,
+  });
+  const setOverrideMut = useSetReportOverride(playerIdRoute);
+  const deleteOverrideMut = useDeleteReportOverride(playerIdRoute);
+
+  const hiddenKeys = useMemo(() => {
+    if (!approvalStatus?.overrides || !profile?.id) return new Set<string>();
+    return new Set(
+      approvalStatus.overrides
+        .filter((o) => o.coachId === profile.id && o.action === "hide")
+        .map((o) => o.itemKey),
+    );
+  }, [approvalStatus?.overrides, profile?.id]);
+
+  const onHideLine = (slide: ApprovalSlide, itemKey: string) => {
+    setOverrideMut.mutate({ slide, itemKey, action: "hide" });
+  };
+  const onRestoreLine = (itemKey: string) => {
+    deleteOverrideMut.mutate(itemKey);
+  };
+  const overridePending = setOverrideMut.isPending || deleteOverrideMut.isPending;
+  const labelHide = t("approval_hide_line");
+  const labelRestore = t("approval_restore_line");
+
+  const { data: player, isLoading: pLoad } = usePlayer(playerIdRoute);
   const { data: teams = [], isLoading: tLoad } = useTeams();
   const team = teams.find(t => t.id === player?.teamId);
 
@@ -298,9 +530,76 @@ export default function PlayerProfileViewer() {
   const vis  = toNum((inp as any).courtVision, 3);
   const subArch = generated.subArchetype;
 
+  const identityPhysTags: { key: string; el: React.ReactNode }[] = [];
+  if (ath === 5) {
+    identityPhysTags.push({
+      key: "identity:phys:ath5",
+      el: (
+        <span className="text-xs font-bold text-yellow-300 bg-yellow-500/15 px-3 py-1 rounded-full">
+          ⚡ {t("elite_athlete")}
+        </span>
+      ),
+    });
+  }
+  if (ath === 4) {
+    identityPhysTags.push({
+      key: "identity:phys:ath4",
+      el: (
+        <span className="text-xs font-bold text-yellow-400 bg-yellow-500/10 px-3 py-1 rounded-full">
+          ⚡ {t("athletic")}
+        </span>
+      ),
+    });
+  }
+  if (ath <= 1) {
+    identityPhysTags.push({
+      key: "identity:phys:ath_low",
+      el: (
+        <span className="text-xs font-bold text-slate-400 bg-slate-800 px-3 py-1 rounded-full">{t("limited_athlete")}</span>
+      ),
+    });
+  }
+  if (phys === 5) {
+    identityPhysTags.push({
+      key: "identity:phys:phys5",
+      el: (
+        <span className="text-xs font-bold text-red-300 bg-red-500/15 px-3 py-1 rounded-full">
+          💪 {t("physically_dominant")}
+        </span>
+      ),
+    });
+  }
+  if (phys === 4) {
+    identityPhysTags.push({
+      key: "identity:phys:phys4",
+      el: (
+        <span className="text-xs font-bold text-red-400 bg-red-500/10 px-3 py-1 rounded-full">
+          💪 {t("physical")}
+        </span>
+      ),
+    });
+  }
+  if (vis >= 4) {
+    identityPhysTags.push({
+      key: "identity:phys:vision",
+      el: (
+        <span className="text-xs font-bold text-blue-300 bg-blue-500/10 px-3 py-1 rounded-full">
+          🧠 {vis === 5 ? t("elite_vision") : t("high_iq")}
+        </span>
+      ),
+    });
+  }
+
+  const slideBottomPad = isReviewMode ? "pb-44" : "pb-24";
+
   // ── SLIDE 1 — Identity ────────────────────────────────────────────────────
   const S1 = (
-    <div className="h-full min-h-0 flex flex-col items-center justify-center text-center px-6 gap-5 bg-[#060a14] overflow-y-auto">
+    <div
+      className={cn(
+        "h-full min-h-0 flex flex-col items-center justify-center text-center px-6 gap-5 bg-[#060a14] overflow-y-auto",
+        isReviewMode && "pb-36",
+      )}
+    >
       <div className="absolute top-0 left-0 w-full h-1 bg-orange-500" />
       <div className="relative mt-4">
         <div className="absolute inset-0 blur-2xl opacity-25 rounded-full bg-orange-500" />
@@ -324,13 +623,51 @@ export default function PlayerProfileViewer() {
       </div>
 
       {/* Archetype + subarchetype */}
-      <div className="w-full bg-orange-500/10 border border-orange-500/20 rounded-2xl px-5 py-4">
+      <div className="w-full bg-orange-500/10 border border-orange-500/20 rounded-2xl px-5 py-4 text-left">
         <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-1">{t("archetype")}</p>
-        <p className="text-2xl font-black italic text-white leading-tight">{archetype ? t(archetype as any) : "—"}</p>
-        {subArch && (
-          <p className="text-xs font-bold text-orange-400/60 uppercase tracking-widest mt-1">
-            {t("subarchetype_label")} {subArch ? t(subArch as any) : ""}
+        <div className="flex gap-2 items-start justify-center">
+          <ProfileReviewToggle
+            reviewMode={isReviewMode}
+            itemKey="identity:archetype"
+            slide="identity"
+            hidden={hiddenKeys.has("identity:archetype")}
+            pending={overridePending}
+            onHide={onHideLine}
+            onRestore={onRestoreLine}
+            labelHide={labelHide}
+            labelRestore={labelRestore}
+          />
+          <p
+            className={cn(
+              "text-2xl font-black italic text-white leading-tight flex-1 text-center",
+              hiddenKeys.has("identity:archetype") && "opacity-45 line-through",
+            )}
+          >
+            {archetype ? t(archetype as any) : "—"}
           </p>
+        </div>
+        {subArch && (
+          <div className="flex gap-2 items-start mt-2 justify-center">
+            <ProfileReviewToggle
+              reviewMode={isReviewMode}
+              itemKey="identity:subarch"
+              slide="identity"
+              hidden={hiddenKeys.has("identity:subarch")}
+              pending={overridePending}
+              onHide={onHideLine}
+              onRestore={onRestoreLine}
+              labelHide={labelHide}
+              labelRestore={labelRestore}
+            />
+            <p
+              className={cn(
+                "text-xs font-bold text-orange-400/60 uppercase tracking-widest flex-1 text-center",
+                hiddenKeys.has("identity:subarch") && "opacity-45 line-through",
+              )}
+            >
+              {t("subarchetype_label")} {subArch ? t(subArch as any) : ""}
+            </p>
+          </div>
         )}
       </div>
 
@@ -339,19 +676,56 @@ export default function PlayerProfileViewer() {
         <div className="flex flex-wrap justify-center gap-2">
           {keyTraits.slice(0, 3).map((trait, i) => {
             const label = t(keyTraitI18nKey(trait) as any);
-            return <span key={i} className="px-3 py-1 bg-slate-800 text-slate-300 rounded-full text-xs font-bold border border-slate-700">{label}</span>;
+            const ik = `identity:keytrait:${i}`;
+            const hid = hiddenKeys.has(ik);
+            return (
+              <div key={i} className="flex items-center gap-1">
+                <ProfileReviewToggle
+                  reviewMode={isReviewMode}
+                  itemKey={ik}
+                  slide="identity"
+                  hidden={hid}
+                  pending={overridePending}
+                  onHide={onHideLine}
+                  onRestore={onRestoreLine}
+                  labelHide={labelHide}
+                  labelRestore={labelRestore}
+                />
+                <span
+                  className={cn(
+                    "px-3 py-1 bg-slate-800 text-slate-300 rounded-full text-xs font-bold border border-slate-700",
+                    hid && "opacity-45 line-through",
+                  )}
+                >
+                  {label}
+                </span>
+              </div>
+            );
           })}
         </div>
       )}
 
       {/* Physical tags */}
       <div className="flex flex-wrap justify-center gap-2">
-        {ath === 5  && <span className="text-xs font-bold text-yellow-300 bg-yellow-500/15 px-3 py-1 rounded-full">⚡ {t("elite_athlete")}</span>}
-        {ath === 4  && <span className="text-xs font-bold text-yellow-400 bg-yellow-500/10 px-3 py-1 rounded-full">⚡ {t("athletic")}</span>}
-        {ath <= 1   && <span className="text-xs font-bold text-slate-400 bg-slate-800 px-3 py-1 rounded-full">{t("limited_athlete")}</span>}
-        {phys === 5 && <span className="text-xs font-bold text-red-300 bg-red-500/15 px-3 py-1 rounded-full">💪 {t("physically_dominant")}</span>}
-        {phys === 4 && <span className="text-xs font-bold text-red-400 bg-red-500/10 px-3 py-1 rounded-full">💪 {t("physical")}</span>}
-        {vis >= 4   && <span className="text-xs font-bold text-blue-300 bg-blue-500/10 px-3 py-1 rounded-full">🧠 {vis === 5 ? t("elite_vision") : t("high_iq")}</span>}
+        {identityPhysTags.map(({ key, el }) => {
+          const hid = hiddenKeys.has(key);
+          return (
+            <div key={key} className="flex items-center gap-1">
+              <ProfileReviewToggle
+                reviewMode={isReviewMode}
+                itemKey={key}
+                slide="identity"
+                hidden={hid}
+                pending={overridePending}
+                onHide={onHideLine}
+                onRestore={onRestoreLine}
+                labelHide={labelHide}
+                labelRestore={labelRestore}
+              />
+              <span className={cn(hid && "opacity-45 line-through")}>{el}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -360,7 +734,7 @@ export default function PlayerProfileViewer() {
   const S2 = (
     <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-red-500 z-20" />
-      <ScrollSlide accentColor="text-red-400">
+      <ScrollSlide accentColor="text-red-400" bottomPadClass={slideBottomPad}>
       <h2 className="text-lg font-black text-white">⚠ {t("how_she_attacks")}</h2>
       <p className="text-xs text-slate-500 -mt-1">{t("top_threats")}</p>
       {allThreatSections.length === 0
@@ -372,6 +746,19 @@ export default function PlayerProfileViewer() {
             rest={s.traits.slice(2)}
             accent={s.accent} bg={s.bg} border={s.border}
             deepReport={deepReport}
+            reviewMode={isReviewMode}
+            slide="attack"
+            itemKeys={
+              deepReport
+                ? s.traits.map((_, li) => `attack:${i}:${li}`)
+                : s.traits.slice(0, 2).map((_, li) => `attack:${i}:${li}`)
+            }
+            hiddenKeys={hiddenKeys}
+            overridePending={overridePending}
+            onHideLine={onHideLine}
+            onRestoreLine={onRestoreLine}
+            labelHide={labelHide}
+            labelRestore={labelRestore}
           />
         ))
       }
@@ -384,7 +771,7 @@ export default function PlayerProfileViewer() {
   const S3 = (
     <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 z-20" />
-      <ScrollSlide accentColor="text-amber-400">
+      <ScrollSlide accentColor="text-amber-400" bottomPadClass={slideBottomPad}>
       <h2 className="text-lg font-black text-white">📍 {t("where_dangerous")}</h2>
       <p className="text-xs text-slate-500 -mt-1">{t("direction_space")}</p>
       <BulletCard
@@ -393,6 +780,19 @@ export default function PlayerProfileViewer() {
         rest={slide3TranslatedItems.slice(2)}
         accent="text-amber-400" bg="bg-amber-950/40" border="border-amber-800/30"
         deepReport={deepReport}
+        reviewMode={isReviewMode}
+        slide="danger"
+        itemKeys={
+          deepReport
+            ? slide3Items.map((_, idx) => `danger:${idx}`)
+            : slide3Items.slice(0, 2).map((_, idx) => `danger:${idx}`)
+        }
+        hiddenKeys={hiddenKeys}
+        overridePending={overridePending}
+        onHideLine={onHideLine}
+        onRestoreLine={onRestoreLine}
+        labelHide={labelHide}
+        labelRestore={labelRestore}
       />
       </ScrollSlide>
     </div>
@@ -402,7 +802,7 @@ export default function PlayerProfileViewer() {
   const S4 = (
     <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 z-20" />
-      <ScrollSlide accentColor="text-blue-400">
+      <ScrollSlide accentColor="text-blue-400" bottomPadClass={slideBottomPad}>
       <h2 className="text-lg font-black text-white">⚡ {t("screens_actions")}</h2>
       <p className="text-xs text-slate-500 -mt-1">{t("pnr_coverage")}</p>
       {slide4Items.length > 0
@@ -412,6 +812,19 @@ export default function PlayerProfileViewer() {
             rest={slide4Items.slice(2)}
             accent="text-blue-400" bg="bg-blue-950/40" border="border-blue-800/30"
             deepReport={deepReport}
+            reviewMode={isReviewMode}
+            slide="screens"
+            itemKeys={
+              deepReport
+                ? slide4Items.map((_, idx) => `screens:${idx}`)
+                : slide4Items.slice(0, 2).map((_, idx) => `screens:${idx}`)
+            }
+            hiddenKeys={hiddenKeys}
+            overridePending={overridePending}
+            onHideLine={onHideLine}
+            onRestoreLine={onRestoreLine}
+            labelHide={labelHide}
+            labelRestore={labelRestore}
           />
         : <EmptySlate text={t("no_pnr")} />
       }
@@ -428,7 +841,7 @@ export default function PlayerProfileViewer() {
   const S5 = (
     <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-slate-500 z-20" />
-      <ScrollSlide accentColor="text-slate-400">
+      <ScrollSlide accentColor="text-slate-400" bottomPadClass={slideBottomPad}>
       <div className="flex items-center gap-2">
         <Shield className="w-4 h-4 text-slate-400" />
         <h2 className="text-lg font-black text-white">{t("defensive_plan")}</h2>
@@ -438,11 +851,41 @@ export default function PlayerProfileViewer() {
         ? <EmptySlate text={t("save_to_generate")} />
         : <>
             <PlanCard label={t("defend_tab")} symbol="—" items={defender}
-              accent="text-red-400" bg="bg-red-950/40" border="border-red-800/30" deepReport={deepReport} />
+              accent="text-red-400" bg="bg-red-950/40" border="border-red-800/30" deepReport={deepReport}
+              reviewMode={isReviewMode}
+              slide="plan"
+              itemKeys={defender.map((_, idx) => `plan:defender:${idx}`).slice(0, deepReport ? defender.length : Math.min(2, defender.length))}
+              hiddenKeys={hiddenKeys}
+              overridePending={overridePending}
+              onHideLine={onHideLine}
+              onRestoreLine={onRestoreLine}
+              labelHide={labelHide}
+              labelRestore={labelRestore}
+            />
             <PlanCard label={t("force_tab")} symbol="→" items={forzar}
-              accent="text-blue-400" bg="bg-blue-950/40" border="border-blue-800/30" deepReport={deepReport} />
+              accent="text-blue-400" bg="bg-blue-950/40" border="border-blue-800/30" deepReport={deepReport}
+              reviewMode={isReviewMode}
+              slide="plan"
+              itemKeys={forzar.map((_, idx) => `plan:forzar:${idx}`).slice(0, deepReport ? forzar.length : Math.min(2, forzar.length))}
+              hiddenKeys={hiddenKeys}
+              overridePending={overridePending}
+              onHideLine={onHideLine}
+              onRestoreLine={onRestoreLine}
+              labelHide={labelHide}
+              labelRestore={labelRestore}
+            />
             <PlanCard label={t("give_tab")} symbol="✓" items={concede}
-              accent="text-emerald-400" bg="bg-emerald-950/40" border="border-emerald-800/30" deepReport={deepReport} />
+              accent="text-emerald-400" bg="bg-emerald-950/40" border="border-emerald-800/30" deepReport={deepReport}
+              reviewMode={isReviewMode}
+              slide="plan"
+              itemKeys={concede.map((_, idx) => `plan:concede:${idx}`).slice(0, deepReport ? concede.length : Math.min(2, concede.length))}
+              hiddenKeys={hiddenKeys}
+              overridePending={overridePending}
+              onHideLine={onHideLine}
+              onRestoreLine={onRestoreLine}
+              labelHide={labelHide}
+              labelRestore={labelRestore}
+            />
           </>
       }
       </ScrollSlide>
@@ -468,7 +911,12 @@ export default function PlayerProfileViewer() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-[#060a14] overflow-hidden relative">
+    <div
+      className={cn(
+        "flex flex-col h-[100dvh] bg-[#060a14] overflow-hidden relative",
+        isReviewMode && "pb-[5.5rem]",
+      )}
+    >
 
       {/* Header */}
       <header className="absolute top-0 w-full z-50 px-4 pt-4 flex justify-between items-center">
@@ -523,7 +971,12 @@ export default function PlayerProfileViewer() {
       </div>
 
       {/* Nav arrows */}
-      <div className="absolute bottom-6 left-0 w-full flex justify-between px-6 z-50 pointer-events-none">
+      <div
+        className={cn(
+          "absolute left-0 w-full flex justify-between px-6 z-50 pointer-events-none",
+          isReviewMode ? "bottom-28" : "bottom-6",
+        )}
+      >
         <Button variant="ghost" size="icon" onClick={prev}
           className={`rounded-full pointer-events-auto border-0 w-12 h-12 bg-slate-800/80 text-white transition-opacity ${page === 0 ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
           <ChevronLeft className="w-6 h-6" />
@@ -533,6 +986,8 @@ export default function PlayerProfileViewer() {
           <ChevronRight className="w-6 h-6" />
         </Button>
       </div>
+
+      {isReviewMode && paramsCoach && <ApprovalBar playerId={player.id} />}
     </div>
   );
 }

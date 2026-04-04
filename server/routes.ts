@@ -39,6 +39,28 @@ const patchClubBodySchema = z.object({
   logo: z.string().min(1).max(8).optional(),
 });
 
+const reportOverrideBodySchema = z.object({
+  slide: z.enum(["identity", "attack", "danger", "screens", "plan"]),
+  itemKey: z.string().min(1),
+  action: z.enum(["hide", "keep"]),
+});
+
+function computeHasDiscrepancy(
+  overrides: Array<{ coachId: string; slide: string; itemKey: string; action: string }>,
+): boolean {
+  const byKey = new Map<string, Map<string, string>>();
+  for (const o of overrides) {
+    const k = `${o.slide}\0${o.itemKey}`;
+    if (!byKey.has(k)) byKey.set(k, new Map());
+    byKey.get(k)!.set(o.coachId, o.action);
+  }
+  for (const m of Array.from(byKey.values())) {
+    if (m.size < 2) continue;
+    if (new Set(Array.from(m.values())).size > 1) return true;
+  }
+  return false;
+}
+
 async function userCanManageClub(req: Request, clubId: string): Promise<boolean> {
   const uid = req.user!.id;
   const appRole = req.user!.role;
@@ -197,6 +219,115 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (err) {
       res.status(500).json({ error: "Failed to delete player" });
+    }
+  });
+
+  // ── Report approval / publication (coach review) ─────────────────────────
+  app.get("/api/players/:id/approval-status", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+
+      const club = await storage.getClubForUser(req.user!.id);
+      const totalStaff = club ? await storage.countClubStaffCoaches(club.id) : 0;
+
+      const approvalRows = await storage.listReportApprovalsForPlayer(playerId);
+      const overrideRows = await storage.listReportOverridesForPlayer(playerId);
+      const overrides = overrideRows.map((o) => ({
+        coachId: o.coachId,
+        slide: o.slide,
+        itemKey: o.itemKey,
+        action: o.action,
+      }));
+
+      res.json({
+        approvals: approvalRows.map((a) => ({
+          coachId: a.coachId,
+          approvedAt: a.approvedAt.toISOString(),
+        })),
+        totalStaff,
+        overrides,
+        isPublished: Boolean(player.published),
+        hasDiscrepancy: computeHasDiscrepancy(overrides),
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load approval status" });
+    }
+  });
+
+  app.post("/api/players/:id/approve", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      await storage.upsertReportApproval(playerId, req.user!.id);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: "Failed to save approval" });
+    }
+  });
+
+  app.delete("/api/players/:id/approve", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      await storage.deleteReportApproval(playerId, req.user!.id);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: "Failed to remove approval" });
+    }
+  });
+
+  app.post("/api/players/:id/overrides", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      const parsed = reportOverrideBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+      }
+      await storage.upsertReportOverride({
+        playerId,
+        coachId: req.user!.id,
+        slide: parsed.data.slide,
+        itemKey: parsed.data.itemKey,
+        action: parsed.data.action,
+      });
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: "Failed to save override" });
+    }
+  });
+
+  app.delete("/api/players/:id/overrides/:itemKey", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const itemKey = decodeURIComponent(req.params.itemKey as string);
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      await storage.deleteReportOverride(playerId, req.user!.id, itemKey);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: "Failed to remove override" });
+    }
+  });
+
+  app.post("/api/players/:id/publish", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      const approvals = await storage.listReportApprovalsForPlayer(playerId);
+      if (approvals.length < 1) {
+        return res.status(400).json({ error: "At least one coach approval is required" });
+      }
+      const updated = await storage.publishPlayerReport(playerId, req.user!.id);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to publish report" });
     }
   });
 

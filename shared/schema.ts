@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, jsonb, timestamp, unique, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -41,6 +41,9 @@ export const players = pgTable("players", {
   defensivePlan: jsonb("defensive_plan").notNull(),
   /** Supabase user id of coach who created this scouting profile (optional). */
   createdByUserId: varchar("created_by_user_id"),
+  published: boolean("published").notNull().default(false),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  publishedBy: varchar("published_by"),
 });
 
 export const insertPlayerSchema = createInsertSchema(players).omit({ id: true });
@@ -149,3 +152,61 @@ export const clubInvitations = pgTable("club_invitations", {
 
 export type ClubInvitation = typeof clubInvitations.$inferSelect;
 export type InsertClubInvitation = typeof clubInvitations.$inferInsert;
+
+/** Coach sign-off on a scouting report before publication. */
+export const reportApprovals = pgTable(
+  "report_approvals",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    playerId: varchar("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    coachId: varchar("coach_id").notNull(),
+    approvedAt: timestamp("approved_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique("report_approvals_player_coach").on(table.playerId, table.coachId)],
+);
+
+export type ReportApproval = typeof reportApprovals.$inferSelect;
+export type InsertReportApproval = typeof reportApprovals.$inferInsert;
+
+/** Per-coach hide/keep on a specific rendered profile line. */
+export const reportOverrides = pgTable(
+  "report_overrides",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    playerId: varchar("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    coachId: varchar("coach_id").notNull(),
+    slide: varchar("slide", { length: 32 }).notNull(),
+    itemKey: text("item_key").notNull(),
+    action: varchar("action", { length: 16 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("report_overrides_player_coach_slide_item").on(
+      table.playerId,
+      table.coachId,
+      table.slide,
+      table.itemKey,
+    ),
+  ],
+);
+
+export type ReportOverride = typeof reportOverrides.$inferSelect;
+export type InsertReportOverride = typeof reportOverrides.$inferInsert;
+
+export const reportPublications = pgTable("report_publications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id")
+    .notNull()
+    .references(() => players.id, { onDelete: "cascade" }),
+  publishedBy: varchar("published_by").notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export type ReportPublication = typeof reportPublications.$inferSelect;
+export type InsertReportPublication = typeof reportPublications.$inferInsert;

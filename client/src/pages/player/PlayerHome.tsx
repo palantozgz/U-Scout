@@ -19,7 +19,7 @@ export default function PlayerHome() {
     profile?.email ||
     "—";
   const jersey = data?.membership?.jerseyNumber?.trim() || "—";
-  const position = data?.membership?.positionim() || "—";
+  const position = data?.membership?.position?.trim() || "—";
   const avatarUrl = profile?.avatar_url ?? "";
   const real = isRealPhoto(avatarUrl);
 
