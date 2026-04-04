@@ -449,7 +449,16 @@ export default function PlayerProfileViewer() {
     <div className="flex flex-col items-center justify-center h-[100dvh] bg-[#060a14] p-6 text-center gap-4">
       <ShieldAlert className="w-16 h-16 text-slate-700" />
       <h2 className="text-xl font-bold text-white">{t("profile_not_found")}</h2>
-      <Button onClick={() => setLocation(paramsCoach ? "/coach/reports" : "/player")} variant="outline">{t("back")}</Button>
+      <Button
+        onClick={() =>
+          setLocation(
+            paramsCoach ? (isReviewMode ? "/coach/editor" : "/coach/reports") : "/player",
+          )
+        }
+        variant="outline"
+      >
+        {t("back")}
+      </Button>
     </div>
   );
 
@@ -920,8 +929,16 @@ export default function PlayerProfileViewer() {
 
       {/* Header */}
       <header className="absolute top-0 w-full z-50 px-4 pt-4 flex justify-between items-center">
-        <Button variant="ghost" size="icon" onClick={() => setLocation(paramsCoach ? "/coach/reports" : "/player")}
-          className="bg-slate-800/80 backdrop-blur rounded-full border-0 text-white hover:bg-slate-700">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() =>
+            setLocation(
+              paramsCoach ? (isReviewMode ? "/coach/editor" : "/coach/reports") : "/player",
+            )
+          }
+          className="bg-slate-800/80 backdrop-blur rounded-full border-0 text-white hover:bg-slate-700"
+        >
           <ArrowLeft className="w-5 h-5" />
         </Button>
 

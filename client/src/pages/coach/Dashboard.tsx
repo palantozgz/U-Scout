@@ -2,14 +2,16 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n";
-import { ArrowLeft, Users, Plus, UserPlus, Trash2, Check, X, Pencil, FlaskConical, Settings, FileText, ChevronDown, MailPlus } from "lucide-react";
+import { ArrowLeft, Users, Plus, UserPlus, Trash2, Check, X, Pencil, FlaskConical, Settings, FileText, ChevronDown } from "lucide-react";
 import { useTeams, usePlayers, useCreateTeam, useUpdateTeam, useDeleteTeam, useDeletePlayer, type Team, type PlayerProfile } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UScoutWatermark } from "@/components/branding/UScoutBrand";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
-import { InviteTeamDialog } from "@/pages/coach/InviteTeamDialog";
+import { Badge } from "@/components/ui/badge";
+import { useApprovalStatus, usePublishReport } from "@/lib/approval-api";
+import { toast } from "@/hooks/use-toast";
 
 export type CoachDashboardMode = "editor" | "reports";
 
@@ -35,8 +37,6 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
   const [pendingDeletePlayer, setPendingDeletePlayer] = useState<string | null>(null);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editingTeamName, setEditingTeamName] = useState("");
-  const [inviteTeam, setInviteTeam] = useState<{ id: string; name: string } | null>(null);
-
   const isEditor = mode === "editor";
   const playersByTeam = (teamId: string) => allPlayers.filter(p => p.teamId === teamId);
 
@@ -253,19 +253,6 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
                       <>
                         {isEditor && (
                           <>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setInviteTeam({ id: team.id, name: team.name });
-                              }}
-                              className="w-8 h-8 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg"
-                              title={t("invite_button")}
-                              data-testid={`button-invite-team-${team.id}`}
-                            >
-                              <MailPlus className="w-3.5 h-3.5" />
-                            </Button>
                             <Button size="icon" variant="ghost" onClick={() => startEditTeam(team)} className="w-8 h-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg" data-testid={`button-edit-team-${team.id}`}>
                               <Pencil className="w-3.5 h-3.5" />
                             </Button>
@@ -317,15 +304,6 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
           );
         })}
       </main>
-
-      <InviteTeamDialog
-        teamId={inviteTeam?.id ?? null}
-        teamName={inviteTeam?.name ?? ""}
-        open={Boolean(inviteTeam)}
-        onOpenChange={(open) => {
-          if (!open) setInviteTeam(null);
-        }}
-      />
     </div>
   );
 }
@@ -338,6 +316,16 @@ function PlayerRow({
   onEdit: () => void; onViewReport: () => void;
 }) {
   const { t } = useLocale();
+  const { data: approvalStatus, isLoading: approvalLoading } = useApprovalStatus(player.id, {
+    enabled: mode === "editor",
+  });
+  const publishMut = usePublishReport(player.id);
+
+  const published = Boolean(approvalStatus?.isPublished ?? player.published);
+  const approvalCount = approvalStatus?.approvals.length ?? 0;
+  const staffTotal = approvalStatus?.totalStaff ?? 0;
+  const approvalFraction =
+    staffTotal > 0 ? `${approvalCount}/${staffTotal}` : String(approvalCount);
 
   if (isPendingDelete) {
     return (
@@ -371,7 +359,26 @@ function PlayerRow({
       </div>
       <div className="flex-1 min-w-0">
         <h3 className="font-extrabold text-sm truncate text-foreground">{player.name || "Unnamed"}</h3>
-        <div className="flex items-center gap-1 text-xs font-bold text-primary">
+        {mode === "editor" && (
+          <div className="flex flex-wrap items-center gap-1 mt-1">
+            <Badge
+              variant="secondary"
+              className="text-[10px] font-bold px-1.5 py-0 h-5 tabular-nums border-border"
+              data-testid={`badge-approval-${player.id}`}
+            >
+              {approvalLoading ? "—" : `${approvalFraction} ${t("dashboard_player_coaches_label")}`}
+            </Badge>
+            {approvalStatus?.hasDiscrepancy && (
+              <span
+                className="inline-flex items-center justify-center min-w-6 h-5 px-1 rounded-md border border-destructive/40 bg-destructive/10 text-destructive text-xs font-black"
+                title={t("approval_discrepancy")}
+              >
+                ⚠
+              </span>
+            )}
+          </div>
+        )}
+        <div className="flex items-center gap-1 text-xs font-bold text-primary mt-0.5">
           <span>{inp?.position ?? "—"}</span>
           <span className="text-muted-foreground">·</span>
           <span className="text-primary/90">{inp?.height ?? "—"}</span>
@@ -379,14 +386,50 @@ function PlayerRow({
       </div>
 
       {mode === "editor" ? (
-        <>
-          <Button size="sm" variant="outline" onClick={onEdit} className="h-8 px-3 shrink-0 rounded-lg text-xs font-bold border-border bg-transparent text-foreground hover:bg-muted" data-testid={`button-edit-player-${player.id}`}>
-            <Pencil className="w-3 h-3 mr-1" /> {t("edit")}
-          </Button>
-          <Button size="icon" variant="ghost" onClick={onDelete} className="w-7 h-7 shrink-0 text-muted-foreground hover:text-red-400 hover:bg-red-950/30 rounded-lg" data-testid={`button-delete-player-${player.id}`}>
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        </>
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          {published ? (
+            <Badge
+              variant="outline"
+              className="text-[10px] font-bold h-7 px-2 border-primary/40 bg-primary/10 text-primary gap-1"
+              data-testid={`badge-published-${player.id}`}
+            >
+              <Check className="w-3 h-3" />
+              {t("dashboard_player_published_badge")}
+            </Badge>
+          ) : (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 px-2 text-[10px] font-bold rounded-lg"
+              disabled={publishMut.isPending}
+              data-testid={`button-publish-player-${player.id}`}
+              onClick={() =>
+                publishMut.mutate(undefined, {
+                  onSuccess: () => {
+                    toast({ title: t("approval_publish_success") });
+                  },
+                  onError: (err) => {
+                    toast({
+                      variant: "destructive",
+                      title: t("approval_publish_error"),
+                      description: (err as Error)?.message ?? "",
+                    });
+                  },
+                })
+              }
+            >
+              {publishMut.isPending ? t("saving") : t("dashboard_player_publish")}
+            </Button>
+          )}
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" onClick={onEdit} className="h-8 px-3 shrink-0 rounded-lg text-xs font-bold border-border bg-transparent text-foreground hover:bg-muted" data-testid={`button-edit-player-${player.id}`}>
+              <Pencil className="w-3 h-3 mr-1" /> {t("edit")}
+            </Button>
+            <Button size="icon" variant="ghost" onClick={onDelete} className="w-7 h-7 shrink-0 text-muted-foreground hover:text-red-400 hover:bg-red-950/30 rounded-lg" data-testid={`button-delete-player-${player.id}`}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
       ) : (
         <Button size="sm" onClick={onViewReport} className="h-8 px-3 shrink-0 rounded-lg text-xs font-black bg-primary text-primary-foreground border-0 shadow-[0_0_18px_hsl(var(--primary)/0.35)] hover:bg-primary/90" data-testid={`button-report-player-${player.id}`}>
           <FileText className="w-3 h-3 mr-1" /> Report

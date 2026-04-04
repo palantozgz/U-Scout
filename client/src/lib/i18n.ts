@@ -731,7 +731,9 @@ const en = {
   join_club_verify_body:
     "We sent a confirmation link. Activate your account, then return here and sign in to join.",
 
-  approval_preview_button: "Preview & approve",
+  dashboard_player_coaches_label: "coaches",
+  dashboard_player_published_badge: "Published ✓",
+  dashboard_player_publish: "Publish",
   approval_coaches_approved_suffix: "coaches approved",
   approval_coaches_no_staff_suffix: "approvals (add staff in My Club for a full tally)",
   approval_btn_approve: "Approve",
@@ -1416,7 +1418,9 @@ const es: I18nStrings = {
   join_club_verify_body:
     "Te enviamos un enlace de confirmación. Activa tu cuenta, vuelve aquí e inicia sesión para unirte.",
 
-  approval_preview_button: "Vista previa y aprobar",
+  dashboard_player_coaches_label: "entrenadores",
+  dashboard_player_published_badge: "Publicado ✓",
+  dashboard_player_publish: "Publicar",
   approval_coaches_approved_suffix: "entrenadores aprobaron",
   approval_coaches_no_staff_suffix: "aprobaciones (configura el staff en Mi club para ver el total)",
   approval_btn_approve: "Aprobar",
@@ -2096,7 +2100,9 @@ const zh: I18nStrings = {
   join_club_verify_title: "请查收邮件",
   join_club_verify_body: "我们已发送确认链接。请先激活账户，再回到此处登录以完成加入。",
 
-  approval_preview_button: "预览并审批",
+  dashboard_player_coaches_label: "位教练",
+  dashboard_player_published_badge: "已发布 ✓",
+  dashboard_player_publish: "发布",
   approval_coaches_approved_suffix: "位教练已批准",
   approval_coaches_no_staff_suffix: "次批准（在「我的俱乐部」添加工作人员可显示完整人数）",
   approval_btn_approve: "批准",

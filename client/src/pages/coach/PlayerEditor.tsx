@@ -9,7 +9,7 @@ import {
   type CloseoutReaction, type PlayerProfile, type PhysicalLevel,
   type PostQuadrants, type ScreenerAction,
 } from "@/lib/mock-data";
-import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus, Eye } from "lucide-react";
+import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -617,7 +617,19 @@ export default function PlayerEditor() {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => setLocation("/coach")} className="-ml-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              if (isNew) {
+                setLocation("/coach/editor");
+              } else {
+                setLocation(`/coach/player/${getPlayerId()}/profile?mode=review`);
+              }
+            }}
+            className="-ml-2"
+            data-testid="player-editor-back"
+          >
             <ArrowLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
           </Button>
           <div className="flex items-center gap-2">
@@ -658,19 +670,6 @@ export default function PlayerEditor() {
               <Trash2 className="w-4 h-4" />
             </Button>
           ))}
-          {!isNew && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="rounded-full px-3 font-bold border-primary/40 text-primary hover:bg-primary/10"
-              onClick={() => setLocation(`/coach/player/${getPlayerId()}/profile?mode=review`)}
-              data-testid="player-editor-preview-approve"
-            >
-              <Eye className="w-4 h-4 mr-1 shrink-0" />
-              {t("approval_preview_button")}
-            </Button>
-          )}
           <Button size="sm" onClick={handleSave} className="rounded-full px-5 font-bold bg-primary hover:bg-primary/90 text-white shadow-md">
             <Save className="w-4 h-4 mr-1.5" /> {t("save")}
           </Button>

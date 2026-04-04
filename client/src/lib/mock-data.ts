@@ -126,6 +126,8 @@ export interface InternalProfileModel {
 
 export interface PlayerProfile {
   id: string; teamId: string; name: string; number: string; imageUrl: string;
+  /** Set when report has been published (coach workflow). */
+  published?: boolean;
   /**
    * Canonical scouting input payload used to generate outputs.
    * `inputs` is kept for backward-compatibility with older saved players.
