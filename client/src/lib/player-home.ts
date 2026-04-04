@@ -1,7 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "./useAuth";
+import { supabase } from "./supabase";
 import { apiRequest } from "./queryClient";
 
-export interface PlayerHomeMembership {
+export interface PlayerReport {
+  assignmentId: string;
+  assignedAt: string;
+  opponentPlayerId: string;
+  opponentName: string;
+  opponentTeamId: string;
+  opponentTeamName: string;
+  opponentImageUrl: string;
+  opponentNumber: string;
+}
+
+export interface PlayerMembership {
   jerseyNumber: string;
   position: string;
   displayName: string;
@@ -9,25 +22,37 @@ export interface PlayerHomeMembership {
   team: { id: string; name: string; logo: string };
 }
 
-export interface PlayerHomeReport {
-  assignmentId: string;
-  assignedAt: string;
-  opponentPlayerId: string;
-  opponentName: string;
-  opponentTeamId: string;
-  opponentTeamName: string;
+export interface PlayerHomeData {
+  membership: PlayerMembership | null;
+  reports: PlayerReport[];
 }
 
-export interface PlayerHomePayload {
-  membership: PlayerHomeMembership | null;
-  reports: PlayerHomeReport[];
+async function fetchPlayerHome(): Promise<PlayerHomeData> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) {
+    throw new Error("Not authenticated");
+  }
+  const res = await fetch("/api/player/home", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`GET /api/player/home → ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<PlayerHomeData>;
 }
 
 export function usePlayerHome() {
+  const { user, loading } = useAuth();
   return useQuery({
-    queryKey: ["/api/player/home"],
-    queryFn: async (): Promise<PlayerHomePayload> =>
-      (await apiRequest("GET", "/api/player/home")).json(),
+    queryKey: ["player-home"],
+    queryFn: fetchPlayerHome,
+    enabled: !loading && Boolean(user),
     networkMode: "offlineFirst",
   });
 }
@@ -55,7 +80,7 @@ export function useCreateInvitation() {
       return res.json() as Promise<{ invitation: { id: string; token: string }; link: string }>;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/teams"] });
+      void qc.invalidateQueries({ queryKey: ["/api/teams"] });
     },
   });
 }
@@ -68,7 +93,7 @@ export function useAcceptInvitation() {
       return res.json() as Promise<{ ok: boolean; teamId: string; role: string }>;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/player/home"] });
+      void qc.invalidateQueries({ queryKey: ["player-home"] });
     },
   });
 }

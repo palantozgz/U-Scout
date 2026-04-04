@@ -227,6 +227,8 @@ export async function registerRoutes(
           opponentName: r.player.name || "—",
           opponentTeamId: r.team.id,
           opponentTeamName: r.team.name,
+          opponentImageUrl: r.player.imageUrl ?? "",
+          opponentNumber: r.player.number ?? "",
         })),
       });
     } catch (err) {
