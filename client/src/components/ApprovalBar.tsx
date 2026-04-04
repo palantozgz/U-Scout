@@ -24,7 +24,7 @@ export function ApprovalBar({ playerId }: { playerId: string }) {
   const myId = profile?.id ?? "";
   const iApproved = Boolean(data?.approvals.some((a) => a.coachId === myId));
   const count = data?.approvals.length ?? 0;
-  const total = data?.totalStaff ?? 0;
+  const displayTotal = Math.max(data?.totalStaff ?? 0, 1);
 
   const onToggleApprove = () => {
     if (iApproved) {
@@ -57,13 +57,9 @@ export function ApprovalBar({ playerId }: { playerId: string }) {
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <p className="text-xs font-semibold text-muted-foreground">
             <span className="text-foreground font-bold tabular-nums">
-              {isLoading
-                ? "—"
-                : total > 0
-                  ? `${count}/${total}`
-                  : String(count)}
+              {isLoading ? "—" : `${count}/${displayTotal}`}
             </span>{" "}
-            {t(total > 0 ? "approval_coaches_approved_suffix" : "approval_coaches_no_staff_suffix")}
+            {t("dashboard_player_coaches_label")}
           </p>
           {data?.hasDiscrepancy && (
             <Badge variant="destructive" className="text-[10px] font-bold uppercase tracking-wide shrink-0">

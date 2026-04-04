@@ -229,8 +229,8 @@ export async function registerRoutes(
       const player = await storage.getPlayer(playerId);
       if (!player) return res.status(404).json({ error: "Player not found" });
 
-      const club = await storage.getClubForUser(req.user!.id);
-      const totalStaff = club ? await storage.countClubStaffCoaches(club.id) : 0;
+      const club = await storage.findClubForApprovalStaff(req.user!.id);
+      const totalStaff = club ? await storage.countClubStaffCoaches(club.id) : 1;
 
       const approvalRows = await storage.listReportApprovalsForPlayer(playerId);
       const overrideRows = await storage.listReportOverridesForPlayer(playerId);

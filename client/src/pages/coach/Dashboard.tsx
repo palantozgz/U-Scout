@@ -323,9 +323,8 @@ function PlayerRow({
 
   const published = Boolean(approvalStatus?.isPublished ?? player.published);
   const approvalCount = approvalStatus?.approvals.length ?? 0;
-  const staffTotal = approvalStatus?.totalStaff ?? 0;
-  const approvalFraction =
-    staffTotal > 0 ? `${approvalCount}/${staffTotal}` : String(approvalCount);
+  const staffTotal = Math.max(approvalStatus?.totalStaff ?? 0, 1);
+  const approvalFraction = `${approvalCount}/${staffTotal}`;
 
   if (isPendingDelete) {
     return (
