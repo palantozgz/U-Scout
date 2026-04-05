@@ -1,10 +1,11 @@
 import { useLocation } from "wouter";
-import { Settings, Users } from "lucide-react";
+import { ArrowLeft, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { usePlayerHome } from "@/lib/player-home";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
+import { UScoutLogo } from "@/components/UScoutLogo";
 import { isRealPhoto } from "@/lib/utils";
 
 export default function PlayerHome() {
@@ -25,32 +26,35 @@ export default function PlayerHome() {
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background">
-      <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between gap-2">
-        <h1 className="text-lg font-bold text-foreground tracking-widest uppercase truncate min-w-0">
-          {t("player_home_title")}
-        </h1>
-        <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 px-2.5 text-xs font-bold border-border"
-            onClick={() => setLocation("/player/teams")}
-            data-testid="player-home-by-team"
-          >
-            <Users className="w-3.5 h-3.5 mr-1" />
-            {t("player_teams_by_team")}
-          </Button>
+      <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-3 py-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 min-w-0">
           <Button
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => setLocation("/player/home-settings")}
-            aria-label={t("player_settings_aria")}
-            data-testid="player-home-settings"
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={() => setLocation("/player")}
+            aria-label={t("player_back_to_teams")}
+            data-testid="player-reports-back-teams"
           >
-            <Settings className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5" />
           </Button>
+          <div style={{ opacity: 0.85 }} className="shrink-0 text-foreground">
+            <UScoutLogo size={28} />
+          </div>
+          <h1 className="text-lg font-bold text-foreground tracking-widest uppercase truncate min-w-0">
+            {t("player_home_title")}
+          </h1>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={() => setLocation("/player/home-settings")}
+          aria-label={t("player_settings_aria")}
+          data-testid="player-home-settings"
+        >
+          <Settings className="w-5 h-5" />
+        </Button>
       </header>
 
       <main className="flex-1 px-3 pb-10 space-y-4 pt-4">

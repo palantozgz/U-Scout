@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Pencil, FileText, Settings, LogOut, ChevronRight, Users } from "lucide-react";
-import { UScoutLogoStatic } from "@/components/branding/UScoutBrand";
+import { UScoutLogo } from "@/components/UScoutLogo";
 import type { AppUserRole } from "@/lib/useAuth";
 
 const ROLE_LABEL_KEY: Record<AppUserRole, "role_master" | "role_head_coach" | "role_coach" | "role_player"> = {
@@ -37,9 +37,11 @@ export default function CoachHome() {
       </button>
 
       <main className="relative z-10 flex flex-col flex-1 px-5 pt-10 pb-6 max-w-md mx-auto w-full">
-        <div className="flex flex-col items-center pt-4">
-          <UScoutLogoStatic />
-          <p className="mt-4 text-[10px] sm:text-[11px] font-semibold tracking-[0.45em] text-muted-foreground uppercase">
+        <div className="flex items-center gap-3 w-full pt-4">
+          <div style={{ opacity: 0.85 }} className="shrink-0 text-foreground">
+            <UScoutLogo size={28} />
+          </div>
+          <p className="flex-1 text-center text-[10px] sm:text-[11px] font-semibold tracking-[0.45em] text-muted-foreground uppercase">
             {t("coach_home_tagline")}
           </p>
         </div>
