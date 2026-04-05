@@ -5,6 +5,7 @@ import {
   motorOutputToPlanString,
   type PlayerInputs,
   type PostMove as MotorPostMoveId,
+  type MotorOutput,
 } from "./motor-v2.1";
 
 // ─── Base types ───────────────────────────────────────────────────────────────
@@ -101,13 +102,26 @@ export interface PlayerInput {
 
   courtVision?: PhysicalLevel;
 
-  /** Motor v2.1 — optional; inferred by engine when null */
+  /** Override motor transition role; usually leave unset and use rim/trail intensities below. */
   motorTransRole?: "rim_run" | "trail" | "leak" | "fill" | null;
   motorBallHandling?: "elite" | "capable" | "limited" | "liability" | null;
   motorPressureResponse?: "breaks" | "escapes" | "struggles" | null;
   motorPostEff?: "high" | "medium" | "low" | null;
+  /** @deprecated Prefer post quadrant moves — motor derives package from diagram. */
   motorPostMoves?: ("fade" | "turnaround" | "hook" | "drop_step" | "up_and_under")[] | null;
   motorPostEntry?: "pass" | "duck_in" | "seal" | "flash" | null;
+  motorPostEntrySecondary?: "pass" | "duck_in" | "seal" | "flash" | null;
+  /** Second interior profile (hybrids). Motor still uses primary for post profile weights. */
+  postProfileSecondary?: PostProfile | null;
+  /** ISO / PnR handler finish efficiency for motor weights */
+  motorIsoEff?: "high" | "medium" | "low" | null;
+  motorPnrEff?: "high" | "medium" | "low" | null;
+  /** Transition: attack rim vs trailer 3 — graded separately from overall transition frequency */
+  motorTransRimIntensity?: IntensityLevel;
+  motorTransTrail3Intensity?: IntensityLevel;
+  /** PnR handler preferred finish when ball on left vs right side (POV: handler facing basket) */
+  pnrFinishBallLeft?: PnrFinish | null;
+  pnrFinishBallRight?: PnrFinish | null;
 
   // Legacy
   pnrRoleSecondaryLegacy?: "Handler" | "Screener" | "None";
@@ -141,6 +155,37 @@ export interface InternalProfileModel {
   functionalProfile: FunctionalProfile;
 }
 
+/** One motor alternative line + engine weight (0–1 scale) for coach review. */
+export interface MotorPlanCandidate {
+  line: string;
+  weight: number;
+}
+
+/** Next-tier motor outputs (ranked after primary card). Shown only in coach review mode. */
+export interface MotorDefensiveRunnerUps {
+  defender: MotorPlanCandidate[];
+  forzar: MotorPlanCandidate[];
+  concede: MotorPlanCandidate[];
+  aware: MotorPlanCandidate[];
+}
+
+/**
+ * Persisted scouting plan. Core card uses `defender` / `forzar` / `concede`.
+ * Motor v2.1 adds `aware`, runner-ups for hybrid nuance, and inferred fields the engine filled in.
+ */
+export interface DefensivePlan {
+  defender: string[];
+  forzar: string[];
+  concede: string[];
+  /** Top “be aware” lines (motor `aware`, first 3). */
+  aware?: string[];
+  /** Three ranked alternates per lane after the primary slices (for deep report / staff review). */
+  motorRunnerUps?: MotorDefensiveRunnerUps;
+  /** Fields the motor inferred (confidence tagged) when scouts left them blank. */
+  motorInferred?: Record<string, { value: unknown; confidence: string }>;
+  motorVersion?: string;
+}
+
 export interface PlayerProfile {
   id: string; teamId: string; name: string; number: string; imageUrl: string;
   /** Set when report has been published (coach workflow). */
@@ -153,7 +198,16 @@ export interface PlayerProfile {
   inputs: PlayerInput;
   internalModel: InternalProfileModel;
   archetype: string; subArchetype?: string; keyTraits: string[];
-  defensivePlan: { defender: string[]; forzar: string[]; concede: string[] };
+  defensivePlan: DefensivePlan;
+}
+
+/** Return shape of `generateProfile` (same plan shape as persisted on `PlayerProfile`). */
+export interface GenerateProfileResult {
+  internalModel: InternalProfileModel;
+  archetype: string;
+  subArchetype?: string;
+  keyTraits: string[];
+  defensivePlan: DefensivePlan;
 }
 
 export interface Team { id: string; name: string; logo: string; primaryColor: string; }
@@ -369,6 +423,8 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     pnrReactionVsUnder: "Re-screen", pnrTiming: "Deep (Half-court)",
     pnrDirection: "Balanced", pnrDominantFinish: "Drive to Rim", pnrOppositeFinish: "Pull-up",
     transitionFrequency: "Secondary", transitionRole: "Rim Runner",
+    motorTransRimIntensity: "Secondary",
+    motorTransTrail3Intensity: "Never",
     indirectsFrequency: "Secondary", backdoorFrequency: "Secondary",
     offensiveReboundFrequency: "Secondary",
     courtVision: 3,
@@ -409,6 +465,48 @@ function cutIntensityRank(i: IntensityLevel): number {
   if (i === "Secondary") return 2;
   if (i === "Rare") return 1;
   return 0;
+}
+
+function maxIntensityLevel(...levels: IntensityLevel[]): IntensityLevel {
+  let best: IntensityLevel = "Never";
+  let bestR = -1;
+  for (const l of levels) {
+    const r = cutIntensityRank(l);
+    if (r > bestR) {
+      bestR = r;
+      best = l;
+    }
+  }
+  return best;
+}
+
+function quadrantMoveToMotorPostMove(moveName: string): MotorPostMoveId | null {
+  if (!moveName) return null;
+  const n = moveName.toLowerCase();
+  if (n.includes("fade")) return "fade";
+  if (n.includes("turnaround")) return "turnaround";
+  if (n.includes("hook")) return "hook";
+  if (n.includes("drop step")) return "drop_step";
+  if (n.includes("up") && n.includes("under")) return "up_and_under";
+  return null;
+}
+
+function deriveMotorPostMovesFromQuadrants(q?: PostQuadrants): MotorPostMoveId[] {
+  if (!q) return [];
+  const cells = [q.rightBaseline, q.rightMiddle, q.leftBaseline, q.leftMiddle].filter(Boolean);
+  const set = new Set<MotorPostMoveId>();
+  for (const c of cells) {
+    const m = quadrantMoveToMotorPostMove(c!.moveName ?? "");
+    if (m) set.add(m);
+  }
+  return Array.from(set);
+}
+
+function motorPlanCandidates(outputs: MotorOutput[], start: number, count: number): MotorPlanCandidate[] {
+  return outputs.slice(start, start + count).map((o) => ({
+    line: motorOutputToPlanString(o),
+    weight: o.weight,
+  }));
 }
 
 /** Maps editor `PlayerInput` to Motor v2.1 `PlayerInputs`. */
@@ -554,20 +652,44 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
 
   const deepRange = isPrimary(perimeterThreat);
 
-  const transRole: PlayerInputs["transRole"] =
-    inputs.motorTransRole ??
-    (inputs.transitionRole === "Rim Runner"
-      ? "rim_run"
-      : inputs.transitionRole === "Trailer"
-        ? "trail"
-        : inputs.transitionRole === "Pusher" || inputs.transitionRole === "Outlet"
-          ? "fill"
-          : null);
+  const rimG = cutIntensityRank(inputs.motorTransRimIntensity ?? "Never");
+  const tr3G = cutIntensityRank(inputs.motorTransTrail3Intensity ?? "Never");
+
+  let transRole: PlayerInputs["transRole"] = inputs.motorTransRole ?? null;
+  if (!transRole) {
+    if (rimG > tr3G && rimG > 0) transRole = "rim_run";
+    else if (tr3G > rimG && tr3G > 0) transRole = "trail";
+    else if (rimG > 0 && tr3G > 0)
+      transRole = inputs.transitionRole === "Trailer" ? "trail" : "rim_run";
+    else if (rimG > 0) transRole = "rim_run";
+    else if (tr3G > 0) transRole = "trail";
+    else {
+      transRole =
+        inputs.transitionRole === "Rim Runner"
+          ? "rim_run"
+          : inputs.transitionRole === "Trailer"
+            ? "trail"
+            : inputs.transitionRole === "Pusher" || inputs.transitionRole === "Outlet"
+              ? "fill"
+              : null;
+    }
+  }
+
+  const transAgg = maxIntensityLevel(
+    inputs.transitionFrequency,
+    inputs.motorTransRimIntensity ?? "Never",
+    inputs.motorTransTrail3Intensity ?? "Never",
+  );
+  const transFreqMotor = mapMotorIntensity(transAgg);
 
   const moveSet = ["fade", "turnaround", "hook", "drop_step", "up_and_under"] as const;
-  const validMoves = inputs.motorPostMoves?.filter((m): m is MotorPostMoveId =>
-    (moveSet as readonly string[]).includes(m),
-  );
+  const fromQuadrants = deriveMotorPostMovesFromQuadrants(inputs.postQuadrants);
+  const legacyMoves =
+    inputs.motorPostMoves?.filter((m): m is MotorPostMoveId =>
+      (moveSet as readonly string[]).includes(m),
+    ) ?? [];
+  const postMoves =
+    fromQuadrants.length > 0 ? fromQuadrants : legacyMoves.length > 0 ? legacyMoves : null;
 
   return {
     pos,
@@ -577,7 +699,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     isoFreq: mapMotorIntensity(inputs.isoFrequency),
     pnrFreq: mapMotorIntensity(inputs.pnrFrequency),
     postFreq: mapMotorIntensity(inputs.postFrequency),
-    transFreq: mapMotorIntensity(inputs.transitionFrequency),
+    transFreq: transFreqMotor,
     spotUpFreq: mapMotorIntensity(perimeterThreat),
     dhoFreq: "N",
     cutFreq,
@@ -596,18 +718,19 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
           : "B",
     isoDec:
       inputs.isoDecision === "Shoot" ? "S" : inputs.isoDecision === "Pass" ? "P" : "F",
-    isoEff: null,
+    isoEff: inputs.motorIsoEff ?? null,
     postProfile: mapMotorPostProfile(),
     postZone: null,
     postShoulder,
     postEff: inputs.motorPostEff ?? null,
-    postMoves: validMoves?.length ? validMoves : null,
+    postMoves,
     postEntry,
     spotUpAction:
       inputs.closeoutReaction === "Catch & Shoot" ? "shoot" : "either",
     spotZone: null,
     deepRange,
     pnrPri,
+    pnrEff: inputs.motorPnrEff ?? null,
     trapResponse,
     screenerAction: screenerToMotor(),
     popRange: deepRange ? "three" : "midrange",
@@ -626,7 +749,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
 // but only the 3 most actionable conclusions reach the output.
 // inputs → danger scores → archetype → interpreted traits → defensive plan
 
-export function generateProfile(inputs: PlayerInput, playerName?: string) {
+export function generateProfile(inputs: PlayerInput, playerName?: string): GenerateProfileResult {
   const nameRef = playerName ? playerName.split(" ").pop()! : ""; // Use last name
   const internal: InternalProfileModel = {
     ...defaultInternal,
@@ -1308,9 +1431,28 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
 
   const motorInputs = playerInputToMotorInputs(inputs);
   const motorReport = motor.generateReport(motorInputs);
-  const md = motorReport.selected.deny.map(motorOutputToPlanString).slice(0, 3);
-  const mf = motorReport.selected.force.map(motorOutputToPlanString).slice(0, 3);
-  const mc = motorReport.selected.allow.map(motorOutputToPlanString).slice(0, 3);
+  const { selected, categorized, inputs: motorEnriched } = motorReport;
+
+  const md = selected.deny.map(motorOutputToPlanString).slice(0, 3);
+  const mf = selected.force.map(motorOutputToPlanString).slice(0, 3);
+  const mc = selected.allow.map(motorOutputToPlanString).slice(0, 3);
+  const ma = selected.aware.map(motorOutputToPlanString).slice(0, 3);
+
+  const runnerUps: MotorDefensiveRunnerUps = {
+    defender: motorPlanCandidates(categorized.deny, 3, 3),
+    forzar: motorPlanCandidates(categorized.force, 2, 3),
+    concede: motorPlanCandidates(categorized.allow, 2, 3),
+    aware: motorPlanCandidates(categorized.aware, 3, 3),
+  };
+
+  const inferredEntries = motorEnriched._inferred
+    ? Object.entries(motorEnriched._inferred).map(([k, v]) => [
+        k,
+        { value: v.value, confidence: v.confidence },
+      ] as const)
+    : [];
+  const motorInferred =
+    inferredEntries.length > 0 ? Object.fromEntries(inferredEntries) : undefined;
 
   return {
     internalModel: internal,
@@ -1321,6 +1463,10 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
       defender: md.length > 0 ? md : defender.slice(0, 3),
       forzar: mf.length > 0 ? mf : forzar.slice(0, 3),
       concede: mc.length > 0 ? mc : concede.slice(0, 3),
+      aware: ma.length > 0 ? ma : undefined,
+      motorRunnerUps: runnerUps,
+      motorInferred,
+      motorVersion: "2.1",
     },
   };
 }

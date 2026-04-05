@@ -7,18 +7,16 @@ import {
   generateProfile, createDefaultPlayer,
   type PlayerInput, type IntensityLevel, type DirectionTendency,
   type CloseoutReaction, type PlayerProfile, type PhysicalLevel,
-  type PostQuadrants, type ScreenerAction,
+  type PostQuadrants, type ScreenerAction, type PnrFinish,
 } from "@/lib/mock-data";
 import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
-import type { PostMove as MotorPostMoveId } from "@/lib/motor-v2.1";
 
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 function Tooltip({ text }: { text: string }) {
@@ -340,7 +338,7 @@ function PostQuadrantSelector({ value, onChange, dominantHand }: {
     <div className="space-y-3">
       <FieldLabel
         label={t("post_moves_quadrant")}
-        tooltip={t("hint_post_quadrant")}
+        tooltip={`${t("hint_post_quadrant")} ${t("hint_motor_post_moves_quadrant")}`}
       />
       <HalfCourtDiagram dominant={dominantHand} />
       <div className="grid grid-cols-2 gap-2">
@@ -784,7 +782,7 @@ export default function PlayerEditor() {
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm">
               <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">🏀 {t("editor.ball_handling")}</h3>
               <div className="space-y-2">
-                <FieldLabel label={t("editor.ball_handling")} />
+                <FieldLabel label={t("editor.ball_handling")} tooltip={t("hint_motor_ball_handling")} />
                 <Select
                   value={inputs.motorBallHandling ?? "__none__"}
                   onValueChange={(v) => ui("motorBallHandling", v === "__none__" ? null : (v as NonNullable<PlayerInput["motorBallHandling"]>))}
@@ -802,7 +800,7 @@ export default function PlayerEditor() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <FieldLabel label={t("editor.pressure_response")} />
+                <FieldLabel label={t("editor.pressure_response")} tooltip={t("hint_motor_pressure")} />
                 <Select
                   value={inputs.motorPressureResponse ?? "__none__"}
                   onValueChange={(v) => ui("motorPressureResponse", v === "__none__" ? null : (v as NonNullable<PlayerInput["motorPressureResponse"]>))}
@@ -878,6 +876,26 @@ export default function PlayerEditor() {
                   </Select>
                 </div>
 
+                <div className="space-y-2">
+                  <FieldLabel label={t("post_profile_secondary")} tooltip={t("hint_post_profile_secondary")} />
+                  <Select
+                    value={inputs.postProfileSecondary ?? "__none__"}
+                    onValueChange={(v) => ui("postProfileSecondary", v === "__none__" ? null : (v as PlayerInput["postProfile"]))}
+                  >
+                    <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800">
+                      <SelectValue placeholder={t("not_observed")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{t("not_observed")}</SelectItem>
+                      <SelectItem value="Back to Basket">{t("opt_post_back_to_basket")}</SelectItem>
+                      <SelectItem value="Face-Up">{t("opt_post_face_up")}</SelectItem>
+                      <SelectItem value="Mixed">{t("opt_post_mixed")}</SelectItem>
+                      <SelectItem value="High Post">{t("opt_post_high_post")}</SelectItem>
+                      <SelectItem value="Stretch Big">{t("opt_post_stretch")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <PostQuadrantSelector
                   value={inputs.postQuadrants ?? {}}
                   onChange={v => ui("postQuadrants", v)}
@@ -885,7 +903,7 @@ export default function PlayerEditor() {
                 />
 
                 <div className="space-y-2">
-                  <FieldLabel label={t("editor.post_eff")} />
+                  <FieldLabel label={t("editor.post_eff")} tooltip={t("hint_motor_post_eff")} />
                   <Select
                     value={inputs.motorPostEff ?? "__none__"}
                     onValueChange={(v) => ui("motorPostEff", v === "__none__" ? null : v as PlayerInput["motorPostEff"])}
@@ -903,40 +921,32 @@ export default function PlayerEditor() {
                 </div>
 
                 <div className="space-y-2">
-                  <FieldLabel label={t("editor.post_moves")} />
-                  {(["fade", "turnaround", "hook", "drop_step", "up_and_under"] as const).map((move) => {
-                    const moveLabel =
-                      move === "fade" ? t("editor.post_move.fade")
-                      : move === "turnaround" ? t("editor.post_move.turnaround")
-                      : move === "hook" ? t("editor.post_move.hook")
-                      : move === "drop_step" ? t("editor.post_move.drop_step")
-                      : t("editor.post_move.up_and_under");
-                    return (
-                    <label key={move} className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={inputs.motorPostMoves?.includes(move as MotorPostMoveId) ?? false}
-                        onCheckedChange={(checked) => {
-                          const cur = inputs.motorPostMoves ?? [];
-                          const next = checked
-                            ? [...cur, move as MotorPostMoveId]
-                            : cur.filter((m) => m !== move);
-                          ui("motorPostMoves", next.length > 0 ? next : null);
-                        }}
-                      />
-                      <span className="text-sm text-slate-700 dark:text-slate-300">{moveLabel}</span>
-                    </label>
-                    );
-                  })}
-                </div>
-
-                <div className="space-y-2">
-                  <FieldLabel label={t("editor.post_entry")} tooltip={t("hint_duck_in")} />
+                  <FieldLabel label={t("editor.post_entry")} tooltip={t("hint_motor_post_entry")} />
                   <Select
                     value={inputs.motorPostEntry ?? "__none__"}
                     onValueChange={(v) => ui("motorPostEntry", v === "__none__" ? null : v as PlayerInput["motorPostEntry"])}
                   >
                     <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800">
                       <SelectValue placeholder={t("editor.post_entry")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{t("not_observed")}</SelectItem>
+                      <SelectItem value="pass">{t("editor.post_entry.pass")}</SelectItem>
+                      <SelectItem value="duck_in">{t("editor.post_entry.duck_in")}</SelectItem>
+                      <SelectItem value="seal">{t("editor.post_entry.seal")}</SelectItem>
+                      <SelectItem value="flash">{t("editor.post_entry.flash")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <FieldLabel label={t("editor.post_entry_secondary")} tooltip={t("hint_motor_post_entry_secondary")} />
+                  <Select
+                    value={inputs.motorPostEntrySecondary ?? "__none__"}
+                    onValueChange={(v) => ui("motorPostEntrySecondary", v === "__none__" ? null : v as PlayerInput["motorPostEntrySecondary"])}
+                  >
+                    <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800">
+                      <SelectValue placeholder={t("not_observed")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">{t("not_observed")}</SelectItem>
@@ -1072,6 +1082,26 @@ export default function PlayerEditor() {
                 )}
               </>)}
 
+              {(inputs.isoFrequency === "Primary" || inputs.isoFrequency === "Secondary" || inputs.isoFrequency === "Rare") && (
+                <div className="space-y-2">
+                  <FieldLabel label={t("editor_iso_finish_eff")} tooltip={t("hint_iso_finish_eff")} />
+                  <Select
+                    value={inputs.motorIsoEff ?? "__none__"}
+                    onValueChange={(v) => ui("motorIsoEff", v === "__none__" ? null : v as NonNullable<PlayerInput["motorIsoEff"]>)}
+                  >
+                    <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800">
+                      <SelectValue placeholder={t("not_observed")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{t("not_observed")}</SelectItem>
+                      <SelectItem value="high">{t("editor.eff.high")}</SelectItem>
+                      <SelectItem value="medium">{t("editor.eff.medium")}</SelectItem>
+                      <SelectItem value="low">{t("editor.eff.low")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
                 <FieldLabel label={t("closeout_general")} tooltip={t("hint_closeout_general")} />
                 <Select value={inputs.closeoutReaction} onValueChange={v => ui("closeoutReaction", v)}>
@@ -1143,6 +1173,23 @@ export default function PlayerEditor() {
                     </Select>
                   </div>
                   <div className="space-y-2">
+                    <FieldLabel label={t("editor_pnr_finish_eff")} tooltip={t("hint_pnr_finish_eff")} />
+                    <Select
+                      value={inputs.motorPnrEff ?? "__none__"}
+                      onValueChange={(v) => ui("motorPnrEff", v === "__none__" ? null : v as NonNullable<PlayerInput["motorPnrEff"]>)}
+                    >
+                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800">
+                        <SelectValue placeholder={t("not_observed")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">{t("not_observed")}</SelectItem>
+                        <SelectItem value="high">{t("editor.eff.high")}</SelectItem>
+                        <SelectItem value="medium">{t("editor.eff.medium")}</SelectItem>
+                        <SelectItem value="low">{t("editor.eff.low")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <FieldLabel label={t("pnr_reaction_under")} tooltip={t("hint_pnr_under")} />
                     <Select value={inputs.pnrReactionVsUnder} onValueChange={v => ui("pnrReactionVsUnder", v)}>
                       <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
@@ -1192,6 +1239,41 @@ export default function PlayerEditor() {
                           </Select>
                         </div>
                       </div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 pt-1">{t("pnr_finish_by_side_heading")}</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t("pnr_finish_ball_left")}</Label>
+                          <Select
+                            value={inputs.pnrFinishBallLeft ?? "__none__"}
+                            onValueChange={(v) => ui("pnrFinishBallLeft", v === "__none__" ? null : (v as PnrFinish))}
+                          >
+                            <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-xs"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">{t("not_observed")}</SelectItem>
+                              <SelectItem value="Drive to Rim">{t("opt_finish_drive")}</SelectItem>
+                              <SelectItem value="Pull-up">{t("opt_finish_pullup")}</SelectItem>
+                              <SelectItem value="Floater">{t("opt_finish_floater")}</SelectItem>
+                              <SelectItem value="Mid-range">{t("opt_finish_midrange")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t("pnr_finish_ball_right")}</Label>
+                          <Select
+                            value={inputs.pnrFinishBallRight ?? "__none__"}
+                            onValueChange={(v) => ui("pnrFinishBallRight", v === "__none__" ? null : (v as PnrFinish))}
+                          >
+                            <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-xs"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">{t("not_observed")}</SelectItem>
+                              <SelectItem value="Drive to Rim">{t("opt_finish_drive")}</SelectItem>
+                              <SelectItem value="Pull-up">{t("opt_finish_pullup")}</SelectItem>
+                              <SelectItem value="Floater">{t("opt_finish_floater")}</SelectItem>
+                              <SelectItem value="Mid-range">{t("opt_finish_midrange")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1219,6 +1301,12 @@ export default function PlayerEditor() {
               <IntensitySelector label={t("transition_frequency")} value={inputs.transitionFrequency} onChange={v => ui("transitionFrequency", v)}
                 tooltip={t("hint_transition_frequency")} />
 
+              <IntensitySelector label={t("motor_trans_rim_attack")} value={inputs.motorTransRimIntensity ?? "Never"} onChange={v => ui("motorTransRimIntensity", v)}
+                tooltip={t("hint_motor_trans_rim")} />
+
+              <IntensitySelector label={t("motor_trans_trail_three")} value={inputs.motorTransTrail3Intensity ?? "Never"} onChange={v => ui("motorTransTrail3Intensity", v)}
+                tooltip={t("hint_motor_trans_trail")} />
+
               <div className="space-y-2">
                 <FieldLabel label={t("transition_role")} tooltip={t("hint_transition_role")} />
                 <Select value={inputs.transitionRole} onValueChange={v => ui("transitionRole", v)}>
@@ -1228,25 +1316,6 @@ export default function PlayerEditor() {
                     <SelectItem value="Outlet">{t("opt_trans_outlet")}</SelectItem>
                     <SelectItem value="Rim Runner">{t("opt_trans_rim_runner")}</SelectItem>
                     <SelectItem value="Trailer">{t("opt_trans_trailer")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <FieldLabel label={t("editor.trans_role")} tooltip={t("hint_transition_role")} />
-                <Select
-                  value={inputs.motorTransRole ?? "__none__"}
-                  onValueChange={(v) => ui("motorTransRole", v === "__none__" ? null : v as PlayerInput["motorTransRole"])}
-                >
-                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800">
-                    <SelectValue placeholder={t("editor.trans_role")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">{t("not_observed")}</SelectItem>
-                    <SelectItem value="rim_run">{t("editor.trans_role.rim_run")}</SelectItem>
-                    <SelectItem value="trail">{t("editor.trans_role.trail")}</SelectItem>
-                    <SelectItem value="leak">{t("editor.trans_role.leak")}</SelectItem>
-                    <SelectItem value="fill">{t("editor.trans_role.fill")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
