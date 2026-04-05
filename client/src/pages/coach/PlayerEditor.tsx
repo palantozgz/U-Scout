@@ -159,7 +159,7 @@ function IntensitySelector({ label, value, onChange, tooltip }: {
       <div className="flex flex-wrap gap-2">
         {(["Primary", "Secondary", "Rare", "Never"] as IntensityLevel[]).map(level => (
           <Button key={level} type="button" variant={value === level ? "default" : "outline"}
-            className={`flex-1 min-w-[68px] rounded-xl text-sm ${value === level ? "bg-primary border-primary text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+            className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${value === level ? "bg-primary border-primary text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
             onClick={() => onChange(level)}>{level === "Primary" ? t("freq_primary") : level === "Secondary" ? t("freq_secondary") : level === "Rare" ? t("freq_rare") : t("freq_never")}</Button>
         ))}
       </div>
@@ -722,7 +722,7 @@ export default function PlayerEditor() {
                 </div>
                 <div className="space-y-1.5">
                   <FieldLabel label={t("position")} tooltip={t("hint_position")} />
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex flex-wrap gap-2">
                     {(["PG","SG","SF","PF","C"] as const).map(pos => {
                       const current = inputs.position ?? "";
                       const parts = current.split("/").filter(Boolean);
@@ -738,7 +738,7 @@ export default function PlayerEditor() {
                               ui("position", next);
                             }
                           }}
-                          className={`px-3 py-2 rounded-xl text-sm font-bold border transition-all ${selected ? "bg-primary border-primary text-white" : "bg-transparent border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-primary/50"}`}>
+                          className={`inline-flex min-h-11 min-w-11 items-center justify-center px-4 py-2 rounded-xl text-sm font-bold border transition-all ${selected ? "bg-primary border-primary text-white" : "bg-transparent border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-primary/50"}`}>
                           {pos}
                         </button>
                       );
@@ -856,10 +856,10 @@ export default function PlayerEditor() {
               {postActive && (<>
                 <div className="space-y-2">
                   <FieldLabel label={t("post_dominant_hand")} tooltip={t("hint_post_dominant_hand")} />
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {(["Right", "Left"] as const).map(h => (
                       <Button key={h} type="button" variant={inputs.postDominantHand === h ? "default" : "outline"}
-                        className={`flex-1 rounded-xl font-bold ${inputs.postDominantHand === h ? "bg-purple-500 border-purple-500 text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                        className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${inputs.postDominantHand === h ? "bg-purple-500 border-purple-500 text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
                         onClick={() => ui("postDominantHand", h)}>
                         {h === "Right" ? `🤜 ${t("right_hand")}` : `🤛 ${t("left_hand")}`}
                       </Button>
@@ -962,7 +962,7 @@ export default function PlayerEditor() {
                         key={v}
                         type="button"
                         variant={inputs.dunkerSpot === v ? "default" : "outline"}
-                        className={`min-w-0 flex-1 rounded-xl font-bold text-sm ${
+                        className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${
                           inputs.dunkerSpot === v
                             ? "bg-purple-500 border-purple-500 text-white"
                             : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
@@ -1105,10 +1105,10 @@ export default function PlayerEditor() {
 
               <div className="space-y-2">
                 <FieldLabel label={t("iso_dominant_direction")} tooltip={t("hint_iso_dominant_direction")} />
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {(["Left", "Right", "Balanced"] as const).map(dir => (
                     <Button key={dir} type="button" variant={inputs.isoDominantDirection === dir ? "default" : "outline"}
-                      className={`flex-1 rounded-xl ${inputs.isoDominantDirection === dir ? "bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                      className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${inputs.isoDominantDirection === dir ? "bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
                       onClick={() => ui("isoDominantDirection", dir)}>{dir === "Left" ? t("dir_left") : dir === "Right" ? t("dir_right") : t("dir_balanced")}</Button>
                   ))}
                 </div>
@@ -1209,10 +1209,10 @@ export default function PlayerEditor() {
 
               <div className="space-y-2">
                 <FieldLabel label={t("pnr_role")} tooltip={t("hint_pnr_role")} />
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {["Handler", "Screener", "Both"].map(v => (
                     <Button key={v} type="button" variant={(inputs.pnrRole as any) === v ? "default" : "outline"}
-                      className={`flex-1 rounded-xl text-sm font-bold ${(inputs.pnrRole as any) === v ? "bg-slate-800 text-white dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                      className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${(inputs.pnrRole as any) === v ? "bg-slate-800 text-white dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
                       onClick={() => ui("pnrRole", v as any)}>{v === "Handler" ? t("handler") : v === "Screener" ? t("screener") : t("both")}</Button>
                   ))}
                 </div>
@@ -1221,10 +1221,10 @@ export default function PlayerEditor() {
               {pnrBoth && (
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800 space-y-2">
                   <FieldLabel label={t("pnr_primary_role")} tooltip={t("hint_pnr_primary_role")} />
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {["Handler", "Screener", "Balanced"].map(v => (
                       <Button key={v} type="button" variant={inputs.pnrRoleSecondary === v ? "default" : "outline"}
-                        className={`flex-1 rounded-xl text-xs font-bold ${inputs.pnrRoleSecondary === v ? "bg-blue-500 border-blue-500 text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                        className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${inputs.pnrRoleSecondary === v ? "bg-blue-500 border-blue-500 text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
                         onClick={() => ui("pnrRoleSecondary", v as any)}>
                         {v === "Handler" ? t("handler") : v === "Screener" ? t("screener") : t("balanced")}
                       </Button>
@@ -1384,7 +1384,7 @@ export default function PlayerEditor() {
                       key={role}
                       type="button"
                       variant={inputs.transRolePrimary === role ? "default" : "outline"}
-                      className={`rounded-xl text-xs h-10 px-3 font-bold ${inputs.transRolePrimary === role ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-200 dark:border-slate-700"}`}
+                      className={`h-auto min-h-11 min-w-11 px-4 rounded-xl text-sm font-bold ${inputs.transRolePrimary === role ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-200 dark:border-slate-700"}`}
                       onClick={() => {
                         if (inputs.transRolePrimary === role) {
                           ui("transRolePrimary", null);
@@ -1403,7 +1403,7 @@ export default function PlayerEditor() {
                   <Button
                     type="button"
                     variant={inputs.transRolePrimary == null ? "default" : "outline"}
-                    className={`rounded-xl text-xs h-10 px-3 font-bold ${inputs.transRolePrimary == null ? "bg-slate-700 text-white border-slate-700" : ""}`}
+                    className={`h-auto min-h-11 min-w-11 px-4 rounded-xl text-sm font-bold ${inputs.transRolePrimary == null ? "bg-slate-700 text-white border-slate-700" : ""}`}
                     onClick={() => {
                       ui("transRolePrimary", null);
                       ui("transSubPrimary", null);
@@ -1416,13 +1416,13 @@ export default function PlayerEditor() {
                 </div>
                 {inputs.transRolePrimary && (
                   <div className="space-y-1.5 pl-0.5">
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {TRANS_ROLE_SUB_OPTIONS[inputs.transRolePrimary].map((sub) => (
                         <Button
                           key={sub}
                           type="button"
                           variant={inputs.transSubPrimary === sub ? "default" : "outline"}
-                          className={`rounded-lg text-[11px] h-8 px-2.5 font-semibold ${inputs.transSubPrimary === sub ? "bg-emerald-500 border-emerald-500 text-white" : ""}`}
+                          className={`h-auto min-h-11 min-w-11 px-4 rounded-lg text-sm font-semibold ${inputs.transSubPrimary === sub ? "bg-emerald-500 border-emerald-500 text-white" : ""}`}
                           onClick={() => ui("transSubPrimary", inputs.transSubPrimary === sub ? null : sub)}
                         >
                           {t(`editor.trans_sub.${sub}` as never)}
@@ -1443,7 +1443,7 @@ export default function PlayerEditor() {
                             type="button"
                             disabled={disabled}
                             variant={inputs.transRoleSecondary === role ? "default" : "outline"}
-                            className={`rounded-xl text-[11px] h-9 px-2.5 font-bold ${inputs.transRoleSecondary === role ? "bg-teal-600 border-teal-600 text-white" : ""} ${disabled ? "opacity-40 pointer-events-none" : ""}`}
+                            className={`h-auto min-h-11 min-w-11 px-4 rounded-xl text-sm font-bold ${inputs.transRoleSecondary === role ? "bg-teal-600 border-teal-600 text-white" : ""} ${disabled ? "opacity-40 pointer-events-none" : ""}`}
                             onClick={() => {
                               if (inputs.transRoleSecondary === role) {
                                 ui("transRoleSecondary", null);
@@ -1461,7 +1461,7 @@ export default function PlayerEditor() {
                       <Button
                         type="button"
                         variant={inputs.transRoleSecondary == null ? "default" : "outline"}
-                        className={`rounded-xl text-[11px] h-9 px-2.5 font-bold ${inputs.transRoleSecondary == null ? "bg-slate-600 text-white" : ""}`}
+                        className={`h-auto min-h-11 min-w-11 px-4 rounded-xl text-sm font-bold ${inputs.transRoleSecondary == null ? "bg-slate-600 text-white" : ""}`}
                         onClick={() => {
                           ui("transRoleSecondary", null);
                           ui("transSubSecondary", null);
@@ -1471,13 +1471,13 @@ export default function PlayerEditor() {
                       </Button>
                     </div>
                     {inputs.transRoleSecondary && (
-                      <div className="flex flex-wrap gap-1.5 pl-0.5">
+                      <div className="flex flex-wrap gap-2 pl-0.5">
                         {TRANS_ROLE_SUB_OPTIONS[inputs.transRoleSecondary].map((sub) => (
                           <Button
                             key={sub}
                             type="button"
                             variant={inputs.transSubSecondary === sub ? "default" : "outline"}
-                            className={`rounded-md text-[10px] h-7 px-2 font-semibold ${inputs.transSubSecondary === sub ? "bg-teal-500 border-teal-500 text-white" : ""}`}
+                            className={`h-auto min-h-11 min-w-11 px-4 rounded-md text-xs font-semibold ${inputs.transSubSecondary === sub ? "bg-teal-500 border-teal-500 text-white" : ""}`}
                             onClick={() => ui("transSubSecondary", inputs.transSubSecondary === sub ? null : sub)}
                           >
                             {t(`editor.trans_sub.${sub}` as never)}
@@ -1508,7 +1508,7 @@ export default function PlayerEditor() {
                           key={opt}
                           type="button"
                           variant={inputs.screenerAction === opt ? "default" : "outline"}
-                          className="rounded-lg text-xs h-9 px-2.5 font-semibold"
+                          className="h-auto min-h-11 min-w-11 px-4 rounded-lg text-sm font-semibold"
                           onClick={() => ui("screenerAction", inputs.screenerAction === opt ? null : opt)}
                         >
                           {t(`editor.screener_action.${opt}` as never)}
@@ -1517,7 +1517,7 @@ export default function PlayerEditor() {
                       <Button
                         type="button"
                         variant={inputs.screenerAction == null ? "secondary" : "outline"}
-                        className="rounded-lg text-xs h-9 px-2.5"
+                        className="h-auto min-h-11 min-w-11 px-4 rounded-lg text-sm"
                         onClick={() => ui("screenerAction", null)}
                       >
                         {t("not_observed")}
@@ -1532,7 +1532,7 @@ export default function PlayerEditor() {
                           key={opt}
                           type="button"
                           variant={inputs.offBallCutAction === opt ? "default" : "outline"}
-                          className="rounded-lg text-xs h-9 px-2.5 font-semibold"
+                          className="h-auto min-h-11 min-w-11 px-4 rounded-lg text-sm font-semibold"
                           onClick={() => ui("offBallCutAction", inputs.offBallCutAction === opt ? null : opt)}
                         >
                           {t(`editor.off_ball_cut_action.${opt}` as never)}
@@ -1541,7 +1541,7 @@ export default function PlayerEditor() {
                       <Button
                         type="button"
                         variant={inputs.offBallCutAction == null ? "secondary" : "outline"}
-                        className="rounded-lg text-xs h-9 px-2.5"
+                        className="h-auto min-h-11 min-w-11 px-4 rounded-lg text-sm"
                         onClick={() => ui("offBallCutAction", null)}
                       >
                         {t("not_observed")}
