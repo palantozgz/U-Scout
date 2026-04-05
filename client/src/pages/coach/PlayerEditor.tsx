@@ -780,9 +780,12 @@ export default function PlayerEditor() {
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">🏀 {t("editor.ball_handling")}</h3>
+              <div className="flex items-center gap-0.5">
+                <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">🏀 {t("editor.ball_handling")}</h3>
+                <Tooltip text={t("editor.ball_handling_hint")} />
+              </div>
               <div className="space-y-2">
-                <FieldLabel label={t("editor.ball_handling")} tooltip={t("hint_motor_ball_handling")} />
+                <FieldLabel label={t("editor.ball_handling")} tooltip={t("editor.ball_handling_hint")} />
                 <Select
                   value={inputs.motorBallHandling ?? "__none__"}
                   onValueChange={(v) => ui("motorBallHandling", v === "__none__" ? null : (v as NonNullable<PlayerInput["motorBallHandling"]>))}
@@ -1306,19 +1309,6 @@ export default function PlayerEditor() {
 
               <IntensitySelector label={t("motor_trans_trail_three")} value={inputs.motorTransTrail3Intensity ?? "Never"} onChange={v => ui("motorTransTrail3Intensity", v)}
                 tooltip={t("hint_motor_trans_trail")} />
-
-              <div className="space-y-2">
-                <FieldLabel label={t("transition_role")} tooltip={t("hint_transition_role")} />
-                <Select value={inputs.transitionRole} onValueChange={v => ui("transitionRole", v)}>
-                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pusher">{t("opt_trans_pusher")}</SelectItem>
-                    <SelectItem value="Outlet">{t("opt_trans_outlet")}</SelectItem>
-                    <SelectItem value="Rim Runner">{t("opt_trans_rim_runner")}</SelectItem>
-                    <SelectItem value="Trailer">{t("opt_trans_trailer")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
 
               <IntensitySelector label={t("indirects")} value={inputs.indirectsFrequency} onChange={v => ui("indirectsFrequency", v)}
                 tooltip={t("hint_indirects")} />

@@ -70,6 +70,7 @@ export const MOTOR_V2_1_I18N = {
     'output.aware.post_turnaround': 'Effective turnaround - stay disciplined',
     'output.aware.post_hook': 'Hook shot threat - contest but expect arc',
     'output.aware.pressure_vuln': 'Vulnerable under pressure - attack aggressively',
+    'output.aware.pnr_direction': 'PnR finish differs by ball-hand side — left: {left}; right: {right}',
     
     // ============= IDENTITY LABELS =============
     'output.identity.primary': 'Primary offensive option',
@@ -199,6 +200,7 @@ export const MOTOR_V2_1_I18N = {
     'output.aware.post_turnaround': 'Turnaround efectivo - mantener disciplina',
     'output.aware.post_hook': 'Amenaza de gancho - contestar pero esperar arco',
     'output.aware.pressure_vuln': 'Vulnerable bajo presión - atacar agresivamente',
+    'output.aware.pnr_direction': 'La finalización en PnR varía según la mano con balón — izquierda: {left}; derecha: {right}',
     
     // ============= IDENTITY LABELS =============
     'output.identity.primary': 'Opción ofensiva principal',
@@ -328,6 +330,7 @@ export const MOTOR_V2_1_I18N = {
     'output.aware.post_turnaround': '有效转身跳投 - 保持纪律',
     'output.aware.post_hook': '勾手威胁 - 干扰但预期弧度',
     'output.aware.pressure_vuln': '压力下脆弱 - 积极进攻',
+    'output.aware.pnr_direction': '挡拆终结随持球手侧变化 — 左手：{left}；右手：{right}',
     
     // ============= IDENTITY LABELS =============
     'output.identity.primary': '主要进攻选择',

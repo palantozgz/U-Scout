@@ -731,6 +731,8 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     deepRange,
     pnrPri,
     pnrEff: inputs.motorPnrEff ?? null,
+    pnrFinishLeft: inputs.pnrFinishBallLeft ?? null,
+    pnrFinishRight: inputs.pnrFinishBallRight ?? null,
     trapResponse,
     screenerAction: screenerToMotor(),
     popRange: deepRange ? "three" : "midrange",

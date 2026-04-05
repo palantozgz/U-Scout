@@ -36,6 +36,14 @@ export type TrapResponse = 'escape' | 'pass' | 'struggle' | null;
 export type OrebThreat = 'high' | 'medium' | 'low' | null;
 export type PnrPriority = 'SF' | 'PF' | null; // Score First, Pass First
 
+/** Handler PnR preferred finish when ball on that side (editor / scout POV) */
+export type PnrHandlerSideFinish =
+  | 'Drive to Rim'
+  | 'Pull-up'
+  | 'Floater'
+  | 'Mid-range'
+  | null;
+
 // v2.1 - New types
 export type TransRole = 'rim_run' | 'trail' | 'leak' | 'fill' | null;
 export type BallHandling = 'elite' | 'capable' | 'limited' | 'liability' | null;
@@ -101,6 +109,10 @@ export interface PlayerInputs {
   
   // PnR details
   pnrPri: PnrPriority;
+  /** Handler finish efficiency — optional; omit or null when not observed */
+  pnrEff?: 'high' | 'medium' | 'low' | null;
+  pnrFinishLeft: PnrHandlerSideFinish;
+  pnrFinishRight: PnrHandlerSideFinish;
   trapResponse: TrapResponse;
   
   // Screener details
@@ -280,7 +292,7 @@ const INFERENCE_RULES = {
     'isoDir', 'isoDec', 'postShoulder', 'postZone', 'spotZone', 'cutType', 
     'dhoAction', 'floater', 'vision',
     // v2.1 - Never infer these
-    'transRole', 'postMoves', 'postEntry', 'postEff'
+    'transRole', 'postMoves', 'postEntry', 'postEff', 'pnrEff', 'pnrFinishLeft', 'pnrFinishRight'
   ],
   
   executionOrder: [
@@ -422,7 +434,8 @@ export const OUTPUT_CATALOG = {
     post_fade: { key: 'aware_post_fade', i18nKey: 'output.aware.post_fade', template: 'Dangerous fadeaway - contest without fouling' },
     post_turnaround: { key: 'aware_post_turnaround', i18nKey: 'output.aware.post_turnaround', template: 'Effective turnaround - stay disciplined' },
     post_hook: { key: 'aware_post_hook', i18nKey: 'output.aware.post_hook', template: 'Hook shot threat - contest but expect arc' },
-    pressure_vuln: { key: 'aware_pressure_vuln', i18nKey: 'output.aware.pressure_vuln', template: 'Vulnerable under pressure - attack aggressively' }
+    pressure_vuln: { key: 'aware_pressure_vuln', i18nKey: 'output.aware.pressure_vuln', template: 'Vulnerable under pressure - attack aggressively' },
+    pnr_direction: { key: 'aware_pnr_direction', i18nKey: 'output.aware.pnr_direction', template: 'PnR finish differs by ball-hand side — left: {left}; right: {right}' }
   }
 };
 
@@ -560,6 +573,9 @@ export class UScoutMotor {
       if (inputs.pnrPri) {
         weight += w.outputWeights.pnr.priorityBonus[inputs.pnrPri] || 0;
       }
+      if (inputs.pnrEff) {
+        weight *= effM[inputs.pnrEff];
+      }
       
       outputs.push({
         key: 'deny_pnr_downhill',
@@ -567,6 +583,20 @@ export class UScoutMotor {
         weight: Math.min(weight, 1.0),
         source: 'pnr'
       });
+
+      if (
+        inputs.pnrFinishLeft &&
+        inputs.pnrFinishRight &&
+        inputs.pnrFinishLeft !== inputs.pnrFinishRight
+      ) {
+        outputs.push({
+          key: 'aware_pnr_direction',
+          category: 'aware',
+          weight: 0.72,
+          source: 'pnr_finish_asymmetry',
+          params: { left: inputs.pnrFinishLeft, right: inputs.pnrFinishRight },
+        });
+      }
       
       if (inputs.trapResponse === 'struggle') {
         outputs.push({
