@@ -54,6 +54,38 @@ export type PostEntry = 'pass' | 'duck_in' | 'seal' | 'flash' | null;
 // v2.1 - CutType WITHOUT duck_in (moved to PostEntry)
 export type CutType = 'basket' | 'backdoor' | 'flash' | 'curl' | null;
 
+export type TransRoleEditor = 'rim_runner' | 'trail' | 'runner' | 'pusher' | null;
+
+export type HighPostAction =
+  | 'face_up_drive'
+  | 'pull_up'
+  | 'pass_to_cutter'
+  | 'step_back'
+  | 'post_up_down';
+
+export interface HighPostZonesMotor {
+  leftElbow?: HighPostAction | null;
+  rightElbow?: HighPostAction | null;
+  leftMid?: HighPostAction | null;
+  rightMid?: HighPostAction | null;
+}
+
+/** Off-ball screen receiver — distinct from PnR `screenerAction` */
+export type OffBallScreenerAction =
+  | 'roll_to_rim'
+  | 'pop_3'
+  | 'pop_mid'
+  | 'short_roll'
+  | 'slip'
+  | null;
+
+export type OffBallCutAction =
+  | 'catch_and_shoot'
+  | 'catch_and_drive'
+  | 'curl'
+  | 'flare'
+  | null;
+
 // v2.1 - Club context for league/category awareness
 export interface ClubContext {
   leagueType: 'pro' | 'college' | 'youth' | 'amateur';
@@ -101,6 +133,7 @@ export interface PlayerInputs {
   postEff: Efficiency;                    // v2.1 - NEW
   postMoves: PostMove[] | null;           // v2.1 - NEW
   postEntry: PostEntry;                   // v2.1 - NEW
+  highPostZones?: HighPostZonesMotor | null;
   
   // Spot-up details
   spotUpAction: 'shoot' | 'pump' | 'either' | null;
@@ -118,6 +151,9 @@ export interface PlayerInputs {
   // Screener details
   screenerAction: ScreenerAction;
   popRange: PopRange;
+  /** Off-ball screens (after setting pick) — bridged from PlayerInput.screenerAction */
+  offBallScreenerAction?: OffBallScreenerAction;
+  offBallCutAction?: OffBallCutAction;
   
   // DHO details
   dhoRole: DhoRole;
@@ -125,6 +161,10 @@ export interface PlayerInputs {
   
   // Transition details - v2.1 ENHANCED
   transRole: TransRole;                   // v2.1 - NEW
+  transRolePrimary?: TransRoleEditor;
+  transRoleSecondary?: TransRoleEditor;
+  transSubPrimary?: string | null;
+  transSubSecondary?: string | null;
   
   // Ball handling & pressure - v2.1 NEW
   ballHandling: BallHandling;             // v2.1 - NEW
@@ -292,7 +332,20 @@ const INFERENCE_RULES = {
     'isoDir', 'isoDec', 'postShoulder', 'postZone', 'spotZone', 'cutType', 
     'dhoAction', 'floater', 'vision',
     // v2.1 - Never infer these
-    'transRole', 'postMoves', 'postEntry', 'postEff', 'pnrEff', 'pnrFinishLeft', 'pnrFinishRight'
+    'transRole',
+    'transRolePrimary',
+    'transRoleSecondary',
+    'transSubPrimary',
+    'transSubSecondary',
+    'postMoves',
+    'postEntry',
+    'postEff',
+    'pnrEff',
+    'pnrFinishLeft',
+    'pnrFinishRight',
+    'highPostZones',
+    'offBallScreenerAction',
+    'offBallCutAction',
   ],
   
   executionOrder: [
@@ -400,7 +453,13 @@ export const OUTPUT_CATALOG = {
     trans_trail: { key: 'deny_trans_trail', i18nKey: 'output.deny.trans_trail', template: 'DENY trail three - find shooter early' },
     duck_in: { key: 'deny_duck_in', i18nKey: 'output.deny.duck_in', template: 'DENY duck-in - prevent deep seal' },
     post_seal: { key: 'deny_post_seal', i18nKey: 'output.deny.post_seal', template: 'DENY post seal - fight for position' },
-    ball_advance: { key: 'deny_ball_advance', i18nKey: 'output.deny.ball_advance', template: 'DENY ball advance - pressure full court' }
+    ball_advance: { key: 'deny_ball_advance', i18nKey: 'output.deny.ball_advance', template: 'DENY ball advance - pressure full court' },
+    trans_seal: { key: 'deny_trans_seal', i18nKey: 'output.deny.trans_seal', template: 'DENY transition seal catch — front the roller early' },
+    trans_runner_corner: { key: 'deny_trans_runner_corner', i18nKey: 'output.deny.trans_runner_corner', template: 'DENY runner corner three — locate shooter in transition' },
+    high_post_catch: { key: 'deny_high_post_catch', i18nKey: 'output.deny.high_post_catch', template: 'DENY high post/elbow catches — crowd the elbow' },
+    screen_pop: { key: 'deny_screen_pop', i18nKey: 'output.deny.screen_pop', template: 'DENY off-ball screen pop — contest jumper' },
+    screen_slip: { key: 'deny_screen_slip', i18nKey: 'output.deny.screen_slip', template: 'DENY slip off off-ball screen — stay with cutter' },
+    off_ball_curl: { key: 'deny_off_ball_curl', i18nKey: 'output.deny.off_ball_curl', template: 'DENY curl off screen — chase or switch tight' }
   },
   force: {
     direction: { key: 'force_direction', i18nKey: 'output.force.direction', template: 'FORCE {direction} - away from comfort' },
@@ -411,7 +470,8 @@ export const OUTPUT_CATALOG = {
     trap: { key: 'force_trap', i18nKey: 'output.force.trap', template: 'FORCE into traps - hedge hard on PnR' },
     // v2.1 - NEW FORCE outputs
     full_court: { key: 'force_full_court', i18nKey: 'output.force.full_court', template: 'FORCE full court pressure - attack the ball' },
-    no_ball: { key: 'force_no_ball', i18nKey: 'output.force.no_ball', template: 'FORCE off ball - deny advance' }
+    no_ball: { key: 'force_no_ball', i18nKey: 'output.force.no_ball', template: 'FORCE off ball - deny advance' },
+    no_push: { key: 'force_no_push', i18nKey: 'output.force.no_push', template: 'FORCE no dribble push — contain the advance' }
   },
   allow: {
     post: { key: 'allow_post', i18nKey: 'output.allow.post', template: 'Allow post attempts - no threat' },
@@ -435,7 +495,15 @@ export const OUTPUT_CATALOG = {
     post_turnaround: { key: 'aware_post_turnaround', i18nKey: 'output.aware.post_turnaround', template: 'Effective turnaround - stay disciplined' },
     post_hook: { key: 'aware_post_hook', i18nKey: 'output.aware.post_hook', template: 'Hook shot threat - contest but expect arc' },
     pressure_vuln: { key: 'aware_pressure_vuln', i18nKey: 'output.aware.pressure_vuln', template: 'Vulnerable under pressure - attack aggressively' },
-    pnr_direction: { key: 'aware_pnr_direction', i18nKey: 'output.aware.pnr_direction', template: 'PnR finish differs by ball-hand side — left: {left}; right: {right}' }
+    pnr_direction: { key: 'aware_pnr_direction', i18nKey: 'output.aware.pnr_direction', template: 'PnR finish differs by ball-hand side — left: {left}; right: {right}' },
+    trans_trail_shoot: { key: 'aware_trans_trail_shoot', i18nKey: 'output.aware.trans_trail_shoot', template: 'Trail shooter off drag — find her late' },
+    trans_early_drag: { key: 'aware_trans_early_drag', i18nKey: 'output.aware.trans_early_drag', template: 'Early drag in transition — expect quick PnR' },
+    screen_short_roll: { key: 'aware_screen_short_roll', i18nKey: 'output.aware.screen_short_roll', template: 'Short roll threat off screens — help early' },
+    off_ball_flare: { key: 'aware_off_ball_flare', i18nKey: 'output.aware.off_ball_flare', template: 'Flare shooter off screens — go under or switch' },
+    high_post_face_up: { key: 'aware_high_post_face_up', i18nKey: 'output.aware.high_post_face_up', template: 'Face-up drive from elbow — gap stance' },
+    high_post_passer: { key: 'aware_high_post_passer', i18nKey: 'output.aware.high_post_passer', template: 'High post passer — deny cutters' },
+    high_post_stepback: { key: 'aware_high_post_stepback', i18nKey: 'output.aware.high_post_stepback', template: 'Step-back range from elbow — contest length' },
+    high_post_versatile: { key: 'aware_high_post_versatile', i18nKey: 'output.aware.high_post_versatile', template: 'Versatile: low post + high post game — scout both' }
   }
 };
 
@@ -738,6 +806,58 @@ export class UScoutMotor {
         source: 'no_post'
       });
     }
+
+    // =========================================================================
+    // High post / elbow zones
+    // =========================================================================
+    const hz = inputs.highPostZones;
+    if (hz) {
+      const vals = [hz.leftElbow, hz.rightElbow, hz.leftMid, hz.rightMid].filter(
+        (v): v is HighPostAction => v != null && v !== undefined,
+      );
+      if (vals.length > 0) {
+        let catchW = 0.8;
+        if (inputs.postProfile === 'FU' || inputs.postProfile === 'M') catchW += 0.1;
+        outputs.push({
+          key: 'deny_high_post_catch',
+          category: 'deny',
+          weight: Math.min(catchW, 1.0),
+          source: 'high_post',
+        });
+        if (vals.some((z) => z === 'face_up_drive')) {
+          outputs.push({
+            key: 'aware_high_post_face_up',
+            category: 'aware',
+            weight: 0.75,
+            source: 'high_post',
+          });
+        }
+        if (vals.some((z) => z === 'pass_to_cutter')) {
+          outputs.push({
+            key: 'aware_high_post_passer',
+            category: 'aware',
+            weight: 0.7,
+            source: 'high_post',
+          });
+        }
+        if (vals.some((z) => z === 'step_back')) {
+          outputs.push({
+            key: 'aware_high_post_stepback',
+            category: 'aware',
+            weight: 0.65,
+            source: 'high_post',
+          });
+        }
+        if (inputs.postProfile === 'B2B') {
+          outputs.push({
+            key: 'aware_high_post_versatile',
+            category: 'aware',
+            weight: 0.6,
+            source: 'high_post',
+          });
+        }
+      }
+    }
     
     // =========================================================================
     // Transition outputs - v2.1 ENHANCED with transRole
@@ -787,6 +907,48 @@ export class UScoutMotor {
           source: 'transition'
         });
       }
+
+      const applyTransSub = (sub: string | null | undefined, mult: number) => {
+        if (!sub) return;
+        if (sub === 'seal_catch') {
+          outputs.push({
+            key: 'deny_trans_seal',
+            category: 'deny',
+            weight: Math.min(0.85 * mult, 1.0),
+            source: 'trans_sub',
+          });
+        } else if (sub === 'shoot_off_trail') {
+          outputs.push({
+            key: 'aware_trans_trail_shoot',
+            category: 'aware',
+            weight: Math.min(0.7 * mult, 1.0),
+            source: 'trans_sub',
+          });
+        } else if (sub === 'early_drag') {
+          outputs.push({
+            key: 'aware_trans_early_drag',
+            category: 'aware',
+            weight: Math.min(0.75 * mult, 1.0),
+            source: 'trans_sub',
+          });
+        } else if (sub === 'corner_3') {
+          outputs.push({
+            key: 'deny_trans_runner_corner',
+            category: 'deny',
+            weight: Math.min(0.8 * mult, 1.0),
+            source: 'trans_sub',
+          });
+        } else if (sub === 'dribble_push') {
+          outputs.push({
+            key: 'force_no_push',
+            category: 'force',
+            weight: Math.min(0.75 * mult, 1.0),
+            source: 'trans_sub',
+          });
+        }
+      };
+      applyTransSub(inputs.transSubPrimary, 1);
+      applyTransSub(inputs.transSubSecondary, 0.65);
     }
     
     // =========================================================================
@@ -920,6 +1082,81 @@ export class UScoutMotor {
         weight: Math.min(weight, 1.0),
         source: 'cut'
       });
+    }
+
+    // =========================================================================
+    // Off-ball screens (indirects) — screener / cut actions
+    // =========================================================================
+    if (inputs.indirectFreq && inputs.indirectFreq !== 'N') {
+      const freqI = freqW[inputs.indirectFreq];
+      const ob = inputs.offBallScreenerAction;
+      const obl = inputs.offBallCutAction;
+      if (ob === 'pop_3') {
+        outputs.push({
+          key: 'deny_screen_pop',
+          category: 'deny',
+          weight: 0.85,
+          source: 'off_ball_screen',
+        });
+      }
+      if (ob === 'pop_mid') {
+        outputs.push({
+          key: 'deny_screen_pop',
+          category: 'deny',
+          weight: 0.7,
+          source: 'off_ball_screen',
+        });
+      }
+      if (ob === 'short_roll') {
+        outputs.push({
+          key: 'aware_screen_short_roll',
+          category: 'aware',
+          weight: 0.75,
+          source: 'off_ball_screen',
+        });
+      }
+      if (ob === 'slip') {
+        outputs.push({
+          key: 'deny_screen_slip',
+          category: 'deny',
+          weight: 0.8,
+          source: 'off_ball_screen',
+        });
+      }
+      if (ob === 'roll_to_rim') {
+        let rw = freqI * w.outputWeights.transition.baseWeight * w.athMultiplier[inputs.ath];
+        rw *= w.outputWeights.transRole.rim_run * 0.9;
+        outputs.push({
+          key: 'deny_trans_rim',
+          category: 'deny',
+          weight: Math.min(rw, 1.0),
+          source: 'off_ball_roll_rim',
+        });
+      }
+      if (obl === 'curl') {
+        outputs.push({
+          key: 'deny_off_ball_curl',
+          category: 'deny',
+          weight: 0.75,
+          source: 'off_ball_cut',
+        });
+      }
+      if (obl === 'catch_and_shoot') {
+        outputs.push({
+          key: 'deny_screen_pop',
+          category: 'deny',
+          weight: 0.65,
+          source: 'off_ball_cut',
+        });
+      }
+      if (obl === 'flare') {
+        outputs.push({
+          key: 'aware_off_ball_flare',
+          category: 'aware',
+          weight: 0.65,
+          source: 'off_ball_cut',
+        });
+      }
     }
     
     // =========================================================================

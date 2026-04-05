@@ -36,6 +36,12 @@ export const MOTOR_V2_1_I18N = {
     'output.deny.duck_in': 'DENY duck-in - prevent deep seal',
     'output.deny.post_seal': 'DENY post seal - fight for position',
     'output.deny.ball_advance': 'DENY ball advance - pressure full court',
+    'output.deny.trans_seal': 'DENY transition seal catch — front the roller early',
+    'output.deny.trans_runner_corner': 'DENY runner corner three — locate shooter in transition',
+    'output.deny.high_post_catch': 'DENY high post/elbow catches — crowd the elbow',
+    'output.deny.screen_pop': 'DENY off-ball screen pop — contest jumper',
+    'output.deny.screen_slip': 'DENY slip off off-ball screen — stay with cutter',
+    'output.deny.off_ball_curl': 'DENY curl off screen — chase or switch tight',
     
     // ============= FORCE OUTPUTS =============
     'output.force.direction': 'FORCE {direction} - away from comfort',
@@ -47,6 +53,7 @@ export const MOTOR_V2_1_I18N = {
     // v2.1 - NEW FORCE outputs
     'output.force.full_court': 'FORCE full court pressure - attack the ball',
     'output.force.no_ball': 'FORCE off ball - deny advance',
+    'output.force.no_push': 'FORCE no dribble push — contain the advance',
     
     // ============= ALLOW OUTPUTS =============
     'output.allow.post': 'Allow post attempts - no threat',
@@ -71,6 +78,14 @@ export const MOTOR_V2_1_I18N = {
     'output.aware.post_hook': 'Hook shot threat - contest but expect arc',
     'output.aware.pressure_vuln': 'Vulnerable under pressure - attack aggressively',
     'output.aware.pnr_direction': 'PnR finish differs by ball-hand side — left: {left}; right: {right}',
+    'output.aware.trans_trail_shoot': 'Trail shooter off drag — find her late',
+    'output.aware.trans_early_drag': 'Early drag in transition — expect quick PnR',
+    'output.aware.screen_short_roll': 'Short roll threat off screens — help early',
+    'output.aware.off_ball_flare': 'Flare shooter off screens — go under or switch',
+    'output.aware.high_post_face_up': 'Face-up drive from elbow — gap stance',
+    'output.aware.high_post_passer': 'High post passer — deny cutters',
+    'output.aware.high_post_stepback': 'Step-back range from elbow — contest length',
+    'output.aware.high_post_versatile': 'Versatile: low post + high post game — scout both',
     
     // ============= IDENTITY LABELS =============
     'output.identity.primary': 'Primary offensive option',
@@ -166,6 +181,12 @@ export const MOTOR_V2_1_I18N = {
     'output.deny.duck_in': 'NEGAR duck-in - prevenir sellado profundo',
     'output.deny.post_seal': 'NEGAR sellado en poste - pelear la posición',
     'output.deny.ball_advance': 'NEGAR avance del balón - presión toda cancha',
+    'output.deny.trans_seal': 'NEGAR seal en transición — anticipar al roller',
+    'output.deny.trans_runner_corner': 'NEGAR triple de esquina en carrera — localizar tiradora',
+    'output.deny.high_post_catch': 'NEGAR recepciones en poste alto/codo — apiñar el codo',
+    'output.deny.screen_pop': 'NEGAR pop en pantalla sin balón — contestar tiro',
+    'output.deny.screen_slip': 'NEGAR slip en pantalla sin balón — seguir al corte',
+    'output.deny.off_ball_curl': 'NEGAR curl en pantalla — perseguir o cambiar apretado',
     
     // ============= FORCE OUTPUTS =============
     'output.force.direction': 'FORZAR {direction} - fuera de comodidad',
@@ -177,6 +198,7 @@ export const MOTOR_V2_1_I18N = {
     // v2.1 - NEW FORCE outputs
     'output.force.full_court': 'FORZAR presión toda cancha - atacar el balón',
     'output.force.no_ball': 'FORZAR sin balón - negar avance',
+    'output.force.no_push': 'FORZAR sin empuje con bote — contener el avance',
     
     // ============= ALLOW OUTPUTS =============
     'output.allow.post': 'Permitir poste - sin amenaza',
@@ -201,6 +223,14 @@ export const MOTOR_V2_1_I18N = {
     'output.aware.post_hook': 'Amenaza de gancho - contestar pero esperar arco',
     'output.aware.pressure_vuln': 'Vulnerable bajo presión - atacar agresivamente',
     'output.aware.pnr_direction': 'La finalización en PnR varía según la mano con balón — izquierda: {left}; derecha: {right}',
+    'output.aware.trans_trail_shoot': 'Tiradora en trail tras drag — localizar tarde',
+    'output.aware.trans_early_drag': 'Drag temprano en transición — esperar PnR rápido',
+    'output.aware.screen_short_roll': 'Amenaza de short roll en pantallas — ayudar pronto',
+    'output.aware.off_ball_flare': 'Tiradora en flare en pantallas — pasar por debajo o cambiar',
+    'output.aware.high_post_face_up': 'Ataque de frente desde el codo — stance en gap',
+    'output.aware.high_post_passer': 'Pasadora desde poste alto — negar cortes',
+    'output.aware.high_post_stepback': 'Step-back desde el codo — contestar con longitud',
+    'output.aware.high_post_versatile': 'Versátil: juego bajo y alto — scoutear ambos',
     
     // ============= IDENTITY LABELS =============
     'output.identity.primary': 'Opción ofensiva principal',
@@ -296,6 +326,12 @@ export const MOTOR_V2_1_I18N = {
     'output.deny.duck_in': '限制内切卡位 - 防止深位封堵',
     'output.deny.post_seal': '限制低位封堵 - 争夺位置',
     'output.deny.ball_advance': '限制推进 - 全场施压',
+    'output.deny.trans_seal': '限制转换中的挡人接球 — 提前顶防顺下',
+    'output.deny.trans_runner_corner': '限制跑动中的底角三分 — 早找射手',
+    'output.deny.high_post_catch': '限制高位/肘区接球 — 挤压肘区',
+    'output.deny.screen_pop': '限制无球掩护外弹 — 干扰投篮',
+    'output.deny.screen_slip': '限制无球掩护溜底线 — 跟紧切入',
+    'output.deny.off_ball_curl': '限制掩护后卷切 — 追防或紧逼换防',
     
     // ============= FORCE OUTPUTS =============
     'output.force.direction': '迫使向{direction} - 离开舒适区',
@@ -307,6 +343,7 @@ export const MOTOR_V2_1_I18N = {
     // v2.1 - NEW FORCE outputs
     'output.force.full_court': '迫使全场压迫 - 攻击持球',
     'output.force.no_ball': '迫使无球 - 限制推进',
+    'output.force.no_push': '迫使不能运球推进 — 控制突破',
     
     // ============= ALLOW OUTPUTS =============
     'output.allow.post': '允许低位 - 无威胁',
@@ -331,6 +368,14 @@ export const MOTOR_V2_1_I18N = {
     'output.aware.post_hook': '勾手威胁 - 干扰但预期弧度',
     'output.aware.pressure_vuln': '压力下脆弱 - 积极进攻',
     'output.aware.pnr_direction': '挡拆终结随持球手侧变化 — 左手：{left}；右手：{right}',
+    'output.aware.trans_trail_shoot': '拖后掩护后投篮 — 晚到也要找到她',
+    'output.aware.trans_early_drag': '转换中早拖掩护 — 提防快速挡拆',
+    'output.aware.screen_short_roll': '无球掩护短顺下威胁 — 提前协防',
+    'output.aware.off_ball_flare': '无球掩护外弹投篮 — 绕下或换防',
+    'output.aware.high_post_face_up': '肘区面框突破 — 留一步防突',
+    'output.aware.high_post_passer': '高位传球手 — 盯无球切入',
+    'output.aware.high_post_stepback': '肘区后撤步射程 — 干扰出手高度',
+    'output.aware.high_post_versatile': '低位+高位兼备 — 两种打法都要盯',
     
     // ============= IDENTITY LABELS =============
     'output.identity.primary': '主要进攻选择',

@@ -5,9 +5,11 @@ import { useRoute, useLocation, useSearch } from "wouter";
 import {
   usePlayer, useTeams, useCreatePlayer, useUpdatePlayer, useDeletePlayer,
   generateProfile, createDefaultPlayer,
+  TRANS_ROLE_SUB_OPTIONS,
   type PlayerInput, type IntensityLevel, type DirectionTendency,
   type CloseoutReaction, type PlayerProfile, type PhysicalLevel,
   type PostQuadrants, type ScreenerAction, type PnrFinish,
+  type TransRoleEditor, type HighPostAction, type HighPostZonesMotor,
 } from "@/lib/mock-data";
 import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -905,6 +907,47 @@ export default function PlayerEditor() {
                   dominantHand={inputs.postDominantHand}
                 />
 
+                <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("editor.high_post_zones")}</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      { zone: "leftElbow" as const, labelKey: "editor.high_post_zone.leftElbow" },
+                      { zone: "rightElbow" as const, labelKey: "editor.high_post_zone.rightElbow" },
+                      { zone: "leftMid" as const, labelKey: "editor.high_post_zone.leftMid" },
+                      { zone: "rightMid" as const, labelKey: "editor.high_post_zone.rightMid" },
+                    ] as const).map(({ zone, labelKey }) => {
+                      const hz = (inputs.highPostZones ?? {}) as HighPostZonesMotor;
+                      const v = hz[zone] ?? null;
+                      return (
+                        <div key={zone} className="rounded-xl border border-purple-200/60 dark:border-purple-900/50 bg-purple-50/40 dark:bg-purple-950/20 p-2.5 space-y-2">
+                          <Label className="text-[11px] font-bold uppercase tracking-wide text-purple-700 dark:text-purple-300">{t(labelKey as never)}</Label>
+                          <Select
+                            value={v ?? "__none__"}
+                            onValueChange={(val) => {
+                              const next: HighPostZonesMotor = { ...(inputs.highPostZones ?? {}) };
+                              if (val === "__none__") delete next[zone];
+                              else next[zone] = val as HighPostAction;
+                              ui("highPostZones", Object.keys(next).length ? next : {});
+                            }}
+                          >
+                            <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900 dark:border-slate-800 text-xs">
+                              <SelectValue placeholder={t("not_observed")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">{t("not_observed")}</SelectItem>
+                              <SelectItem value="face_up_drive">{t("editor.high_post_action.face_up_drive")}</SelectItem>
+                              <SelectItem value="pull_up">{t("editor.high_post_action.pull_up")}</SelectItem>
+                              <SelectItem value="pass_to_cutter">{t("editor.high_post_action.pass_to_cutter")}</SelectItem>
+                              <SelectItem value="step_back">{t("editor.high_post_action.step_back")}</SelectItem>
+                              <SelectItem value="post_up_down">{t("editor.high_post_action.post_up_down")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <FieldLabel label={t("editor.post_eff")} tooltip={t("hint_motor_post_eff")} />
                   <Select
@@ -1304,6 +1347,119 @@ export default function PlayerEditor() {
               <IntensitySelector label={t("transition_frequency")} value={inputs.transitionFrequency} onChange={v => ui("transitionFrequency", v)}
                 tooltip={t("hint_transition_frequency")} />
 
+              <div className="space-y-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 p-3">
+                <FieldLabel label={t("editor.trans_role_primary")} tooltip={t("hint_transition_frequency")} />
+                <div className="flex flex-wrap gap-2">
+                  {(["rim_runner", "trail", "runner", "pusher"] as const).map((role) => (
+                    <Button
+                      key={role}
+                      type="button"
+                      variant={inputs.transRolePrimary === role ? "default" : "outline"}
+                      className={`rounded-xl text-xs h-10 px-3 font-bold ${inputs.transRolePrimary === role ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-200 dark:border-slate-700"}`}
+                      onClick={() => {
+                        if (inputs.transRolePrimary === role) {
+                          ui("transRolePrimary", null);
+                          ui("transSubPrimary", null);
+                          ui("transRoleSecondary", null);
+                          ui("transSubSecondary", null);
+                        } else {
+                          ui("transRolePrimary", role as TransRoleEditor);
+                          ui("transSubPrimary", null);
+                        }
+                      }}
+                    >
+                      {t(`editor.trans_role.${role}` as never)}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant={inputs.transRolePrimary == null ? "default" : "outline"}
+                    className={`rounded-xl text-xs h-10 px-3 font-bold ${inputs.transRolePrimary == null ? "bg-slate-700 text-white border-slate-700" : ""}`}
+                    onClick={() => {
+                      ui("transRolePrimary", null);
+                      ui("transSubPrimary", null);
+                      ui("transRoleSecondary", null);
+                      ui("transSubSecondary", null);
+                    }}
+                  >
+                    {t("not_observed")}
+                  </Button>
+                </div>
+                {inputs.transRolePrimary && (
+                  <div className="space-y-1.5 pl-0.5">
+                    <div className="flex flex-wrap gap-1.5">
+                      {TRANS_ROLE_SUB_OPTIONS[inputs.transRolePrimary].map((sub) => (
+                        <Button
+                          key={sub}
+                          type="button"
+                          variant={inputs.transSubPrimary === sub ? "default" : "outline"}
+                          className={`rounded-lg text-[11px] h-8 px-2.5 font-semibold ${inputs.transSubPrimary === sub ? "bg-emerald-500 border-emerald-500 text-white" : ""}`}
+                          onClick={() => ui("transSubPrimary", inputs.transSubPrimary === sub ? null : sub)}
+                        >
+                          {t(`editor.trans_sub.${sub}` as never)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {inputs.transRolePrimary && (
+                  <>
+                    <FieldLabel label={t("editor.trans_role_secondary")} tooltip={t("hint_transition_frequency")} />
+                    <div className="flex flex-wrap gap-2">
+                      {(["rim_runner", "trail", "runner", "pusher"] as const).map((role) => {
+                        const disabled = role === inputs.transRolePrimary;
+                        return (
+                          <Button
+                            key={role}
+                            type="button"
+                            disabled={disabled}
+                            variant={inputs.transRoleSecondary === role ? "default" : "outline"}
+                            className={`rounded-xl text-[11px] h-9 px-2.5 font-bold ${inputs.transRoleSecondary === role ? "bg-teal-600 border-teal-600 text-white" : ""} ${disabled ? "opacity-40 pointer-events-none" : ""}`}
+                            onClick={() => {
+                              if (inputs.transRoleSecondary === role) {
+                                ui("transRoleSecondary", null);
+                                ui("transSubSecondary", null);
+                              } else {
+                                ui("transRoleSecondary", role as TransRoleEditor);
+                                ui("transSubSecondary", null);
+                              }
+                            }}
+                          >
+                            {t(`editor.trans_role.${role}` as never)}
+                          </Button>
+                        );
+                      })}
+                      <Button
+                        type="button"
+                        variant={inputs.transRoleSecondary == null ? "default" : "outline"}
+                        className={`rounded-xl text-[11px] h-9 px-2.5 font-bold ${inputs.transRoleSecondary == null ? "bg-slate-600 text-white" : ""}`}
+                        onClick={() => {
+                          ui("transRoleSecondary", null);
+                          ui("transSubSecondary", null);
+                        }}
+                      >
+                        {t("not_observed")}
+                      </Button>
+                    </div>
+                    {inputs.transRoleSecondary && (
+                      <div className="flex flex-wrap gap-1.5 pl-0.5">
+                        {TRANS_ROLE_SUB_OPTIONS[inputs.transRoleSecondary].map((sub) => (
+                          <Button
+                            key={sub}
+                            type="button"
+                            variant={inputs.transSubSecondary === sub ? "default" : "outline"}
+                            className={`rounded-md text-[10px] h-7 px-2 font-semibold ${inputs.transSubSecondary === sub ? "bg-teal-500 border-teal-500 text-white" : ""}`}
+                            onClick={() => ui("transSubSecondary", inputs.transSubSecondary === sub ? null : sub)}
+                          >
+                            {t(`editor.trans_sub.${sub}` as never)}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
               <IntensitySelector label={t("motor_trans_rim_attack")} value={inputs.motorTransRimIntensity ?? "Never"} onChange={v => ui("motorTransRimIntensity", v)}
                 tooltip={t("hint_motor_trans_rim")} />
 
@@ -1312,6 +1468,59 @@ export default function PlayerEditor() {
 
               <IntensitySelector label={t("indirects")} value={inputs.indirectsFrequency} onChange={v => ui("indirectsFrequency", v)}
                 tooltip={t("hint_indirects")} />
+
+              {inputs.indirectsFrequency !== "Never" && (
+                <div className={`space-y-4 rounded-xl border border-emerald-100 dark:border-emerald-900/40 p-3 ${inputs.indirectsFrequency === "Rare" ? "opacity-80" : ""}`}>
+                  <div className="space-y-2">
+                    <FieldLabel label={t("editor.screener_action")} tooltip={t("hint_indirects")} />
+                    <div className="flex flex-wrap gap-2">
+                      {(["roll_to_rim", "pop_3", "pop_mid", "short_roll", "slip"] as const).map((opt) => (
+                        <Button
+                          key={opt}
+                          type="button"
+                          variant={inputs.screenerAction === opt ? "default" : "outline"}
+                          className="rounded-lg text-xs h-9 px-2.5 font-semibold"
+                          onClick={() => ui("screenerAction", inputs.screenerAction === opt ? null : opt)}
+                        >
+                          {t(`editor.screener_action.${opt}` as never)}
+                        </Button>
+                      ))}
+                      <Button
+                        type="button"
+                        variant={inputs.screenerAction == null ? "secondary" : "outline"}
+                        className="rounded-lg text-xs h-9 px-2.5"
+                        onClick={() => ui("screenerAction", null)}
+                      >
+                        {t("not_observed")}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <FieldLabel label={t("editor.off_ball_cut_action")} tooltip={t("hint_indirects")} />
+                    <div className="flex flex-wrap gap-2">
+                      {(["catch_and_shoot", "catch_and_drive", "curl", "flare"] as const).map((opt) => (
+                        <Button
+                          key={opt}
+                          type="button"
+                          variant={inputs.offBallCutAction === opt ? "default" : "outline"}
+                          className="rounded-lg text-xs h-9 px-2.5 font-semibold"
+                          onClick={() => ui("offBallCutAction", inputs.offBallCutAction === opt ? null : opt)}
+                        >
+                          {t(`editor.off_ball_cut_action.${opt}` as never)}
+                        </Button>
+                      ))}
+                      <Button
+                        type="button"
+                        variant={inputs.offBallCutAction == null ? "secondary" : "outline"}
+                        className="rounded-lg text-xs h-9 px-2.5"
+                        onClick={() => ui("offBallCutAction", null)}
+                      >
+                        {t("not_observed")}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <IntensitySelector label={t("slip")} value={(inputs as any).slipFrequency ?? "Never"} onChange={v => ui("slipFrequency" as any, v)}
                 tooltip={t("hint_slip")} />

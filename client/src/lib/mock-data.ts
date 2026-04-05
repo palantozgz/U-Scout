@@ -6,7 +6,19 @@ import {
   type PlayerInputs,
   type PostMove as MotorPostMoveId,
   type MotorOutput,
+  type HighPostZonesMotor,
+  type HighPostAction,
+  type TransRoleEditor,
 } from "./motor-v2.1";
+
+export type { HighPostAction, HighPostZonesMotor, TransRoleEditor };
+
+export const TRANS_ROLE_SUB_OPTIONS = {
+  rim_runner: ["seal_catch", "regular_rim_run", "finish_contact", "only_unguarded"],
+  trail: ["shoot_off_trail", "cut", "inversions_sets", "early_drag", "multiple"],
+  runner: ["corner_3", "cut_to_rim", "both"],
+  pusher: ["dribble_push", "pass_and_go", "both", "after_def_rebound"],
+} as const;
 
 // ─── Base types ───────────────────────────────────────────────────────────────
 export type IntensityLevel = "Primary" | "Secondary" | "Rare" | "Never";
@@ -122,6 +134,23 @@ export interface PlayerInput {
   /** PnR handler preferred finish when ball on left vs right side (POV: handler facing basket) */
   pnrFinishBallLeft?: PnrFinish | null;
   pnrFinishBallRight?: PnrFinish | null;
+
+  transRolePrimary?: TransRoleEditor;
+  transRoleSecondary?: TransRoleEditor;
+  transSubPrimary?: string | null;
+  transSubSecondary?: string | null;
+
+  highPostZones?: HighPostZonesMotor | null;
+
+  /** Off-ball: action after setting screen (not PnR screener) */
+  screenerAction?:
+    | "roll_to_rim"
+    | "pop_3"
+    | "pop_mid"
+    | "short_roll"
+    | "slip"
+    | null;
+  offBallCutAction?: "catch_and_shoot" | "catch_and_drive" | "curl" | "flare" | null;
 
   // Legacy
   pnrRoleSecondaryLegacy?: "Handler" | "Screener" | "None";
@@ -428,6 +457,13 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     indirectsFrequency: "Secondary", backdoorFrequency: "Secondary",
     offensiveReboundFrequency: "Secondary",
     courtVision: 3,
+    transRolePrimary: null,
+    transRoleSecondary: null,
+    transSubPrimary: null,
+    transSubSecondary: null,
+    highPostZones: {},
+    screenerAction: null,
+    offBallCutAction: null,
   };
   return {
     teamId, name: "", number: "",
@@ -743,6 +779,13 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     pressureResponse: inputs.motorPressureResponse ?? null,
     cutType,
     orebThreat,
+    transRolePrimary: inputs.transRolePrimary ?? null,
+    transRoleSecondary: inputs.transRoleSecondary ?? null,
+    transSubPrimary: inputs.transSubPrimary ?? null,
+    transSubSecondary: inputs.transSubSecondary ?? null,
+    highPostZones: inputs.highPostZones ?? null,
+    offBallScreenerAction: inputs.screenerAction ?? null,
+    offBallCutAction: inputs.offBallCutAction ?? null,
   };
 }
 
