@@ -141,6 +141,8 @@ export interface PlayerInput {
   transSubSecondary?: string | null;
 
   highPostZones?: HighPostZonesMotor | null;
+  /** Dunker spot tendency: 0 never, 1 occasionally, 2 actively seeks */
+  dunkerSpot?: 0 | 1 | 2 | null;
 
   /** Off-ball: action after setting screen (not PnR screener) */
   screenerAction?:
@@ -462,6 +464,7 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     transSubPrimary: null,
     transSubSecondary: null,
     highPostZones: {},
+    dunkerSpot: null,
     screenerAction: null,
     offBallCutAction: null,
   };
@@ -784,6 +787,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     transSubPrimary: inputs.transSubPrimary ?? null,
     transSubSecondary: inputs.transSubSecondary ?? null,
     highPostZones: inputs.highPostZones ?? null,
+    dunkerSpot: inputs.dunkerSpot ?? null,
     offBallScreenerAction: inputs.screenerAction ?? null,
     offBallCutAction: inputs.offBallCutAction ?? null,
   };

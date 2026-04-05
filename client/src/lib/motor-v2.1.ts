@@ -134,7 +134,8 @@ export interface PlayerInputs {
   postMoves: PostMove[] | null;           // v2.1 - NEW
   postEntry: PostEntry;                   // v2.1 - NEW
   highPostZones?: HighPostZonesMotor | null;
-  
+  dunkerSpot?: 0 | 1 | 2 | null;
+
   // Spot-up details
   spotUpAction: 'shoot' | 'pump' | 'either' | null;
   spotZone: SpotZone;
@@ -346,6 +347,7 @@ const INFERENCE_RULES = {
     'highPostZones',
     'offBallScreenerAction',
     'offBallCutAction',
+    'dunkerSpot',
   ],
   
   executionOrder: [
@@ -805,6 +807,27 @@ export class UScoutMotor {
         weight: w.allowRules.postUp.neverWeight,
         source: 'no_post'
       });
+    }
+
+    // Dunker spot (half-court positioning) — additive with post entry / rare-efficient aware
+    if (inputs.dunkerSpot === 2) {
+      if (!outputs.some((o) => o.key === 'deny_duck_in')) {
+        outputs.push({
+          key: 'deny_duck_in',
+          category: 'deny',
+          weight: 0.85,
+          source: 'dunker_spot',
+        });
+      }
+    } else if (inputs.dunkerSpot === 1) {
+      if (!outputs.some((o) => o.key === 'aware_post_efficient')) {
+        outputs.push({
+          key: 'aware_post_efficient',
+          category: 'aware',
+          weight: 0.55,
+          source: 'dunker_spot',
+        });
+      }
     }
 
     // =========================================================================

@@ -949,6 +949,35 @@ export default function PlayerEditor() {
                 </div>
 
                 <div className="space-y-2">
+                  <FieldLabel label={t("editor.dunker_spot")} tooltip={t("editor.dunker_spot_hint")} />
+                  <div className="flex flex-wrap gap-2">
+                    {(
+                      [
+                        { v: 0 as const, labelKey: "editor.dunker_spot_0" },
+                        { v: 1 as const, labelKey: "editor.dunker_spot_1" },
+                        { v: 2 as const, labelKey: "editor.dunker_spot_2" },
+                      ] as const
+                    ).map(({ v, labelKey }) => (
+                      <Button
+                        key={v}
+                        type="button"
+                        variant={inputs.dunkerSpot === v ? "default" : "outline"}
+                        className={`min-w-0 flex-1 rounded-xl font-bold text-sm ${
+                          inputs.dunkerSpot === v
+                            ? "bg-purple-500 border-purple-500 text-white"
+                            : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                        }`}
+                        onClick={() =>
+                          ui("dunkerSpot", inputs.dunkerSpot === v ? null : v)
+                        }
+                      >
+                        {t(labelKey as never)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                   <FieldLabel label={t("editor.post_eff")} tooltip={t("hint_motor_post_eff")} />
                   <Select
                     value={inputs.motorPostEff ?? "__none__"}
