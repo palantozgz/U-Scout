@@ -37,13 +37,29 @@ export default function CoachHome() {
       </button>
 
       <main className="relative z-10 flex flex-col flex-1 px-5 pt-10 pb-6 max-w-md mx-auto w-full">
-        <div className="flex items-center gap-3 w-full pt-4">
-          <div style={{ opacity: 0.85 }} className="shrink-0 text-foreground">
-            <UScoutLogo size={28} />
-          </div>
-          <p className="flex-1 text-center text-[10px] sm:text-[11px] font-semibold tracking-[0.45em] text-muted-foreground uppercase">
-            {t("coach_home_tagline")}
-          </p>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            paddingTop: "2rem",
+            paddingBottom: "1.5rem",
+            gap: "0.5rem",
+          }}
+          className="text-foreground"
+        >
+          <UScoutLogo size={52} animated={true} />
+          <span
+            style={{
+              fontSize: "11px",
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              opacity: 0.45,
+              fontWeight: 500,
+            }}
+          >
+            {t("app.tagline") ?? "Scouting Platform"}
+          </span>
         </div>
 
         <div className="mt-8 mb-8 h-px w-full max-w-[280px] mx-auto bg-border" />

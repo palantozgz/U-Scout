@@ -1,8 +1,9 @@
 import { useLocation } from "wouter";
-import { ArrowLeft } from "lucide-react";
+import { LayoutGrid, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
 import { usePlayerTeams } from "@/lib/player-home";
+import { UScoutLogo } from "@/components/UScoutLogo";
 import { cn } from "@/lib/utils";
 
 export default function PlayerTeamList() {
@@ -12,18 +13,54 @@ export default function PlayerTeamList() {
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground">
-      <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-3 py-3 flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setLocation("/player")}
-          className="shrink-0 text-muted-foreground hover:text-foreground"
-          aria-label={t("back")}
-          data-testid="player-teams-back"
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          paddingTop: "2rem",
+          paddingBottom: "1.5rem",
+          gap: "0.5rem",
+        }}
+        className="text-foreground"
+      >
+        <UScoutLogo size={52} animated={true} />
+        <span
+          style={{
+            fontSize: "11px",
+            letterSpacing: "0.2em",
+            textTransform: "uppercase",
+            opacity: 0.45,
+            fontWeight: 500,
+          }}
         >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <h1 className="text-lg font-bold tracking-tight truncate">{t("player_teams_title")}</h1>
+          {t("app.tagline") ?? "Scouting Platform"}
+        </span>
+      </div>
+      <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-3 py-3 flex items-center justify-between gap-2">
+        <h1 className="text-lg font-bold tracking-tight truncate min-w-0">{t("player_teams_title")}</h1>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 px-2.5 text-xs font-bold border-border"
+            onClick={() => setLocation("/player/reports")}
+            data-testid="player-home-all-reports"
+          >
+            <LayoutGrid className="w-3.5 h-3.5 mr-1" />
+            {t("player_all_reports")}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setLocation("/player/home-settings")}
+            aria-label={t("player_settings_aria")}
+            data-testid="player-teams-settings"
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 px-3 pb-10 pt-4 space-y-3">

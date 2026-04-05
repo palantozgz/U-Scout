@@ -58,6 +58,7 @@ const en = {
   back: "Back",
 
   coach_home_tagline: "SCOUTING PLATFORM",
+  "app.tagline": "Scouting Platform",
   coach_home_scout_title: "SCOUT",
   coach_home_scout_sub: "Build scouting reports",
   coach_home_reports_title: "REPORTS",
@@ -928,6 +929,7 @@ const es: I18nStrings = {
   back: "Volver",
 
   coach_home_tagline: "PLATAFORMA DE SCOUTING",
+  "app.tagline": "Plataforma de Scouting",
   coach_home_scout_title: "SCOUT",
   coach_home_scout_sub: "Crea informes de scouting",
   coach_home_reports_title: "INFORMES",
@@ -1755,6 +1757,7 @@ const zh: I18nStrings = {
   back: "返回",
 
   coach_home_tagline: "球探平台",
+  "app.tagline": "球探平台",
   coach_home_scout_title: "球探",
   coach_home_scout_sub: "建立球探报告",
   coach_home_reports_title: "报告",

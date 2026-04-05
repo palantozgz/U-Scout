@@ -5,7 +5,6 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { usePlayerHome } from "@/lib/player-home";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
-import { UScoutLogo } from "@/components/UScoutLogo";
 import { isRealPhoto } from "@/lib/utils";
 
 export default function PlayerHome() {
@@ -38,9 +37,6 @@ export default function PlayerHome() {
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div style={{ opacity: 0.85 }} className="shrink-0 text-foreground">
-            <UScoutLogo size={28} />
-          </div>
           <h1 className="text-lg font-bold text-foreground tracking-widest uppercase truncate min-w-0">
             {t("player_home_title")}
           </h1>
