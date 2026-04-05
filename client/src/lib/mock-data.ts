@@ -1,5 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, enqueueOfflinePlayerMutation } from "./queryClient";
+import {
+  motor,
+  motorOutputToPlanString,
+  type PlayerInputs,
+  type PostMove as MotorPostMoveId,
+} from "./motor-v2.1";
 
 // ─── Base types ───────────────────────────────────────────────────────────────
 export type IntensityLevel = "Primary" | "Secondary" | "Rare" | "Never";
@@ -88,9 +94,20 @@ export interface PlayerInput {
   transitionRole: "Pusher" | "Outlet" | "Rim Runner" | "Trailer";
   indirectsFrequency: IntensityLevel;
   slipFrequency?: IntensityLevel;
+  /** @deprecated Prefer motorPostEntry = duck_in; kept for older saved players. */
   duckInFrequency?: IntensityLevel;
   backdoorFrequency: IntensityLevel;
   offensiveReboundFrequency: IntensityLevel;
+
+  courtVision?: PhysicalLevel;
+
+  /** Motor v2.1 — optional; inferred by engine when null */
+  motorTransRole?: "rim_run" | "trail" | "leak" | "fill" | null;
+  motorBallHandling?: "elite" | "capable" | "limited" | "liability" | null;
+  motorPressureResponse?: "breaks" | "escapes" | "struggles" | null;
+  motorPostEff?: "high" | "medium" | "low" | null;
+  motorPostMoves?: ("fade" | "turnaround" | "hook" | "drop_step" | "up_and_under")[] | null;
+  motorPostEntry?: "pass" | "duck_in" | "seal" | "flash" | null;
 
   // Legacy
   pnrRoleSecondaryLegacy?: "Handler" | "Screener" | "None";
@@ -354,6 +371,7 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     transitionFrequency: "Secondary", transitionRole: "Rim Runner",
     indirectsFrequency: "Secondary", backdoorFrequency: "Secondary",
     offensiveReboundFrequency: "Secondary",
+    courtVision: 3,
   };
   return {
     teamId, name: "", number: "",
@@ -361,6 +379,245 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     inputs,
     internalModel: defaultInternal, archetype: "arch_role_player", keyTraits: [],
     defensivePlan: { defender: [], forzar: [], concede: [] },
+  };
+}
+
+function inputToMotorNum(v: unknown, fallback = 3): 1 | 2 | 3 | 4 | 5 {
+  if (typeof v === "number") {
+    const r = Math.min(5, Math.max(1, Math.round(v)));
+    return r as 1 | 2 | 3 | 4 | 5;
+  }
+  if (v === "High" || v === "high") return 4;
+  if (v === "Low" || v === "low") return 2;
+  const n = Number(v);
+  if (Number.isFinite(n)) {
+    const r = Math.min(5, Math.max(1, Math.round(n)));
+    return r as 1 | 2 | 3 | 4 | 5;
+  }
+  return fallback as 1 | 2 | 3 | 4 | 5;
+}
+
+function mapMotorIntensity(i: IntensityLevel): "P" | "S" | "R" | "N" {
+  if (i === "Primary") return "P";
+  if (i === "Secondary") return "S";
+  if (i === "Rare") return "R";
+  return "N";
+}
+
+function cutIntensityRank(i: IntensityLevel): number {
+  if (i === "Primary") return 3;
+  if (i === "Secondary") return 2;
+  if (i === "Rare") return 1;
+  return 0;
+}
+
+/** Maps editor `PlayerInput` to Motor v2.1 `PlayerInputs`. */
+export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
+  const ath = inputToMotorNum(inputs.athleticism, 3);
+  const phys = inputToMotorNum(inputs.physicalStrength, 3);
+  const vision = inputToMotorNum(inputs.courtVision, 3);
+  const perimeterThreat =
+    ((inputs as PlayerInput).perimeterThreats as IntensityLevel | undefined) ?? "Never";
+
+  const usage: PlayerInputs["usage"] =
+    inputs.isoFrequency === "Primary" ||
+    inputs.pnrFrequency === "Primary" ||
+    inputs.postFrequency === "Primary"
+      ? "primary"
+      : isActive(inputs.isoFrequency) ||
+          isActive(inputs.pnrFrequency) ||
+          isActive(inputs.postFrequency)
+        ? "secondary"
+        : "role";
+
+  const selfCreation: PlayerInputs["selfCreation"] =
+    usage === "primary" &&
+    (inputs.isoFrequency === "Primary" || inputs.pnrFrequency === "Primary")
+      ? "high"
+      : usage === "secondary"
+        ? "medium"
+        : "low";
+
+  const pnrIsHandler =
+    inputs.pnrRole === "Handler" ||
+    (inputs.pnrRole === "Both" && inputs.pnrRoleSecondary === "Handler");
+  const pnrIsScreener =
+    inputs.pnrRole === "Screener" ||
+    (inputs.pnrRole === "Both" && inputs.pnrRoleSecondary === "Screener");
+
+  let postEntry: PlayerInputs["postEntry"] = inputs.motorPostEntry ?? null;
+  if (!postEntry && isActive(inputs.duckInFrequency ?? "Never")) postEntry = "duck_in";
+
+  const posOrder = ["PG", "SG", "SF", "PF", "C"] as const;
+  const parts = (inputs.position || "SF").split("/").filter(Boolean);
+  let pos: PlayerInputs["pos"] = "SF";
+  for (const p of posOrder) {
+    if (parts.includes(p)) {
+      pos = p;
+      break;
+    }
+  }
+
+  const mapMotorPostProfile = (): PlayerInputs["postProfile"] => {
+    switch (inputs.postProfile) {
+      case "Back to Basket":
+        return "B2B";
+      case "Face-Up":
+        return "FU";
+      default:
+        return "M";
+    }
+  };
+
+  const postShoulder: PlayerInputs["postShoulder"] =
+    inputs.postPreferredBlock === "Left Block"
+      ? "L"
+      : inputs.postPreferredBlock === "Right Block"
+        ? "R"
+        : "B";
+
+  const screenerToMotor = (): PlayerInputs["screenerAction"] => {
+    if (!pnrIsScreener) return null;
+    switch (inputs.pnrScreenerAction) {
+      case "Roll":
+      case "Short Roll":
+      case "Lob Only":
+        return "roll";
+      case "Pop":
+      case "Pop (Elbow / Mid)":
+        return "pop";
+      case "Slip":
+        return "slip";
+      default:
+        return "roll";
+    }
+  };
+
+  const bd = cutIntensityRank(inputs.backdoorFrequency);
+  const ind = cutIntensityRank(inputs.indirectsFrequency);
+  const sl = cutIntensityRank(inputs.slipFrequency ?? "Never");
+  const maxR = Math.max(bd, ind, sl);
+
+  let cutFreq: PlayerInputs["cutFreq"] = "N";
+  if (maxR === 3) cutFreq = "P";
+  else if (maxR === 2) cutFreq = "S";
+  else if (maxR === 1) cutFreq = "R";
+
+  let cutType: PlayerInputs["cutType"] = null;
+  if (cutFreq !== "N") {
+    if (bd >= ind && bd >= sl && bd > 0) cutType = "backdoor";
+    else if (sl >= bd && sl >= ind && sl > 0) cutType = "flash";
+    else if (ind > 0) cutType = "curl";
+    else cutType = "basket";
+  }
+
+  const pnrPri: PlayerInputs["pnrPri"] =
+    inputs.pnrScoringPriority === "Pass First" ? "PF" : "SF";
+
+  let trapResponse: PlayerInputs["trapResponse"] = null;
+  if (isActive(inputs.pnrFrequency) && pnrIsHandler) {
+    if (vision >= 5) trapResponse = "escape";
+    else if (vision >= 3) trapResponse = "pass";
+    else trapResponse = "struggle";
+  }
+
+  const contactFinish: PlayerInputs["contactFinish"] =
+    phys >= 5 && isPrimary(inputs.postFrequency)
+      ? "seeks"
+      : phys <= 2
+        ? "avoids"
+        : "neutral";
+
+  const offHandFinish: PlayerInputs["offHandFinish"] =
+    inputs.closeoutReaction === "Attacks Weak Hand"
+      ? "weak"
+      : inputs.closeoutReaction === "Attacks Strong Hand"
+        ? "strong"
+        : "capable";
+
+  let floater: PlayerInputs["floater"] = "N";
+  if (
+    inputs.pnrDominantFinish === "Floater" ||
+    inputs.pnrOppositeFinish === "Floater"
+  ) {
+    floater = mapMotorIntensity(inputs.pnrFrequency);
+  }
+
+  const orebThreat: PlayerInputs["orebThreat"] =
+    inputs.offensiveReboundFrequency === "Primary"
+      ? "high"
+      : inputs.offensiveReboundFrequency === "Secondary"
+        ? "medium"
+        : inputs.offensiveReboundFrequency === "Rare"
+          ? "low"
+          : "low";
+
+  const deepRange = isPrimary(perimeterThreat);
+
+  const transRole: PlayerInputs["transRole"] =
+    inputs.motorTransRole ??
+    (inputs.transitionRole === "Rim Runner"
+      ? "rim_run"
+      : inputs.transitionRole === "Trailer"
+        ? "trail"
+        : inputs.transitionRole === "Pusher" || inputs.transitionRole === "Outlet"
+          ? "fill"
+          : null);
+
+  const moveSet = ["fade", "turnaround", "hook", "drop_step", "up_and_under"] as const;
+  const validMoves = inputs.motorPostMoves?.filter((m): m is MotorPostMoveId =>
+    (moveSet as readonly string[]).includes(m),
+  );
+
+  return {
+    pos,
+    hand: inputs.postDominantHand === "Left" ? "L" : "R",
+    ath,
+    phys,
+    isoFreq: mapMotorIntensity(inputs.isoFrequency),
+    pnrFreq: mapMotorIntensity(inputs.pnrFrequency),
+    postFreq: mapMotorIntensity(inputs.postFrequency),
+    transFreq: mapMotorIntensity(inputs.transitionFrequency),
+    spotUpFreq: mapMotorIntensity(perimeterThreat),
+    dhoFreq: "N",
+    cutFreq,
+    indirectFreq: mapMotorIntensity(inputs.indirectsFrequency),
+    usage,
+    selfCreation,
+    vision,
+    offHandFinish,
+    floater,
+    contactFinish,
+    isoDir:
+      inputs.isoDominantDirection === "Left"
+        ? "L"
+        : inputs.isoDominantDirection === "Right"
+          ? "R"
+          : "B",
+    isoDec:
+      inputs.isoDecision === "Shoot" ? "S" : inputs.isoDecision === "Pass" ? "P" : "F",
+    isoEff: null,
+    postProfile: mapMotorPostProfile(),
+    postZone: null,
+    postShoulder,
+    postEff: inputs.motorPostEff ?? null,
+    postMoves: validMoves?.length ? validMoves : null,
+    postEntry,
+    spotUpAction:
+      inputs.closeoutReaction === "Catch & Shoot" ? "shoot" : "either",
+    spotZone: null,
+    deepRange,
+    pnrPri,
+    trapResponse,
+    screenerAction: screenerToMotor(),
+    popRange: deepRange ? "three" : "midrange",
+    dhoRole: null,
+    dhoAction: null,
+    transRole,
+    ballHandling: inputs.motorBallHandling ?? null,
+    pressureResponse: inputs.motorPressureResponse ?? null,
+    cutType,
+    orebThreat,
   };
 }
 
@@ -1049,15 +1306,21 @@ export function generateProfile(inputs: PlayerInput, playerName?: string) {
   if (isInterior && !isActive(perimeterThreat) && concede.length < 3)
     concede.push("con_no_perimeter");
 
+  const motorInputs = playerInputToMotorInputs(inputs);
+  const motorReport = motor.generateReport(motorInputs);
+  const md = motorReport.selected.deny.map(motorOutputToPlanString).slice(0, 3);
+  const mf = motorReport.selected.force.map(motorOutputToPlanString).slice(0, 3);
+  const mc = motorReport.selected.allow.map(motorOutputToPlanString).slice(0, 3);
+
   return {
     internalModel: internal,
     archetype: mainArchetype,
     subArchetype,
     keyTraits,
     defensivePlan: {
-      defender: defender.slice(0, 3),
-      forzar:   forzar.slice(0, 3),
-      concede:  concede.slice(0, 3),
+      defender: md.length > 0 ? md : defender.slice(0, 3),
+      forzar: mf.length > 0 ? mf : forzar.slice(0, 3),
+      concede: mc.length > 0 ? mc : concede.slice(0, 3),
     },
   };
 }
