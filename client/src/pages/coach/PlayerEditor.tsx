@@ -10,7 +10,7 @@ import {
   type PostQuadrants, type ScreenerAction, type PnrFinish,
   type HighPostAction, type HighPostZonesMotor,
 } from "@/lib/mock-data";
-import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus } from "lucide-react";
+import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -55,20 +55,20 @@ const OFF_BALL_SCREEN_OPTS = [
 ] as const satisfies readonly NonNullable<PlayerInput["offBallScreenPattern"]>[];
 
 const OFF_BALL_SCREEN_LABEL: Record<(typeof OFF_BALL_SCREEN_OPTS)[number], string> = {
-  slip: "editor.screener_action_slip",
-  roll: "editor.screener_action_roll",
-  pop_short: "editor.screener_action_pop_short",
-  pop_mid: "editor.screener_action_pop_mid",
-  short_roll: "editor.screener_action_short_roll",
-  none: "editor.screener_action_none",
+  slip: "editor.screen_pattern.slip",
+  roll: "editor.screen_pattern.roll_to_rim",
+  pop_short: "editor.screen_pattern.pop_short",
+  pop_mid: "editor.screen_pattern.pop_mid",
+  short_roll: "editor.screen_pattern.short_roll",
+  none: "editor.screen_pattern.none",
 };
 
 const ISO_HAND_FINISH_OPTS = ["drive", "pullup", "floater", "pass"] as const;
-const ISO_FINISH_I18N: Record<(typeof ISO_HAND_FINISH_OPTS)[number], string> = {
-  drive: "editor.iso_finish_drive",
-  pullup: "editor.iso_finish_pullup",
-  floater: "editor.iso_finish_floater",
-  pass: "editor.iso_finish_pass",
+const ISO_HAND_FINISH_I18N: Record<(typeof ISO_HAND_FINISH_OPTS)[number], string> = {
+  drive: "editor.iso_hand_finish.drive",
+  pullup: "editor.iso_hand_finish.pullup",
+  floater: "editor.iso_hand_finish.floater",
+  pass: "editor.iso_hand_finish.pass",
 };
 
 function screenPatternToLegacyScreener(
@@ -269,9 +269,10 @@ function IntensitySelector({ label, value, onChange, tooltip }: {
   return (
     <div className="space-y-2">
       {label && <FieldLabel label={label} tooltip={tooltip} />}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
         {(["Primary", "Secondary", "Rare", "Never"] as IntensityLevel[]).map(level => (
           <Button key={level} type="button" variant={value === level ? "default" : "outline"}
+            style={{ minHeight: 44 }}
             className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${value === level ? "bg-primary border-primary text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
             onClick={() => onChange(level)}>{level === "Primary" ? t("freq_primary") : level === "Secondary" ? t("freq_secondary") : level === "Rare" ? t("freq_rare") : t("freq_never")}</Button>
         ))}
@@ -600,6 +601,8 @@ export default function PlayerEditor() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const [showSaveFlash, setShowSaveFlash] = useState(false);
+  const [screenerAccordionOpen, setScreenerAccordionOpen] = useState(true);
+  const [cutterAccordionOpen, setCutterAccordionOpen] = useState(true);
   const isDirty = useRef(false);
 
   useEffect(() => {
@@ -725,10 +728,8 @@ export default function PlayerEditor() {
   const pnrBoth = (inputs.pnrRole as any) === "Both";
   const showHandlerSection = inputs.pnrRole === "Handler" || pnrBoth;
   const showScreenerSection = inputs.pnrRole === "Screener" || pnrBoth;
-  const offBallShowScreener =
-    inputs.offBallRole == null || inputs.offBallRole === "screener" || inputs.offBallRole === "both";
-  const offBallShowCutter =
-    inputs.offBallRole == null || inputs.offBallRole === "cutter" || inputs.offBallRole === "both";
+  const showOffBallScreenerAccordion = inputs.offBallRole === "screener" || inputs.offBallRole === "both";
+  const showOffBallCutterAccordion = inputs.offBallRole === "cutter" || inputs.offBallRole === "both";
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-slate-50 dark:bg-slate-950">
@@ -850,13 +851,14 @@ export default function PlayerEditor() {
                 </div>
                 <div className="space-y-1.5">
                   <FieldLabel label={t("position")} tooltip={t("hint_position")} />
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                     {(["PG","SG","SF","PF","C"] as const).map(pos => {
                       const current = inputs.position ?? "";
                       const parts = current.split("/").filter(Boolean);
                       const selected = parts.includes(pos);
                       return (
                         <button key={pos} type="button"
+                          style={{ minHeight: 44 }}
                           onClick={() => {
                             if (selected) {
                               const next = parts.filter(p => p !== pos).join("/");
@@ -984,9 +986,10 @@ export default function PlayerEditor() {
               {postActive && (<>
                 <div className="space-y-2">
                   <FieldLabel label={t("post_dominant_hand")} tooltip={t("hint_post_dominant_hand")} />
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                     {(["Right", "Left"] as const).map(h => (
                       <Button key={h} type="button" variant={inputs.postDominantHand === h ? "default" : "outline"}
+                        style={{ minHeight: 44 }}
                         className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${inputs.postDominantHand === h ? "bg-purple-500 border-purple-500 text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
                         onClick={() => ui("postDominantHand", h)}>
                         {h === "Right" ? `🤜 ${t("right_hand")}` : `🤛 ${t("left_hand")}`}
@@ -1076,7 +1079,7 @@ export default function PlayerEditor() {
 
                 <div className="space-y-2">
                   <FieldLabel label={t("editor.dunker_spot")} tooltip={t("editor.dunker_spot_hint")} />
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                     {(
                       [
                         { v: 0 as const, labelKey: "editor.dunker_spot_0" },
@@ -1088,6 +1091,7 @@ export default function PlayerEditor() {
                         key={v}
                         type="button"
                         variant={inputs.dunkerSpot === v ? "default" : "outline"}
+                        style={{ minHeight: 44 }}
                         className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${
                           inputs.dunkerSpot === v
                             ? "bg-purple-500 border-purple-500 text-white"
@@ -1231,9 +1235,10 @@ export default function PlayerEditor() {
 
               <div className="space-y-2">
                 <FieldLabel label={t("iso_dominant_direction")} tooltip={t("hint_iso_dominant_direction")} />
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                   {(["Left", "Right", "Balanced"] as const).map(dir => (
                     <Button key={dir} type="button" variant={inputs.isoDominantDirection === dir ? "default" : "outline"}
+                      style={{ minHeight: 44 }}
                       className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${inputs.isoDominantDirection === dir ? "bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
                       onClick={() => ui("isoDominantDirection", dir)}>{dir === "Left" ? t("dir_left") : dir === "Right" ? t("dir_right") : t("dir_balanced")}</Button>
                   ))}
@@ -1265,63 +1270,6 @@ export default function PlayerEditor() {
                   </Select>
                 </div>
 
-                {inputs.isoDominantDirection !== "Balanced" && (
-                  <>
-                    <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
-                      <FieldLabel
-                        label={t("editor.iso_strong_hand_finish")}
-                        tooltip={t("editor.iso_strong_hand_finish_hint")}
-                      />
-                      <div className="flex flex-wrap gap-3">
-                        {ISO_HAND_FINISH_OPTS.map((fin) => (
-                          <Button
-                            key={fin}
-                            type="button"
-                            variant={inputs.isoStrongHandFinish === fin ? "default" : "outline"}
-                            className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold"
-                            onClick={() =>
-                              ui("isoStrongHandFinish", inputs.isoStrongHandFinish === fin ? null : fin)
-                            }
-                          >
-                            {t(ISO_FINISH_I18N[fin] as never)}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
-                      <FieldLabel
-                        label={t("editor.iso_weak_hand_finish")}
-                        tooltip={t("editor.iso_weak_hand_finish_hint")}
-                      />
-                      <div className="flex flex-wrap gap-3">
-                        {ISO_HAND_FINISH_OPTS.map((fin) => (
-                          <Button
-                            key={fin}
-                            type="button"
-                            variant={
-                              (inputs.isoWeakHandFinish ??
-                                legacyOppositeToIsoWeakFinish(inputs.isoOppositeFinish)) === fin
-                                ? "default"
-                                : "outline"
-                            }
-                            className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold"
-                            onClick={() => {
-                              const next =
-                                (inputs.isoWeakHandFinish ??
-                                  legacyOppositeToIsoWeakFinish(inputs.isoOppositeFinish)) === fin
-                                  ? null
-                                  : fin;
-                              ui("isoWeakHandFinish", next);
-                              ui("isoOppositeFinish", isoWeakFinishToLegacyOpposite(next));
-                            }}
-                          >
-                            {t(ISO_FINISH_I18N[fin] as never)}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
               </>)}
 
               {(inputs.isoFrequency === "Primary" || inputs.isoFrequency === "Secondary" || inputs.isoFrequency === "Rare") && (
@@ -1363,6 +1311,70 @@ export default function PlayerEditor() {
                   <CloseoutSelect label={`➡️ ${t("right_wing")}`} value={inputs.closeoutRight} onChange={v => ui("closeoutRight", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
                 </div>
               </div>
+
+              {inputs.isoFrequency !== "Never" && (
+                <>
+                  <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
+                    <FieldLabel
+                      label={t("editor.iso_strong_hand_finish")}
+                      tooltip={t("editor.iso_strong_hand_finish_hint")}
+                    />
+                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                      {ISO_HAND_FINISH_OPTS.map((fin) => (
+                        <Button
+                          key={fin}
+                          type="button"
+                          variant={inputs.isoStrongHandFinish === fin ? "default" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                            inputs.isoStrongHandFinish === fin
+                              ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                              : "bg-transparent border-slate-200 dark:border-slate-700"
+                          }`}
+                          onClick={() =>
+                            ui("isoStrongHandFinish", inputs.isoStrongHandFinish === fin ? null : fin)
+                          }
+                        >
+                          {t(ISO_HAND_FINISH_I18N[fin] as never)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
+                    <FieldLabel
+                      label={t("editor.iso_weak_hand_finish")}
+                      tooltip={t("editor.iso_weak_hand_finish_hint")}
+                    />
+                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                      {ISO_HAND_FINISH_OPTS.map((fin) => {
+                        const effectiveWeak =
+                          inputs.isoWeakHandFinish ??
+                          legacyOppositeToIsoWeakFinish(inputs.isoOppositeFinish);
+                        return (
+                          <Button
+                            key={fin}
+                            type="button"
+                            variant={effectiveWeak === fin ? "default" : "outline"}
+                            style={{ minHeight: 44 }}
+                            className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                              effectiveWeak === fin
+                                ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                                : "bg-transparent border-slate-200 dark:border-slate-700"
+                            }`}
+                            onClick={() => {
+                              const next = effectiveWeak === fin ? null : fin;
+                              ui("isoWeakHandFinish", next);
+                              ui("isoOppositeFinish", isoWeakFinishToLegacyOpposite(next));
+                            }}
+                          >
+                            {t(ISO_HAND_FINISH_I18N[fin] as never)}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </TabsContent>
 
@@ -1376,9 +1388,10 @@ export default function PlayerEditor() {
 
               <div className="space-y-2">
                 <FieldLabel label={t("pnr_role")} tooltip={t("hint_pnr_role")} />
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                   {["Handler", "Screener", "Both"].map(v => (
                     <Button key={v} type="button" variant={(inputs.pnrRole as any) === v ? "default" : "outline"}
+                      style={{ minHeight: 44 }}
                       className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${(inputs.pnrRole as any) === v ? "bg-slate-800 text-white dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
                       onClick={() => ui("pnrRole", v as any)}>{v === "Handler" ? t("handler") : v === "Screener" ? t("screener") : t("both")}</Button>
                   ))}
@@ -1388,9 +1401,10 @@ export default function PlayerEditor() {
               {pnrBoth && (
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800 space-y-2">
                   <FieldLabel label={t("pnr_primary_role")} tooltip={t("hint_pnr_primary_role")} />
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                     {["Handler", "Screener", "Balanced"].map(v => (
                       <Button key={v} type="button" variant={inputs.pnrRoleSecondary === v ? "default" : "outline"}
+                        style={{ minHeight: 44 }}
                         className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${inputs.pnrRoleSecondary === v ? "bg-blue-500 border-blue-500 text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
                         onClick={() => ui("pnrRoleSecondary", v as any)}>
                         {v === "Handler" ? t("handler") : v === "Screener" ? t("screener") : t("balanced")}
@@ -1540,17 +1554,211 @@ export default function PlayerEditor() {
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-emerald-500">
               <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Target className="w-5 h-5 text-emerald-500" /> {t("section_offball_activity")}</h3>
 
+              <div className="space-y-3">
+                <FieldLabel label={t("editor.off_ball_role")} tooltip={t("editor.off_ball_role_hint")} />
+                <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                  {(["screener", "cutter", "both", "none"] as const).map((roleOpt) => (
+                    <Button
+                      key={roleOpt}
+                      type="button"
+                      variant={inputs.offBallRole === roleOpt ? "default" : "outline"}
+                      style={{ minHeight: 44 }}
+                      className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                        inputs.offBallRole === roleOpt
+                          ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white"
+                          : ""
+                      }`}
+                      onClick={() => ui("offBallRole", inputs.offBallRole === roleOpt ? null : roleOpt)}
+                    >
+                      {t(`editor.off_ball_role.${roleOpt}` as "editor.off_ball_role.screener")}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {showOffBallScreenerAccordion && (
+                <div
+                  style={{
+                    border: "1px solid",
+                    borderColor: "var(--border)",
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    marginTop: 8,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setScreenerAccordionOpen((o) => !o)}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "12px 16px",
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span style={{ fontWeight: 500, fontSize: 14 }}>{t("editor.as_screener")}</span>
+                    <ChevronDown
+                      size={16}
+                      style={{
+                        transition: "transform 200ms ease-out",
+                        transform: screenerAccordionOpen ? "rotate(180deg)" : "rotate(0deg)",
+                      }}
+                    />
+                  </button>
+                  {screenerAccordionOpen && (
+                    <div
+                      style={{
+                        padding: "0 16px 16px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 16,
+                      }}
+                    >
+                      <div className="space-y-2">
+                        <FieldLabel label={t("editor.off_ball_screen_pattern")} tooltip={t("editor.screener_action_hint")} />
+                        <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                          {OFF_BALL_SCREEN_OPTS.map((opt) => (
+                            <Button
+                              key={opt}
+                              type="button"
+                              variant={inputs.offBallScreenPattern === opt ? "default" : "outline"}
+                              style={{ minHeight: 44 }}
+                              className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                                inputs.offBallScreenPattern === opt
+                                  ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white"
+                                  : ""
+                              }`}
+                              onClick={() => {
+                                const next = inputs.offBallScreenPattern === opt ? null : opt;
+                                ui("offBallScreenPattern", next);
+                                ui(
+                                  "offBallScreenPatternFreq",
+                                  next && next !== "none"
+                                    ? inputs.offBallScreenPatternFreq ?? "secondary"
+                                    : null,
+                                );
+                                ui("screenerAction", screenPatternToLegacyScreener(next));
+                              }}
+                            >
+                              {t(OFF_BALL_SCREEN_LABEL[opt] as never)}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                      {inputs.offBallScreenPattern != null && inputs.offBallScreenPattern !== "none" && (
+                        <div
+                          style={{
+                            background: "var(--color-background-info, rgba(59,130,246,0.06))",
+                            borderRadius: 6,
+                            padding: "8px 12px",
+                          }}
+                        >
+                          <IntensitySelector
+                            label={t("editor.off_ball_screen_pattern_freq")}
+                            value={gradedToIntensity(inputs.offBallScreenPatternFreq)}
+                            onChange={(v) => ui("offBallScreenPatternFreq", intensityToGraded(v))}
+                            tooltip={t("editor.screener_action_frequency_hint")}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {showOffBallCutterAccordion && (
+                <div
+                  style={{
+                    border: "1px solid",
+                    borderColor: "var(--border)",
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    marginTop: 8,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCutterAccordionOpen((o) => !o)}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "12px 16px",
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span style={{ fontWeight: 500, fontSize: 14 }}>{t("editor.as_cutter")}</span>
+                    <ChevronDown
+                      size={16}
+                      style={{
+                        transition: "transform 200ms ease-out",
+                        transform: cutterAccordionOpen ? "rotate(180deg)" : "rotate(0deg)",
+                      }}
+                    />
+                  </button>
+                  {cutterAccordionOpen && (
+                    <div
+                      style={{
+                        padding: "0 16px 16px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 16,
+                      }}
+                    >
+                      <div className="space-y-2">
+                        <FieldLabel label={t("editor.off_ball_cut_action")} tooltip={t("hint_indirects")} />
+                        <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                          {(["catch_and_shoot", "catch_and_drive", "curl", "flare"] as const).map((opt) => (
+                            <Button
+                              key={opt}
+                              type="button"
+                              variant={inputs.offBallCutAction === opt ? "default" : "outline"}
+                              style={{ minHeight: 44 }}
+                              className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                                inputs.offBallCutAction === opt
+                                  ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white"
+                                  : ""
+                              }`}
+                              onClick={() => ui("offBallCutAction", inputs.offBallCutAction === opt ? null : opt)}
+                            >
+                              {t(`editor.off_ball_cut_action.${opt}` as never)}
+                            </Button>
+                          ))}
+                          <Button
+                            type="button"
+                            variant={inputs.offBallCutAction == null ? "secondary" : "outline"}
+                            style={{ minHeight: 44 }}
+                            className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm"
+                            onClick={() => ui("offBallCutAction", null)}
+                          >
+                            {t("not_observed")}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <IntensitySelector label={t("transition_frequency")} value={inputs.transitionFrequency} onChange={v => ui("transitionFrequency", v)}
                 tooltip={t("hint_transition_frequency")} />
 
               <div className="mt-2 space-y-3">
                 <FieldLabel label={t("editor.transition_role")} tooltip={t("editor.transition_role_hint")} />
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                   {LEGACY_TRANSITION_ROLES.map((role) => (
                     <Button
                       key={role}
                       type="button"
                       variant={inputs.transitionRole === role ? "default" : "outline"}
+                      style={{ minHeight: 44 }}
                       className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold"
                       onClick={() => {
                         if (inputs.transitionRole === role) return;
@@ -1614,117 +1822,8 @@ export default function PlayerEditor() {
               <IntensitySelector label={t("motor_trans_trail_three")} value={inputs.motorTransTrail3Intensity ?? "Never"} onChange={v => ui("motorTransTrail3Intensity", v)}
                 tooltip={t("hint_motor_trans_trail")} />
 
-              <div className="border-t border-slate-100 dark:border-slate-800 pt-6 space-y-3">
-                <FieldLabel label={t("editor.off_ball_role")} tooltip={t("editor.off_ball_role_hint")} />
-                <div className="flex flex-wrap gap-3">
-                  {([
-                    { v: "screener" as const, k: "editor.off_ball_role_screener" },
-                    { v: "cutter" as const, k: "editor.off_ball_role_cutter" },
-                    { v: "both" as const, k: "editor.off_ball_role_both" },
-                    { v: "none" as const, k: "editor.off_ball_role_none" },
-                  ] as const).map((opt) => (
-                    <Button
-                      key={opt.v}
-                      type="button"
-                      variant={inputs.offBallRole === opt.v ? "default" : "outline"}
-                      className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold"
-                      onClick={() => ui("offBallRole", inputs.offBallRole === opt.v ? null : opt.v)}
-                    >
-                      {t(opt.k as never)}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
               <IntensitySelector label={t("indirects")} value={inputs.indirectsFrequency} onChange={v => ui("indirectsFrequency", v)}
                 tooltip={t("hint_indirects")} />
-
-              {inputs.indirectsFrequency !== "Never" && (
-                <div className={`space-y-4 rounded-xl border border-emerald-100 dark:border-emerald-900/40 p-3 ${inputs.indirectsFrequency === "Rare" ? "opacity-80" : ""}`}>
-                  {offBallShowScreener && (
-                    <>
-                      <div className="space-y-2">
-                        <FieldLabel label={t("editor.screener_action")} tooltip={t("editor.screener_action_hint")} />
-                        <div className="flex flex-wrap gap-3">
-                          {OFF_BALL_SCREEN_OPTS.map((opt) => (
-                            <Button
-                              key={opt}
-                              type="button"
-                              variant={inputs.offBallScreenPattern === opt ? "default" : "outline"}
-                              className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold"
-                              onClick={() => {
-                                const next = inputs.offBallScreenPattern === opt ? null : opt;
-                                ui("offBallScreenPattern", next);
-                                ui(
-                                  "offBallScreenPatternFreq",
-                                  next && next !== "none"
-                                    ? inputs.offBallScreenPatternFreq ?? "secondary"
-                                    : null,
-                                );
-                                ui("screenerAction", screenPatternToLegacyScreener(next));
-                              }}
-                            >
-                              {t(OFF_BALL_SCREEN_LABEL[opt] as never)}
-                            </Button>
-                          ))}
-                          <Button
-                            type="button"
-                            variant={inputs.offBallScreenPattern == null ? "secondary" : "outline"}
-                            className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm"
-                            onClick={() => {
-                              ui("offBallScreenPattern", null);
-                              ui("offBallScreenPatternFreq", null);
-                              ui("screenerAction", null);
-                            }}
-                          >
-                            {t("not_observed")}
-                          </Button>
-                        </div>
-                      </div>
-                      {inputs.offBallScreenPattern && inputs.offBallScreenPattern !== "none" && (
-                        <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border-l-2 border-emerald-500">
-                          <IntensitySelector
-                            label={t("editor.screener_action_frequency")
-                              .replace(
-                                "{action}",
-                                t(OFF_BALL_SCREEN_LABEL[inputs.offBallScreenPattern] as never),
-                              )}
-                            value={gradedToIntensity(inputs.offBallScreenPatternFreq)}
-                            onChange={(v) => ui("offBallScreenPatternFreq", intensityToGraded(v))}
-                            tooltip={t("editor.screener_action_frequency_hint")}
-                          />
-                        </div>
-                      )}
-                    </>
-                  )}
-                  {offBallShowCutter && (
-                    <div className={`space-y-2 ${offBallShowScreener ? "border-t border-emerald-100 dark:border-emerald-900/40 pt-4" : ""}`}>
-                      <FieldLabel label={t("editor.off_ball_cut_action")} tooltip={t("hint_indirects")} />
-                      <div className="flex flex-wrap gap-3">
-                        {(["catch_and_shoot", "catch_and_drive", "curl", "flare"] as const).map((opt) => (
-                          <Button
-                            key={opt}
-                            type="button"
-                            variant={inputs.offBallCutAction === opt ? "default" : "outline"}
-                            className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold"
-                            onClick={() => ui("offBallCutAction", inputs.offBallCutAction === opt ? null : opt)}
-                          >
-                            {t(`editor.off_ball_cut_action.${opt}` as never)}
-                          </Button>
-                        ))}
-                        <Button
-                          type="button"
-                          variant={inputs.offBallCutAction == null ? "secondary" : "outline"}
-                          className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm"
-                          onClick={() => ui("offBallCutAction", null)}
-                        >
-                          {t("not_observed")}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
               <IntensitySelector label={t("slip")} value={(inputs as any).slipFrequency ?? "Never"} onChange={v => ui("slipFrequency" as any, v)}
                 tooltip={t("hint_slip")} />
