@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRoute, useLocation, useSearch } from "wouter";
-import { usePlayer, useTeams, generateProfile } from "@/lib/mock-data";
+import { usePlayer, useTeams, generateProfile, type MotorPlanCandidate } from "@/lib/mock-data";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
@@ -60,6 +60,74 @@ function translateOutput(item: string, tFn: (key: any) => string): string {
   return translated === item ? item : translated;
 }
 
+/** Legacy runner-ups were plain strings; v2.1 stores { line, weight }. */
+function normalizeRunnerCandidates(list: unknown): MotorPlanCandidate[] {
+  if (!Array.isArray(list)) return [];
+  return list.map((x) => {
+    if (typeof x === "string") return { line: x, weight: 0 };
+    const o = x as Partial<MotorPlanCandidate>;
+    if (o && typeof o.line === "string")
+      return { line: o.line, weight: typeof o.weight === "number" ? o.weight : 0 };
+    return { line: String(x), weight: 0 };
+  });
+}
+
+function MotorRunnerUpsReviewPanel({
+  runnerUps,
+  t,
+  translateFn,
+}: {
+  runnerUps: {
+    defender: unknown;
+    forzar: unknown;
+    concede: unknown;
+    aware: unknown;
+  };
+  t: (key: any) => string;
+  translateFn: (item: string) => string;
+}) {
+  const sections = [
+    { titleKey: "defend_tab" as const, sym: "—", accent: "text-red-400", list: normalizeRunnerCandidates(runnerUps.defender) },
+    { titleKey: "force_tab" as const, sym: "→", accent: "text-blue-400", list: normalizeRunnerCandidates(runnerUps.forzar) },
+    { titleKey: "give_tab" as const, sym: "✓", accent: "text-emerald-400", list: normalizeRunnerCandidates(runnerUps.concede) },
+    { titleKey: "review_aware_tab" as const, sym: "!", accent: "text-amber-300", list: normalizeRunnerCandidates(runnerUps.aware) },
+  ];
+  if (!sections.some((s) => s.list.length > 0)) return null;
+  return (
+    <div className="mt-4 w-full rounded-2xl border border-amber-500/35 bg-amber-950/30 px-4 py-3">
+      <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-0.5">
+        {t("review_runner_ups_title")}
+      </p>
+      <p className="text-[11px] text-slate-500 leading-snug mb-3">{t("review_runner_ups_hint")}</p>
+      {sections.map((sec) =>
+        sec.list.length === 0 ? null : (
+          <div key={sec.titleKey} className="mb-3 last:mb-0">
+            <p className={`text-[10px] font-black uppercase tracking-widest mb-1.5 ${sec.accent}`}>
+              {sec.sym} {t(sec.titleKey)}
+            </p>
+            {sec.list.map((c, i) => {
+              const pct =
+                c.weight > 0 ? t("review_weight_pct").replace("{n}", String(Math.round(c.weight * 100))) : "—";
+              return (
+                <div key={i} className="flex gap-2 items-start mb-2 last:mb-0 w-full min-w-0">
+                  <span
+                    className={`shrink-0 text-xs font-black tabular-nums w-11 text-right ${sec.accent}`}
+                    title={c.weight > 0 ? String(c.weight) : undefined}
+                  >
+                    {pct}
+                  </span>
+                  <span className="text-sm font-semibold leading-snug text-slate-100 min-w-0 flex-1 break-words whitespace-normal">
+                    {translateFn(c.line)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ),
+      )}
+    </div>
+  );
+}
 
 const toNum = (v: any, fb = 3): number =>
   typeof v === "number" ? v : v === "High" ? 4 : v === "Low" ? 2 : fb;
@@ -921,6 +989,13 @@ export default function PlayerProfileViewer() {
               labelHide={labelHide}
               labelRestore={labelRestore}
             />
+            {isReviewMode && paramsCoach && dp.motorRunnerUps ? (
+              <MotorRunnerUpsReviewPanel
+                runnerUps={dp.motorRunnerUps}
+                t={t}
+                translateFn={(s) => translateOutput(s, t)}
+              />
+            ) : null}
           </>
       }
       </ScrollSlide>

@@ -25,7 +25,7 @@ export function PlayerTeamView() {
   if (isError || !data) {
     return (
       <div className="flex flex-col min-h-[100dvh] bg-background px-4 pt-10">
-        <Button variant="ghost" size="icon" onClick={() => setLocation("/player/teams")} className="mb-4 w-10 h-10 shrink-0">
+        <Button variant="ghost" size="icon" onClick={() => setLocation("/player")} className="mb-4 w-10 h-10 shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <p className="text-sm text-destructive text-center">{t("player_team_load_error")}</p>
@@ -41,7 +41,7 @@ export function PlayerTeamView() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setLocation("/player/teams")}
+          onClick={() => setLocation("/player")}
           className="text-muted-foreground hover:text-foreground shrink-0"
           data-testid="button-back"
         >

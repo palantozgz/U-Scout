@@ -69,12 +69,15 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       <Route path="/settings" component={Settings} />
       <Route path="/player/settings" component={Settings} />
 
-      {/* Player Mode */}
-      <Route path="/player" component={PlayerHome} />
+      {/* Player Mode — /player = equipos rivales primero; /player/reports = rejilla de informes */}
+      <Route path="/player/reports" component={PlayerHome} />
       <Route path="/player/home-settings" component={PlayerHomeSettingsStub} />
-      <Route path="/player/teams" component={PlayerTeamList} />
+      <Route path="/player/teams">
+        <RootRedirect to="/player" />
+      </Route>
       <Route path="/player/team/:teamId" component={PlayerTeamView} />
       <Route path="/player/:id" component={PlayerProfileViewer} />
+      <Route path="/player" component={PlayerTeamList} />
 
       <Route component={NotFound} />
     </Switch>
