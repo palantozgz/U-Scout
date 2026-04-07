@@ -5,10 +5,12 @@ import { useRoute, useLocation, useSearch } from "wouter";
 import {
   usePlayer, useTeams, useCreatePlayer, useUpdatePlayer, useDeletePlayer,
   generateProfile, createDefaultPlayer,
+  TRANS_ROLE_SUB_OPTIONS,
   type PlayerInput, type IntensityLevel, type DirectionTendency,
   type CloseoutReaction, type PlayerProfile, type PhysicalLevel,
   type PostQuadrants, type ScreenerAction, type PnrFinish,
   type HighPostAction, type HighPostZonesMotor,
+  type TransRoleEditor,
 } from "@/lib/mock-data";
 import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,15 +37,7 @@ function intensityToGraded(v: IntensityLevel): GradedTransitionFreq {
   return "never";
 }
 
-const LEGACY_TRANSITION_ROLES = ["Pusher", "Outlet", "Rim Runner", "Trailer"] as const;
-type LegacyTransitionRole = (typeof LEGACY_TRANSITION_ROLES)[number];
-
-const LEGACY_TRANS_LABEL: Record<LegacyTransitionRole, "opt_trans_pusher" | "opt_trans_outlet" | "opt_trans_rim_runner" | "opt_trans_trailer"> = {
-  Pusher: "opt_trans_pusher",
-  Outlet: "opt_trans_outlet",
-  "Rim Runner": "opt_trans_rim_runner",
-  Trailer: "opt_trans_trailer",
-};
+const TRANS_EDITOR_ROLES = ["rim_runner", "trail", "runner", "pusher"] as const satisfies readonly TransRoleEditor[];
 
 const OFF_BALL_SCREEN_OPTS = [
   "slip",
@@ -1751,76 +1745,138 @@ export default function PlayerEditor() {
                 tooltip={t("hint_transition_frequency")} />
 
               <div className="mt-2 space-y-3">
-                <FieldLabel label={t("editor.transition_role")} tooltip={t("editor.transition_role_hint")} />
-                <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
-                  {LEGACY_TRANSITION_ROLES.map((role) => (
+                <FieldLabel label={t("editor.trans_role_primary")} tooltip={t("hint_transition_frequency")} />
+                <div className="flex flex-wrap gap-3">
+                  {TRANS_EDITOR_ROLES.map((role) => (
                     <Button
                       key={role}
                       type="button"
-                      variant={inputs.transitionRole === role ? "default" : "outline"}
+                      variant={inputs.transRolePrimary === role ? "default" : "outline"}
                       style={{ minHeight: 44 }}
-                      className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold"
+                      className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
+                        inputs.transRolePrimary === role
+                          ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                          : "border-slate-200 dark:border-slate-700"
+                      }`}
                       onClick={() => {
-                        if (inputs.transitionRole === role) return;
-                        ui("transitionRole", role);
-                        ui(
-                          "motorTransitionPrimary",
-                          role === "Pusher"
-                            ? "empujadora"
-                            : role === "Outlet"
-                              ? "corredora"
-                              : role === "Rim Runner"
-                                ? "rim_runner"
-                                : "trail",
-                        );
-                        ui(
-                          "transRolePrimary",
-                          role === "Pusher"
-                            ? "pusher"
-                            : role === "Outlet"
-                              ? "runner"
-                              : role === "Rim Runner"
-                                ? "rim_runner"
-                                : "trail",
-                        );
+                        if (inputs.transRolePrimary === role) return;
+                        ui("transRolePrimary", role);
                         ui("transSubPrimary", null);
                         ui("transRoleSecondary", null);
                         ui("transSubSecondary", null);
                       }}
                     >
-                      {t(LEGACY_TRANS_LABEL[role] as never)}
+                      {t(`editor.trans_role.${role}` as never)}
                     </Button>
                   ))}
+                  <Button
+                    type="button"
+                    variant={inputs.transRolePrimary == null ? "secondary" : "outline"}
+                    style={{ minHeight: 44 }}
+                    className="h-auto px-4 py-2 rounded-lg text-sm font-semibold"
+                    onClick={() => {
+                      ui("transRolePrimary", null);
+                      ui("transSubPrimary", null);
+                      ui("transRoleSecondary", null);
+                      ui("transSubSecondary", null);
+                    }}
+                  >
+                    {t("editor.trans_role_none")}
+                  </Button>
                 </div>
+                {inputs.transRolePrimary && (
+                  <div className="space-y-1.5 pl-0.5">
+                    <div className="flex flex-wrap gap-3">
+                      {TRANS_ROLE_SUB_OPTIONS[inputs.transRolePrimary].map((sub) => (
+                        <Button
+                          key={sub}
+                          type="button"
+                          variant={inputs.transSubPrimary === sub ? "default" : "outline"}
+                          style={{ minHeight: 40 }}
+                          className={`h-auto text-xs px-3 py-2 rounded-md font-semibold ${
+                            inputs.transSubPrimary === sub
+                              ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                              : "border-slate-200 dark:border-slate-700"
+                          }`}
+                          onClick={() => ui("transSubPrimary", inputs.transSubPrimary === sub ? null : sub)}
+                        >
+                          {t(`editor.trans_sub.${sub}` as never)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {inputs.transitionRole === "Rim Runner" && (
-                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border-l-2 border-blue-500">
-                  <IntensitySelector
-                    label={t("editor.rim_run_frequency")}
-                    value={gradedToIntensity(inputs.rimRunFrequency)}
-                    onChange={(v) => ui("rimRunFrequency", intensityToGraded(v))}
-                    tooltip={t("editor.rim_run_frequency_hint")}
-                  />
+              {inputs.transRolePrimary && (
+                <div className="mt-4 space-y-3">
+                  <FieldLabel label={t("editor.trans_role_secondary")} tooltip={t("hint_transition_frequency")} />
+                  <div className="flex flex-wrap gap-3">
+                    {TRANS_EDITOR_ROLES.map((role) => {
+                      const disabled = role === inputs.transRolePrimary;
+                      return (
+                        <Button
+                          key={role}
+                          type="button"
+                          disabled={disabled}
+                          variant={inputs.transRoleSecondary === role ? "default" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
+                            inputs.transRoleSecondary === role
+                              ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                              : "border-slate-200 dark:border-slate-700"
+                          } ${disabled ? "opacity-40 pointer-events-none cursor-not-allowed" : ""}`}
+                          onClick={() => {
+                            if (inputs.transRoleSecondary === role) {
+                              ui("transRoleSecondary", null);
+                              ui("transSubSecondary", null);
+                            } else {
+                              ui("transRoleSecondary", role);
+                              ui("transSubSecondary", null);
+                            }
+                          }}
+                        >
+                          {t(`editor.trans_role.${role}` as never)}
+                        </Button>
+                      );
+                    })}
+                    <Button
+                      type="button"
+                      variant={inputs.transRoleSecondary == null ? "secondary" : "outline"}
+                      style={{ minHeight: 44 }}
+                      className="h-auto px-4 py-2 rounded-lg text-sm font-semibold"
+                      onClick={() => {
+                        ui("transRoleSecondary", null);
+                        ui("transSubSecondary", null);
+                      }}
+                    >
+                      {t("editor.trans_role_none")}
+                    </Button>
+                  </div>
+                  {inputs.transRoleSecondary && (
+                    <div className="space-y-1.5 pl-0.5">
+                      <div className="flex flex-wrap gap-3">
+                        {TRANS_ROLE_SUB_OPTIONS[inputs.transRoleSecondary].map((sub) => (
+                          <Button
+                            key={sub}
+                            type="button"
+                            variant={inputs.transSubSecondary === sub ? "default" : "outline"}
+                            style={{ minHeight: 36 }}
+                            className={`h-auto text-xs px-2.5 py-1.5 rounded-md font-semibold ${
+                              inputs.transSubSecondary === sub
+                                ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                                : "border-slate-200 dark:border-slate-700"
+                            }`}
+                            onClick={() => ui("transSubSecondary", inputs.transSubSecondary === sub ? null : sub)}
+                          >
+                            {t(`editor.trans_sub.${sub}` as never)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-
-              {inputs.transitionRole === "Trailer" && (
-                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border-l-2 border-blue-500">
-                  <IntensitySelector
-                    label={t("editor.trail_frequency")}
-                    value={gradedToIntensity(inputs.trailFrequency)}
-                    onChange={(v) => ui("trailFrequency", intensityToGraded(v))}
-                    tooltip={t("editor.trail_frequency_hint")}
-                  />
-                </div>
-              )}
-
-              <IntensitySelector label={t("motor_trans_rim_attack")} value={inputs.motorTransRimIntensity ?? "Never"} onChange={v => ui("motorTransRimIntensity", v)}
-                tooltip={t("hint_motor_trans_rim")} />
-
-              <IntensitySelector label={t("motor_trans_trail_three")} value={inputs.motorTransTrail3Intensity ?? "Never"} onChange={v => ui("motorTransTrail3Intensity", v)}
-                tooltip={t("hint_motor_trans_trail")} />
 
               <IntensitySelector label={t("indirects")} value={inputs.indirectsFrequency} onChange={v => ui("indirectsFrequency", v)}
                 tooltip={t("hint_indirects")} />
