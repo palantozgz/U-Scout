@@ -91,6 +91,48 @@ function screenPatternToLegacyScreener(
   }
 }
 
+/** Weak-hand pills ↔ legacy `isoOppositeFinish` (traits / defensive plan in mock-data). */
+function isoWeakFinishToLegacyOpposite(
+  f: PlayerInput["isoWeakHandFinish"],
+): PlayerInput["isoOppositeFinish"] | undefined {
+  if (!f) return undefined;
+  if (f === "drive") return "Drive";
+  if (f === "pullup") return "Pull-up";
+  if (f === "floater") return "Floater";
+  return "Pass";
+}
+
+function legacyOppositeToIsoWeakFinish(
+  f: PlayerInput["isoOppositeFinish"],
+): PlayerInput["isoWeakHandFinish"] | null {
+  if (!f) return null;
+  if (f === "Drive") return "drive";
+  if (f === "Pull-up") return "pullup";
+  if (f === "Floater") return "floater";
+  if (f === "Pass") return "pass";
+  return null;
+}
+
+function legacyScreenerToScreenPattern(
+  a: PlayerInput["screenerAction"],
+): PlayerInput["offBallScreenPattern"] | null {
+  if (!a) return null;
+  switch (a) {
+    case "roll_to_rim":
+      return "roll";
+    case "slip":
+      return "slip";
+    case "pop_mid":
+      return "pop_mid";
+    case "pop_3":
+      return "pop_short";
+    case "short_roll":
+      return "short_roll";
+    default:
+      return null;
+  }
+}
+
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 function Tooltip({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
@@ -569,8 +611,19 @@ export default function PlayerEditor() {
   }, [isNew, teamsLoading, teams.length]);
 
   useEffect(() => {
-    if (!isNew && existingPlayer) { setPlayer(existingPlayer); setInputs(existingPlayer.inputs); }
-    else if (!isNew && !playerLoading && !existingPlayer) setLocation("/coach");
+    if (!isNew && existingPlayer) {
+      let ins = existingPlayer.inputs;
+      if (ins.isoWeakHandFinish == null && ins.isoOppositeFinish) {
+        const h = legacyOppositeToIsoWeakFinish(ins.isoOppositeFinish);
+        if (h) ins = { ...ins, isoWeakHandFinish: h };
+      }
+      if (ins.offBallScreenPattern == null && ins.screenerAction) {
+        const p = legacyScreenerToScreenPattern(ins.screenerAction);
+        if (p) ins = { ...ins, offBallScreenPattern: p };
+      }
+      setPlayer(existingPlayer);
+      setInputs(ins);
+    } else if (!isNew && !playerLoading && !existingPlayer) setLocation("/coach");
   }, [isNew, existingPlayer, playerLoading]);
 
   // Auto-save on change after 1.5s debounce
@@ -1245,11 +1298,22 @@ export default function PlayerEditor() {
                           <Button
                             key={fin}
                             type="button"
-                            variant={inputs.isoWeakHandFinish === fin ? "default" : "outline"}
-                            className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold"
-                            onClick={() =>
-                              ui("isoWeakHandFinish", inputs.isoWeakHandFinish === fin ? null : fin)
+                            variant={
+                              (inputs.isoWeakHandFinish ??
+                                legacyOppositeToIsoWeakFinish(inputs.isoOppositeFinish)) === fin
+                                ? "default"
+                                : "outline"
                             }
+                            className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold"
+                            onClick={() => {
+                              const next =
+                                (inputs.isoWeakHandFinish ??
+                                  legacyOppositeToIsoWeakFinish(inputs.isoOppositeFinish)) === fin
+                                  ? null
+                                  : fin;
+                              ui("isoWeakHandFinish", next);
+                              ui("isoOppositeFinish", isoWeakFinishToLegacyOpposite(next));
+                            }}
                           >
                             {t(ISO_FINISH_I18N[fin] as never)}
                           </Button>

@@ -83,7 +83,7 @@ export interface PlayerInput {
   isoDominantDirection: DirectionTendency;
   isoInitiation?: IsoInitiation;
   isoDecision?: IsoDecision;
-  isoOppositeFinish?: "Drive" | "Pull-up" | "Floater";
+  isoOppositeFinish?: "Drive" | "Pull-up" | "Floater" | "Pass";
   closeoutReaction: CloseoutReaction;
   closeoutLeft?: CloseoutReaction;
   closeoutRight?: CloseoutReaction;
@@ -356,11 +356,12 @@ function screenerSecondaryVerbI18nKey(action?: ScreenerAction): string {
   }
 }
 
-function isoOppositeFinishI18nKey(finish?: "Drive" | "Pull-up" | "Floater"): string {
+function isoOppositeFinishI18nKey(finish?: "Drive" | "Pull-up" | "Floater" | "Pass"): string {
   switch (finish) {
     case "Pull-up": return "opt_finish_pullup";
     case "Drive": return "opt_finish_drive";
     case "Floater": return "opt_finish_floater";
+    case "Pass": return "opt_iso_decision_pass";
     default: return "";
   }
 }
@@ -1438,6 +1439,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string): Gener
     const wl   = inputs.isoOppositeFinish === "Pull-up" ? "opt_finish_pullup"
                : inputs.isoOppositeFinish === "Drive"   ? "opt_finish_drive"
                : inputs.isoOppositeFinish === "Floater"  ? "opt_finish_floater"
+               : inputs.isoOppositeFinish === "Pass" ? "opt_iso_decision_pass"
                : "opt_finish_pullup";
     forzar.push(`for_direction|weak=${weak}|wl=${wl}`);
   }
