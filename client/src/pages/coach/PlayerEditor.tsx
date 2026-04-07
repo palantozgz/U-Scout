@@ -1286,6 +1286,9 @@ export default function PlayerEditor() {
               )}
 
               <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <p className="text-xs font-semibold uppercase tracking-widest opacity-50 mb-2">
+                  {t("editor.iso_closeout_reaction")}
+                </p>
                 <FieldLabel label={t("closeout_general")} tooltip={t("hint_closeout_general")} />
                 <Select value={inputs.closeoutReaction} onValueChange={v => ui("closeoutReaction", v)}>
                   <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
@@ -1307,6 +1310,9 @@ export default function PlayerEditor() {
 
               {inputs.isoFrequency !== "Never" && (
                 <>
+                  <p className="text-xs font-semibold uppercase tracking-widest opacity-50 mb-2">
+                    {t("editor.iso_finishing")}
+                  </p>
                   <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
                     <FieldLabel
                       label={t("editor.iso_strong_hand_finish")}
