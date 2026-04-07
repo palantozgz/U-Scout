@@ -547,7 +547,6 @@ function ScreenerActionSelector({ primaryValue, secondaryValue, onPrimaryChange,
                 </div>
                 <div>
                   <p className={`font-bold text-xs ${primaryValue === opt.value ? "text-blue-700 dark:text-blue-300" : "text-slate-800 dark:text-slate-200"}`}>{opt.label}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{opt.desc}</p>
                 </div>
               </div>
             </button>
