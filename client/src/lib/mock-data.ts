@@ -144,6 +144,28 @@ export interface PlayerInput {
   /** Dunker spot tendency: 0 never, 1 occasionally, 2 actively seeks */
   dunkerSpot?: 0 | 1 | 2 | null;
 
+  offBallRole?: "screener" | "cutter" | "both" | "none" | null;
+  motorTransitionPrimary?:
+    | "rim_runner"
+    | "trail"
+    | "corredora"
+    | "empujadora"
+    | "none"
+    | null;
+  rimRunFrequency?: "primary" | "secondary" | "rare" | "never" | null;
+  trailFrequency?: "primary" | "secondary" | "rare" | "never" | null;
+  offBallScreenPattern?:
+    | "slip"
+    | "roll"
+    | "pop_short"
+    | "pop_mid"
+    | "short_roll"
+    | "none"
+    | null;
+  offBallScreenPatternFreq?: "primary" | "secondary" | "rare" | "never" | null;
+  isoStrongHandFinish?: "drive" | "pullup" | "floater" | "pass" | null;
+  isoWeakHandFinish?: "drive" | "pullup" | "floater" | "pass" | null;
+
   /** Off-ball: action after setting screen (not PnR screener) */
   screenerAction?:
     | "roll_to_rim"
@@ -465,6 +487,14 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     transSubSecondary: null,
     highPostZones: {},
     dunkerSpot: null,
+    offBallRole: null,
+    motorTransitionPrimary: null,
+    rimRunFrequency: null,
+    trailFrequency: null,
+    offBallScreenPattern: null,
+    offBallScreenPatternFreq: null,
+    isoStrongHandFinish: null,
+    isoWeakHandFinish: null,
     screenerAction: null,
     offBallCutAction: null,
   };
@@ -788,6 +818,14 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     transSubSecondary: inputs.transSubSecondary ?? null,
     highPostZones: inputs.highPostZones ?? null,
     dunkerSpot: inputs.dunkerSpot ?? null,
+    offBallRole: inputs.offBallRole ?? null,
+    motorTransitionPrimary: inputs.motorTransitionPrimary ?? null,
+    rimRunFrequency: inputs.rimRunFrequency ?? null,
+    trailFrequency: inputs.trailFrequency ?? null,
+    offBallScreenPattern: inputs.offBallScreenPattern ?? null,
+    offBallScreenPatternFreq: inputs.offBallScreenPatternFreq ?? null,
+    isoStrongHandFinish: inputs.isoStrongHandFinish ?? null,
+    isoWeakHandFinish: inputs.isoWeakHandFinish ?? null,
     offBallScreenerAction: inputs.screenerAction ?? null,
     offBallCutAction: inputs.offBallCutAction ?? null,
   };

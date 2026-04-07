@@ -913,8 +913,6 @@ export default function PlayerEditor() {
                     {([
                       { zone: "leftElbow" as const, labelKey: "editor.high_post_zone.leftElbow" },
                       { zone: "rightElbow" as const, labelKey: "editor.high_post_zone.rightElbow" },
-                      { zone: "leftMid" as const, labelKey: "editor.high_post_zone.leftMid" },
-                      { zone: "rightMid" as const, labelKey: "editor.high_post_zone.rightMid" },
                     ] as const).map(({ zone, labelKey }) => {
                       const hz = (inputs.highPostZones ?? {}) as HighPostZonesMotor;
                       const v = hz[zone] ?? null;

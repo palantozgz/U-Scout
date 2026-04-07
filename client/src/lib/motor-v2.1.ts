@@ -66,8 +66,42 @@ export type HighPostAction =
 export interface HighPostZonesMotor {
   leftElbow?: HighPostAction | null;
   rightElbow?: HighPostAction | null;
-  leftMid?: HighPostAction | null;
-  rightMid?: HighPostAction | null;
+}
+
+/** Editor graded frequency (primary → never) */
+export type EditorGradedFrequency = 'primary' | 'secondary' | 'rare' | 'never';
+export type ScreenerActionFrequency = EditorGradedFrequency;
+
+export type EditorOffBallScreenKind =
+  | 'slip'
+  | 'roll'
+  | 'pop_short'
+  | 'pop_mid'
+  | 'short_roll'
+  | 'none';
+
+export type EditorTransitionPrimaryRole =
+  | 'rim_runner'
+  | 'trail'
+  | 'corredora'
+  | 'empujadora'
+  | 'none';
+
+export type EditorIsoHandFinish = 'drive' | 'pullup' | 'floater' | 'pass';
+
+function editorGradedFreqWeight(f: EditorGradedFrequency): number {
+  switch (f) {
+    case 'primary':
+      return 0.9;
+    case 'secondary':
+      return 0.7;
+    case 'rare':
+      return 0.45;
+    case 'never':
+      return 0.2;
+    default:
+      return 0.5;
+  }
 }
 
 /** Off-ball screen receiver — distinct from PnR `screenerAction` */
@@ -135,6 +169,15 @@ export interface PlayerInputs {
   postEntry: PostEntry;                   // v2.1 - NEW
   highPostZones?: HighPostZonesMotor | null;
   dunkerSpot?: 0 | 1 | 2 | null;
+
+  offBallRole?: 'screener' | 'cutter' | 'both' | 'none' | null;
+  motorTransitionPrimary?: EditorTransitionPrimaryRole | null;
+  rimRunFrequency?: EditorGradedFrequency | null;
+  trailFrequency?: EditorGradedFrequency | null;
+  offBallScreenPattern?: EditorOffBallScreenKind | null;
+  offBallScreenPatternFreq?: ScreenerActionFrequency | null;
+  isoStrongHandFinish?: EditorIsoHandFinish | null;
+  isoWeakHandFinish?: EditorIsoHandFinish | null;
 
   // Spot-up details
   spotUpAction: 'shoot' | 'pump' | 'either' | null;
@@ -348,13 +391,27 @@ const INFERENCE_RULES = {
     'offBallScreenerAction',
     'offBallCutAction',
     'dunkerSpot',
+    'offBallRole',
+    'motorTransitionPrimary',
+    'rimRunFrequency',
+    'trailFrequency',
+    'offBallScreenPattern',
+    'offBallScreenPatternFreq',
+    'isoStrongHandFinish',
+    'isoWeakHandFinish',
   ],
   
   executionOrder: [
     'contactFinish', 'orebThreat', 'postFreq', 'screenerAction', 'selfCreation', 
     'popRange', 'trapResponse', 'offHandFinish',
     // v2.1 - New inference order
-    'ballHandling', 'pressureResponse'
+    'ballHandling', 'pressureResponse',
+    'motorTransitionPrimary',
+    'rimRunFrequency',
+    'trailFrequency',
+    'offBallScreenPatternFreq',
+    'isoStrongHandFinish',
+    'isoWeakHandFinish',
   ],
   
   inferences: {
@@ -505,7 +562,37 @@ export const OUTPUT_CATALOG = {
     high_post_face_up: { key: 'aware_high_post_face_up', i18nKey: 'output.aware.high_post_face_up', template: 'Face-up drive from elbow — gap stance' },
     high_post_passer: { key: 'aware_high_post_passer', i18nKey: 'output.aware.high_post_passer', template: 'High post passer — deny cutters' },
     high_post_stepback: { key: 'aware_high_post_stepback', i18nKey: 'output.aware.high_post_stepback', template: 'Step-back range from elbow — contest length' },
-    high_post_versatile: { key: 'aware_high_post_versatile', i18nKey: 'output.aware.high_post_versatile', template: 'Versatile: low post + high post game — scout both' }
+    high_post_versatile: { key: 'aware_high_post_versatile', i18nKey: 'output.aware.high_post_versatile', template: 'Versatile: low post + high post game — scout both' },
+    iso_strong_hand_finish: {
+      key: 'aware_iso_strong_hand_finish',
+      i18nKey: 'output.aware.iso_strong_hand_finish',
+      template: 'With dominant hand: prefers {finish}.',
+    },
+    iso_weak_hand_finish: {
+      key: 'aware_iso_weak_hand_finish',
+      i18nKey: 'output.aware.iso_weak_hand_finish',
+      template: 'When forced to weak hand: prefers {finish}.',
+    },
+    trans_rim_run_graded: {
+      key: 'aware_trans_rim_run_graded',
+      i18nKey: 'output.aware.trans_rim_run_graded',
+      template: 'Rim run is {freq} in transition.',
+    },
+    trans_trail_graded: {
+      key: 'aware_trans_trail_graded',
+      i18nKey: 'output.aware.trans_trail_graded',
+      template: 'Trail is {freq} in transition.',
+    },
+    off_ball_screen_graded: {
+      key: 'aware_off_ball_screen_graded',
+      i18nKey: 'output.aware.off_ball_screen_graded',
+      template: '{action} after screen is {freq}.',
+    },
+    off_ball_role: {
+      key: 'aware_off_ball_role',
+      i18nKey: 'output.aware.off_ball_role',
+      template: 'Off-ball role tendency: {role}.',
+    },
   }
 };
 
@@ -631,6 +718,25 @@ export class UScoutMotor {
             source: 'iso_dir'
           });
         }
+      }
+
+      if (inputs.isoStrongHandFinish) {
+        outputs.push({
+          key: 'aware_iso_strong_hand_finish',
+          category: 'aware',
+          weight: Math.min(freqW[inputs.isoFreq] * 0.65, 1.0),
+          source: 'iso_strong_hand_finish',
+          params: { finish: inputs.isoStrongHandFinish },
+        });
+      }
+      if (inputs.isoWeakHandFinish) {
+        outputs.push({
+          key: 'aware_iso_weak_hand_finish',
+          category: 'aware',
+          weight: Math.min(freqW[inputs.isoFreq] * 0.6, 1.0),
+          source: 'iso_weak_hand_finish',
+          params: { finish: inputs.isoWeakHandFinish },
+        });
       }
     }
     
@@ -835,7 +941,7 @@ export class UScoutMotor {
     // =========================================================================
     const hz = inputs.highPostZones;
     if (hz) {
-      const vals = [hz.leftElbow, hz.rightElbow, hz.leftMid, hz.rightMid].filter(
+      const vals = [hz.leftElbow, hz.rightElbow].filter(
         (v): v is HighPostAction => v != null && v !== undefined,
       );
       if (vals.length > 0) {
@@ -972,6 +1078,25 @@ export class UScoutMotor {
       };
       applyTransSub(inputs.transSubPrimary, 1);
       applyTransSub(inputs.transSubSecondary, 0.65);
+
+      if (inputs.motorTransitionPrimary === 'rim_runner' && inputs.rimRunFrequency) {
+        outputs.push({
+          key: 'aware_trans_rim_run_graded',
+          category: 'aware',
+          weight: editorGradedFreqWeight(inputs.rimRunFrequency),
+          source: 'transition_graded',
+          params: { freq: inputs.rimRunFrequency },
+        });
+      }
+      if (inputs.motorTransitionPrimary === 'trail' && inputs.trailFrequency) {
+        outputs.push({
+          key: 'aware_trans_trail_graded',
+          category: 'aware',
+          weight: editorGradedFreqWeight(inputs.trailFrequency),
+          source: 'transition_graded',
+          params: { freq: inputs.trailFrequency },
+        });
+      }
     }
     
     // =========================================================================
@@ -1180,6 +1305,33 @@ export class UScoutMotor {
           source: 'off_ball_cut',
         });
       }
+    }
+
+    if (
+      inputs.offBallScreenPattern &&
+      inputs.offBallScreenPattern !== 'none' &&
+      inputs.offBallScreenPatternFreq
+    ) {
+      outputs.push({
+        key: 'aware_off_ball_screen_graded',
+        category: 'aware',
+        weight: editorGradedFreqWeight(inputs.offBallScreenPatternFreq),
+        source: 'off_ball_screen_graded',
+        params: {
+          action: inputs.offBallScreenPattern,
+          freq: inputs.offBallScreenPatternFreq,
+        },
+      });
+    }
+
+    if (inputs.offBallRole && inputs.offBallRole !== 'none') {
+      outputs.push({
+        key: 'aware_off_ball_role',
+        category: 'aware',
+        weight: 0.55,
+        source: 'off_ball_role',
+        params: { role: inputs.offBallRole },
+      });
     }
     
     // =========================================================================

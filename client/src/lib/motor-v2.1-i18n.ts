@@ -86,6 +86,12 @@ export const MOTOR_V2_1_I18N = {
     'output.aware.high_post_passer': 'High post passer — deny cutters',
     'output.aware.high_post_stepback': 'Step-back range from elbow — contest length',
     'output.aware.high_post_versatile': 'Versatile: low post + high post game — scout both',
+    'output.aware.iso_strong_hand_finish': 'With dominant hand: prefers {finish}.',
+    'output.aware.iso_weak_hand_finish': 'When forced to weak hand: prefers {finish}.',
+    'output.aware.trans_rim_run_graded': 'Rim run is {freq} in transition.',
+    'output.aware.trans_trail_graded': 'Trail is {freq} in transition.',
+    'output.aware.off_ball_screen_graded': '{action} after screen is {freq}.',
+    'output.aware.off_ball_role': 'Off-ball role tendency: {role}.',
     
     // ============= IDENTITY LABELS =============
     'output.identity.primary': 'Primary offensive option',
@@ -231,6 +237,12 @@ export const MOTOR_V2_1_I18N = {
     'output.aware.high_post_passer': 'Pasadora desde poste alto — negar cortes',
     'output.aware.high_post_stepback': 'Step-back desde el codo — contestar con longitud',
     'output.aware.high_post_versatile': 'Versátil: juego bajo y alto — scoutear ambos',
+    'output.aware.iso_strong_hand_finish': 'Con mano dominante: prefiere {finish}.',
+    'output.aware.iso_weak_hand_finish': 'Forzada a mano débil: prefiere {finish}.',
+    'output.aware.trans_rim_run_graded': 'El rim run en transición es {freq}.',
+    'output.aware.trans_trail_graded': 'El trail en transición es {freq}.',
+    'output.aware.off_ball_screen_graded': 'Tras pantalla, {action} es {freq}.',
+    'output.aware.off_ball_role': 'Tendencia de rol sin balón: {role}.',
     
     // ============= IDENTITY LABELS =============
     'output.identity.primary': 'Opción ofensiva principal',
@@ -376,6 +388,12 @@ export const MOTOR_V2_1_I18N = {
     'output.aware.high_post_passer': '高位传球手 — 盯无球切入',
     'output.aware.high_post_stepback': '肘区后撤步射程 — 干扰出手高度',
     'output.aware.high_post_versatile': '低位+高位兼备 — 两种打法都要盯',
+    'output.aware.iso_strong_hand_finish': '强手单打时偏好：{finish}。',
+    'output.aware.iso_weak_hand_finish': '被迫用弱手时偏好：{finish}。',
+    'output.aware.trans_rim_run_graded': '转换冲筐频率：{freq}。',
+    'output.aware.trans_trail_graded': '转换拖后频率：{freq}。',
+    'output.aware.off_ball_screen_graded': '掩护后{action}频率：{freq}。',
+    'output.aware.off_ball_role': '无球角色倾向：{role}。',
     
     // ============= IDENTITY LABELS =============
     'output.identity.primary': '主要进攻选择',
