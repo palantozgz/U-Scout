@@ -175,6 +175,11 @@ const en = {
   backdoor: "Backdoor cuts",
   duck_in_offball: "Duck-in (interior players)",
   orb: "Offensive rebounding",
+  "editor.free_cuts_frequency": "Free cuts",
+  "editor.free_cuts_type": "Cut type",
+  "editor.free_cuts_basket": "Basket cut",
+  "editor.free_cuts_flash": "Flash cut",
+  "editor.free_cuts_both": "Both",
 
   // ── Intensity levels ──────────────────────────────────────────────────────
   primary: "Primary",
@@ -1112,6 +1117,11 @@ const es: I18nStrings = {
   backdoor: "Cortes a la espalda",
   duck_in_offball: "Duck-in (interiores)",
   orb: "Rebote ofensivo",
+  "editor.free_cuts_frequency": "Cortes libres",
+  "editor.free_cuts_type": "Tipo de corte",
+  "editor.free_cuts_basket": "Corte al aro",
+  "editor.free_cuts_flash": "Flash al balón",
+  "editor.free_cuts_both": "Ambos",
 
   primary: "Primario",
   secondary: "Secundario",
@@ -2013,6 +2023,11 @@ const zh: I18nStrings = {
   backdoor: "背切",
   duck_in_offball: "鸭入（内线球员）",
   orb: "前场篮板",
+  "editor.free_cuts_frequency": "无掩护切入",
+  "editor.free_cuts_type": "切入类型",
+  "editor.free_cuts_basket": "切入篮下",
+  "editor.free_cuts_flash": "闪切",
+  "editor.free_cuts_both": "两者皆有",
 
   primary: "主要",
   secondary: "次要",

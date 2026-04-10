@@ -96,6 +96,15 @@ const PUTBACK_QUALITY_I18N: Record<(typeof PUTBACK_QUALITY_OPTS)[number], string
   not_observed: "editor.putback_not_observed",
 };
 
+const FREE_CUTS_TYPE_OPTS = ["basket", "flash", "both"] as const satisfies readonly NonNullable<
+  PlayerInput["freeCutsType"]
+>[];
+const FREE_CUTS_TYPE_I18N: Record<(typeof FREE_CUTS_TYPE_OPTS)[number], string> = {
+  basket: "editor.free_cuts_basket",
+  flash: "editor.free_cuts_flash",
+  both: "editor.free_cuts_both",
+};
+
 const PERSONALITY_TRAITS: {
   id: NonNullable<PlayerInput["personality"]>[number];
   i18nKey: string;
@@ -2172,6 +2181,38 @@ export default function PlayerEditor() {
 
               <IntensitySelector label={t("backdoor")} value={inputs.backdoorFrequency} onChange={v => ui("backdoorFrequency", v)}
                 tooltip={t("hint_backdoor")} />
+
+              <IntensitySelector
+                label={t("editor.free_cuts_frequency")}
+                value={(inputs.freeCutsFrequency ?? "Never") as IntensityLevel}
+                onChange={v => ui("freeCutsFrequency", v)}
+              />
+
+              {inputs.freeCutsFrequency != null && inputs.freeCutsFrequency !== "Never" && (
+                <div className="space-y-2 animate-in fade-in">
+                  <FieldLabel label={t("editor.free_cuts_type")} />
+                  <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                    {FREE_CUTS_TYPE_OPTS.map((opt) => (
+                      <Button
+                        key={opt}
+                        type="button"
+                        variant={inputs.freeCutsType === opt ? "default" : "outline"}
+                        style={{ minHeight: 44 }}
+                        className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                          inputs.freeCutsType === opt
+                            ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white"
+                            : "border-slate-200 dark:border-slate-700"
+                        }`}
+                        onClick={() =>
+                          ui("freeCutsType", inputs.freeCutsType === opt ? null : opt)
+                        }
+                      >
+                        {t(FREE_CUTS_TYPE_I18N[opt] as never)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <IntensitySelector label={t("orb")} value={inputs.offensiveReboundFrequency} onChange={v => ui("offensiveReboundFrequency", v)}
                 tooltip={t("hint_orb")} />

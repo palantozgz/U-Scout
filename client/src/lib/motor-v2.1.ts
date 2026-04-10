@@ -222,6 +222,8 @@ export interface PlayerInputs {
   // Other
   cutType: CutType;                       // v2.1 - MODIFIED (removed duck_in)
   orebThreat: OrebThreat;
+  freeCutsFrequency?: 'Primary' | 'Secondary' | 'Rare' | 'Never' | null;
+  freeCutsType?: 'basket' | 'flash' | 'both' | null;
   putbackQuality?: 'primary' | 'capable' | 'palms_only' | 'not_observed' | null;
 }
 

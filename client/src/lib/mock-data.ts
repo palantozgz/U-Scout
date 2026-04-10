@@ -113,6 +113,8 @@ export interface PlayerInput {
   /** @deprecated Prefer motorPostEntry = duck_in; kept for older saved players. */
   duckInFrequency?: IntensityLevel;
   backdoorFrequency: IntensityLevel;
+  freeCutsFrequency?: "Primary" | "Secondary" | "Rare" | "Never" | null;
+  freeCutsType?: "basket" | "flash" | "both" | null;
   offensiveReboundFrequency: IntensityLevel;
   putbackQuality?: "primary" | "capable" | "palms_only" | "not_observed" | null;
 
@@ -491,6 +493,7 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     motorTransRimIntensity: "Secondary",
     motorTransTrail3Intensity: "Never",
     indirectsFrequency: "Secondary", backdoorFrequency: "Secondary",
+    freeCutsFrequency: "Never", freeCutsType: null,
     offensiveReboundFrequency: "Secondary", putbackQuality: null,
     courtVision: 3,
     transRolePrimary: null,
@@ -830,6 +833,8 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     pressureResponse: inputs.motorPressureResponse ?? null,
     cutType,
     orebThreat,
+    freeCutsFrequency: inputs.freeCutsFrequency ?? "Never",
+    freeCutsType: inputs.freeCutsType ?? null,
     putbackQuality: inputs.putbackQuality ?? null,
     transRolePrimary: inputs.transRolePrimary ?? null,
     transRoleSecondary: inputs.transRoleSecondary ?? null,
