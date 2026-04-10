@@ -72,6 +72,30 @@ const ISO_HAND_FINISH_I18N: Record<(typeof ISO_HAND_FINISH_OPTS)[number], string
   pass: "editor.iso_hand_finish.pass",
 };
 
+const ISO_START_ZONE_OPTS = ["left_wing", "right_wing", "top", "either"] as const satisfies readonly NonNullable<
+  PlayerInput["isoStartZone"]
+>[];
+const ISO_START_ZONE_I18N: Record<(typeof ISO_START_ZONE_OPTS)[number], string> = {
+  left_wing: "editor.iso_zone_left_wing",
+  right_wing: "editor.iso_zone_right_wing",
+  top: "editor.iso_zone_top",
+  either: "editor.iso_zone_either",
+};
+
+const PNR_SIDE_EFF_OPTS = ["high", "medium", "low"] as const satisfies readonly NonNullable<
+  PlayerInput["pnrEffLeft"]
+>[];
+
+const PUTBACK_QUALITY_OPTS = ["primary", "capable", "palms_only", "not_observed"] as const satisfies readonly NonNullable<
+  PlayerInput["putbackQuality"]
+>[];
+const PUTBACK_QUALITY_I18N: Record<(typeof PUTBACK_QUALITY_OPTS)[number], string> = {
+  primary: "editor.putback_converts",
+  capable: "editor.putback_capable",
+  palms_only: "editor.putback_palms",
+  not_observed: "editor.putback_not_observed",
+};
+
 function screenPatternToLegacyScreener(
   p: PlayerInput["offBallScreenPattern"],
 ): PlayerInput["screenerAction"] {
@@ -1252,6 +1276,29 @@ export default function PlayerEditor() {
                   <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("editor.iso_section.creation")}</p>
                     <div className="space-y-2">
+                      <FieldLabel label={t("editor.iso_start_zone")} />
+                      <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                        {ISO_START_ZONE_OPTS.map((z) => (
+                          <Button
+                            key={z}
+                            type="button"
+                            variant={inputs.isoStartZone === z ? "default" : "outline"}
+                            style={{ minHeight: 44 }}
+                            className={`h-auto min-h-11 flex-1 min-w-[7rem] px-4 rounded-xl text-sm ${
+                              inputs.isoStartZone === z
+                                ? "bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900"
+                                : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                            }`}
+                            onClick={() =>
+                              ui("isoStartZone", inputs.isoStartZone === z ? null : z)
+                            }
+                          >
+                            {t(ISO_START_ZONE_I18N[z] as never)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
                       <FieldLabel label={t("iso_dominant_direction")} tooltip={t("hint_iso_dominant_direction")} />
                       <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                         {(["Left", "Right", "Balanced"] as const).map(dir => (
@@ -1451,6 +1498,63 @@ export default function PlayerEditor() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {showHandlerSection && (
+                    <div className="space-y-2">
+                      <FieldLabel label={t("editor.pnr_eff_by_side")} />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                            {t("editor.pnr_eff_left")}
+                          </Label>
+                          <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 8 }}>
+                            {PNR_SIDE_EFF_OPTS.map((lvl) => (
+                              <Button
+                                key={lvl}
+                                type="button"
+                                variant={inputs.pnrEffLeft === lvl ? "default" : "outline"}
+                                style={{ minHeight: 40 }}
+                                className={`h-auto min-h-10 flex-1 min-w-[4.5rem] px-2 rounded-lg text-xs font-semibold ${
+                                  inputs.pnrEffLeft === lvl
+                                    ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-600 hover:text-white"
+                                    : "border-slate-200 dark:border-slate-700"
+                                }`}
+                                onClick={() =>
+                                  ui("pnrEffLeft", inputs.pnrEffLeft === lvl ? null : lvl)
+                                }
+                              >
+                                {t(`editor.eff.${lvl}` as never)}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                            {t("editor.pnr_eff_right")}
+                          </Label>
+                          <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 8 }}>
+                            {PNR_SIDE_EFF_OPTS.map((lvl) => (
+                              <Button
+                                key={lvl}
+                                type="button"
+                                variant={inputs.pnrEffRight === lvl ? "default" : "outline"}
+                                style={{ minHeight: 40 }}
+                                className={`h-auto min-h-10 flex-1 min-w-[4.5rem] px-2 rounded-lg text-xs font-semibold ${
+                                  inputs.pnrEffRight === lvl
+                                    ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-600 hover:text-white"
+                                    : "border-slate-200 dark:border-slate-700"
+                                }`}
+                                onClick={() =>
+                                  ui("pnrEffRight", inputs.pnrEffRight === lvl ? null : lvl)
+                                }
+                              >
+                                {t(`editor.eff.${lvl}` as never)}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <FieldLabel label={t("editor_pnr_finish_eff")} tooltip={t("hint_pnr_finish_eff")} />
                     <Select
@@ -1962,6 +2066,32 @@ export default function PlayerEditor() {
 
               <IntensitySelector label={t("orb")} value={inputs.offensiveReboundFrequency} onChange={v => ui("offensiveReboundFrequency", v)}
                 tooltip={t("hint_orb")} />
+
+              {inputs.offensiveReboundFrequency !== "Never" && (
+                <div className="space-y-2 animate-in fade-in">
+                  <FieldLabel label={t("editor.putback_quality")} />
+                  <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                    {PUTBACK_QUALITY_OPTS.map((q) => (
+                      <Button
+                        key={q}
+                        type="button"
+                        variant={inputs.putbackQuality === q ? "default" : "outline"}
+                        style={{ minHeight: 44 }}
+                        className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                          inputs.putbackQuality === q
+                            ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white"
+                            : "border-slate-200 dark:border-slate-700"
+                        }`}
+                        onClick={() =>
+                          ui("putbackQuality", inputs.putbackQuality === q ? null : q)
+                        }
+                      >
+                        {t(PUTBACK_QUALITY_I18N[q] as never)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>

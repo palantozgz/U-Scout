@@ -159,6 +159,7 @@ export interface PlayerInputs {
   isoDir: Direction;
   isoDec: IsoDecision;
   isoEff: Efficiency;
+  isoStartZone?: 'left_wing' | 'right_wing' | 'top' | 'either' | null;
   
   // Post details
   postProfile: PostProfile;
@@ -178,6 +179,7 @@ export interface PlayerInputs {
   offBallScreenPatternFreq?: ScreenerActionFrequency | null;
   isoStrongHandFinish?: EditorIsoHandFinish | null;
   isoWeakHandFinish?: EditorIsoHandFinish | null;
+  transFinishing?: 'high' | 'medium' | 'low' | 'not_observed' | null;
 
   // Spot-up details
   spotUpAction: 'shoot' | 'pump' | 'either' | null;
@@ -188,6 +190,8 @@ export interface PlayerInputs {
   pnrPri: PnrPriority;
   /** Handler finish efficiency — optional; omit or null when not observed */
   pnrEff?: 'high' | 'medium' | 'low' | null;
+  pnrEffLeft?: 'high' | 'medium' | 'low' | null;
+  pnrEffRight?: 'high' | 'medium' | 'low' | null;
   pnrFinishLeft: PnrHandlerSideFinish;
   pnrFinishRight: PnrHandlerSideFinish;
   trapResponse: TrapResponse;
@@ -217,6 +221,7 @@ export interface PlayerInputs {
   // Other
   cutType: CutType;                       // v2.1 - MODIFIED (removed duck_in)
   orebThreat: OrebThreat;
+  putbackQuality?: 'primary' | 'capable' | 'palms_only' | 'not_observed' | null;
 }
 
 export interface MotorOutput {

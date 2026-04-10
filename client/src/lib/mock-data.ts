@@ -80,6 +80,7 @@ export interface PlayerInput {
 
   // ISO
   isoFrequency: IntensityLevel;
+  isoStartZone?: "left_wing" | "right_wing" | "top" | "either" | null;
   isoDominantDirection: DirectionTendency;
   isoInitiation?: IsoInitiation;
   isoDecision?: IsoDecision;
@@ -111,6 +112,7 @@ export interface PlayerInput {
   duckInFrequency?: IntensityLevel;
   backdoorFrequency: IntensityLevel;
   offensiveReboundFrequency: IntensityLevel;
+  putbackQuality?: "primary" | "capable" | "palms_only" | "not_observed" | null;
 
   courtVision?: PhysicalLevel;
 
@@ -128,6 +130,8 @@ export interface PlayerInput {
   /** ISO / PnR handler finish efficiency for motor weights */
   motorIsoEff?: "high" | "medium" | "low" | null;
   motorPnrEff?: "high" | "medium" | "low" | null;
+  pnrEffLeft?: "high" | "medium" | "low" | null;
+  pnrEffRight?: "high" | "medium" | "low" | null;
   /** Transition: attack rim vs trailer 3 — graded separately from overall transition frequency */
   motorTransRimIntensity?: IntensityLevel;
   motorTransTrail3Intensity?: IntensityLevel;
@@ -163,8 +167,11 @@ export interface PlayerInput {
     | "none"
     | null;
   offBallScreenPatternFreq?: "primary" | "secondary" | "rare" | "never" | null;
+  cutterFrequency?: "primary" | "secondary" | "rare" | "never" | null;
   isoStrongHandFinish?: "drive" | "pullup" | "floater" | "pass" | null;
   isoWeakHandFinish?: "drive" | "pullup" | "floater" | "pass" | null;
+
+  transFinishing?: "high" | "medium" | "low" | "not_observed" | null;
 
   /** Off-ball: action after setting screen (not PnR screener) */
   screenerAction?:
@@ -469,18 +476,19 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     postFrequency: "Never", postProfile: "Back to Basket",
     postPreferredBlock: "Any", postDominantHand: "Right",
     postQuadrants: {}, postDoubleTeamReaction: "Kicks Out", postIsoAction: "Mixed",
-    isoFrequency: "Secondary", isoDominantDirection: "Balanced",
+    isoFrequency: "Secondary", isoStartZone: null, isoDominantDirection: "Balanced",
     isoInitiation: "Controlled", isoDecision: "Finish",
     closeoutReaction: "Attack Baseline",
     pnrFrequency: "Secondary", pnrRole: "Handler", pnrRoleSecondary: "None",
     pnrScoringPriority: "Balanced", pnrScreenerAction: "Roll",
     pnrReactionVsUnder: "Re-screen", pnrTiming: "Deep (Half-court)",
     pnrDirection: "Balanced", pnrDominantFinish: "Drive to Rim", pnrOppositeFinish: "Pull-up",
+    pnrEffLeft: null, pnrEffRight: null,
     transitionFrequency: "Secondary", transitionRole: "Rim Runner",
     motorTransRimIntensity: "Secondary",
     motorTransTrail3Intensity: "Never",
     indirectsFrequency: "Secondary", backdoorFrequency: "Secondary",
-    offensiveReboundFrequency: "Secondary",
+    offensiveReboundFrequency: "Secondary", putbackQuality: null,
     courtVision: 3,
     transRolePrimary: null,
     transRoleSecondary: null,
@@ -494,8 +502,10 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     trailFrequency: null,
     offBallScreenPattern: null,
     offBallScreenPatternFreq: null,
+    cutterFrequency: "never",
     isoStrongHandFinish: null,
     isoWeakHandFinish: null,
+    transFinishing: null,
     screenerAction: null,
     offBallCutAction: null,
   };
@@ -788,6 +798,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
           : "B",
     isoDec:
       inputs.isoDecision === "Shoot" ? "S" : inputs.isoDecision === "Pass" ? "P" : "F",
+    isoStartZone: inputs.isoStartZone ?? null,
     isoEff: inputs.motorIsoEff ?? null,
     postProfile: mapMotorPostProfile(),
     postZone: null,
@@ -801,6 +812,8 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     deepRange,
     pnrPri,
     pnrEff: inputs.motorPnrEff ?? null,
+    pnrEffLeft: inputs.pnrEffLeft ?? null,
+    pnrEffRight: inputs.pnrEffRight ?? null,
     pnrFinishLeft: inputs.pnrFinishBallLeft ?? null,
     pnrFinishRight: inputs.pnrFinishBallRight ?? null,
     trapResponse,
@@ -813,6 +826,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     pressureResponse: inputs.motorPressureResponse ?? null,
     cutType,
     orebThreat,
+    putbackQuality: inputs.putbackQuality ?? null,
     transRolePrimary: inputs.transRolePrimary ?? null,
     transRoleSecondary: inputs.transRoleSecondary ?? null,
     transSubPrimary: inputs.transSubPrimary ?? null,
@@ -827,6 +841,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     offBallScreenPatternFreq: inputs.offBallScreenPatternFreq ?? null,
     isoStrongHandFinish: inputs.isoStrongHandFinish ?? null,
     isoWeakHandFinish: inputs.isoWeakHandFinish ?? null,
+    transFinishing: inputs.transFinishing ?? null,
     offBallScreenerAction: inputs.screenerAction ?? null,
     offBallCutAction: inputs.offBallCutAction ?? null,
   };
