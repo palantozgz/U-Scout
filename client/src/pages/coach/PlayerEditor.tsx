@@ -102,7 +102,7 @@ const PUTBACK_QUALITY_OPTS = ["primary", "capable", "palms_only", "not_observed"
 const PUTBACK_QUALITY_I18N: Record<(typeof PUTBACK_QUALITY_OPTS)[number], string> = {
   primary: "editor.putback_converts",
   capable: "editor.putback_capable",
-  palms_only: "editor.putback_palms",
+  palms_only: "editor.putback_tips",
   not_observed: "editor.putback_not_observed",
 };
 
@@ -125,6 +125,12 @@ const PERSONALITY_TRAITS: {
   { id: "selfish", i18nKey: "editor.personality_selfish", tone: "negative" },
   { id: "freezes", i18nKey: "editor.personality_freezes", tone: "negative" },
 ];
+
+type PillScheme = "default" | "neutral";
+function pillActiveClasses(scheme: PillScheme): string {
+  if (scheme === "neutral") return "bg-slate-700 border-slate-600 text-white dark:bg-slate-600";
+  return "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white";
+}
 
 function screenPatternToLegacyScreener(
   p: PlayerInput["offBallScreenPattern"],
@@ -916,7 +922,7 @@ export default function PlayerEditor() {
                     variant="ghost"
                     size="icon"
                     className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20"
-                    title={t("editor.star_player")}
+                    title={t("editor.star_player_hint")}
                     aria-label={t("editor.star_player")}
                     aria-pressed={inputs.starPlayer === true}
                     onClick={() => ui("starPlayer", inputs.starPlayer !== true)}
@@ -959,7 +965,11 @@ export default function PlayerEditor() {
                               ui("position", next);
                             }
                           }}
-                          className={`inline-flex min-h-11 min-w-11 items-center justify-center px-4 py-2 rounded-xl text-sm font-bold border transition-all ${selected ? "bg-primary border-primary text-white" : "bg-transparent border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-primary/50"}`}>
+                          className={`inline-flex min-h-11 min-w-11 items-center justify-center px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
+                            selected
+                              ? pillActiveClasses("neutral")
+                              : "bg-transparent border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-primary/50"
+                          }`}>
                           {pos}
                         </button>
                       );
@@ -1401,8 +1411,7 @@ export default function PlayerEditor() {
                     </div>
                   )}
 
-                  <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("editor.iso_section.creation")}</p>
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
                     <div className="space-y-2">
                       <FieldLabel label={t("editor.iso_start_zone")} />
                       <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
@@ -1414,7 +1423,7 @@ export default function PlayerEditor() {
                             style={{ minHeight: 44 }}
                             className={`h-auto min-h-11 flex-1 min-w-[7rem] px-4 rounded-xl text-sm ${
                               inputs.isoStartZone === z
-                                ? "bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900"
+                                ? pillActiveClasses("neutral")
                                 : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
                             }`}
                             onClick={() =>
@@ -1432,7 +1441,11 @@ export default function PlayerEditor() {
                         {(["Left", "Right", "Balanced"] as const).map(dir => (
                           <Button key={dir} type="button" variant={inputs.isoDominantDirection === dir ? "default" : "outline"}
                             style={{ minHeight: 44 }}
-                            className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${inputs.isoDominantDirection === dir ? "bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                            className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${
+                              inputs.isoDominantDirection === dir
+                                ? pillActiveClasses("neutral")
+                                : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                            }`}
                             onClick={() => ui("isoDominantDirection", dir)}>{dir === "Left" ? t("dir_left") : dir === "Right" ? t("dir_right") : t("dir_balanced")}</Button>
                         ))}
                       </div>
@@ -1486,8 +1499,7 @@ export default function PlayerEditor() {
                     )}
                   </div>
 
-                  <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("editor.iso_closeout_reaction")}</p>
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
                     <FieldLabel label={t("closeout_general")} tooltip={t("hint_closeout_general")} />
                     <Select value={inputs.closeoutReaction} onValueChange={v => ui("closeoutReaction", v)}>
                       <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
@@ -1500,15 +1512,13 @@ export default function PlayerEditor() {
                         <SelectItem value="Extra Pass">{t("opt_closeout_extra_pass")}</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("per_wing_override")}</p>
                     <div className="grid grid-cols-2 gap-3">
                       <CloseoutSelect label={`⬅️ ${t("left_wing")}`} value={inputs.closeoutLeft} onChange={v => ui("closeoutLeft", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
                       <CloseoutSelect label={`➡️ ${t("right_wing")}`} value={inputs.closeoutRight} onChange={v => ui("closeoutRight", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
                     </div>
                   </div>
 
-                  <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("editor.iso_finishing")}</p>
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3 animate-in fade-in">
                     <div className="space-y-2">
                       <FieldLabel
                         label={t("editor.iso_strong_hand_finish")}
@@ -1523,7 +1533,7 @@ export default function PlayerEditor() {
                             style={{ minHeight: 44 }}
                             className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
                               inputs.isoStrongHandFinish === fin
-                                ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                                ? pillActiveClasses("neutral")
                                 : "bg-transparent border-slate-200 dark:border-slate-700"
                             }`}
                             onClick={() =>
@@ -1553,7 +1563,7 @@ export default function PlayerEditor() {
                               style={{ minHeight: 44 }}
                               className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
                                 effectiveWeak === fin
-                                  ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                                  ? pillActiveClasses("neutral")
                                   : "bg-transparent border-slate-200 dark:border-slate-700"
                               }`}
                               onClick={() => {
@@ -1590,7 +1600,11 @@ export default function PlayerEditor() {
                   {["Handler", "Screener", "Both"].map(v => (
                     <Button key={v} type="button" variant={(inputs.pnrRole as any) === v ? "default" : "outline"}
                       style={{ minHeight: 44 }}
-                      className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${(inputs.pnrRole as any) === v ? "bg-slate-800 text-white dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                      className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${
+                        (inputs.pnrRole as any) === v
+                          ? pillActiveClasses("neutral")
+                          : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                      }`}
                       onClick={() => ui("pnrRole", v as any)}>{v === "Handler" ? t("handler") : v === "Screener" ? t("screener") : t("both")}</Button>
                   ))}
                 </div>
@@ -1603,7 +1617,11 @@ export default function PlayerEditor() {
                     {["Handler", "Screener", "Balanced"].map(v => (
                       <Button key={v} type="button" variant={inputs.pnrRoleSecondary === v ? "default" : "outline"}
                         style={{ minHeight: 44 }}
-                        className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${inputs.pnrRoleSecondary === v ? "bg-blue-500 border-blue-500 text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                        className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${
+                          inputs.pnrRoleSecondary === v
+                            ? pillActiveClasses("neutral")
+                            : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                        }`}
                         onClick={() => ui("pnrRoleSecondary", v as any)}>
                         {v === "Handler" ? t("handler") : v === "Screener" ? t("screener") : t("balanced")}
                       </Button>
@@ -1613,7 +1631,7 @@ export default function PlayerEditor() {
               )}
 
               {showHandlerSection && (
-                <div className={`space-y-4 ${pnrBoth ? "border border-slate-200 dark:border-slate-700 rounded-xl p-3" : ""} animate-in fade-in`}>
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3 animate-in fade-in">
                   {pnrBoth && <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("as_handler")}</p>}
                   <div className="space-y-2">
                     <FieldLabel label={t("pnr_scoring_priority")} tooltip={t("hint_pnr_scoring")} />
@@ -1643,7 +1661,7 @@ export default function PlayerEditor() {
                                 style={{ minHeight: 40 }}
                                 className={`h-auto min-h-10 flex-1 min-w-[4.5rem] px-2 rounded-lg text-xs font-semibold ${
                                   inputs.pnrEffLeft === lvl
-                                    ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-600 hover:text-white"
+                                    ? pillActiveClasses("neutral")
                                     : "border-slate-200 dark:border-slate-700"
                                 }`}
                                 onClick={() =>
@@ -1668,7 +1686,7 @@ export default function PlayerEditor() {
                                 style={{ minHeight: 40 }}
                                 className={`h-auto min-h-10 flex-1 min-w-[4.5rem] px-2 rounded-lg text-xs font-semibold ${
                                   inputs.pnrEffRight === lvl
-                                    ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-600 hover:text-white"
+                                    ? pillActiveClasses("neutral")
                                     : "border-slate-200 dark:border-slate-700"
                                 }`}
                                 onClick={() =>
@@ -1722,9 +1740,7 @@ export default function PlayerEditor() {
                     </Select>
                   </div>
                   {(inputs.pnrFrequency === "Primary" || inputs.pnrFrequency === "Secondary") && (
-                    <div className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3">
-                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("editor.pnr_section.finish_tendencies")}</p>
-                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("finish_by_direction")}</p>
+                    <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t("pnr_primary_option")}</Label>
@@ -1792,7 +1808,7 @@ export default function PlayerEditor() {
               )}
 
               {showScreenerSection && (
-                <div className={`space-y-4 ${pnrBoth ? "border border-slate-200 dark:border-slate-700 rounded-xl p-3" : ""} animate-in fade-in`}>
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3 animate-in fade-in">
                   {pnrBoth && <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("as_screener")}</p>}
                   <div className="space-y-2">
                     <FieldLabel
@@ -1808,7 +1824,7 @@ export default function PlayerEditor() {
                           style={{ minHeight: 44 }}
                           className={`h-auto min-h-11 flex-1 min-w-[8rem] px-4 py-2 rounded-xl text-sm font-semibold ${
                             inputs.pnrScreenTiming === opt
-                              ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-600 hover:text-white"
+                              ? pillActiveClasses("neutral")
                               : "border-slate-200 dark:border-slate-700"
                           }`}
                           onClick={() =>
@@ -1857,7 +1873,7 @@ export default function PlayerEditor() {
                       style={{ minHeight: 44 }}
                       className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
                         inputs.offBallRole === roleOpt
-                          ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white"
+                          ? pillActiveClasses("neutral")
                           : ""
                       }`}
                       onClick={() => ui("offBallRole", inputs.offBallRole === roleOpt ? null : roleOpt)}
@@ -1921,7 +1937,7 @@ export default function PlayerEditor() {
                               style={{ minHeight: 44 }}
                               className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
                                 inputs.offBallScreenPattern === opt
-                                  ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white"
+                                  ? pillActiveClasses("neutral")
                                   : ""
                               }`}
                               onClick={() => {
@@ -2015,7 +2031,7 @@ export default function PlayerEditor() {
                               style={{ minHeight: 44 }}
                               className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
                                 inputs.offBallCutAction === opt
-                                  ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white"
+                                  ? pillActiveClasses("neutral")
                                   : ""
                               }`}
                               onClick={() => ui("offBallCutAction", inputs.offBallCutAction === opt ? null : opt)}
@@ -2052,111 +2068,47 @@ export default function PlayerEditor() {
                 </div>
               )}
 
-              <IntensitySelector label={t("transition_frequency")} value={inputs.transitionFrequency} onChange={v => ui("transitionFrequency", v)}
-                tooltip={t("hint_transition_frequency")} />
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
+                <IntensitySelector
+                  label={t("transition_frequency")}
+                  value={inputs.transitionFrequency}
+                  onChange={v => ui("transitionFrequency", v)}
+                  tooltip={t("hint_transition_frequency")}
+                />
 
-              <div className="mt-2 space-y-3">
-                <FieldLabel label={t("editor.trans_role_primary")} tooltip={t("hint_transition_frequency")} />
-                <div className="flex flex-wrap gap-3">
-                  {TRANS_EDITOR_ROLES.map((role) => (
-                    <Button
-                      key={role}
-                      type="button"
-                      variant={inputs.transRolePrimary === role ? "default" : "outline"}
-                      style={{ minHeight: 44 }}
-                      className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
-                        inputs.transRolePrimary === role
-                          ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
-                          : "border-slate-200 dark:border-slate-700"
-                      }`}
-                      onClick={() => {
-                        if (inputs.transRolePrimary === role) return;
-                        ui("transRolePrimary", role);
-                        ui("transSubPrimary", null);
-                        ui("transRoleSecondary", null);
-                        ui("transSubSecondary", null);
-                      }}
-                    >
-                      {t(`editor.trans_role.${role}` as never)}
-                    </Button>
-                  ))}
-                  <Button
-                    type="button"
-                    variant={inputs.transRolePrimary == null ? "secondary" : "outline"}
-                    style={{ minHeight: 44 }}
-                    className="h-auto px-4 py-2 rounded-lg text-sm font-semibold"
-                    onClick={() => {
-                      ui("transRolePrimary", null);
-                      ui("transSubPrimary", null);
-                      ui("transRoleSecondary", null);
-                      ui("transSubSecondary", null);
-                    }}
-                  >
-                    {t("editor.trans_role_none")}
-                  </Button>
-                </div>
-                {inputs.transRolePrimary && (
-                  <div className="space-y-1.5 pl-0.5">
-                    <div className="flex flex-wrap gap-3">
-                      {TRANS_ROLE_SUB_OPTIONS[inputs.transRolePrimary].map((sub) => (
-                        <Button
-                          key={sub}
-                          type="button"
-                          variant={inputs.transSubPrimary === sub ? "default" : "outline"}
-                          style={{ minHeight: 40 }}
-                          className={`h-auto text-xs px-3 py-2 rounded-md font-semibold ${
-                            inputs.transSubPrimary === sub
-                              ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
-                              : "border-slate-200 dark:border-slate-700"
-                          }`}
-                          onClick={() => ui("transSubPrimary", inputs.transSubPrimary === sub ? null : sub)}
-                        >
-                          {t(`editor.trans_sub.${sub}` as never)}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {inputs.transRolePrimary && (
-                <div className="mt-4 space-y-3">
-                  <FieldLabel label={t("editor.trans_role_secondary")} tooltip={t("hint_transition_frequency")} />
+                <div className="space-y-3">
+                  <FieldLabel label={t("editor.trans_role_primary")} tooltip={t("hint_transition_frequency")} />
                   <div className="flex flex-wrap gap-3">
-                    {TRANS_EDITOR_ROLES.map((role) => {
-                      const disabled = role === inputs.transRolePrimary;
-                      return (
-                        <Button
-                          key={role}
-                          type="button"
-                          disabled={disabled}
-                          variant={inputs.transRoleSecondary === role ? "default" : "outline"}
-                          style={{ minHeight: 44 }}
-                          className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
-                            inputs.transRoleSecondary === role
-                              ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
-                              : "border-slate-200 dark:border-slate-700"
-                          } ${disabled ? "opacity-40 pointer-events-none cursor-not-allowed" : ""}`}
-                          onClick={() => {
-                            if (inputs.transRoleSecondary === role) {
-                              ui("transRoleSecondary", null);
-                              ui("transSubSecondary", null);
-                            } else {
-                              ui("transRoleSecondary", role);
-                              ui("transSubSecondary", null);
-                            }
-                          }}
-                        >
-                          {t(`editor.trans_role.${role}` as never)}
-                        </Button>
-                      );
-                    })}
+                    {TRANS_EDITOR_ROLES.map((role) => (
+                      <Button
+                        key={role}
+                        type="button"
+                        variant={inputs.transRolePrimary === role ? "default" : "outline"}
+                        style={{ minHeight: 44 }}
+                        className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
+                          inputs.transRolePrimary === role
+                            ? pillActiveClasses("neutral")
+                            : "border-slate-200 dark:border-slate-700"
+                        }`}
+                        onClick={() => {
+                          if (inputs.transRolePrimary === role) return;
+                          ui("transRolePrimary", role);
+                          ui("transSubPrimary", null);
+                          ui("transRoleSecondary", null);
+                          ui("transSubSecondary", null);
+                        }}
+                      >
+                        {t(`editor.trans_role.${role}` as never)}
+                      </Button>
+                    ))}
                     <Button
                       type="button"
-                      variant={inputs.transRoleSecondary == null ? "secondary" : "outline"}
+                      variant={inputs.transRolePrimary == null ? "secondary" : "outline"}
                       style={{ minHeight: 44 }}
                       className="h-auto px-4 py-2 rounded-lg text-sm font-semibold"
                       onClick={() => {
+                        ui("transRolePrimary", null);
+                        ui("transSubPrimary", null);
                         ui("transRoleSecondary", null);
                         ui("transSubSecondary", null);
                       }}
@@ -2164,21 +2116,21 @@ export default function PlayerEditor() {
                       {t("editor.trans_role_none")}
                     </Button>
                   </div>
-                  {inputs.transRoleSecondary && (
+                  {inputs.transRolePrimary && (
                     <div className="space-y-1.5 pl-0.5">
                       <div className="flex flex-wrap gap-3">
-                        {TRANS_ROLE_SUB_OPTIONS[inputs.transRoleSecondary].map((sub) => (
+                        {TRANS_ROLE_SUB_OPTIONS[inputs.transRolePrimary].map((sub) => (
                           <Button
                             key={sub}
                             type="button"
-                            variant={inputs.transSubSecondary === sub ? "default" : "outline"}
-                            style={{ minHeight: 36 }}
-                            className={`h-auto text-xs px-2.5 py-1.5 rounded-md font-semibold ${
-                              inputs.transSubSecondary === sub
-                                ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                            variant={inputs.transSubPrimary === sub ? "default" : "outline"}
+                            style={{ minHeight: 40 }}
+                            className={`h-auto text-xs px-3 py-2 rounded-md font-semibold ${
+                              inputs.transSubPrimary === sub
+                                ? pillActiveClasses("neutral")
                                 : "border-slate-200 dark:border-slate-700"
                             }`}
-                            onClick={() => ui("transSubSecondary", inputs.transSubSecondary === sub ? null : sub)}
+                            onClick={() => ui("transSubPrimary", inputs.transSubPrimary === sub ? null : sub)}
                           >
                             {t(`editor.trans_sub.${sub}` as never)}
                           </Button>
@@ -2187,38 +2139,108 @@ export default function PlayerEditor() {
                     </div>
                   )}
                 </div>
-              )}
 
-              {showTransFinishing && (
-                <div className="mt-4 space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
-                  <FieldLabel label={t("editor.trans_finishing")} />
-                  <div className="flex flex-wrap gap-3">
-                    {(
-                      [
-                        { v: "high" as const, labelKey: "editor.eff.high" },
-                        { v: "medium" as const, labelKey: "editor.eff.medium" },
-                        { v: "low" as const, labelKey: "editor.eff.low" },
-                        { v: "not_observed" as const, labelKey: "not_observed" },
-                      ] as const
-                    ).map(({ v, labelKey }) => (
+                {inputs.transRolePrimary && (
+                  <div className="space-y-3">
+                    <FieldLabel label={t("editor.trans_role_secondary")} tooltip={t("hint_transition_frequency")} />
+                    <div className="flex flex-wrap gap-3">
+                      {TRANS_EDITOR_ROLES.map((role) => {
+                        const disabled = role === inputs.transRolePrimary;
+                        return (
+                          <Button
+                            key={role}
+                            type="button"
+                            disabled={disabled}
+                            variant={inputs.transRoleSecondary === role ? "default" : "outline"}
+                            style={{ minHeight: 44 }}
+                            className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
+                              inputs.transRoleSecondary === role
+                                ? pillActiveClasses("neutral")
+                                : "border-slate-200 dark:border-slate-700"
+                            } ${disabled ? "opacity-40 pointer-events-none cursor-not-allowed" : ""}`}
+                            onClick={() => {
+                              if (inputs.transRoleSecondary === role) {
+                                ui("transRoleSecondary", null);
+                                ui("transSubSecondary", null);
+                              } else {
+                                ui("transRoleSecondary", role);
+                                ui("transSubSecondary", null);
+                              }
+                            }}
+                          >
+                            {t(`editor.trans_role.${role}` as never)}
+                          </Button>
+                        );
+                      })}
                       <Button
-                        key={v}
                         type="button"
-                        variant={inputs.transFinishing === v ? "default" : "outline"}
+                        variant={inputs.transRoleSecondary == null ? "secondary" : "outline"}
                         style={{ minHeight: 44 }}
-                        className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
-                          inputs.transFinishing === v
-                            ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
-                            : "border-slate-200 dark:border-slate-700"
-                        }`}
-                        onClick={() => ui("transFinishing", inputs.transFinishing === v ? null : v)}
+                        className="h-auto px-4 py-2 rounded-lg text-sm font-semibold"
+                        onClick={() => {
+                          ui("transRoleSecondary", null);
+                          ui("transSubSecondary", null);
+                        }}
                       >
-                        {t(labelKey as never)}
+                        {t("editor.trans_role_none")}
                       </Button>
-                    ))}
+                    </div>
+                    {inputs.transRoleSecondary && (
+                      <div className="space-y-1.5 pl-0.5">
+                        <div className="flex flex-wrap gap-3">
+                          {TRANS_ROLE_SUB_OPTIONS[inputs.transRoleSecondary].map((sub) => (
+                            <Button
+                              key={sub}
+                              type="button"
+                              variant={inputs.transSubSecondary === sub ? "default" : "outline"}
+                              style={{ minHeight: 36 }}
+                              className={`h-auto text-xs px-2.5 py-1.5 rounded-md font-semibold ${
+                                inputs.transSubSecondary === sub
+                                  ? pillActiveClasses("neutral")
+                                  : "border-slate-200 dark:border-slate-700"
+                              }`}
+                              onClick={() => ui("transSubSecondary", inputs.transSubSecondary === sub ? null : sub)}
+                            >
+                              {t(`editor.trans_sub.${sub}` as never)}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+
+                {showTransFinishing && (
+                  <div className="space-y-2 animate-in fade-in">
+                    <FieldLabel label={t("editor.trans_finishing")} />
+                    <div className="flex flex-wrap gap-3">
+                      {(
+                        [
+                          { v: "high" as const, labelKey: "editor.eff.high" },
+                          { v: "medium" as const, labelKey: "editor.eff.medium" },
+                          { v: "low" as const, labelKey: "editor.eff.low" },
+                          { v: "not_observed" as const, labelKey: "not_observed" },
+                        ] as const
+                      ).map(({ v, labelKey }) => (
+                        <Button
+                          key={v}
+                          type="button"
+                          variant={inputs.transFinishing === v ? "default" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
+                            inputs.transFinishing === v
+                              ? pillActiveClasses("neutral")
+                              : "border-slate-200 dark:border-slate-700"
+                          }`}
+                          onClick={() => ui("transFinishing", inputs.transFinishing === v ? null : v)}
+                        >
+                          {t(labelKey as never)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <IntensitySelector label={t("backdoor")} value={inputs.backdoorFrequency} onChange={v => ui("backdoorFrequency", v)}
                 tooltip={t("hint_backdoor")} />
@@ -2241,7 +2263,7 @@ export default function PlayerEditor() {
                         style={{ minHeight: 44 }}
                         className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
                           inputs.freeCutsType === opt
-                            ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white"
+                            ? pillActiveClasses("neutral")
                             : "border-slate-200 dark:border-slate-700"
                         }`}
                         onClick={() =>
@@ -2270,7 +2292,7 @@ export default function PlayerEditor() {
                         style={{ minHeight: 44 }}
                         className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
                           inputs.putbackQuality === q
-                            ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white"
+                            ? pillActiveClasses("neutral")
                             : "border-slate-200 dark:border-slate-700"
                         }`}
                         onClick={() =>
