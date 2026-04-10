@@ -97,6 +97,7 @@ export interface PlayerInput {
   pnrRole: "Handler" | "Screener" | "Both";
   pnrRoleSecondary?: "Handler" | "Screener" | "Balanced" | "None";
   pnrScoringPriority: "Score First" | "Pass First" | "Balanced";
+  pnrScreenTiming?: "holds_long" | "quick_release" | "ghost_touch" | "slip" | null;
   pnrScreenerAction: ScreenerAction;
   pnrScreenerActionSecondary?: ScreenerAction;
   pnrReactionVsUnder: "Pull-up 3" | "Re-screen" | "Reject / Attack";
@@ -486,6 +487,7 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     closeoutReaction: "Attack Baseline",
     pnrFrequency: "Secondary", pnrRole: "Handler", pnrRoleSecondary: "None",
     pnrScoringPriority: "Balanced", pnrScreenerAction: "Roll",
+    pnrScreenTiming: null,
     pnrReactionVsUnder: "Re-screen", pnrTiming: "Deep (Half-court)",
     pnrDirection: "Balanced", pnrDominantFinish: "Drive to Rim", pnrOppositeFinish: "Pull-up",
     pnrEffLeft: null, pnrEffRight: null,
@@ -825,6 +827,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     pnrFinishRight: inputs.pnrFinishBallRight ?? null,
     trapResponse,
     screenerAction: screenerToMotor(),
+    pnrScreenTiming: inputs.pnrScreenTiming ?? null,
     popRange: deepRange ? "three" : "midrange",
     dhoRole: null,
     dhoAction: null,

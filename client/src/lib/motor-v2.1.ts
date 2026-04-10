@@ -199,6 +199,7 @@ export interface PlayerInputs {
   
   // Screener details
   screenerAction: ScreenerAction;
+  pnrScreenTiming?: 'holds_long' | 'quick_release' | 'ghost_touch' | 'slip' | null;
   popRange: PopRange;
   /** Off-ball screens (after setting pick) — bridged from PlayerInput.screenerAction */
   offBallScreenerAction?: OffBallScreenerAction;

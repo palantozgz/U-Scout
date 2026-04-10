@@ -86,6 +86,16 @@ const PNR_SIDE_EFF_OPTS = ["high", "medium", "low"] as const satisfies readonly 
   PlayerInput["pnrEffLeft"]
 >[];
 
+const PNR_SCREEN_TIMING_OPTS = ["holds_long", "quick_release", "ghost_touch", "slip"] as const satisfies readonly NonNullable<
+  PlayerInput["pnrScreenTiming"]
+>[];
+const PNR_SCREEN_TIMING_I18N: Record<(typeof PNR_SCREEN_TIMING_OPTS)[number], string> = {
+  holds_long: "editor.pnr_timing_holds_long",
+  quick_release: "editor.pnr_timing_quick",
+  ghost_touch: "editor.pnr_timing_ghost",
+  slip: "editor.pnr_timing_slip",
+};
+
 const PUTBACK_QUALITY_OPTS = ["primary", "capable", "palms_only", "not_observed"] as const satisfies readonly NonNullable<
   PlayerInput["putbackQuality"]
 >[];
@@ -1784,12 +1794,43 @@ export default function PlayerEditor() {
               {showScreenerSection && (
                 <div className={`space-y-4 ${pnrBoth ? "border border-slate-200 dark:border-slate-700 rounded-xl p-3" : ""} animate-in fade-in`}>
                   {pnrBoth && <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("as_screener")}</p>}
-                  <ScreenerActionSelector
-                    primaryValue={inputs.pnrScreenerAction}
-                    secondaryValue={(inputs as any).pnrScreenerActionSecondary}
-                    onPrimaryChange={v => ui("pnrScreenerAction", v)}
-                    onSecondaryChange={v => ui("pnrScreenerActionSecondary" as any, v)}
-                  />
+                  <div className="space-y-2">
+                    <FieldLabel
+                      label={t("editor.pnr_screen_timing")}
+                      tooltip={t("hint_pnr_screen_timing")}
+                    />
+                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                      {PNR_SCREEN_TIMING_OPTS.map((opt) => (
+                        <Button
+                          key={opt}
+                          type="button"
+                          variant={inputs.pnrScreenTiming === opt ? "default" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className={`h-auto min-h-11 flex-1 min-w-[8rem] px-4 py-2 rounded-xl text-sm font-semibold ${
+                            inputs.pnrScreenTiming === opt
+                              ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-600 hover:text-white"
+                              : "border-slate-200 dark:border-slate-700"
+                          }`}
+                          onClick={() =>
+                            ui("pnrScreenTiming", inputs.pnrScreenTiming === opt ? null : opt)
+                          }
+                        >
+                          {t(PNR_SCREEN_TIMING_I18N[opt] as never)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {inputs.pnrScreenTiming === "slip" ? (
+                    <p className="text-xs text-slate-400">{t("editor.pnr_slip_note")}</p>
+                  ) : (
+                    <ScreenerActionSelector
+                      primaryValue={inputs.pnrScreenerAction}
+                      secondaryValue={(inputs as any).pnrScreenerActionSecondary}
+                      onPrimaryChange={v => ui("pnrScreenerAction", v)}
+                      onSecondaryChange={v => ui("pnrScreenerActionSecondary" as any, v)}
+                    />
+                  )}
                 </div>
               )}
                 </>
