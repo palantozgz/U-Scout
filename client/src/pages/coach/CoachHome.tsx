@@ -48,7 +48,7 @@ export default function CoachHome() {
           }}
           className="text-foreground"
         >
-          <UScoutLogo size={52} animated={true} />
+          <UScoutLogo size={204} animated={true} />
           <span
             style={{
               fontSize: "11px",

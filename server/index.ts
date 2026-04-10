@@ -22,6 +22,11 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Ensure browsers requesting the default /favicon.ico get an icon asset (dev + prod).
+app.get("/favicon.ico", (_req, res) => {
+  res.redirect(302, "/favicon.svg?v=5");
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",

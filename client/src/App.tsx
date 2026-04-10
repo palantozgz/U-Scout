@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -92,22 +92,40 @@ function AuthGate() {
 }
 
 function App() {
-  const { loading } = useAuth();
+  const { loading, user, profile } = useAuth();
   const [loc] = useLocation();
   const isJoinRoute = loc.startsWith("/join/") || loc.startsWith("/join-club/");
-  const [skipSplash] = useState(readSplashAlreadyShown);
+  const [skipSplash, setSkipSplash] = useState(readSplashAlreadyShown);
   const [splashDone, setSplashDone] = useState(skipSplash);
   const [splashPhase, setSplashPhase] = useState<"on" | "fade" | "off">(
     skipSplash ? "off" : "on",
   );
+  const wasAuthedRef = useRef<boolean>(false);
+  const isAuthed = !!user && !!profile;
+
+  // Show splash after login (unauthenticated -> authenticated).
+  useEffect(() => {
+    const wasAuthed = wasAuthedRef.current;
+    wasAuthedRef.current = isAuthed;
+    if (wasAuthed || !isAuthed) return;
+
+    try {
+      sessionStorage.removeItem(SPLASH_SHOWN_KEY);
+    } catch {
+      /* ignore */
+    }
+    setSkipSplash(false);
+    setSplashDone(false);
+    setSplashPhase("on");
+  }, [isAuthed]);
 
   useEffect(() => {
     if (skipSplash) return;
-    const id = window.setTimeout(() => setSplashDone(true), 3500);
+    const id = window.setTimeout(() => setSplashDone(true), 3000);
     return () => window.clearTimeout(id);
   }, [skipSplash]);
 
-  const showSplash = !skipSplash && (loading || !splashDone);
+  const showSplash = !skipSplash && !splashDone;
 
   useEffect(() => {
     if (skipSplash) return;

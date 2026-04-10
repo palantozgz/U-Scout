@@ -921,8 +921,12 @@ export default function PlayerEditor() {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20"
-                    title={t("editor.star_player_hint")}
+                    className={`h-12 w-12 shrink-0 rounded-xl border transition-colors ${
+                      inputs.starPlayer === true
+                        ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+                        : "border-slate-200 dark:border-slate-700 text-slate-400"
+                    } hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20`}
+                    title={`${t("editor.star_player_hint")} — ${t("editor.star_player_limit_note")}`}
                     aria-label={t("editor.star_player")}
                     aria-pressed={inputs.starPlayer === true}
                     onClick={() => ui("starPlayer", inputs.starPlayer !== true)}
@@ -932,6 +936,29 @@ export default function PlayerEditor() {
                       strokeWidth={inputs.starPlayer === true ? 0 : 1.5}
                     />
                   </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                      inputs.starPlayer === true
+                        ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                        : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700"
+                    }`}
+                  >
+                    <Star
+                      className={`w-3 h-3 ${
+                        inputs.starPlayer === true
+                          ? "fill-amber-400 text-amber-400"
+                          : "text-slate-400 fill-none dark:text-slate-400"
+                      }`}
+                      strokeWidth={inputs.starPlayer === true ? 0 : 1.5}
+                    />
+                    {t("editor.star_player_badge_label")}
+                    <Tooltip text={`${t("editor.star_player_hint")}\n\n${t("editor.star_player_limit_note")}`} />
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {t("editor.star_player_limit_note")}
+                  </span>
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -1363,6 +1390,25 @@ export default function PlayerEditor() {
               <IntensitySelector label={t("iso_frequency")} value={inputs.isoFrequency} onChange={v => ui("isoFrequency", v)}
                 tooltip={t("hint_iso_frequency")} />
 
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
+                <FieldLabel label={t("closeout_general")} tooltip={t("hint_closeout_general")} />
+                <Select value={inputs.closeoutReaction} onValueChange={v => ui("closeoutReaction", v)}>
+                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Catch & Shoot">{t("opt_closeout_catch_shoot")}</SelectItem>
+                    <SelectItem value="Attack Baseline">{t("opt_closeout_attack_baseline")}</SelectItem>
+                    <SelectItem value="Attack Middle">{t("opt_closeout_attack_middle")}</SelectItem>
+                    <SelectItem value="Attacks Strong Hand">{t("opt_closeout_strong_hand")}</SelectItem>
+                    <SelectItem value="Attacks Weak Hand">{t("opt_closeout_weak_hand")}</SelectItem>
+                    <SelectItem value="Extra Pass">{t("opt_closeout_extra_pass")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="grid grid-cols-2 gap-3">
+                  <CloseoutSelect label={`⬅️ ${t("left_wing")}`} value={inputs.closeoutLeft} onChange={v => ui("closeoutLeft", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
+                  <CloseoutSelect label={`➡️ ${t("right_wing")}`} value={inputs.closeoutRight} onChange={v => ui("closeoutRight", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
+                </div>
+              </div>
+
               {inputs.isoFrequency !== "Never" && (
                 <>
                   {isInterior && (
@@ -1455,25 +1501,50 @@ export default function PlayerEditor() {
                     {(!isInterior || isHybridBig) && (<>
                       <div className="space-y-2">
                         <FieldLabel label={t("iso_initiation")} tooltip={t("hint_iso_initiation")} />
-                        <Select value={inputs.isoInitiation ?? "Controlled"} onValueChange={v => ui("isoInitiation", v)}>
-                          <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Controlled">{t("opt_iso_init_controlled")}</SelectItem>
-                            <SelectItem value="Quick Attack">{t("opt_iso_init_quick")}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                          {(["Controlled", "Quick Attack"] as const).map((opt) => (
+                            <Button
+                              key={opt}
+                              type="button"
+                              variant={inputs.isoInitiation === opt ? "default" : "outline"}
+                              style={{ minHeight: 44 }}
+                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${
+                                inputs.isoInitiation === opt
+                                  ? pillActiveClasses("neutral")
+                                  : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                              }`}
+                              onClick={() => ui("isoInitiation", opt)}
+                            >
+                              {opt === "Controlled" ? t("opt_iso_init_controlled") : t("opt_iso_init_quick")}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
 
                       <div className="space-y-2">
                         <FieldLabel label={t("iso_decision")} tooltip={t("hint_iso_decision")} />
-                        <Select value={inputs.isoDecision ?? "Finish"} onValueChange={v => ui("isoDecision", v)}>
-                          <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Finish">{t("opt_iso_decision_finish")}</SelectItem>
-                            <SelectItem value="Shoot">{t("opt_iso_decision_shoot")}</SelectItem>
-                            <SelectItem value="Pass">{t("opt_iso_decision_pass")}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                          {(["Finish", "Shoot", "Pass"] as const).map((opt) => (
+                            <Button
+                              key={opt}
+                              type="button"
+                              variant={inputs.isoDecision === opt ? "default" : "outline"}
+                              style={{ minHeight: 44 }}
+                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${
+                                inputs.isoDecision === opt
+                                  ? pillActiveClasses("neutral")
+                                  : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                              }`}
+                              onClick={() => ui("isoDecision", opt)}
+                            >
+                              {opt === "Finish"
+                                ? t("opt_iso_decision_finish")
+                                : opt === "Shoot"
+                                  ? t("opt_iso_decision_shoot")
+                                  : t("opt_iso_decision_pass")}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
 
                     </>)}
@@ -1481,41 +1552,35 @@ export default function PlayerEditor() {
                     {(inputs.isoFrequency === "Primary" || inputs.isoFrequency === "Secondary" || inputs.isoFrequency === "Rare") && (
                       <div className="space-y-2">
                         <FieldLabel label={t("editor_iso_finish_eff")} tooltip={t("hint_iso_finish_eff")} />
-                        <Select
-                          value={inputs.motorIsoEff ?? "__none__"}
-                          onValueChange={(v) => ui("motorIsoEff", v === "__none__" ? null : v as NonNullable<PlayerInput["motorIsoEff"]>)}
-                        >
-                          <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800">
-                            <SelectValue placeholder={t("not_observed")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">{t("not_observed")}</SelectItem>
-                            <SelectItem value="high">{t("editor.eff.high")}</SelectItem>
-                            <SelectItem value="medium">{t("editor.eff.medium")}</SelectItem>
-                            <SelectItem value="low">{t("editor.eff.low")}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                          {(["high", "medium", "low"] as const).map((lvl) => (
+                            <Button
+                              key={lvl}
+                              type="button"
+                              variant={inputs.motorIsoEff === lvl ? "default" : "outline"}
+                              style={{ minHeight: 44 }}
+                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${
+                                inputs.motorIsoEff === lvl
+                                  ? pillActiveClasses("neutral")
+                                  : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                              }`}
+                              onClick={() => ui("motorIsoEff", lvl)}
+                            >
+                              {t(`editor.eff.${lvl}` as never)}
+                            </Button>
+                          ))}
+                          <Button
+                            type="button"
+                            variant={inputs.motorIsoEff == null ? "secondary" : "outline"}
+                            style={{ minHeight: 44 }}
+                            className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold"
+                            onClick={() => ui("motorIsoEff", null)}
+                          >
+                            {t("not_observed")}
+                          </Button>
+                        </div>
                       </div>
                     )}
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
-                    <FieldLabel label={t("closeout_general")} tooltip={t("hint_closeout_general")} />
-                    <Select value={inputs.closeoutReaction} onValueChange={v => ui("closeoutReaction", v)}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Catch & Shoot">{t("opt_closeout_catch_shoot")}</SelectItem>
-                        <SelectItem value="Attack Baseline">{t("opt_closeout_attack_baseline")}</SelectItem>
-                        <SelectItem value="Attack Middle">{t("opt_closeout_attack_middle")}</SelectItem>
-                        <SelectItem value="Attacks Strong Hand">{t("opt_closeout_strong_hand")}</SelectItem>
-                        <SelectItem value="Attacks Weak Hand">{t("opt_closeout_weak_hand")}</SelectItem>
-                        <SelectItem value="Extra Pass">{t("opt_closeout_extra_pass")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <div className="grid grid-cols-2 gap-3">
-                      <CloseoutSelect label={`⬅️ ${t("left_wing")}`} value={inputs.closeoutLeft} onChange={v => ui("closeoutLeft", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
-                      <CloseoutSelect label={`➡️ ${t("right_wing")}`} value={inputs.closeoutRight} onChange={v => ui("closeoutRight", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
-                    </div>
                   </div>
 
                   <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3 animate-in fade-in">
@@ -1635,14 +1700,28 @@ export default function PlayerEditor() {
                   {pnrBoth && <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("as_handler")}</p>}
                   <div className="space-y-2">
                     <FieldLabel label={t("pnr_scoring_priority")} tooltip={t("hint_pnr_scoring")} />
-                    <Select value={inputs.pnrScoringPriority} onValueChange={v => ui("pnrScoringPriority", v)}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Score First">{t("opt_pnr_score_first")}</SelectItem>
-                        <SelectItem value="Pass First">{t("opt_pnr_pass_first")}</SelectItem>
-                        <SelectItem value="Balanced">{t("opt_pnr_balanced")}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                      {(["Score First", "Balanced", "Pass First"] as const).map((opt) => (
+                        <Button
+                          key={opt}
+                          type="button"
+                          variant={inputs.pnrScoringPriority === opt ? "default" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${
+                            inputs.pnrScoringPriority === opt
+                              ? pillActiveClasses("neutral")
+                              : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                          }`}
+                          onClick={() => ui("pnrScoringPriority", opt)}
+                        >
+                          {opt === "Score First"
+                            ? t("opt_pnr_score_first")
+                            : opt === "Pass First"
+                              ? t("opt_pnr_pass_first")
+                              : t("opt_pnr_balanced")}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                   {showHandlerSection && (
                     <div className="space-y-2">
@@ -1652,14 +1731,14 @@ export default function PlayerEditor() {
                           <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
                             {t("editor.pnr_eff_left")}
                           </Label>
-                          <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 8 }}>
+                          <div className="flex flex-row flex-wrap gap-1">
                             {PNR_SIDE_EFF_OPTS.map((lvl) => (
                               <Button
                                 key={lvl}
                                 type="button"
                                 variant={inputs.pnrEffLeft === lvl ? "default" : "outline"}
                                 style={{ minHeight: 40 }}
-                                className={`h-auto min-h-10 flex-1 min-w-[4.5rem] px-2 rounded-lg text-xs font-semibold ${
+                                className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${
                                   inputs.pnrEffLeft === lvl
                                     ? pillActiveClasses("neutral")
                                     : "border-slate-200 dark:border-slate-700"
@@ -1677,14 +1756,14 @@ export default function PlayerEditor() {
                           <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
                             {t("editor.pnr_eff_right")}
                           </Label>
-                          <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 8 }}>
+                          <div className="flex flex-row flex-wrap gap-1">
                             {PNR_SIDE_EFF_OPTS.map((lvl) => (
                               <Button
                                 key={lvl}
                                 type="button"
                                 variant={inputs.pnrEffRight === lvl ? "default" : "outline"}
                                 style={{ minHeight: 40 }}
-                                className={`h-auto min-h-10 flex-1 min-w-[4.5rem] px-2 rounded-lg text-xs font-semibold ${
+                                className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${
                                   inputs.pnrEffRight === lvl
                                     ? pillActiveClasses("neutral")
                                     : "border-slate-200 dark:border-slate-700"
@@ -1703,103 +1782,262 @@ export default function PlayerEditor() {
                   )}
                   <div className="space-y-2">
                     <FieldLabel label={t("editor_pnr_finish_eff")} tooltip={t("hint_pnr_finish_eff")} />
-                    <Select
-                      value={inputs.motorPnrEff ?? "__none__"}
-                      onValueChange={(v) => ui("motorPnrEff", v === "__none__" ? null : v as NonNullable<PlayerInput["motorPnrEff"]>)}
-                    >
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800">
-                        <SelectValue placeholder={t("not_observed")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">{t("not_observed")}</SelectItem>
-                        <SelectItem value="high">{t("editor.eff.high")}</SelectItem>
-                        <SelectItem value="medium">{t("editor.eff.medium")}</SelectItem>
-                        <SelectItem value="low">{t("editor.eff.low")}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                      {(["high", "medium", "low"] as const).map((lvl) => (
+                        <Button
+                          key={lvl}
+                          type="button"
+                          variant={inputs.motorPnrEff === lvl ? "default" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${
+                            inputs.motorPnrEff === lvl
+                              ? pillActiveClasses("neutral")
+                              : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                          }`}
+                          onClick={() => ui("motorPnrEff", lvl)}
+                        >
+                          {t(`editor.eff.${lvl}` as never)}
+                        </Button>
+                      ))}
+                      <Button
+                        type="button"
+                        variant={inputs.motorPnrEff == null ? "secondary" : "outline"}
+                        style={{ minHeight: 44 }}
+                        className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold"
+                        onClick={() => ui("motorPnrEff", null)}
+                      >
+                        {t("not_observed")}
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <FieldLabel label={t("pnr_reaction_under")} tooltip={t("hint_pnr_under")} />
-                    <Select value={inputs.pnrReactionVsUnder} onValueChange={v => ui("pnrReactionVsUnder", v)}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Pull-up 3">{t("opt_finish_pullup3")}</SelectItem>
-                        <SelectItem value="Re-screen">{t("opt_pnr_under_rescreen")}</SelectItem>
-                        <SelectItem value="Reject / Attack">{t("opt_pnr_under_reject")}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                      {(["Pull-up 3", "Re-screen", "Reject / Attack"] as const).map((opt) => (
+                        <Button
+                          key={opt}
+                          type="button"
+                          variant={inputs.pnrReactionVsUnder === opt ? "default" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${
+                            inputs.pnrReactionVsUnder === opt
+                              ? pillActiveClasses("neutral")
+                              : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                          }`}
+                          onClick={() => ui("pnrReactionVsUnder", opt)}
+                        >
+                          {opt === "Pull-up 3"
+                            ? t("opt_finish_pullup3")
+                            : opt === "Re-screen"
+                              ? t("opt_pnr_under_rescreen")
+                              : t("opt_pnr_under_reject")}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <FieldLabel label={t("pnr_timing")} tooltip={t("hint_pnr_timing")} />
-                    <Select value={inputs.pnrTiming} onValueChange={v => ui("pnrTiming", v)}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Early (Drag)">{t("opt_pnr_timing_drag")}</SelectItem>
-                        <SelectItem value="Deep (Half-court)">{t("opt_pnr_timing_halfcourt")}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                      {(["Early (Drag)", "Deep (Half-court)"] as const).map((opt) => (
+                        <Button
+                          key={opt}
+                          type="button"
+                          variant={inputs.pnrTiming === opt ? "default" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${
+                            inputs.pnrTiming === opt
+                              ? pillActiveClasses("neutral")
+                              : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"
+                          }`}
+                          onClick={() => ui("pnrTiming", opt)}
+                        >
+                          {opt === "Early (Drag)" ? t("opt_pnr_timing_drag") : t("opt_pnr_timing_halfcourt")}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                   {(inputs.pnrFrequency === "Primary" || inputs.pnrFrequency === "Secondary") && (
                     <div className="space-y-2">
+                      <div className="flex flex-row flex-wrap gap-2">
+                        {(["Drive to Rim", "Pull-up", "Floater", "Mid-range"] as const).map((opt) => (
+                          <Button
+                            key={opt}
+                            type="button"
+                            variant={inputs.pnrDominantFinish === opt ? "default" : "outline"}
+                            style={{ minHeight: 40 }}
+                            className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${
+                              inputs.pnrDominantFinish === opt
+                                ? pillActiveClasses("neutral")
+                                : "border-slate-200 dark:border-slate-700"
+                            }`}
+                            onClick={() => ui("pnrDominantFinish", opt)}
+                          >
+                            {opt === "Drive to Rim"
+                              ? t("opt_finish_drive")
+                              : opt === "Pull-up"
+                                ? t("opt_finish_pullup")
+                                : opt === "Floater"
+                                  ? t("opt_finish_floater")
+                                  : t("opt_finish_midrange")}
+                          </Button>
+                        ))}
+                        <Button
+                          type="button"
+                          variant={inputs.pnrDominantFinish == null ? "secondary" : "outline"}
+                          style={{ minHeight: 40 }}
+                          className="h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold"
+                          onClick={() => ui("pnrDominantFinish", null)}
+                        >
+                          {t("not_observed")}
+                        </Button>
+                      </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t("pnr_primary_option")}</Label>
-                          <Select value={inputs.pnrDominantFinish ?? "Drive to Rim"} onValueChange={v => ui("pnrDominantFinish", v)}>
-                            <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Drive to Rim">{t("opt_finish_drive")}</SelectItem>
-                              <SelectItem value="Pull-up">{t("opt_finish_pullup")}</SelectItem>
-                              <SelectItem value="Floater">{t("opt_finish_floater")}</SelectItem>
-                              <SelectItem value="Mid-range">{t("opt_finish_midrange")}</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex flex-row flex-wrap gap-1">
+                            {(["Drive to Rim", "Pull-up", "Floater", "Mid-range"] as const).map((opt) => (
+                              <Button
+                                key={opt}
+                                type="button"
+                                variant={inputs.pnrDominantFinish === opt ? "default" : "outline"}
+                                style={{ minHeight: 40 }}
+                                className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${
+                                  inputs.pnrDominantFinish === opt
+                                    ? pillActiveClasses("neutral")
+                                    : "border-slate-200 dark:border-slate-700"
+                                }`}
+                                onClick={() => ui("pnrDominantFinish", opt)}
+                              >
+                                {opt === "Drive to Rim"
+                                  ? t("opt_finish_drive")
+                                  : opt === "Pull-up"
+                                    ? t("opt_finish_pullup")
+                                    : opt === "Floater"
+                                      ? t("opt_finish_floater")
+                                      : t("opt_finish_midrange")}
+                              </Button>
+                            ))}
+                            <Button
+                              type="button"
+                              variant={inputs.pnrDominantFinish == null ? "secondary" : "outline"}
+                              style={{ minHeight: 40 }}
+                              className="h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold"
+                              onClick={() => ui("pnrDominantFinish", null)}
+                            >
+                              {t("not_observed")}
+                            </Button>
+                          </div>
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t("pnr_weaker_option")}</Label>
-                          <Select value={inputs.pnrOppositeFinish ?? "Pull-up"} onValueChange={v => ui("pnrOppositeFinish", v)}>
-                            <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Drive to Rim">{t("opt_finish_drive")}</SelectItem>
-                              <SelectItem value="Pull-up">{t("opt_finish_pullup")}</SelectItem>
-                              <SelectItem value="Floater">{t("opt_finish_floater")}</SelectItem>
-                              <SelectItem value="Mid-range">{t("opt_finish_midrange")}</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex flex-row flex-wrap gap-1">
+                            {(["Drive to Rim", "Pull-up", "Floater", "Mid-range"] as const).map((opt) => (
+                              <Button
+                                key={opt}
+                                type="button"
+                                variant={inputs.pnrOppositeFinish === opt ? "default" : "outline"}
+                                style={{ minHeight: 40 }}
+                                className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${
+                                  inputs.pnrOppositeFinish === opt
+                                    ? pillActiveClasses("neutral")
+                                    : "border-slate-200 dark:border-slate-700"
+                                }`}
+                                onClick={() => ui("pnrOppositeFinish", opt)}
+                              >
+                                {opt === "Drive to Rim"
+                                  ? t("opt_finish_drive")
+                                  : opt === "Pull-up"
+                                    ? t("opt_finish_pullup")
+                                    : opt === "Floater"
+                                      ? t("opt_finish_floater")
+                                      : t("opt_finish_midrange")}
+                              </Button>
+                            ))}
+                            <Button
+                              type="button"
+                              variant={inputs.pnrOppositeFinish == null ? "secondary" : "outline"}
+                              style={{ minHeight: 40 }}
+                              className="h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold"
+                              onClick={() => ui("pnrOppositeFinish", null)}
+                            >
+                              {t("not_observed")}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 pt-1">{t("pnr_finish_by_side_heading")}</p>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t("pnr_finish_ball_left")}</Label>
-                          <Select
-                            value={inputs.pnrFinishBallLeft ?? "__none__"}
-                            onValueChange={(v) => ui("pnrFinishBallLeft", v === "__none__" ? null : (v as PnrFinish))}
-                          >
-                            <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-xs"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">{t("not_observed")}</SelectItem>
-                              <SelectItem value="Drive to Rim">{t("opt_finish_drive")}</SelectItem>
-                              <SelectItem value="Pull-up">{t("opt_finish_pullup")}</SelectItem>
-                              <SelectItem value="Floater">{t("opt_finish_floater")}</SelectItem>
-                              <SelectItem value="Mid-range">{t("opt_finish_midrange")}</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex flex-row flex-wrap gap-1">
+                            {(["Drive to Rim", "Pull-up", "Floater", "Mid-range"] as const).map((opt) => (
+                              <Button
+                                key={opt}
+                                type="button"
+                                variant={inputs.pnrFinishBallLeft === opt ? "default" : "outline"}
+                                style={{ minHeight: 40 }}
+                                className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${
+                                  inputs.pnrFinishBallLeft === opt
+                                    ? pillActiveClasses("neutral")
+                                    : "border-slate-200 dark:border-slate-700"
+                                }`}
+                                onClick={() => ui("pnrFinishBallLeft", opt)}
+                              >
+                                {opt === "Drive to Rim"
+                                  ? t("opt_finish_drive")
+                                  : opt === "Pull-up"
+                                    ? t("opt_finish_pullup")
+                                    : opt === "Floater"
+                                      ? t("opt_finish_floater")
+                                      : t("opt_finish_midrange")}
+                              </Button>
+                            ))}
+                            <Button
+                              type="button"
+                              variant={inputs.pnrFinishBallLeft == null ? "secondary" : "outline"}
+                              style={{ minHeight: 40 }}
+                              className="h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold"
+                              onClick={() => ui("pnrFinishBallLeft", null)}
+                            >
+                              {t("not_observed")}
+                            </Button>
+                          </div>
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t("pnr_finish_ball_right")}</Label>
-                          <Select
-                            value={inputs.pnrFinishBallRight ?? "__none__"}
-                            onValueChange={(v) => ui("pnrFinishBallRight", v === "__none__" ? null : (v as PnrFinish))}
-                          >
-                            <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-xs"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">{t("not_observed")}</SelectItem>
-                              <SelectItem value="Drive to Rim">{t("opt_finish_drive")}</SelectItem>
-                              <SelectItem value="Pull-up">{t("opt_finish_pullup")}</SelectItem>
-                              <SelectItem value="Floater">{t("opt_finish_floater")}</SelectItem>
-                              <SelectItem value="Mid-range">{t("opt_finish_midrange")}</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex flex-row flex-wrap gap-1">
+                            {(["Drive to Rim", "Pull-up", "Floater", "Mid-range"] as const).map((opt) => (
+                              <Button
+                                key={opt}
+                                type="button"
+                                variant={inputs.pnrFinishBallRight === opt ? "default" : "outline"}
+                                style={{ minHeight: 40 }}
+                                className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${
+                                  inputs.pnrFinishBallRight === opt
+                                    ? pillActiveClasses("neutral")
+                                    : "border-slate-200 dark:border-slate-700"
+                                }`}
+                                onClick={() => ui("pnrFinishBallRight", opt)}
+                              >
+                                {opt === "Drive to Rim"
+                                  ? t("opt_finish_drive")
+                                  : opt === "Pull-up"
+                                    ? t("opt_finish_pullup")
+                                    : opt === "Floater"
+                                      ? t("opt_finish_floater")
+                                      : t("opt_finish_midrange")}
+                              </Button>
+                            ))}
+                            <Button
+                              type="button"
+                              variant={inputs.pnrFinishBallRight == null ? "secondary" : "outline"}
+                              style={{ minHeight: 40 }}
+                              className="h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold"
+                              onClick={() => ui("pnrFinishBallRight", null)}
+                            >
+                              {t("not_observed")}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1862,210 +2100,214 @@ export default function PlayerEditor() {
               <IntensitySelector label={t("indirects")} value={inputs.indirectsFrequency} onChange={v => ui("indirectsFrequency", v)}
                 tooltip={t("hint_indirects")} />
 
-              <div className="space-y-3">
-                <FieldLabel label={t("editor.off_ball_role")} tooltip={t("editor.off_ball_role_hint")} />
-                <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
-                  {(["screener", "cutter", "both", "none"] as const).map((roleOpt) => (
-                    <Button
-                      key={roleOpt}
-                      type="button"
-                      variant={inputs.offBallRole === roleOpt ? "default" : "outline"}
-                      style={{ minHeight: 44 }}
-                      className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
-                        inputs.offBallRole === roleOpt
-                          ? pillActiveClasses("neutral")
-                          : ""
-                      }`}
-                      onClick={() => ui("offBallRole", inputs.offBallRole === roleOpt ? null : roleOpt)}
-                    >
-                      {t(`editor.off_ball_role.${roleOpt}` as "editor.off_ball_role.screener")}
-                    </Button>
-                  ))}
-                </div>
-              </div>
+              {inputs.indirectsFrequency !== "Never" && (
+                <>
+                  <div className="space-y-3">
+                    <FieldLabel label={t("editor.off_ball_role")} tooltip={t("editor.off_ball_role_hint")} />
+                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                      {(["screener", "cutter", "both", "none"] as const).map((roleOpt) => (
+                        <Button
+                          key={roleOpt}
+                          type="button"
+                          variant={inputs.offBallRole === roleOpt ? "default" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                            inputs.offBallRole === roleOpt
+                              ? pillActiveClasses("neutral")
+                              : ""
+                          }`}
+                          onClick={() => ui("offBallRole", inputs.offBallRole === roleOpt ? null : roleOpt)}
+                        >
+                          {t(`editor.off_ball_role.${roleOpt}` as "editor.off_ball_role.screener")}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
 
-              {showOffBallScreenerAccordion && (
-                <div
-                  style={{
-                    border: "1px solid",
-                    borderColor: "var(--border)",
-                    borderRadius: 8,
-                    overflow: "hidden",
-                    marginTop: 8,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setScreenerAccordionOpen((o) => !o)}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "12px 16px",
-                      background: "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span style={{ fontWeight: 500, fontSize: 14 }}>{t("editor.as_screener")}</span>
-                    <ChevronDown
-                      size={16}
-                      style={{
-                        transition: "transform 200ms ease-out",
-                        transform: screenerAccordionOpen ? "rotate(180deg)" : "rotate(0deg)",
-                      }}
-                    />
-                  </button>
-                  {screenerAccordionOpen && (
+                  {showOffBallScreenerAccordion && (
                     <div
                       style={{
-                        padding: "0 16px 16px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 16,
+                        border: "1px solid",
+                        borderColor: "var(--border)",
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        marginTop: 8,
                       }}
                     >
-                      <div className="space-y-2">
-                        <FieldLabel label={t("editor.off_ball_screen_pattern")} tooltip={t("editor.screener_action_hint")} />
-                        <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
-                          {OFF_BALL_SCREEN_OPTS.map((opt) => (
-                            <Button
-                              key={opt}
-                              type="button"
-                              variant={inputs.offBallScreenPattern === opt ? "default" : "outline"}
-                              style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
-                                inputs.offBallScreenPattern === opt
-                                  ? pillActiveClasses("neutral")
-                                  : ""
-                              }`}
-                              onClick={() => {
-                                const next = inputs.offBallScreenPattern === opt ? null : opt;
-                                ui("offBallScreenPattern", next);
-                                ui(
-                                  "offBallScreenPatternFreq",
-                                  next && next !== "none"
-                                    ? inputs.offBallScreenPatternFreq ?? "secondary"
-                                    : null,
-                                );
-                                ui("screenerAction", screenPatternToLegacyScreener(next));
-                              }}
-                            >
-                              {t(OFF_BALL_SCREEN_LABEL[opt] as never)}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      {inputs.offBallScreenPattern != null && inputs.offBallScreenPattern !== "none" && (
+                      <button
+                        type="button"
+                        onClick={() => setScreenerAccordionOpen((o) => !o)}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "12px 16px",
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ fontWeight: 500, fontSize: 14 }}>{t("editor.as_screener")}</span>
+                        <ChevronDown
+                          size={16}
+                          style={{
+                            transition: "transform 200ms ease-out",
+                            transform: screenerAccordionOpen ? "rotate(180deg)" : "rotate(0deg)",
+                          }}
+                        />
+                      </button>
+                      {screenerAccordionOpen && (
                         <div
                           style={{
-                            background: "var(--color-background-info, rgba(59,130,246,0.06))",
-                            borderRadius: 6,
-                            padding: "8px 12px",
+                            padding: "0 16px 16px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 16,
                           }}
                         >
-                          <IntensitySelector
-                            label={t("editor.off_ball_screen_pattern_freq")}
-                            value={gradedToIntensity(inputs.offBallScreenPatternFreq)}
-                            onChange={(v) => ui("offBallScreenPatternFreq", intensityToGraded(v))}
-                            tooltip={t("editor.screener_action_frequency_hint")}
-                          />
+                          <div className="space-y-2">
+                            <FieldLabel label={t("editor.off_ball_screen_pattern")} tooltip={t("editor.screener_action_hint")} />
+                            <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                              {OFF_BALL_SCREEN_OPTS.map((opt) => (
+                                <Button
+                                  key={opt}
+                                  type="button"
+                                  variant={inputs.offBallScreenPattern === opt ? "default" : "outline"}
+                                  style={{ minHeight: 44 }}
+                                  className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                                    inputs.offBallScreenPattern === opt
+                                      ? pillActiveClasses("neutral")
+                                      : ""
+                                  }`}
+                                  onClick={() => {
+                                    const next = inputs.offBallScreenPattern === opt ? null : opt;
+                                    ui("offBallScreenPattern", next);
+                                    ui(
+                                      "offBallScreenPatternFreq",
+                                      next && next !== "none"
+                                        ? inputs.offBallScreenPatternFreq ?? "secondary"
+                                        : null,
+                                    );
+                                    ui("screenerAction", screenPatternToLegacyScreener(next));
+                                  }}
+                                >
+                                  {t(OFF_BALL_SCREEN_LABEL[opt] as never)}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                          {inputs.offBallScreenPattern != null && inputs.offBallScreenPattern !== "none" && (
+                            <div
+                              style={{
+                                background: "var(--color-background-info, rgba(59,130,246,0.06))",
+                                borderRadius: 6,
+                                padding: "8px 12px",
+                              }}
+                            >
+                              <IntensitySelector
+                                label={t("editor.off_ball_screen_pattern_freq")}
+                                value={gradedToIntensity(inputs.offBallScreenPatternFreq)}
+                                onChange={(v) => ui("offBallScreenPatternFreq", intensityToGraded(v))}
+                                tooltip={t("editor.screener_action_frequency_hint")}
+                              />
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                   )}
-                </div>
-              )}
 
-              {showOffBallCutterAccordion && (
-                <div
-                  style={{
-                    border: "1px solid",
-                    borderColor: "var(--border)",
-                    borderRadius: 8,
-                    overflow: "hidden",
-                    marginTop: 8,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setCutterAccordionOpen((o) => !o)}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "12px 16px",
-                      background: "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span style={{ fontWeight: 500, fontSize: 14 }}>{t("editor.as_cutter")}</span>
-                    <ChevronDown
-                      size={16}
-                      style={{
-                        transition: "transform 200ms ease-out",
-                        transform: cutterAccordionOpen ? "rotate(180deg)" : "rotate(0deg)",
-                      }}
-                    />
-                  </button>
-                  {cutterAccordionOpen && (
+                  {showOffBallCutterAccordion && (
                     <div
                       style={{
-                        padding: "0 16px 16px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 16,
+                        border: "1px solid",
+                        borderColor: "var(--border)",
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        marginTop: 8,
                       }}
                     >
-                      <div className="space-y-2">
-                        <FieldLabel label={t("editor.off_ball_cut_action")} tooltip={t("hint_indirects")} />
-                        <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
-                          {(["catch_and_shoot", "catch_and_drive", "curl", "flare"] as const).map((opt) => (
-                            <Button
-                              key={opt}
-                              type="button"
-                              variant={inputs.offBallCutAction === opt ? "default" : "outline"}
-                              style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
-                                inputs.offBallCutAction === opt
-                                  ? pillActiveClasses("neutral")
-                                  : ""
-                              }`}
-                              onClick={() => ui("offBallCutAction", inputs.offBallCutAction === opt ? null : opt)}
-                            >
-                              {t(`editor.off_ball_cut_action.${opt}` as never)}
-                            </Button>
-                          ))}
-                          <Button
-                            type="button"
-                            variant={inputs.offBallCutAction == null ? "secondary" : "outline"}
-                            style={{ minHeight: 44 }}
-                            className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm"
-                            onClick={() => ui("offBallCutAction", null)}
-                          >
-                            {t("not_observed")}
-                          </Button>
-                        </div>
-                      </div>
-                      <div
+                      <button
+                        type="button"
+                        onClick={() => setCutterAccordionOpen((o) => !o)}
                         style={{
-                          background: "var(--color-background-info, rgba(59,130,246,0.06))",
-                          borderRadius: 6,
-                          padding: "8px 12px",
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "12px 16px",
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
                         }}
                       >
-                        <IntensitySelector
-                          label={t("editor.off_ball_cut_frequency")}
-                          value={gradedToIntensity(inputs.cutterFrequency)}
-                          onChange={(v) => ui("cutterFrequency", intensityToGraded(v))}
+                        <span style={{ fontWeight: 500, fontSize: 14 }}>{t("editor.as_cutter")}</span>
+                        <ChevronDown
+                          size={16}
+                          style={{
+                            transition: "transform 200ms ease-out",
+                            transform: cutterAccordionOpen ? "rotate(180deg)" : "rotate(0deg)",
+                          }}
                         />
-                      </div>
+                      </button>
+                      {cutterAccordionOpen && (
+                        <div
+                          style={{
+                            padding: "0 16px 16px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 16,
+                          }}
+                        >
+                          <div className="space-y-2">
+                            <FieldLabel label={t("editor.off_ball_cut_action")} tooltip={t("hint_indirects")} />
+                            <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                              {(["catch_and_shoot", "catch_and_drive", "curl", "flare"] as const).map((opt) => (
+                                <Button
+                                  key={opt}
+                                  type="button"
+                                  variant={inputs.offBallCutAction === opt ? "default" : "outline"}
+                                  style={{ minHeight: 44 }}
+                                  className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                                    inputs.offBallCutAction === opt
+                                      ? pillActiveClasses("neutral")
+                                      : ""
+                                  }`}
+                                  onClick={() => ui("offBallCutAction", inputs.offBallCutAction === opt ? null : opt)}
+                                >
+                                  {t(`editor.off_ball_cut_action.${opt}` as never)}
+                                </Button>
+                              ))}
+                              <Button
+                                type="button"
+                                variant={inputs.offBallCutAction == null ? "secondary" : "outline"}
+                                style={{ minHeight: 44 }}
+                                className="h-auto min-h-11 px-4 py-2 rounded-lg text-sm"
+                                onClick={() => ui("offBallCutAction", null)}
+                              >
+                                {t("not_observed")}
+                              </Button>
+                            </div>
+                          </div>
+                          <div
+                            style={{
+                              background: "var(--color-background-info, rgba(59,130,246,0.06))",
+                              borderRadius: 6,
+                              padding: "8px 12px",
+                            }}
+                          >
+                            <IntensitySelector
+                              label={t("editor.off_ball_cut_frequency")}
+                              value={gradedToIntensity(inputs.cutterFrequency)}
+                              onChange={(v) => ui("cutterFrequency", intensityToGraded(v))}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+                </>
               )}
 
               <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
@@ -2076,169 +2318,172 @@ export default function PlayerEditor() {
                   tooltip={t("hint_transition_frequency")}
                 />
 
-                <div className="space-y-3">
-                  <FieldLabel label={t("editor.trans_role_primary")} tooltip={t("hint_transition_frequency")} />
-                  <div className="flex flex-wrap gap-3">
-                    {TRANS_EDITOR_ROLES.map((role) => (
-                      <Button
-                        key={role}
-                        type="button"
-                        variant={inputs.transRolePrimary === role ? "default" : "outline"}
-                        style={{ minHeight: 44 }}
-                        className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
-                          inputs.transRolePrimary === role
-                            ? pillActiveClasses("neutral")
-                            : "border-slate-200 dark:border-slate-700"
-                        }`}
-                        onClick={() => {
-                          if (inputs.transRolePrimary === role) return;
-                          ui("transRolePrimary", role);
-                          ui("transSubPrimary", null);
-                          ui("transRoleSecondary", null);
-                          ui("transSubSecondary", null);
-                        }}
-                      >
-                        {t(`editor.trans_role.${role}` as never)}
-                      </Button>
-                    ))}
-                    <Button
-                      type="button"
-                      variant={inputs.transRolePrimary == null ? "secondary" : "outline"}
-                      style={{ minHeight: 44 }}
-                      className="h-auto px-4 py-2 rounded-lg text-sm font-semibold"
-                      onClick={() => {
-                        ui("transRolePrimary", null);
-                        ui("transSubPrimary", null);
-                        ui("transRoleSecondary", null);
-                        ui("transSubSecondary", null);
-                      }}
-                    >
-                      {t("editor.trans_role_none")}
-                    </Button>
-                  </div>
-                  {inputs.transRolePrimary && (
-                    <div className="space-y-1.5 pl-0.5">
+                {inputs.transitionFrequency !== "Never" && (
+                  <>
+                    <div className="space-y-3">
+                      <FieldLabel label={t("editor.trans_role_primary")} tooltip={t("hint_transition_frequency")} />
                       <div className="flex flex-wrap gap-3">
-                        {TRANS_ROLE_SUB_OPTIONS[inputs.transRolePrimary].map((sub) => (
-                          <Button
-                            key={sub}
-                            type="button"
-                            variant={inputs.transSubPrimary === sub ? "default" : "outline"}
-                            style={{ minHeight: 40 }}
-                            className={`h-auto text-xs px-3 py-2 rounded-md font-semibold ${
-                              inputs.transSubPrimary === sub
-                                ? pillActiveClasses("neutral")
-                                : "border-slate-200 dark:border-slate-700"
-                            }`}
-                            onClick={() => ui("transSubPrimary", inputs.transSubPrimary === sub ? null : sub)}
-                          >
-                            {t(`editor.trans_sub.${sub}` as never)}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {inputs.transRolePrimary && (
-                  <div className="space-y-3">
-                    <FieldLabel label={t("editor.trans_role_secondary")} tooltip={t("hint_transition_frequency")} />
-                    <div className="flex flex-wrap gap-3">
-                      {TRANS_EDITOR_ROLES.map((role) => {
-                        const disabled = role === inputs.transRolePrimary;
-                        return (
+                        {TRANS_EDITOR_ROLES.map((role) => (
                           <Button
                             key={role}
                             type="button"
-                            disabled={disabled}
-                            variant={inputs.transRoleSecondary === role ? "default" : "outline"}
+                            variant={inputs.transRolePrimary === role ? "default" : "outline"}
                             style={{ minHeight: 44 }}
                             className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
-                              inputs.transRoleSecondary === role
+                              inputs.transRolePrimary === role
                                 ? pillActiveClasses("neutral")
                                 : "border-slate-200 dark:border-slate-700"
-                            } ${disabled ? "opacity-40 pointer-events-none cursor-not-allowed" : ""}`}
+                            }`}
                             onClick={() => {
-                              if (inputs.transRoleSecondary === role) {
-                                ui("transRoleSecondary", null);
-                                ui("transSubSecondary", null);
-                              } else {
-                                ui("transRoleSecondary", role);
-                                ui("transSubSecondary", null);
-                              }
+                              if (inputs.transRolePrimary === role) return;
+                              ui("transRolePrimary", role);
+                              ui("transSubPrimary", null);
+                              ui("transRoleSecondary", null);
+                              ui("transSubSecondary", null);
                             }}
                           >
                             {t(`editor.trans_role.${role}` as never)}
                           </Button>
-                        );
-                      })}
-                      <Button
-                        type="button"
-                        variant={inputs.transRoleSecondary == null ? "secondary" : "outline"}
-                        style={{ minHeight: 44 }}
-                        className="h-auto px-4 py-2 rounded-lg text-sm font-semibold"
-                        onClick={() => {
-                          ui("transRoleSecondary", null);
-                          ui("transSubSecondary", null);
-                        }}
-                      >
-                        {t("editor.trans_role_none")}
-                      </Button>
+                        ))}
+                        <Button
+                          type="button"
+                          variant={inputs.transRolePrimary == null ? "secondary" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className="h-auto px-4 py-2 rounded-lg text-sm font-semibold"
+                          onClick={() => {
+                            ui("transRolePrimary", null);
+                            ui("transSubPrimary", null);
+                            ui("transRoleSecondary", null);
+                            ui("transSubSecondary", null);
+                          }}
+                        >
+                          {t("editor.trans_role_none")}
+                        </Button>
+                      </div>
+                      {inputs.transRolePrimary && (
+                        <div className="space-y-1.5 pl-0.5">
+                          <div className="flex flex-wrap gap-3">
+                            {TRANS_ROLE_SUB_OPTIONS[inputs.transRolePrimary].map((sub) => (
+                              <Button
+                                key={sub}
+                                type="button"
+                                variant={inputs.transSubPrimary === sub ? "default" : "outline"}
+                                style={{ minHeight: 40 }}
+                                className={`h-auto text-xs px-3 py-2 rounded-md font-semibold ${
+                                  inputs.transSubPrimary === sub
+                                    ? pillActiveClasses("neutral")
+                                    : "border-slate-200 dark:border-slate-700"
+                                }`}
+                                onClick={() => ui("transSubPrimary", inputs.transSubPrimary === sub ? null : sub)}
+                              >
+                                {t(`editor.trans_sub.${sub}` as never)}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {inputs.transRoleSecondary && (
-                      <div className="space-y-1.5 pl-0.5">
+
+                    {inputs.transRolePrimary && (
+                      <div className="space-y-3">
+                        <FieldLabel label={t("editor.trans_role_secondary")} tooltip={t("hint_transition_frequency")} />
                         <div className="flex flex-wrap gap-3">
-                          {TRANS_ROLE_SUB_OPTIONS[inputs.transRoleSecondary].map((sub) => (
+                          {TRANS_EDITOR_ROLES.map((role) => {
+                            const disabled = role === inputs.transRolePrimary;
+                            return (
+                              <Button
+                                key={role}
+                                type="button"
+                                disabled={disabled}
+                                variant={inputs.transRoleSecondary === role ? "default" : "outline"}
+                                style={{ minHeight: 44 }}
+                                className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
+                                  inputs.transRoleSecondary === role
+                                    ? pillActiveClasses("neutral")
+                                    : "border-slate-200 dark:border-slate-700"
+                                } ${disabled ? "opacity-40 pointer-events-none cursor-not-allowed" : ""}`}
+                                onClick={() => {
+                                  if (inputs.transRoleSecondary === role) {
+                                    ui("transRoleSecondary", null);
+                                    ui("transSubSecondary", null);
+                                  } else {
+                                    ui("transRoleSecondary", role);
+                                    ui("transSubSecondary", null);
+                                  }
+                                }}
+                              >
+                                {t(`editor.trans_role.${role}` as never)}
+                              </Button>
+                            );
+                          })}
+                          <Button
+                            type="button"
+                            variant={inputs.transRoleSecondary == null ? "secondary" : "outline"}
+                            style={{ minHeight: 44 }}
+                            className="h-auto px-4 py-2 rounded-lg text-sm font-semibold"
+                            onClick={() => {
+                              ui("transRoleSecondary", null);
+                              ui("transSubSecondary", null);
+                            }}
+                          >
+                            {t("editor.trans_role_none")}
+                          </Button>
+                        </div>
+                        {inputs.transRoleSecondary && (
+                          <div className="space-y-1.5 pl-0.5">
+                            <div className="flex flex-wrap gap-3">
+                              {TRANS_ROLE_SUB_OPTIONS[inputs.transRoleSecondary].map((sub) => (
+                                <Button
+                                  key={sub}
+                                  type="button"
+                                  variant={inputs.transSubSecondary === sub ? "default" : "outline"}
+                                  style={{ minHeight: 36 }}
+                                  className={`h-auto text-xs px-2.5 py-1.5 rounded-md font-semibold ${
+                                    inputs.transSubSecondary === sub
+                                      ? pillActiveClasses("neutral")
+                                      : "border-slate-200 dark:border-slate-700"
+                                  }`}
+                                  onClick={() => ui("transSubSecondary", inputs.transSubSecondary === sub ? null : sub)}
+                                >
+                                  {t(`editor.trans_sub.${sub}` as never)}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {showTransFinishing && (
+                      <div className="space-y-2 animate-in fade-in">
+                        <FieldLabel label={t("editor.trans_finishing")} />
+                        <div className="flex flex-wrap gap-3">
+                          {(
+                            [
+                              { v: "high" as const, labelKey: "editor.trans_finishing.very_good" },
+                              { v: "medium" as const, labelKey: "editor.trans_finishing.normal" },
+                              { v: "low" as const, labelKey: "editor.trans_finishing.very_bad" },
+                            ] as const
+                          ).map(({ v, labelKey }) => (
                             <Button
-                              key={sub}
+                              key={v}
                               type="button"
-                              variant={inputs.transSubSecondary === sub ? "default" : "outline"}
-                              style={{ minHeight: 36 }}
-                              className={`h-auto text-xs px-2.5 py-1.5 rounded-md font-semibold ${
-                                inputs.transSubSecondary === sub
+                              variant={inputs.transFinishing === v ? "default" : "outline"}
+                              style={{ minHeight: 44 }}
+                              className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
+                                inputs.transFinishing === v
                                   ? pillActiveClasses("neutral")
                                   : "border-slate-200 dark:border-slate-700"
                               }`}
-                              onClick={() => ui("transSubSecondary", inputs.transSubSecondary === sub ? null : sub)}
+                              onClick={() => ui("transFinishing", inputs.transFinishing === v ? null : v)}
                             >
-                              {t(`editor.trans_sub.${sub}` as never)}
+                              {t(labelKey as never)}
                             </Button>
                           ))}
                         </div>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {showTransFinishing && (
-                  <div className="space-y-2 animate-in fade-in">
-                    <FieldLabel label={t("editor.trans_finishing")} />
-                    <div className="flex flex-wrap gap-3">
-                      {(
-                        [
-                          { v: "high" as const, labelKey: "editor.eff.high" },
-                          { v: "medium" as const, labelKey: "editor.eff.medium" },
-                          { v: "low" as const, labelKey: "editor.eff.low" },
-                          { v: "not_observed" as const, labelKey: "not_observed" },
-                        ] as const
-                      ).map(({ v, labelKey }) => (
-                        <Button
-                          key={v}
-                          type="button"
-                          variant={inputs.transFinishing === v ? "default" : "outline"}
-                          style={{ minHeight: 44 }}
-                          className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
-                            inputs.transFinishing === v
-                              ? pillActiveClasses("neutral")
-                              : "border-slate-200 dark:border-slate-700"
-                          }`}
-                          onClick={() => ui("transFinishing", inputs.transFinishing === v ? null : v)}
-                        >
-                          {t(labelKey as never)}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
 
