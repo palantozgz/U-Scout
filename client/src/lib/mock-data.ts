@@ -66,6 +66,8 @@ export interface PlayerInput {
   physicalStrength: PhysicalLevel;
   ftShooting?: PhysicalLevel;
   foulDrawing?: PhysicalLevel;
+  personality?: ("clutch" | "leader" | "selfish" | "freezes")[] | null;
+  starPlayer?: boolean | null;
 
   // Post
   postFrequency: IntensityLevel;
@@ -473,6 +475,7 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
   const inputs: PlayerInput = {
     position: "PG", height: "183 cm", weight: "82 kg", minutesPerGame: 20,
     athleticism: 3, physicalStrength: 3, ftShooting: 3, foulDrawing: 2,
+    personality: null, starPlayer: false,
     postFrequency: "Never", postProfile: "Back to Basket",
     postPreferredBlock: "Any", postDominantHand: "Right",
     postQuadrants: {}, postDoubleTeamReaction: "Kicks Out", postIsoAction: "Mixed",
@@ -776,6 +779,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     hand: inputs.postDominantHand === "Left" ? "L" : "R",
     ath,
     phys,
+    personality: inputs.personality ?? null,
     isoFreq: mapMotorIntensity(inputs.isoFrequency),
     pnrFreq: mapMotorIntensity(inputs.pnrFrequency),
     postFreq: mapMotorIntensity(inputs.postFrequency),

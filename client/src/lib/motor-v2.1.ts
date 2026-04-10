@@ -134,6 +134,7 @@ export interface PlayerInputs {
   hand: Hand;
   ath: 1 | 2 | 3 | 4 | 5;
   phys: 1 | 2 | 3 | 4 | 5;
+  personality?: ('clutch' | 'leader' | 'selfish' | 'freezes')[] | null;
   
   // Play type frequencies
   isoFreq: Frequency;

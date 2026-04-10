@@ -12,7 +12,7 @@ import {
   type HighPostAction, type HighPostZonesMotor,
   type TransRoleEditor,
 } from "@/lib/mock-data";
-import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus, ChevronDown } from "lucide-react";
+import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus, ChevronDown, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -95,6 +95,17 @@ const PUTBACK_QUALITY_I18N: Record<(typeof PUTBACK_QUALITY_OPTS)[number], string
   palms_only: "editor.putback_palms",
   not_observed: "editor.putback_not_observed",
 };
+
+const PERSONALITY_TRAITS: {
+  id: NonNullable<PlayerInput["personality"]>[number];
+  i18nKey: string;
+  tone: "positive" | "negative";
+}[] = [
+  { id: "clutch", i18nKey: "editor.personality_clutch", tone: "positive" },
+  { id: "leader", i18nKey: "editor.personality_leader", tone: "positive" },
+  { id: "selfish", i18nKey: "editor.personality_selfish", tone: "negative" },
+  { id: "freezes", i18nKey: "editor.personality_freezes", tone: "negative" },
+];
 
 function screenPatternToLegacyScreener(
   p: PlayerInput["offBallScreenPattern"],
@@ -627,6 +638,7 @@ export default function PlayerEditor() {
   const [showSaveFlash, setShowSaveFlash] = useState(false);
   const [screenerAccordionOpen, setScreenerAccordionOpen] = useState(true);
   const [cutterAccordionOpen, setCutterAccordionOpen] = useState(true);
+  const [personalityAccordionOpen, setPersonalityAccordionOpen] = useState(false);
   const isDirty = useRef(false);
 
   useEffect(() => {
@@ -873,7 +885,29 @@ export default function PlayerEditor() {
               <PlayerAvatarUpload imageUrl={player.imageUrl} onUpload={url => um("imageUrl", url)} />
               <div className="space-y-1.5">
                 <FieldLabel label={t("player_name")} />
-                <Input value={player.name} onChange={e => um("name", e.target.value)} placeholder="e.g. Jane Doe" className="bg-slate-50 dark:bg-slate-950/50 h-12 rounded-xl dark:border-slate-800" />
+                <div className="flex gap-2 items-stretch">
+                  <Input
+                    value={player.name}
+                    onChange={e => um("name", e.target.value)}
+                    placeholder="e.g. Jane Doe"
+                    className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-950/50 h-12 rounded-xl dark:border-slate-800"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                    title={t("editor.star_player")}
+                    aria-label={t("editor.star_player")}
+                    aria-pressed={inputs.starPlayer === true}
+                    onClick={() => ui("starPlayer", inputs.starPlayer !== true)}
+                  >
+                    <Star
+                      className={`w-6 h-6 ${inputs.starPlayer === true ? "fill-amber-400 text-amber-400" : "text-slate-400 fill-none"}`}
+                      strokeWidth={inputs.starPlayer === true ? 0 : 1.5}
+                    />
+                  </Button>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <FieldLabel label={t("team")} />
@@ -1007,6 +1041,81 @@ export default function PlayerEditor() {
                 color="amber"
                 tooltip={t("hint_foul_drawing")}
               />
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <div
+                className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden"
+              >
+                <button
+                  type="button"
+                  onClick={() => setPersonalityAccordionOpen((o) => !o)}
+                  className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
+                >
+                  <span className="font-medium text-sm text-slate-900 dark:text-white">{t("editor.personality")}</span>
+                  <ChevronDown
+                    className={`w-4 h-4 shrink-0 text-slate-500 transition-transform duration-200 ${personalityAccordionOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {personalityAccordionOpen && (
+                  <div className="px-4 pb-4 pt-0 flex flex-col gap-3">
+                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                      {PERSONALITY_TRAITS.filter((pt) => pt.tone === "positive").map((pt) => {
+                        const active = (inputs.personality ?? []).includes(pt.id);
+                        return (
+                          <Button
+                            key={pt.id}
+                            type="button"
+                            variant={active ? "default" : "outline"}
+                            style={{ minHeight: 44 }}
+                            className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                              active
+                                ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600 hover:text-white"
+                                : "border-slate-200 dark:border-slate-700"
+                            }`}
+                            onClick={() => {
+                              const list = inputs.personality ?? [];
+                              const next = list.includes(pt.id)
+                                ? list.filter((x) => x !== pt.id)
+                                : [...list, pt.id];
+                              ui("personality", next.length === 0 ? null : next);
+                            }}
+                          >
+                            {t(pt.i18nKey as never)}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                      {PERSONALITY_TRAITS.filter((pt) => pt.tone === "negative").map((pt) => {
+                        const active = (inputs.personality ?? []).includes(pt.id);
+                        return (
+                          <Button
+                            key={pt.id}
+                            type="button"
+                            variant={active ? "default" : "outline"}
+                            style={{ minHeight: 44 }}
+                            className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                              active
+                                ? "bg-amber-500 border-amber-500 text-white hover:bg-amber-500 hover:text-white dark:bg-amber-600 dark:border-amber-600 dark:hover:bg-amber-600"
+                                : "border-slate-200 dark:border-slate-700"
+                            }`}
+                            onClick={() => {
+                              const list = inputs.personality ?? [];
+                              const next = list.includes(pt.id)
+                                ? list.filter((x) => x !== pt.id)
+                                : [...list, pt.id];
+                              ui("personality", next.length === 0 ? null : next);
+                            }}
+                          >
+                            {t(pt.i18nKey as never)}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </TabsContent>
 

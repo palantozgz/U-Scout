@@ -119,6 +119,12 @@ const en = {
   free_throws_fouling: "Free Throws & Fouling",
   ft_shooting: "Free throw shooting (%)",
   foul_drawing: "Foul drawing frequency",
+  "editor.star_player": "Star player",
+  "editor.personality": "Personality (exceptional cases)",
+  "editor.personality_clutch": "Clutch",
+  "editor.personality_leader": "Leader",
+  "editor.personality_selfish": "Selfish",
+  "editor.personality_freezes": "Freezes under pressure",
 
   // ── Post tab ──────────────────────────────────────────────────────────────
   post_frequency: "Post-Up Frequency",
@@ -1054,6 +1060,12 @@ const es: I18nStrings = {
   free_throws_fouling: "Tiros Libres y Faltas",
   ft_shooting: "% Tiros libres",
   foul_drawing: "Frecuencia de provocar faltas",
+  "editor.star_player": "Jugador estrella",
+  "editor.personality": "Personalidad (casos excepcionales)",
+  "editor.personality_clutch": "Clutch",
+  "editor.personality_leader": "Líder",
+  "editor.personality_selfish": "Egoísta",
+  "editor.personality_freezes": "Se bloquea bajo presión",
 
   post_frequency: "Frecuencia en el Poste",
   post_dominant_hand: "Mano dominante en el poste",
@@ -1949,6 +1961,12 @@ const zh: I18nStrings = {
   free_throws_fouling: "罚球与犯规",
   ft_shooting: "罚球命中率",
   foul_drawing: "造犯规频率",
+  "editor.star_player": "球队核心",
+  "editor.personality": "性格特征（特殊情况）",
+  "editor.personality_clutch": "关键时刻挺身",
+  "editor.personality_leader": "领袖气质",
+  "editor.personality_selfish": "自私",
+  "editor.personality_freezes": "压力下失常",
 
   post_frequency: "低位频率",
   post_dominant_hand: "低位惯用手",
