@@ -13,11 +13,17 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl     = process.env.VITE_SUPABASE_URL!;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY!;
 
+function fullNameFromUserMetadata(user: { user_metadata?: Record<string, unknown> | null }): string | null {
+  const meta = user.user_metadata as Record<string, unknown> | undefined;
+  const fnRaw = meta?.full_name ?? meta?.fullName ?? meta?.name;
+  return typeof fnRaw === "string" && fnRaw.trim() ? fnRaw.trim() : null;
+}
+
 // Extend Express Request to include user
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string; email: string; role: string };
+      user?: { id: string; email: string; role: string; fullName: string | null };
     }
   }
 }
@@ -47,9 +53,10 @@ export async function requireAuth(
 
   // Attach user to request
   req.user = {
-    id:    user.id,
+    id: user.id,
     email: user.email ?? "",
-    role:  user.user_metadata?.role ?? "coach",
+    role: user.user_metadata?.role ?? "coach",
+    fullName: fullNameFromUserMetadata(user),
   };
 
   next();
@@ -75,9 +82,10 @@ export async function optionalAuth(
 
   if (user) {
     req.user = {
-      id:    user.id,
+      id: user.id,
       email: user.email ?? "",
-      role:  user.user_metadata?.role ?? "coach",
+      role: user.user_metadata?.role ?? "coach",
+      fullName: fullNameFromUserMetadata(user),
     };
   }
 

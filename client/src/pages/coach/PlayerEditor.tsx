@@ -370,6 +370,49 @@ function CloseoutSelect({ label, value, onChange, fallback, tooltip }: {
   );
 }
 
+function IsoCloseoutReactionSection({
+  inputs,
+  ui,
+}: {
+  inputs: PlayerInput;
+  ui: (key: keyof PlayerInput, value: any) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
+      <FieldLabel label={t("closeout_general")} tooltip={t("hint_closeout_general")} />
+      <Select value={inputs.closeoutReaction} onValueChange={(v) => ui("closeoutReaction", v)}>
+        <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="Catch & Shoot">{t("opt_closeout_catch_shoot")}</SelectItem>
+          <SelectItem value="Attack Baseline">{t("opt_closeout_attack_baseline")}</SelectItem>
+          <SelectItem value="Attack Middle">{t("opt_closeout_attack_middle")}</SelectItem>
+          <SelectItem value="Attacks Strong Hand">{t("opt_closeout_strong_hand")}</SelectItem>
+          <SelectItem value="Attacks Weak Hand">{t("opt_closeout_weak_hand")}</SelectItem>
+          <SelectItem value="Extra Pass">{t("opt_closeout_extra_pass")}</SelectItem>
+        </SelectContent>
+      </Select>
+      <div className="grid grid-cols-2 gap-3">
+        <CloseoutSelect
+          label={`⬅️ ${t("left_wing")}`}
+          value={inputs.closeoutLeft}
+          onChange={(v) => ui("closeoutLeft", v)}
+          fallback={inputs.closeoutReaction}
+          tooltip={t("hint_closeout_directional")}
+        />
+        <CloseoutSelect
+          label={`➡️ ${t("right_wing")}`}
+          value={inputs.closeoutRight}
+          onChange={(v) => ui("closeoutRight", v)}
+          fallback={inputs.closeoutReaction}
+          tooltip={t("hint_closeout_directional")}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Half-court diagram with colored blocks ───────────────────────────────────
 // Attacker POV: right block = player's right when facing the basket
 // Right block = RED, Left block = BLUE
@@ -910,55 +953,62 @@ export default function PlayerEditor() {
               <PlayerAvatarUpload imageUrl={player.imageUrl} onUpload={url => um("imageUrl", url)} />
               <div className="space-y-1.5">
                 <FieldLabel label={t("player_name")} />
-                <div className="flex gap-2 items-stretch">
-                  <Input
-                    value={player.name}
-                    onChange={e => um("name", e.target.value)}
-                    placeholder="e.g. Jane Doe"
-                    className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-950/50 h-12 rounded-xl dark:border-slate-800"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={`h-12 w-12 shrink-0 rounded-xl border transition-colors ${
-                      inputs.starPlayer === true
-                        ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
-                        : "border-slate-200 dark:border-slate-700 text-slate-400"
-                    } hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20`}
-                    title={`${t("editor.star_player_hint")} — ${t("editor.star_player_limit_note")}`}
-                    aria-label={t("editor.star_player")}
-                    aria-pressed={inputs.starPlayer === true}
-                    onClick={() => ui("starPlayer", inputs.starPlayer !== true)}
-                  >
-                    <Star
-                      className={`w-6 h-6 ${inputs.starPlayer === true ? "fill-amber-400 text-amber-400" : "text-slate-400 fill-none"}`}
-                      strokeWidth={inputs.starPlayer === true ? 0 : 1.5}
+                {/* Name + team star: one card so the star control and its caption read as one control */}
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-50/80 dark:bg-slate-950/40 shadow-sm">
+                  <div className="flex gap-2 items-stretch p-1.5">
+                    <Input
+                      value={player.name}
+                      onChange={e => um("name", e.target.value)}
+                      placeholder="e.g. Jane Doe"
+                      className="flex-1 min-w-0 h-12 rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950/80"
+                      aria-describedby="team-star-caption"
                     />
-                  </Button>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className={`h-12 w-12 shrink-0 rounded-lg border transition-colors ${
+                        inputs.starPlayer === true
+                          ? "border-amber-500/50 bg-amber-500/15 text-amber-400"
+                          : "border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-950/80"
+                      } hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20`}
+                      title={`${t("editor.star_player_hint")} — ${t("editor.star_player_limit_note")}`}
+                      aria-label={t("editor.star_player")}
+                      aria-pressed={inputs.starPlayer === true}
+                      aria-describedby="team-star-caption"
+                      onClick={() => ui("starPlayer", inputs.starPlayer !== true)}
+                    >
+                      <Star
+                        className={`w-6 h-6 ${inputs.starPlayer === true ? "fill-amber-400 text-amber-400" : "text-slate-400 fill-none"}`}
+                        strokeWidth={inputs.starPlayer === true ? 0 : 1.5}
+                      />
+                    </Button>
+                  </div>
+                  <div
+                    id="team-star-caption"
+                    className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 border-t text-xs ${
                       inputs.starPlayer === true
-                        ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                        : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700"
+                        ? "border-amber-500/25 bg-amber-500/[0.08] dark:bg-amber-500/10"
+                        : "border-slate-200/90 dark:border-slate-700/90 bg-slate-100/60 dark:bg-slate-900/50"
                     }`}
                   >
                     <Star
-                      className={`w-3 h-3 ${
+                      className={`w-3.5 h-3.5 shrink-0 ${
                         inputs.starPlayer === true
                           ? "fill-amber-400 text-amber-400"
-                          : "text-slate-400 fill-none dark:text-slate-400"
+                          : "text-slate-400 fill-none dark:text-slate-500"
                       }`}
                       strokeWidth={inputs.starPlayer === true ? 0 : 1.5}
+                      aria-hidden
                     />
-                    {t("editor.star_player_badge_label")}
+                    <span className="font-semibold text-slate-800 dark:text-slate-100">
+                      {t("editor.star_player_badge_label")}
+                    </span>
                     <Tooltip text={`${t("editor.star_player_hint")}\n\n${t("editor.star_player_limit_note")}`} />
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    {t("editor.star_player_limit_note")}
-                  </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 w-full sm:w-auto sm:ml-1">
+                      {t("editor.star_player_limit_note")}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -1390,24 +1440,7 @@ export default function PlayerEditor() {
               <IntensitySelector label={t("iso_frequency")} value={inputs.isoFrequency} onChange={v => ui("isoFrequency", v)}
                 tooltip={t("hint_iso_frequency")} />
 
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
-                <FieldLabel label={t("closeout_general")} tooltip={t("hint_closeout_general")} />
-                <Select value={inputs.closeoutReaction} onValueChange={v => ui("closeoutReaction", v)}>
-                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Catch & Shoot">{t("opt_closeout_catch_shoot")}</SelectItem>
-                    <SelectItem value="Attack Baseline">{t("opt_closeout_attack_baseline")}</SelectItem>
-                    <SelectItem value="Attack Middle">{t("opt_closeout_attack_middle")}</SelectItem>
-                    <SelectItem value="Attacks Strong Hand">{t("opt_closeout_strong_hand")}</SelectItem>
-                    <SelectItem value="Attacks Weak Hand">{t("opt_closeout_weak_hand")}</SelectItem>
-                    <SelectItem value="Extra Pass">{t("opt_closeout_extra_pass")}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="grid grid-cols-2 gap-3">
-                  <CloseoutSelect label={`⬅️ ${t("left_wing")}`} value={inputs.closeoutLeft} onChange={v => ui("closeoutLeft", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
-                  <CloseoutSelect label={`➡️ ${t("right_wing")}`} value={inputs.closeoutRight} onChange={v => ui("closeoutRight", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
-                </div>
-              </div>
+              {inputs.isoFrequency === "Never" && <IsoCloseoutReactionSection inputs={inputs} ui={ui} />}
 
               {inputs.isoFrequency !== "Never" && (
                 <>
@@ -1644,6 +1677,8 @@ export default function PlayerEditor() {
                       </div>
                     </div>
                   </div>
+
+                  <IsoCloseoutReactionSection inputs={inputs} ui={ui} />
                 </>
               )}
             </div>

@@ -24,6 +24,8 @@ import PlayerProfileViewer from "@/pages/player/Profile";
 import JoinPage from "@/pages/Join";
 
 const SPLASH_SHOWN_KEY = "splashShown";
+/** Duración máxima de la transición fade → off (ms). */
+const SPLASH_FADE_MS = 600;
 
 function readSplashAlreadyShown(): boolean {
   try {
@@ -121,7 +123,7 @@ function App() {
 
   useEffect(() => {
     if (skipSplash) return;
-    const id = window.setTimeout(() => setSplashDone(true), 3000);
+    const id = window.setTimeout(() => setSplashDone(true), 2000);
     return () => window.clearTimeout(id);
   }, [skipSplash]);
 
@@ -135,6 +137,15 @@ function App() {
 
   useEffect(() => {
     if (skipSplash) return;
+    // Safety timeout: si después de 2 segundos la splash sigue activa, forzar el cierre
+    const timeout = window.setTimeout(() => {
+      setSplashPhase((prev) => (prev === "on" ? "fade" : prev));
+    }, 2000);
+    return () => window.clearTimeout(timeout);
+  }, [skipSplash]);
+
+  useEffect(() => {
+    if (skipSplash) return;
     if (splashPhase !== "fade") return;
     const id = window.setTimeout(() => {
       try {
@@ -143,7 +154,7 @@ function App() {
         /* ignore quota / private mode */
       }
       setSplashPhase("off");
-    }, 400);
+    }, SPLASH_FADE_MS);
     return () => window.clearTimeout(id);
   }, [skipSplash, splashPhase]);
 

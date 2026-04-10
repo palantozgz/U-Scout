@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { insertTeamSchema, insertPlayerSchema } from "@shared/schema";
 import { requireAuth } from "./auth";
 import { getSupabaseAdmin } from "./supabaseAdmin";
-import { lookupAuthBasicsByUserIds } from "./authUserLookup";
+import { lookupAuthBasicsByUserIds, mergeAuthWithSession } from "./authUserLookup";
 
 function publicAppOrigin(req: Request): string {
   const env = process.env.APP_PUBLIC_URL ?? process.env.VITE_APP_URL;
@@ -562,11 +562,16 @@ export async function registerRoutes(
           logo: "🏀",
           ownerId: uid,
         });
+        const u = req.user!;
+        const initialDisplay =
+          u.fullName?.trim() ||
+          (u.email?.includes("@") ? u.email.split("@")[0] : u.email?.trim()) ||
+          "";
         await storage.createClubMember({
           clubId: club.id,
           userId: uid,
           role: "head_coach",
-          displayName: "",
+          displayName: initialDisplay,
           jerseyNumber: "",
           position: "",
           status: "active",
@@ -591,7 +596,8 @@ export async function registerRoutes(
           createdAt: club.createdAt.toISOString(),
         },
         members: members.map((m) => {
-          const auth = authByUserId.get(m.userId) ?? { fullName: null, email: null };
+          const fromAdmin = authByUserId.get(m.userId) ?? { fullName: null, email: null };
+          const auth = mergeAuthWithSession(m.userId, req.user!, fromAdmin);
           return {
             id: m.id,
             clubId: m.clubId,
@@ -811,7 +817,8 @@ export async function registerRoutes(
       res.json({
         players: players.map((m) => {
           const s = assignMap.get(m.userId) ?? { count: 0, lastAt: null };
-          const auth = authByUserId.get(m.userId) ?? { fullName: null, email: null };
+          const fromAdmin = authByUserId.get(m.userId) ?? { fullName: null, email: null };
+          const auth = mergeAuthWithSession(m.userId, req.user!, fromAdmin);
           return {
             memberId: m.id,
             userId: m.userId,
@@ -824,7 +831,8 @@ export async function registerRoutes(
           };
         }),
         coaches: coaches.map((m) => {
-          const auth = authByUserId.get(m.userId) ?? { fullName: null, email: null };
+          const fromAdmin = authByUserId.get(m.userId) ?? { fullName: null, email: null };
+          const auth = mergeAuthWithSession(m.userId, req.user!, fromAdmin);
           return {
             memberId: m.id,
             userId: m.userId,

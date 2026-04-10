@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "./queryClient";
 
 export const clubQueryKey = ["/api/club"] as const;
-export const clubStatsQueryKey = ["/api/club/stats"] as const;
+/** v3 — bump second segment when stats JSON shape changes (avoids stale persisted cache without auth fields). */
+export const clubStatsQueryKey = ["/api/club/stats", "v3"] as const;
 
 export interface ClubMemberDto {
   id: string;

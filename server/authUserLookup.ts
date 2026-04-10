@@ -1,6 +1,22 @@
+import type { Request } from "express";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 export type AuthBasics = { fullName: string | null; email: string | null };
+
+/** For the signed-in user row, fill from JWT when Admin lookup is empty (no service role). */
+export function mergeAuthWithSession(
+  memberUserId: string,
+  session: NonNullable<Request["user"]>,
+  fromAdmin: AuthBasics,
+): AuthBasics {
+  if (memberUserId !== session.id) return fromAdmin;
+  const sFn = session.fullName?.trim();
+  const sEm = session.email?.trim();
+  return {
+    fullName: (sFn && sFn.length > 0 ? sFn : null) ?? fromAdmin.fullName,
+    email: (sEm && sEm.length > 0 ? sEm : null) ?? fromAdmin.email,
+  };
+}
 
 /** Loads full_name (user_metadata) and email for each auth user id. No-op when service role is unavailable. */
 export async function lookupAuthBasicsByUserIds(userIds: string[]): Promise<Map<string, AuthBasics>> {

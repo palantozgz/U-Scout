@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, Copy, Check, Users } from "lucide-react";
@@ -24,6 +25,7 @@ import {
   useBanClubMember,
   useRevokeClubInvitation,
   useClubStats,
+  clubStatsQueryKey,
   type ClubMemberDto,
 } from "@/lib/club-api";
 import { isShortUserIdFallback, userDisplayLabel } from "@/lib/userDisplayLabel";
@@ -98,6 +100,38 @@ function StatsUserName(props: {
   );
 }
 
+function firstNonEmptyString(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): string | undefined {
+  const ta = typeof a === "string" ? a.trim() : "";
+  if (ta) return ta;
+  const tb = typeof b === "string" ? b.trim() : "";
+  if (tb) return tb;
+  return undefined;
+}
+
+/** Stats query is cached separately; overlay club /api/club member row so names match Staff tab. */
+function mergeStatsRowWithClubMember(
+  row: {
+    userId: string;
+    authFullName?: string | null;
+    authEmail?: string | null;
+    displayName: string;
+    invitedEmail?: string | null;
+  },
+  clubMap: Map<string, ClubMemberDto>,
+) {
+  const cm = clubMap.get(row.userId);
+  return {
+    userId: row.userId,
+    authFullName: firstNonEmptyString(cm?.authFullName, row.authFullName) ?? null,
+    authEmail: firstNonEmptyString(cm?.authEmail, row.authEmail) ?? null,
+    displayName: firstNonEmptyString(cm?.displayName, row.displayName) ?? "",
+    invitedEmail: firstNonEmptyString(cm?.invitedEmail ?? undefined, row.invitedEmail ?? undefined) ?? null,
+  };
+}
+
 export default function ClubManagement() {
   const { t, locale } = useLocale();
   const [, setLocation] = useLocation();
@@ -126,6 +160,12 @@ export default function ClubManagement() {
   const banMut = useBanClubMember();
   const revokeInv = useRevokeClubInvitation();
   const statsQ = useClubStats({ enabled: activeTab === "stats" });
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (activeTab !== "stats") return;
+    void queryClient.invalidateQueries({ queryKey: clubStatsQueryKey });
+  }, [activeTab, queryClient]);
 
   useEffect(() => {
     if (q.data?.club) {
@@ -147,6 +187,14 @@ export default function ClubManagement() {
     const me = q.data.members.find((m) => m.userId === profile.id);
     return me?.status === "active" && (me.role === "head_coach" || me.role === "coach");
   }, [profile, q.data]);
+
+  const clubMemberByUserId = useMemo(() => {
+    const map = new Map<string, ClubMemberDto>();
+    for (const m of q.data?.members ?? []) {
+      map.set(m.userId, m);
+    }
+    return map;
+  }, [q.data?.members]);
 
   const copyLink = async (link: string, id: string) => {
     try {
@@ -424,11 +472,7 @@ export default function ClubManagement() {
                               className="rounded-xl border border-border bg-card p-3 text-sm space-y-1"
                             >
                               <StatsUserName
-                                userId={p.userId}
-                                authFullName={p.authFullName}
-                                authEmail={p.authEmail}
-                                displayName={p.displayName}
-                                invitedEmail={p.invitedEmail}
+                                {...mergeStatsRowWithClubMember(p, clubMemberByUserId)}
                               />
                               <p className="text-xs text-muted-foreground">
                                 {t("club_stats_reports")}: <span className="text-foreground font-medium">{p.reportsAssigned}</span>
@@ -456,11 +500,7 @@ export default function ClubManagement() {
                               className="rounded-xl border border-border bg-card p-3 text-sm space-y-1"
                             >
                               <StatsUserName
-                                userId={c.userId}
-                                authFullName={c.authFullName}
-                                authEmail={c.authEmail}
-                                displayName={c.displayName}
-                                invitedEmail={c.invitedEmail}
+                                {...mergeStatsRowWithClubMember(c, clubMemberByUserId)}
                               />
                               <p className="text-xs text-muted-foreground">{roleLabel(c.role)}</p>
                               <p className="text-xs text-muted-foreground">
