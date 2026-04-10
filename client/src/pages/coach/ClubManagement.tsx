@@ -26,6 +26,8 @@ import {
   useClubStats,
   type ClubMemberDto,
 } from "@/lib/club-api";
+import { isShortUserIdFallback, userDisplayLabel } from "@/lib/userDisplayLabel";
+import { cn } from "@/lib/utils";
 
 const LOGO_EMOJIS = ["🏀", "⛹️", "🔥", "⭐", "💪", "🎯"];
 
@@ -40,15 +42,59 @@ function formatWhen(iso: string, locale: string): string {
   }
 }
 
-function MemberLabel({ displayName, userId, emailFallback }: { displayName: string; userId: string; emailFallback?: string | null }) {
-  const s = displayName?.trim();
-  if (s) return <span className="font-semibold text-foreground truncate">{s}</span>;
-  const e = emailFallback?.trim();
-  if (e) return <span className="font-semibold text-foreground truncate">{e}</span>;
+function MemberLabel({
+  userId,
+  authFullName,
+  authEmail,
+  displayName,
+  invitedEmail,
+}: {
+  userId: string;
+  authFullName?: string | null;
+  authEmail?: string | null;
+  displayName: string;
+  invitedEmail: string | null;
+}) {
+  const label = userDisplayLabel({
+    userId,
+    authFullName: authFullName ?? null,
+    authEmail: authEmail ?? null,
+    displayName,
+    invitedEmail,
+  });
+  const idFallback = isShortUserIdFallback(label, userId);
   return (
-    <span className="font-mono text-xs text-muted-foreground truncate" title={userId}>
-      {userId.length > 12 ? `${userId.slice(0, 8)}…` : userId}
+    <span
+      className={cn("truncate", idFallback ? "font-mono text-xs text-muted-foreground" : "font-semibold text-foreground")}
+      title={userId}
+    >
+      {label}
     </span>
+  );
+}
+
+function StatsUserName(props: {
+  userId: string;
+  authFullName?: string | null;
+  authEmail?: string | null;
+  displayName: string;
+  invitedEmail?: string | null;
+}) {
+  const label = userDisplayLabel({
+    userId: props.userId,
+    authFullName: props.authFullName ?? null,
+    authEmail: props.authEmail ?? null,
+    displayName: props.displayName,
+    invitedEmail: props.invitedEmail ?? null,
+  });
+  const idFallback = isShortUserIdFallback(label, props.userId);
+  return (
+    <p
+      className={cn("font-semibold text-foreground", idFallback && "font-mono text-xs text-muted-foreground")}
+      title={props.userId}
+    >
+      {label}
+    </p>
   );
 }
 
@@ -377,7 +423,13 @@ export default function ClubManagement() {
                               key={p.memberId}
                               className="rounded-xl border border-border bg-card p-3 text-sm space-y-1"
                             >
-                              <p className="font-semibold text-foreground">{p.displayName?.trim() || p.userId}</p>
+                              <StatsUserName
+                                userId={p.userId}
+                                authFullName={p.authFullName}
+                                authEmail={p.authEmail}
+                                displayName={p.displayName}
+                                invitedEmail={p.invitedEmail}
+                              />
                               <p className="text-xs text-muted-foreground">
                                 {t("club_stats_reports")}: <span className="text-foreground font-medium">{p.reportsAssigned}</span>
                               </p>
@@ -403,7 +455,13 @@ export default function ClubManagement() {
                               key={c.memberId}
                               className="rounded-xl border border-border bg-card p-3 text-sm space-y-1"
                             >
-                              <p className="font-semibold text-foreground">{c.displayName?.trim() || c.userId}</p>
+                              <StatsUserName
+                                userId={c.userId}
+                                authFullName={c.authFullName}
+                                authEmail={c.authEmail}
+                                displayName={c.displayName}
+                                invitedEmail={c.invitedEmail}
+                              />
                               <p className="text-xs text-muted-foreground">{roleLabel(c.role)}</p>
                               <p className="text-xs text-muted-foreground">
                                 {t("club_stats_players_scouted")}:{" "}
@@ -494,7 +552,13 @@ function MemberRow({
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1 space-y-2">
-        <MemberLabel displayName={m.displayName} userId={m.userId} emailFallback={m.invitedEmail} />
+        <MemberLabel
+          userId={m.userId}
+          authFullName={m.authFullName}
+          authEmail={m.authEmail}
+          displayName={m.displayName}
+          invitedEmail={m.invitedEmail}
+        />
         {variant === "player" && (
           <p className="text-xs text-muted-foreground">
             #{m.jerseyNumber || "—"} · {m.position || "—"}

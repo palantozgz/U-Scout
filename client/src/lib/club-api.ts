@@ -16,6 +16,9 @@ export interface ClubMemberDto {
   invitedEmail: string | null;
   joinedAt: string | null;
   createdAt: string;
+  /** From Supabase Auth user_metadata.full_name when service role lookup succeeds */
+  authFullName?: string | null;
+  authEmail?: string | null;
 }
 
 export interface ClubInvitationDto {
@@ -124,6 +127,9 @@ export function useClubStats(options?: { enabled?: boolean }) {
           memberId: string;
           userId: string;
           displayName: string;
+          authFullName?: string | null;
+          authEmail?: string | null;
+          invitedEmail?: string | null;
           reportsAssigned: number;
           lastSeen: string | null;
         }>;
@@ -131,6 +137,9 @@ export function useClubStats(options?: { enabled?: boolean }) {
           memberId: string;
           userId: string;
           displayName: string;
+          authFullName?: string | null;
+          authEmail?: string | null;
+          invitedEmail?: string | null;
           role: string;
           playersScouted: number;
         }>;

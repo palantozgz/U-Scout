@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { insertTeamSchema, insertPlayerSchema } from "@shared/schema";
 import { requireAuth } from "./auth";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { lookupAuthBasicsByUserIds } from "./authUserLookup";
 
 function publicAppOrigin(req: Request): string {
   const env = process.env.APP_PUBLIC_URL ?? process.env.VITE_APP_URL;
@@ -579,6 +580,7 @@ export async function registerRoutes(
       const members = await storage.listClubMembers(club.id);
       const invs = await storage.listActiveClubInvitations(club.id);
       const base = publicAppOrigin(req);
+      const authByUserId = await lookupAuthBasicsByUserIds(members.map((m) => m.userId));
 
       res.json({
         club: {
@@ -588,19 +590,24 @@ export async function registerRoutes(
           ownerId: club.ownerId,
           createdAt: club.createdAt.toISOString(),
         },
-        members: members.map((m) => ({
-          id: m.id,
-          clubId: m.clubId,
-          userId: m.userId,
-          role: m.role,
-          displayName: m.displayName,
-          jerseyNumber: m.jerseyNumber,
-          position: m.position,
-          status: m.status,
-          invitedEmail: m.invitedEmail,
-          joinedAt: m.joinedAt ? m.joinedAt.toISOString() : null,
-          createdAt: m.createdAt.toISOString(),
-        })),
+        members: members.map((m) => {
+          const auth = authByUserId.get(m.userId) ?? { fullName: null, email: null };
+          return {
+            id: m.id,
+            clubId: m.clubId,
+            userId: m.userId,
+            role: m.role,
+            displayName: m.displayName,
+            jerseyNumber: m.jerseyNumber,
+            position: m.position,
+            status: m.status,
+            invitedEmail: m.invitedEmail,
+            joinedAt: m.joinedAt ? m.joinedAt.toISOString() : null,
+            createdAt: m.createdAt.toISOString(),
+            authFullName: auth.fullName,
+            authEmail: auth.email,
+          };
+        }),
         pendingInvitations: invs.map((i) => ({
           id: i.id,
           clubId: i.clubId,
@@ -796,25 +803,39 @@ export async function registerRoutes(
 
       const assignMap = await storage.getAssignmentStatsForUsers(players.map((p) => p.userId));
       const createMap = await storage.getPlayerCountsByCreator(coaches.map((c) => c.userId));
+      const statsUserIds = Array.from(
+        new Set([...players.map((p) => p.userId), ...coaches.map((c) => c.userId)]),
+      );
+      const authByUserId = await lookupAuthBasicsByUserIds(statsUserIds);
 
       res.json({
         players: players.map((m) => {
           const s = assignMap.get(m.userId) ?? { count: 0, lastAt: null };
+          const auth = authByUserId.get(m.userId) ?? { fullName: null, email: null };
           return {
             memberId: m.id,
             userId: m.userId,
             displayName: m.displayName,
+            authFullName: auth.fullName,
+            authEmail: auth.email,
+            invitedEmail: m.invitedEmail,
             reportsAssigned: s.count,
             lastSeen: s.lastAt ? s.lastAt.toISOString() : null,
           };
         }),
-        coaches: coaches.map((m) => ({
-          memberId: m.id,
-          userId: m.userId,
-          displayName: m.displayName,
-          role: m.role,
-          playersScouted: createMap.get(m.userId) ?? 0,
-        })),
+        coaches: coaches.map((m) => {
+          const auth = authByUserId.get(m.userId) ?? { fullName: null, email: null };
+          return {
+            memberId: m.id,
+            userId: m.userId,
+            displayName: m.displayName,
+            authFullName: auth.fullName,
+            authEmail: auth.email,
+            invitedEmail: m.invitedEmail,
+            role: m.role,
+            playersScouted: createMap.get(m.userId) ?? 0,
+          };
+        }),
       });
     } catch (err) {
       res.status(500).json({ error: "Failed to load stats" });
