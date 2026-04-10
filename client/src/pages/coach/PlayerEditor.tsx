@@ -709,13 +709,31 @@ export default function PlayerEditor() {
   const [personalityAccordionOpen, setPersonalityAccordionOpen] = useState(false);
   const isDirty = useRef(false);
 
+  const latestPlayerRef = useRef(player);
+  const latestInputsRef = useRef(inputs);
+  const isNewRef = useRef(isNew);
+  const firstUserEditAtRef = useRef<number | null>(null);
+  const touchedFieldKeysRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    latestPlayerRef.current = player;
+    latestInputsRef.current = inputs;
+  }, [player, inputs]);
+  useEffect(() => {
+    isNewRef.current = isNew;
+  }, [isNew]);
+
   useEffect(() => {
     if (!isNew || teamsLoading || teams.length === 0) return;
     const tid = searchTeamId || teams[0].id;
     const defaultP = createDefaultPlayer(tid);
     setPlayer(defaultP);
     setInputs(defaultP.inputs);
-  }, [isNew, teamsLoading, teams.length]);
+    firstUserEditAtRef.current = null;
+    touchedFieldKeysRef.current = new Set();
+    setScreenerAccordionOpen(false);
+    setCutterAccordionOpen(false);
+  }, [isNew, teamsLoading, teams.length, searchTeamId]);
 
   useEffect(() => {
     if (!isNew && existingPlayer) {
@@ -733,38 +751,75 @@ export default function PlayerEditor() {
     } else if (!isNew && !playerLoading && !existingPlayer) setLocation("/coach");
   }, [isNew, existingPlayer, playerLoading]);
 
-  // Auto-save on change after 1.5s debounce
-  // KEY FIX: after first create, switch to update mode using createdIdRef
+  // Auto-save: 1.5s debounce. Brand-new player (URL /new, not yet created in DB): wait ≥10s from first edit + ≥3 distinct fields before first persist.
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const triggerAutoSave = (currentPlayer: typeof player, currentInputs: PlayerInput) => {
+
+  const runAutoSaveAttempt = async () => {
+    const currentPlayer = latestPlayerRef.current;
+    const currentInputs = latestInputsRef.current;
     if (!currentPlayer || !currentInputs) return;
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(async () => {
-      if (isSaving.current) return; // prevent concurrent saves
-      isSaving.current = true;
-      const finalName = currentPlayer.name.trim() || "Unnamed Player";
-      const generated = generateProfile(currentInputs, currentPlayer?.name);
-      const updated = { ...currentPlayer, name: finalName, inputs: currentInputs, internalModel: generated.internalModel, archetype: generated.archetype, subArchetype: generated.subArchetype, keyTraits: generated.keyTraits, defensivePlan: generated.defensivePlan };
-      const currentId = getPlayerId();
-      if (!currentId || currentId === "new") {
-        // First save — create new player
-        createPlayerMutation.mutate(updated as Omit<PlayerProfile, "id">, {
-          onSuccess: (created: PlayerProfile) => {
-            createdIdRef.current = created.id; // flip to update mode
+    if (isSaving.current) return;
+
+    const brandNewSession = isNewRef.current && !createdIdRef.current;
+    if (brandNewSession) {
+      if (firstUserEditAtRef.current == null || touchedFieldKeysRef.current.size === 0) return;
+      const elapsed = Date.now() - firstUserEditAtRef.current;
+      if (touchedFieldKeysRef.current.size < 3 || elapsed < 10_000) {
+        const delay =
+          touchedFieldKeysRef.current.size < 3 ? 800 : Math.max(250, 10_000 - elapsed);
+        autoSaveTimer.current = setTimeout(() => {
+          void runAutoSaveAttempt();
+        }, delay);
+        return;
+      }
+    }
+
+    isSaving.current = true;
+    const finalName = currentPlayer.name.trim() || "Unnamed Player";
+    const generated = generateProfile(currentInputs, currentPlayer?.name);
+    const updated = {
+      ...currentPlayer,
+      name: finalName,
+      inputs: currentInputs,
+      internalModel: generated.internalModel,
+      archetype: generated.archetype,
+      subArchetype: generated.subArchetype,
+      keyTraits: generated.keyTraits,
+      defensivePlan: generated.defensivePlan,
+    };
+    const currentId = getPlayerId();
+    if (!currentId || currentId === "new") {
+      createPlayerMutation.mutate(updated as Omit<PlayerProfile, "id">, {
+        onSuccess: (created: PlayerProfile) => {
+          createdIdRef.current = created.id;
+          isSaving.current = false;
+        },
+        onError: () => {
+          isSaving.current = false;
+        },
+      });
+    } else {
+      updatePlayerMutation.mutate(
+        { id: currentId, updates: updated },
+        {
+          onSuccess: () => {
             isSaving.current = false;
           },
-          onError: () => { isSaving.current = false; },
-        });
-      } else {
-        // Subsequent saves — always update
-        updatePlayerMutation.mutate({ id: currentId, updates: updated }, {
-          onSuccess: () => { isSaving.current = false; },
-          onError: () => { isSaving.current = false; },
-        });
-      }
-      setDraftSaved(true);
-      setTimeout(() => setDraftSaved(false), 2000);
-      isDirty.current = false;
+          onError: () => {
+            isSaving.current = false;
+          },
+        },
+      );
+    }
+    setDraftSaved(true);
+    setTimeout(() => setDraftSaved(false), 2000);
+    isDirty.current = false;
+  };
+
+  const triggerAutoSave = () => {
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      void runAutoSaveAttempt();
     }, 1500);
   };
 
@@ -807,20 +862,28 @@ export default function PlayerEditor() {
   };
 
   const ui = (key: keyof PlayerInput, value: any) => {
-    setInputs(prev => {
+    setInputs((prev) => {
       if (!prev) return prev;
       const next = { ...prev, [key]: value };
       isDirty.current = true;
-      triggerAutoSave(player, next);
+      if (isNewRef.current && !createdIdRef.current) {
+        if (firstUserEditAtRef.current == null) firstUserEditAtRef.current = Date.now();
+        touchedFieldKeysRef.current.add(String(key));
+      }
+      triggerAutoSave();
       return next;
     });
   };
   const um = (key: keyof PlayerProfile, value: string) => {
-    setPlayer(prev => {
+    setPlayer((prev) => {
       if (!prev) return prev;
       const next = { ...prev, [key]: value };
       isDirty.current = true;
-      triggerAutoSave(next, inputs);
+      if (isNewRef.current && !createdIdRef.current) {
+        if (firstUserEditAtRef.current == null) firstUserEditAtRef.current = Date.now();
+        touchedFieldKeysRef.current.add(`profile:${String(key)}`);
+      }
+      triggerAutoSave();
       return next;
     });
   };
