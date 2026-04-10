@@ -867,11 +867,13 @@ const en = {
   "editor.trans_sub.early_drag": "Early drag",
   "editor.trans_sub.multiple": "Multiple",
   "editor.trans_sub.corner_3": "Corner 3",
-  "editor.trans_sub.cut_to_rim": "Cut to rim",
+  "editor.trans_sub.cut_to_rim": "Cut / Drive to rim",
   "editor.trans_sub.both": "Both",
-  "editor.trans_sub.dribble_push": "Dribble push",
+  "editor.trans_sub.dribble_push": "Dribble push (coast to coast)",
   "editor.trans_sub.pass_and_go": "Pass & go",
   "editor.trans_sub.after_def_rebound": "After def. rebound",
+
+  "editor.trans_finishing": "Finishing at the rim",
 
   "editor.high_post_zones": "High post / elbow",
   "editor.high_post_zone.leftElbow": "Left elbow",
@@ -892,12 +894,14 @@ const en = {
   "editor.iso_hand_finish.floater": "Floater",
   "editor.iso_hand_finish.pass": "Pass",
   "editor.iso_finishing": "Finishing tendencies",
+  "editor.iso_section.creation": "Creation",
+  "editor.pnr_section.finish_tendencies": "Finish tendencies",
   "editor.iso_closeout_reaction": "Closeout reaction",
   "editor.iso_strong_hand_finish": "Strong hand finish",
   "editor.iso_strong_hand_finish_hint": "Preferred move when attacking with dominant hand in ISO",
   "editor.iso_weak_hand_finish": "Weak hand finish",
   "editor.iso_weak_hand_finish_hint": "Preferred move when forced to attack with weak hand",
-  "editor.off_ball_role": "Off-ball role",
+  "editor.off_ball_role": "Off-ball screens role",
   "editor.off_ball_role_hint": "How does this player play without the ball?",
   "editor.off_ball_role.screener": "Screener",
   "editor.off_ball_role.cutter": "Cutter",
@@ -946,6 +950,7 @@ const en = {
   "editor.off_ball_cut_action.catch_and_drive": "Catch & drive",
   "editor.off_ball_cut_action.curl": "Curl",
   "editor.off_ball_cut_action.flare": "Flare",
+  "editor.off_ball_cut_frequency": "Frequency",
 
 } as const;
 
@@ -1749,11 +1754,13 @@ const es: I18nStrings = {
   "editor.trans_sub.early_drag": "Drag temprano",
   "editor.trans_sub.multiple": "Múltiple",
   "editor.trans_sub.corner_3": "Triple de esquina",
-  "editor.trans_sub.cut_to_rim": "Corte al aro",
+  "editor.trans_sub.cut_to_rim": "Corte / ataque al aro",
   "editor.trans_sub.both": "Ambas",
-  "editor.trans_sub.dribble_push": "Empuje con bote",
+  "editor.trans_sub.dribble_push": "Empuje con bote (de costa a costa)",
   "editor.trans_sub.pass_and_go": "Pase y va",
   "editor.trans_sub.after_def_rebound": "Tras rebote defensivo",
+
+  "editor.trans_finishing": "Finalización en el aro",
 
   "editor.high_post_zones": "Poste alto / codo",
   "editor.high_post_zone.leftElbow": "Codo izquierdo",
@@ -1774,12 +1781,14 @@ const es: I18nStrings = {
   "editor.iso_hand_finish.floater": "Floater",
   "editor.iso_hand_finish.pass": "Pase",
   "editor.iso_finishing": "Tendencias de finalización",
+  "editor.iso_section.creation": "Creación",
+  "editor.pnr_section.finish_tendencies": "Tendencias de finalización",
   "editor.iso_closeout_reaction": "Reacción al cierre",
   "editor.iso_strong_hand_finish": "Finalización mano fuerte",
   "editor.iso_strong_hand_finish_hint": "Movimiento preferido cuando ataca con su mano dominante en ISO",
   "editor.iso_weak_hand_finish": "Finalización mano débil",
   "editor.iso_weak_hand_finish_hint": "Movimiento preferido cuando se ve obligada a atacar con su mano débil",
-  "editor.off_ball_role": "Rol sin balón",
+  "editor.off_ball_role": "Rol de pantallas sin balón",
   "editor.off_ball_role_hint": "¿Cómo juega sin balón?",
   "editor.off_ball_role.screener": "Bloqueador",
   "editor.off_ball_role.cutter": "Cortador",
@@ -1827,6 +1836,7 @@ const es: I18nStrings = {
   "editor.off_ball_cut_action.catch_and_drive": "Catch & drive",
   "editor.off_ball_cut_action.curl": "Curl",
   "editor.off_ball_cut_action.flare": "Flare",
+  "editor.off_ball_cut_frequency": "Frecuencia",
 
 };
 
@@ -2624,11 +2634,13 @@ const zh: I18nStrings = {
   "editor.trans_sub.early_drag": "早拖掩护",
   "editor.trans_sub.multiple": "多种",
   "editor.trans_sub.corner_3": "底角三分",
-  "editor.trans_sub.cut_to_rim": "切向篮下",
+  "editor.trans_sub.cut_to_rim": "切入/突破到篮下",
   "editor.trans_sub.both": "两者",
-  "editor.trans_sub.dribble_push": "运球推进",
+  "editor.trans_sub.dribble_push": "运球推进（全场一条龙）",
   "editor.trans_sub.pass_and_go": "传切",
   "editor.trans_sub.after_def_rebound": "防守篮板后",
+
+  "editor.trans_finishing": "篮下终结",
 
   "editor.high_post_zones": "高位/肘区",
   "editor.high_post_zone.leftElbow": "左肘",
@@ -2649,12 +2661,14 @@ const zh: I18nStrings = {
   "editor.iso_hand_finish.floater": "抛投",
   "editor.iso_hand_finish.pass": "传球",
   "editor.iso_finishing": "完成倾向",
+  "editor.iso_section.creation": "创造",
+  "editor.pnr_section.finish_tendencies": "终结倾向",
   "editor.iso_closeout_reaction": "防守关闭反应",
   "editor.iso_strong_hand_finish": "强手完成",
   "editor.iso_strong_hand_finish_hint": "用强手单打时的优先终结方式",
   "editor.iso_weak_hand_finish": "弱手完成",
   "editor.iso_weak_hand_finish_hint": "被迫用弱手时的优先终结方式",
-  "editor.off_ball_role": "无球角色",
+  "editor.off_ball_role": "无球掩护角色",
   "editor.off_ball_role_hint": "该球员无球时如何打球？",
   "editor.off_ball_role.screener": "掩护者",
   "editor.off_ball_role.cutter": "切入者",
@@ -2702,6 +2716,7 @@ const zh: I18nStrings = {
   "editor.off_ball_cut_action.catch_and_drive": "接球突",
   "editor.off_ball_cut_action.curl": "绕切",
   "editor.off_ball_cut_action.flare": "外弹拉开",
+  "editor.off_ball_cut_frequency": "频率",
 
 };
 

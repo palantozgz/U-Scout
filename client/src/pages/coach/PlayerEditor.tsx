@@ -23,7 +23,14 @@ import { isRealPhoto } from "@/lib/utils";
 
 type GradedTransitionFreq = NonNullable<PlayerInput["rimRunFrequency"]>;
 
-function gradedToIntensity(g: PlayerInput["rimRunFrequency"] | null | undefined): IntensityLevel {
+function gradedToIntensity(
+  g:
+    | PlayerInput["rimRunFrequency"]
+    | PlayerInput["offBallScreenPatternFreq"]
+    | PlayerInput["cutterFrequency"]
+    | null
+    | undefined,
+): IntensityLevel {
   if (g === "primary") return "Primary";
   if (g === "secondary") return "Secondary";
   if (g === "rare") return "Rare";
@@ -724,6 +731,20 @@ export default function PlayerEditor() {
   const showOffBallScreenerAccordion = inputs.offBallRole === "screener" || inputs.offBallRole === "both";
   const showOffBallCutterAccordion = inputs.offBallRole === "cutter" || inputs.offBallRole === "both";
 
+  const qualifiesTransFinishing = (
+    role: PlayerInput["transRolePrimary"] | PlayerInput["transRoleSecondary"],
+    sub: PlayerInput["transSubPrimary"] | PlayerInput["transSubSecondary"],
+  ) => {
+    if (role === "rim_runner") return true;
+    if (role === "runner" && (sub === "cut_to_rim" || sub === "both")) return true;
+    if (role === "pusher" && sub === "dribble_push") return true;
+    if (role === "trail" && sub === "cut") return true;
+    return false;
+  };
+  const showTransFinishing =
+    qualifiesTransFinishing(inputs.transRolePrimary ?? null, inputs.transSubPrimary ?? null) ||
+    qualifiesTransFinishing(inputs.transRoleSecondary ?? null, inputs.transSubSecondary ?? null);
+
   return (
     <div className="flex flex-col min-h-[100dvh] bg-slate-50 dark:bg-slate-950">
       {/* Save flash — small elegant "U saving" badge */}
@@ -1177,199 +1198,200 @@ export default function PlayerEditor() {
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-orange-500">
               <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Flame className="w-5 h-5 text-orange-500" /> {t("section_iso")}</h3>
 
-              {isInterior && (
-                <div className="flex gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                  <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                    {t("iso_perimeter_note")}
-                  </p>
-                </div>
-              )}
-
               <IntensitySelector label={t("iso_frequency")} value={inputs.isoFrequency} onChange={v => ui("isoFrequency", v)}
                 tooltip={t("hint_iso_frequency")} />
 
-              {/* Interior ISO style — only for pure interior (not hybrid) */}
-              {isInterior && !isHybridBig && (
-                <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-xl border border-purple-200 dark:border-purple-800 space-y-2">
-                  <FieldLabel label="Interior ISO style" tooltip={t("hint_iso_interior_style")} />
-                  <Select value={inputs.postIsoAction ?? "Mixed"} onValueChange={v => ui("postIsoAction", v)}>
-                    <SelectTrigger className="h-12 rounded-xl bg-white dark:bg-slate-900 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Back Down">{t("opt_iso_interior_back_down")}</SelectItem>
-                      <SelectItem value="Face-Up Drive">{t("opt_iso_interior_face_up_drive")}</SelectItem>
-                      <SelectItem value="Post Jumper">{t("opt_iso_interior_post_jumper")}</SelectItem>
-                      <SelectItem value="Turnaround">{t("opt_iso_interior_turnaround")}</SelectItem>
-                      <SelectItem value="Spin">{t("opt_iso_interior_spin")}</SelectItem>
-                      <SelectItem value="Mixed">{t("opt_post_mixed")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Hybrid: show interior + perimeter ISO options */}
-              {isHybridBig && (
-                <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-800 space-y-2">
-                  <p className="text-xs font-bold text-amber-700 dark:text-amber-400">⚡ {t("hybrid_big_detected")}</p>
-                  <FieldLabel label={t("iso_primary_style")} tooltip={t("hint_iso_primary_style")} />
-                  <Select value={inputs.postIsoAction ?? "Mixed"} onValueChange={v => ui("postIsoAction", v)}>
-                    <SelectTrigger className="h-12 rounded-xl bg-white dark:bg-slate-900 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Back Down">{t("opt_iso_interior_back_down")}</SelectItem>
-                      <SelectItem value="Face-Up Drive">{t("opt_iso_interior_face_up_drive")}</SelectItem>
-                      <SelectItem value="Post Jumper">{t("opt_iso_interior_post_jumper")}</SelectItem>
-                      <SelectItem value="Turnaround">{t("opt_iso_interior_turnaround")}</SelectItem>
-                      <SelectItem value="Spin">{t("opt_iso_interior_spin")}</SelectItem>
-                      <SelectItem value="Mixed">{t("opt_post_mixed")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <FieldLabel label={t("iso_dominant_direction")} tooltip={t("hint_iso_dominant_direction")} />
-                <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
-                  {(["Left", "Right", "Balanced"] as const).map(dir => (
-                    <Button key={dir} type="button" variant={inputs.isoDominantDirection === dir ? "default" : "outline"}
-                      style={{ minHeight: 44 }}
-                      className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${inputs.isoDominantDirection === dir ? "bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
-                      onClick={() => ui("isoDominantDirection", dir)}>{dir === "Left" ? t("dir_left") : dir === "Right" ? t("dir_right") : t("dir_balanced")}</Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Perimeter ISO options — show for guards/wings AND hybrid bigs */}
-              {(!isInterior || isHybridBig) && (<>
-                <div className="space-y-2">
-                  <FieldLabel label={t("iso_initiation")} tooltip={t("hint_iso_initiation")} />
-                  <Select value={inputs.isoInitiation ?? "Controlled"} onValueChange={v => ui("isoInitiation", v)}>
-                    <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Controlled">{t("opt_iso_init_controlled")}</SelectItem>
-                      <SelectItem value="Quick Attack">{t("opt_iso_init_quick")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <FieldLabel label={t("iso_decision")} tooltip={t("hint_iso_decision")} />
-                  <Select value={inputs.isoDecision ?? "Finish"} onValueChange={v => ui("isoDecision", v)}>
-                    <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Finish">{t("opt_iso_decision_finish")}</SelectItem>
-                      <SelectItem value="Shoot">{t("opt_iso_decision_shoot")}</SelectItem>
-                      <SelectItem value="Pass">{t("opt_iso_decision_pass")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-              </>)}
-
-              {(inputs.isoFrequency === "Primary" || inputs.isoFrequency === "Secondary" || inputs.isoFrequency === "Rare") && (
-                <div className="space-y-2">
-                  <FieldLabel label={t("editor_iso_finish_eff")} tooltip={t("hint_iso_finish_eff")} />
-                  <Select
-                    value={inputs.motorIsoEff ?? "__none__"}
-                    onValueChange={(v) => ui("motorIsoEff", v === "__none__" ? null : v as NonNullable<PlayerInput["motorIsoEff"]>)}
-                  >
-                    <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800">
-                      <SelectValue placeholder={t("not_observed")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">{t("not_observed")}</SelectItem>
-                      <SelectItem value="high">{t("editor.eff.high")}</SelectItem>
-                      <SelectItem value="medium">{t("editor.eff.medium")}</SelectItem>
-                      <SelectItem value="low">{t("editor.eff.low")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
-                <p className="text-xs font-semibold uppercase tracking-widest opacity-50 mb-2">
-                  {t("editor.iso_closeout_reaction")}
-                </p>
-                <FieldLabel label={t("closeout_general")} tooltip={t("hint_closeout_general")} />
-                <Select value={inputs.closeoutReaction} onValueChange={v => ui("closeoutReaction", v)}>
-                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Catch & Shoot">{t("opt_closeout_catch_shoot")}</SelectItem>
-                    <SelectItem value="Attack Baseline">{t("opt_closeout_attack_baseline")}</SelectItem>
-                    <SelectItem value="Attack Middle">{t("opt_closeout_attack_middle")}</SelectItem>
-                    <SelectItem value="Attacks Strong Hand">{t("opt_closeout_strong_hand")}</SelectItem>
-                    <SelectItem value="Attacks Weak Hand">{t("opt_closeout_weak_hand")}</SelectItem>
-                    <SelectItem value="Extra Pass">{t("opt_closeout_extra_pass")}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("per_wing_override")}</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <CloseoutSelect label={`⬅️ ${t("left_wing")}`} value={inputs.closeoutLeft} onChange={v => ui("closeoutLeft", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
-                  <CloseoutSelect label={`➡️ ${t("right_wing")}`} value={inputs.closeoutRight} onChange={v => ui("closeoutRight", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
-                </div>
-              </div>
-
               {inputs.isoFrequency !== "Never" && (
                 <>
-                  <p className="text-xs font-semibold uppercase tracking-widest opacity-50 mb-2">
-                    {t("editor.iso_finishing")}
-                  </p>
-                  <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
-                    <FieldLabel
-                      label={t("editor.iso_strong_hand_finish")}
-                      tooltip={t("editor.iso_strong_hand_finish_hint")}
-                    />
-                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
-                      {ISO_HAND_FINISH_OPTS.map((fin) => (
-                        <Button
-                          key={fin}
-                          type="button"
-                          variant={inputs.isoStrongHandFinish === fin ? "default" : "outline"}
-                          style={{ minHeight: 44 }}
-                          className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
-                            inputs.isoStrongHandFinish === fin
-                              ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
-                              : "bg-transparent border-slate-200 dark:border-slate-700"
-                          }`}
-                          onClick={() =>
-                            ui("isoStrongHandFinish", inputs.isoStrongHandFinish === fin ? null : fin)
-                          }
+                  {isInterior && (
+                    <div className="flex gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                      <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                      <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                        {t("iso_perimeter_note")}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Interior ISO style — only for pure interior (not hybrid) */}
+                  {isInterior && !isHybridBig && (
+                    <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-xl border border-purple-200 dark:border-purple-800 space-y-2">
+                      <FieldLabel label="Interior ISO style" tooltip={t("hint_iso_interior_style")} />
+                      <Select value={inputs.postIsoAction ?? "Mixed"} onValueChange={v => ui("postIsoAction", v)}>
+                        <SelectTrigger className="h-12 rounded-xl bg-white dark:bg-slate-900 dark:border-slate-800"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Back Down">{t("opt_iso_interior_back_down")}</SelectItem>
+                          <SelectItem value="Face-Up Drive">{t("opt_iso_interior_face_up_drive")}</SelectItem>
+                          <SelectItem value="Post Jumper">{t("opt_iso_interior_post_jumper")}</SelectItem>
+                          <SelectItem value="Turnaround">{t("opt_iso_interior_turnaround")}</SelectItem>
+                          <SelectItem value="Spin">{t("opt_iso_interior_spin")}</SelectItem>
+                          <SelectItem value="Mixed">{t("opt_post_mixed")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Hybrid: show interior + perimeter ISO options */}
+                  {isHybridBig && (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-800 space-y-2">
+                      <p className="text-xs font-bold text-amber-700 dark:text-amber-400">⚡ {t("hybrid_big_detected")}</p>
+                      <FieldLabel label={t("iso_primary_style")} tooltip={t("hint_iso_primary_style")} />
+                      <Select value={inputs.postIsoAction ?? "Mixed"} onValueChange={v => ui("postIsoAction", v)}>
+                        <SelectTrigger className="h-12 rounded-xl bg-white dark:bg-slate-900 dark:border-slate-800"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Back Down">{t("opt_iso_interior_back_down")}</SelectItem>
+                          <SelectItem value="Face-Up Drive">{t("opt_iso_interior_face_up_drive")}</SelectItem>
+                          <SelectItem value="Post Jumper">{t("opt_iso_interior_post_jumper")}</SelectItem>
+                          <SelectItem value="Turnaround">{t("opt_iso_interior_turnaround")}</SelectItem>
+                          <SelectItem value="Spin">{t("opt_iso_interior_spin")}</SelectItem>
+                          <SelectItem value="Mixed">{t("opt_post_mixed")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("editor.iso_section.creation")}</p>
+                    <div className="space-y-2">
+                      <FieldLabel label={t("iso_dominant_direction")} tooltip={t("hint_iso_dominant_direction")} />
+                      <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                        {(["Left", "Right", "Balanced"] as const).map(dir => (
+                          <Button key={dir} type="button" variant={inputs.isoDominantDirection === dir ? "default" : "outline"}
+                            style={{ minHeight: 44 }}
+                            className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${inputs.isoDominantDirection === dir ? "bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                            onClick={() => ui("isoDominantDirection", dir)}>{dir === "Left" ? t("dir_left") : dir === "Right" ? t("dir_right") : t("dir_balanced")}</Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Perimeter ISO options — show for guards/wings AND hybrid bigs */}
+                    {(!isInterior || isHybridBig) && (<>
+                      <div className="space-y-2">
+                        <FieldLabel label={t("iso_initiation")} tooltip={t("hint_iso_initiation")} />
+                        <Select value={inputs.isoInitiation ?? "Controlled"} onValueChange={v => ui("isoInitiation", v)}>
+                          <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Controlled">{t("opt_iso_init_controlled")}</SelectItem>
+                            <SelectItem value="Quick Attack">{t("opt_iso_init_quick")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <FieldLabel label={t("iso_decision")} tooltip={t("hint_iso_decision")} />
+                        <Select value={inputs.isoDecision ?? "Finish"} onValueChange={v => ui("isoDecision", v)}>
+                          <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Finish">{t("opt_iso_decision_finish")}</SelectItem>
+                            <SelectItem value="Shoot">{t("opt_iso_decision_shoot")}</SelectItem>
+                            <SelectItem value="Pass">{t("opt_iso_decision_pass")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                    </>)}
+
+                    {(inputs.isoFrequency === "Primary" || inputs.isoFrequency === "Secondary" || inputs.isoFrequency === "Rare") && (
+                      <div className="space-y-2">
+                        <FieldLabel label={t("editor_iso_finish_eff")} tooltip={t("hint_iso_finish_eff")} />
+                        <Select
+                          value={inputs.motorIsoEff ?? "__none__"}
+                          onValueChange={(v) => ui("motorIsoEff", v === "__none__" ? null : v as NonNullable<PlayerInput["motorIsoEff"]>)}
                         >
-                          {t(ISO_HAND_FINISH_I18N[fin] as never)}
-                        </Button>
-                      ))}
+                          <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800">
+                            <SelectValue placeholder={t("not_observed")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">{t("not_observed")}</SelectItem>
+                            <SelectItem value="high">{t("editor.eff.high")}</SelectItem>
+                            <SelectItem value="medium">{t("editor.eff.medium")}</SelectItem>
+                            <SelectItem value="low">{t("editor.eff.low")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("editor.iso_closeout_reaction")}</p>
+                    <FieldLabel label={t("closeout_general")} tooltip={t("hint_closeout_general")} />
+                    <Select value={inputs.closeoutReaction} onValueChange={v => ui("closeoutReaction", v)}>
+                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Catch & Shoot">{t("opt_closeout_catch_shoot")}</SelectItem>
+                        <SelectItem value="Attack Baseline">{t("opt_closeout_attack_baseline")}</SelectItem>
+                        <SelectItem value="Attack Middle">{t("opt_closeout_attack_middle")}</SelectItem>
+                        <SelectItem value="Attacks Strong Hand">{t("opt_closeout_strong_hand")}</SelectItem>
+                        <SelectItem value="Attacks Weak Hand">{t("opt_closeout_weak_hand")}</SelectItem>
+                        <SelectItem value="Extra Pass">{t("opt_closeout_extra_pass")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("per_wing_override")}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <CloseoutSelect label={`⬅️ ${t("left_wing")}`} value={inputs.closeoutLeft} onChange={v => ui("closeoutLeft", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
+                      <CloseoutSelect label={`➡️ ${t("right_wing")}`} value={inputs.closeoutRight} onChange={v => ui("closeoutRight", v)} fallback={inputs.closeoutReaction} tooltip={t("hint_closeout_directional")} />
                     </div>
                   </div>
-                  <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
-                    <FieldLabel
-                      label={t("editor.iso_weak_hand_finish")}
-                      tooltip={t("editor.iso_weak_hand_finish_hint")}
-                    />
-                    <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
-                      {ISO_HAND_FINISH_OPTS.map((fin) => {
-                        const effectiveWeak =
-                          inputs.isoWeakHandFinish ??
-                          legacyOppositeToIsoWeakFinish(inputs.isoOppositeFinish);
-                        return (
+
+                  <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("editor.iso_finishing")}</p>
+                    <div className="space-y-2">
+                      <FieldLabel
+                        label={t("editor.iso_strong_hand_finish")}
+                        tooltip={t("editor.iso_strong_hand_finish_hint")}
+                      />
+                      <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                        {ISO_HAND_FINISH_OPTS.map((fin) => (
                           <Button
                             key={fin}
                             type="button"
-                            variant={effectiveWeak === fin ? "default" : "outline"}
+                            variant={inputs.isoStrongHandFinish === fin ? "default" : "outline"}
                             style={{ minHeight: 44 }}
                             className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
-                              effectiveWeak === fin
+                              inputs.isoStrongHandFinish === fin
                                 ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
                                 : "bg-transparent border-slate-200 dark:border-slate-700"
                             }`}
-                            onClick={() => {
-                              const next = effectiveWeak === fin ? null : fin;
-                              ui("isoWeakHandFinish", next);
-                              ui("isoOppositeFinish", isoWeakFinishToLegacyOpposite(next));
-                            }}
+                            onClick={() =>
+                              ui("isoStrongHandFinish", inputs.isoStrongHandFinish === fin ? null : fin)
+                            }
                           >
                             {t(ISO_HAND_FINISH_I18N[fin] as never)}
                           </Button>
-                        );
-                      })}
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <FieldLabel
+                        label={t("editor.iso_weak_hand_finish")}
+                        tooltip={t("editor.iso_weak_hand_finish_hint")}
+                      />
+                      <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                        {ISO_HAND_FINISH_OPTS.map((fin) => {
+                          const effectiveWeak =
+                            inputs.isoWeakHandFinish ??
+                            legacyOppositeToIsoWeakFinish(inputs.isoOppositeFinish);
+                          return (
+                            <Button
+                              key={fin}
+                              type="button"
+                              variant={effectiveWeak === fin ? "default" : "outline"}
+                              style={{ minHeight: 44 }}
+                              className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${
+                                effectiveWeak === fin
+                                  ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                                  : "bg-transparent border-slate-200 dark:border-slate-700"
+                              }`}
+                              onClick={() => {
+                                const next = effectiveWeak === fin ? null : fin;
+                                ui("isoWeakHandFinish", next);
+                                ui("isoOppositeFinish", isoWeakFinishToLegacyOpposite(next));
+                              }}
+                            >
+                              {t(ISO_HAND_FINISH_I18N[fin] as never)}
+                            </Button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </>
@@ -1385,6 +1407,8 @@ export default function PlayerEditor() {
               <IntensitySelector label={t("pnr_frequency")} value={inputs.pnrFrequency} onChange={v => ui("pnrFrequency", v)}
                 tooltip={t("hint_pnr_frequency")} />
 
+              {inputs.pnrFrequency !== "Never" && (
+                <>
               <div className="space-y-2">
                 <FieldLabel label={t("pnr_role")} tooltip={t("hint_pnr_role")} />
                 <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
@@ -1467,6 +1491,7 @@ export default function PlayerEditor() {
                   </div>
                   {(inputs.pnrFrequency === "Primary" || inputs.pnrFrequency === "Secondary") && (
                     <div className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3">
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("editor.pnr_section.finish_tendencies")}</p>
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("finish_by_direction")}</p>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
@@ -1545,6 +1570,8 @@ export default function PlayerEditor() {
                   />
                 </div>
               )}
+                </>
+              )}
             </div>
           </TabsContent>
 
@@ -1552,6 +1579,9 @@ export default function PlayerEditor() {
           <TabsContent value="offball" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-emerald-500">
               <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Target className="w-5 h-5 text-emerald-500" /> {t("section_offball_activity")}</h3>
+
+              <IntensitySelector label={t("indirects")} value={inputs.indirectsFrequency} onChange={v => ui("indirectsFrequency", v)}
+                tooltip={t("hint_indirects")} />
 
               <div className="space-y-3">
                 <FieldLabel label={t("editor.off_ball_role")} tooltip={t("editor.off_ball_role_hint")} />
@@ -1741,6 +1771,19 @@ export default function PlayerEditor() {
                           </Button>
                         </div>
                       </div>
+                      <div
+                        style={{
+                          background: "var(--color-background-info, rgba(59,130,246,0.06))",
+                          borderRadius: 6,
+                          padding: "8px 12px",
+                        }}
+                      >
+                        <IntensitySelector
+                          label={t("editor.off_ball_cut_frequency")}
+                          value={gradedToIntensity(inputs.cutterFrequency)}
+                          onChange={(v) => ui("cutterFrequency", intensityToGraded(v))}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1883,11 +1926,36 @@ export default function PlayerEditor() {
                 </div>
               )}
 
-              <IntensitySelector label={t("indirects")} value={inputs.indirectsFrequency} onChange={v => ui("indirectsFrequency", v)}
-                tooltip={t("hint_indirects")} />
-
-              <IntensitySelector label={t("slip")} value={(inputs as any).slipFrequency ?? "Never"} onChange={v => ui("slipFrequency" as any, v)}
-                tooltip={t("hint_slip")} />
+              {showTransFinishing && (
+                <div className="mt-4 space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
+                  <FieldLabel label={t("editor.trans_finishing")} />
+                  <div className="flex flex-wrap gap-3">
+                    {(
+                      [
+                        { v: "high" as const, labelKey: "editor.eff.high" },
+                        { v: "medium" as const, labelKey: "editor.eff.medium" },
+                        { v: "low" as const, labelKey: "editor.eff.low" },
+                        { v: "not_observed" as const, labelKey: "not_observed" },
+                      ] as const
+                    ).map(({ v, labelKey }) => (
+                      <Button
+                        key={v}
+                        type="button"
+                        variant={inputs.transFinishing === v ? "default" : "outline"}
+                        style={{ minHeight: 44 }}
+                        className={`h-auto px-4 py-2 rounded-lg text-sm font-semibold ${
+                          inputs.transFinishing === v
+                            ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                            : "border-slate-200 dark:border-slate-700"
+                        }`}
+                        onClick={() => ui("transFinishing", inputs.transFinishing === v ? null : v)}
+                      >
+                        {t(labelKey as never)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <IntensitySelector label={t("backdoor")} value={inputs.backdoorFrequency} onChange={v => ui("backdoorFrequency", v)}
                 tooltip={t("hint_backdoor")} />
