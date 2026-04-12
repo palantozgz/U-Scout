@@ -10,11 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   generateProfile,
+  clubRowToMotorContext,
   type PhysicalLevel,
   type PlayerInput,
   type PlayerProfile,
   type PostMove,
 } from "@/lib/mock-data";
+import { useClub } from "@/lib/club-api";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -94,8 +96,12 @@ function randomInputs(): PlayerInput {
   };
 }
 
-function generateTestPlayer(id: string, inputs: PlayerInput): TestPlayer {
-  const profile = generateProfile(inputs);
+function generateTestPlayer(
+  id: string,
+  inputs: PlayerInput,
+  clubContext?: ReturnType<typeof clubRowToMotorContext>,
+): TestPlayer {
+  const profile = generateProfile(inputs, undefined, clubContext);
   return {
     id,
     name: `Player ${playerCounter++}`,
@@ -107,10 +113,13 @@ function generateTestPlayer(id: string, inputs: PlayerInput): TestPlayer {
   };
 }
 
-function generateBatch(count: number): TestPlayer[] {
+function generateBatch(
+  count: number,
+  clubContext?: ReturnType<typeof clubRowToMotorContext>,
+): TestPlayer[] {
   return Array.from({ length: count }, (_, i) => {
     const inputs = randomInputs();
-    return generateTestPlayer(`tp-${Date.now()}-${i}`, inputs);
+    return generateTestPlayer(`tp-${Date.now()}-${i}`, inputs, clubContext);
   });
 }
 
@@ -296,6 +305,11 @@ function ManualField<T extends string | number>({ label, value, options, onChang
 
 export default function TestMode() {
   const [, setLocation] = useLocation();
+  const { data: clubPayload } = useClub();
+  const motorClubContext = useMemo(
+    () => clubRowToMotorContext(clubPayload?.club),
+    [clubPayload?.club],
+  );
   const [players, setPlayers] = useState<TestPlayer[]>([]);
   const [filterArchetype, setFilterArchetype] = useState("All");
   const [filterBehavior, setFilterBehavior] = useState("All");
@@ -306,7 +320,7 @@ export default function TestMode() {
 
   const handleGenerate = () => {
     playerCounter = 1;
-    setPlayers(generateBatch(batchCount));
+    setPlayers(generateBatch(batchCount, motorClubContext));
     setFilterArchetype("All");
     setFilterBehavior("All");
   };
@@ -334,7 +348,7 @@ export default function TestMode() {
     setManualInputs(prev => ({ ...prev, [key]: v as any }));
 
   const runManual = () => {
-    const result = generateTestPlayer(`manual-${Date.now()}`, manualInputs);
+    const result = generateTestPlayer(`manual-${Date.now()}`, manualInputs, motorClubContext);
     result.name = "Manual Test";
     setManualResult(result);
   };

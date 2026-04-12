@@ -120,12 +120,25 @@ export type OffBallCutAction =
   | 'flare'
   | null;
 
-// v2.1 - Club context for league/category awareness
+// v2.1 - Club context for league/category awareness (motor v3 league taxonomy)
 export interface ClubContext {
-  leagueType: 'pro' | 'college' | 'youth' | 'amateur';
-  gender: 'M' | 'F' | 'mixed';
-  level: 'elite' | 'competitive' | 'developmental';
-  country?: string;
+  leagueType?:
+    | 'nba'
+    | 'euroleague_m'
+    | 'euroleague_f'
+    | 'acb'
+    | 'cba'
+    | 'wcba'
+    | 'ncaa_m'
+    | 'ncaa_f'
+    | 'cuba_m'
+    | 'cuba_f'
+    | 'fiba_americas'
+    | 'amateur'
+    | null;
+  gender?: 'M' | 'F' | 'mixed' | null;
+  level?: 'elite' | 'competitive' | 'developmental' | null;
+  ageCategory?: 'senior' | 'U23' | 'U18' | 'U16' | null;
 }
 
 export interface PlayerInputs {
@@ -627,26 +640,105 @@ export class UScoutMotor {
   generateReport(inputs: PlayerInputs, clubContext?: ClubContext): MotorReport {
     // Step 1: Apply inferences for missing fields
     const enrichedInputs = this.applyInferences(inputs);
-    
+
     // Step 2: Calculate raw output weights
-    const rawOutputs = this.calculateOutputs(enrichedInputs);
-    
+    const calculatedOutputs = this.calculateOutputs(enrichedInputs);
+    const rawOutputs = this.applyClubContextModifiers(
+      calculatedOutputs,
+      enrichedInputs,
+      clubContext,
+    );
+
     // Step 3: Categorize and rank outputs
     const categorized = this.categorizeOutputs(rawOutputs);
-    
+
     // Step 4: Select top outputs per category
     const selected = this.selectTopOutputs(categorized);
-    
+
     // Step 5: Generate slides
     const slides = this.generateSlides(enrichedInputs, selected);
-    
+
     return {
       inputs: enrichedInputs,
       rawOutputs,
       categorized,
       selected,
-      slides
+      slides,
     };
+  }
+
+  private applyClubContextModifiers(
+    outputs: MotorOutput[],
+    inputs: EnrichedInputs,
+    ctx?: ClubContext,
+  ): MotorOutput[] {
+    if (!ctx) return outputs;
+    const result = outputs.map((o) => ({ ...o }));
+
+    const league = ctx.leagueType;
+    const gender = ctx.gender;
+
+    const isoOut = result.find((o) => o.key === 'deny_iso_space');
+    const pnrOut = result.find((o) => o.key === 'deny_pnr_downhill');
+    if (isoOut && pnrOut && Math.abs(isoOut.weight - pnrOut.weight) <= 0.05) {
+      const nbaStyle = league === 'nba';
+      if (nbaStyle) {
+        isoOut.weight = Math.min(isoOut.weight + 0.03, 1.0);
+      } else {
+        pnrOut.weight = Math.min(pnrOut.weight + 0.03, 1.0);
+      }
+    }
+
+    if (gender === 'F') {
+      const rollOut = result.find((o) => o.key === 'deny_pnr_roll');
+      if (rollOut) rollOut.weight = Math.min(rollOut.weight * 1.15, 1.0);
+
+      const noSpaceOut = result.find((o) => o.key === 'force_no_space');
+      const dirOut = result.find((o) => o.key === 'force_direction');
+      if (noSpaceOut && dirOut) {
+        noSpaceOut.weight = Math.min(noSpaceOut.weight + 0.08, 1.0);
+      }
+
+      const isInterior = inputs.pos === 'PF' || inputs.pos === 'C';
+      if (isInterior && !result.some((o) => o.key === 'aware_connector')) {
+        result.push({
+          key: 'aware_connector',
+          category: 'aware',
+          weight: 0.65,
+          source: 'gender_f_interior',
+        });
+      }
+
+      const dragIdx = result.findIndex((o) => o.key === 'aware_trans_early_drag');
+      if (dragIdx >= 0) result.splice(dragIdx, 1);
+    }
+
+    if (league === 'ncaa_m') {
+      const postEntry = result.find((o) => o.key === 'deny_post_entry');
+      if (postEntry) postEntry.weight = Math.min(postEntry.weight * 1.1, 1.0);
+      const contact = result.find((o) => o.key === 'force_contact');
+      if (contact) contact.weight = Math.min(contact.weight * 1.1, 1.0);
+    }
+
+    if (league === 'wcba') {
+      const postEntry = result.find((o) => o.key === 'deny_post_entry');
+      if (postEntry) postEntry.weight = Math.min(postEntry.weight * 1.1, 1.0);
+      const oreb = result.find((o) => o.key === 'deny_oreb');
+      if (oreb) oreb.weight = Math.min(oreb.weight * 1.1, 1.0);
+    }
+
+    if (league === 'fiba_americas') {
+      const contact = result.find((o) => o.key === 'force_contact');
+      if (contact) contact.weight = Math.max(contact.weight - 0.15, 0);
+    }
+
+    if (league === 'amateur') {
+      result.forEach((o) => {
+        o.weight = o.weight * 0.9;
+      });
+    }
+
+    return result;
   }
 
   /**

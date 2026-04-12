@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocale, t } from "@/lib/i18n";
-import { useState, useEffect, useRef, type ChangeEvent } from "react";
+import { useState, useEffect, useRef, useMemo, type ChangeEvent } from "react";
 import { useRoute, useLocation, useSearch } from "wouter";
 import {
   usePlayer, useTeams, useCreatePlayer, useUpdatePlayer, useDeletePlayer,
-  generateProfile, createDefaultPlayer,
+  generateProfile, createDefaultPlayer, clubRowToMotorContext,
   TRANS_ROLE_SUB_OPTIONS,
   type PlayerInput, type IntensityLevel, type DirectionTendency,
   type CloseoutReaction, type PlayerProfile, type PhysicalLevel,
@@ -12,6 +12,7 @@ import {
   type HighPostAction, type HighPostZonesMotor,
   type TransRoleEditor,
 } from "@/lib/mock-data";
+import { useClub } from "@/lib/club-api";
 import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus, ChevronDown, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -695,6 +696,11 @@ export default function PlayerEditor() {
 
   const { data: teams = [], isLoading: teamsLoading } = useTeams();
   const { data: existingPlayer, isLoading: playerLoading } = usePlayer(isNew ? "" : urlPlayerId);
+  const { data: clubPayload } = useClub();
+  const motorClubContext = useMemo(
+    () => clubRowToMotorContext(clubPayload?.club),
+    [clubPayload?.club],
+  );
   const createPlayerMutation = useCreatePlayer();
   const updatePlayerMutation = useUpdatePlayer();
   const deletePlayerMutation = useDeletePlayer();
@@ -776,7 +782,7 @@ export default function PlayerEditor() {
 
     isSaving.current = true;
     const finalName = currentPlayer.name.trim() || "Unnamed Player";
-    const generated = generateProfile(currentInputs, currentPlayer?.name);
+    const generated = generateProfile(currentInputs, currentPlayer?.name, motorClubContext);
     const updated = {
       ...currentPlayer,
       name: finalName,
@@ -835,7 +841,7 @@ export default function PlayerEditor() {
   const handleSave = async () => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     const finalName = player.name.trim() || "Unnamed Player";
-    const generated = generateProfile(inputs, finalName);
+    const generated = generateProfile(inputs, finalName, motorClubContext);
     const updated = {
       ...player, name: finalName, inputs,
       internalModel: generated.internalModel,

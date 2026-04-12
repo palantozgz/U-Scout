@@ -3,13 +3,15 @@ import { z } from "zod";
 /** Allowed values for `clubs.league_type` (motor v3 / ClubContext). */
 export const CLUB_LEAGUE_TYPES = [
   "nba",
-  "euroleague",
+  "euroleague_m",
+  "euroleague_f",
   "acb",
   "cba",
   "wcba",
   "ncaa_m",
   "ncaa_f",
-  "cuba",
+  "cuba_m",
+  "cuba_f",
   "fiba_americas",
   "amateur",
 ] as const;
@@ -23,6 +25,24 @@ export type ClubLevel = (typeof CLUB_LEVELS)[number];
 
 export const CLUB_AGE_CATEGORIES = ["senior", "U23", "U18", "U16"] as const;
 export type ClubAgeCategory = (typeof CLUB_AGE_CATEGORIES)[number];
+
+/** Auto-inferred gender and level when a leagueType is selected and the field is currently null */
+export const LEAGUE_AUTO_INFER: Partial<
+  Record<ClubLeagueType, { gender?: ClubGender; level?: ClubLevel }>
+> = {
+  nba: { gender: "M", level: "elite" },
+  euroleague_m: { gender: "M", level: "elite" },
+  euroleague_f: { gender: "F", level: "elite" },
+  acb: { gender: "M", level: "elite" },
+  cba: { gender: "M", level: "elite" },
+  wcba: { gender: "F", level: "elite" },
+  ncaa_m: { gender: "M", level: "competitive" },
+  ncaa_f: { gender: "F", level: "competitive" },
+  cuba_m: { gender: "M", level: "competitive" },
+  cuba_f: { gender: "F", level: "competitive" },
+  fiba_americas: { level: "competitive" },
+  amateur: { level: "developmental" },
+};
 
 const tuple1 = <T extends readonly string[]>(arr: T) =>
   arr as unknown as [T[number], ...T[number][]];

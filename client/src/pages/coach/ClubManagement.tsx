@@ -29,15 +29,38 @@ import {
   useClubStats,
   clubStatsQueryKey,
   type ClubMemberDto,
+  type PatchClubBody,
 } from "@/lib/club-api";
+import { toast } from "@/hooks/use-toast";
 import { isShortUserIdFallback, userDisplayLabel } from "@/lib/userDisplayLabel";
 import { cn } from "@/lib/utils";
+import type {
+  ClubAgeCategory,
+  ClubGender,
+  ClubLeagueType,
+  ClubLevel,
+} from "@shared/club-context";
 import {
   CLUB_AGE_CATEGORIES,
   CLUB_GENDERS,
-  CLUB_LEAGUE_TYPES,
   CLUB_LEVELS,
+  LEAGUE_AUTO_INFER,
 } from "@shared/club-context";
+
+const CLUB_LEAGUE_SELECT_OPTIONS: { value: ClubLeagueType; i18nKey: string }[] = [
+  { value: "nba", i18nKey: "club_league_nba" },
+  { value: "euroleague_m", i18nKey: "club_league_euroleague_m" },
+  { value: "euroleague_f", i18nKey: "club_league_euroleague_f" },
+  { value: "acb", i18nKey: "club_league_acb" },
+  { value: "cba", i18nKey: "club_league_cba" },
+  { value: "wcba", i18nKey: "club_league_wcba" },
+  { value: "ncaa_m", i18nKey: "club_league_ncaa_m" },
+  { value: "ncaa_f", i18nKey: "club_league_ncaa_f" },
+  { value: "cuba_m", i18nKey: "club_league_cuba_m" },
+  { value: "cuba_f", i18nKey: "club_league_cuba_f" },
+  { value: "fiba_americas", i18nKey: "club_league_fiba_americas" },
+  { value: "amateur", i18nKey: "club_league_amateur" },
+];
 
 const LOGO_EMOJIS = ["🏀", "⛹️", "🔥", "⭐", "💪", "🎯"];
 const CTX_UNSET = "__unset__";
@@ -348,16 +371,40 @@ export default function ClubManagement() {
                   <Select
                     disabled={!canEditBranding || patchClub.isPending}
                     value={q.data.club.leagueType ?? CTX_UNSET}
-                    onValueChange={(v) => patchClub.mutate({ leagueType: v === CTX_UNSET ? null : v })}
+                    onValueChange={(v) => {
+                      const newLeague = v === CTX_UNSET ? null : (v as ClubLeagueType);
+                      const updates: PatchClubBody = { leagueType: newLeague };
+                      let didInfer = false;
+                      if (newLeague) {
+                        const infer = LEAGUE_AUTO_INFER[newLeague];
+                        if (infer) {
+                          if (infer.gender && !q.data?.club.gender) {
+                            updates.gender = infer.gender;
+                            didInfer = true;
+                          }
+                          if (infer.level && !q.data?.club.level) {
+                            updates.level = infer.level;
+                            didInfer = true;
+                          }
+                        }
+                      }
+                      patchClub.mutate(updates, {
+                        onSuccess: () => {
+                          if (didInfer) {
+                            toast({ description: t("club_league_infer_toast") });
+                          }
+                        },
+                      });
+                    }}
                   >
                     <SelectTrigger className="bg-background border-border">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
-                      {CLUB_LEAGUE_TYPES.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {t(`club_league_${opt}` as never)}
+                      {CLUB_LEAGUE_SELECT_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {t(opt.i18nKey as never)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -368,7 +415,9 @@ export default function ClubManagement() {
                   <Select
                     disabled={!canEditBranding || patchClub.isPending}
                     value={q.data.club.gender ?? CTX_UNSET}
-                    onValueChange={(v) => patchClub.mutate({ gender: v === CTX_UNSET ? null : v })}
+                    onValueChange={(v) =>
+                      patchClub.mutate({ gender: v === CTX_UNSET ? null : (v as ClubGender) })
+                    }
                   >
                     <SelectTrigger className="bg-background border-border">
                       <SelectValue />
@@ -388,7 +437,9 @@ export default function ClubManagement() {
                   <Select
                     disabled={!canEditBranding || patchClub.isPending}
                     value={q.data.club.level ?? CTX_UNSET}
-                    onValueChange={(v) => patchClub.mutate({ level: v === CTX_UNSET ? null : v })}
+                    onValueChange={(v) =>
+                      patchClub.mutate({ level: v === CTX_UNSET ? null : (v as ClubLevel) })
+                    }
                   >
                     <SelectTrigger className="bg-background border-border">
                       <SelectValue />
@@ -408,7 +459,11 @@ export default function ClubManagement() {
                   <Select
                     disabled={!canEditBranding || patchClub.isPending}
                     value={q.data.club.ageCategory ?? CTX_UNSET}
-                    onValueChange={(v) => patchClub.mutate({ ageCategory: v === CTX_UNSET ? null : v })}
+                    onValueChange={(v) =>
+                      patchClub.mutate({
+                        ageCategory: v === CTX_UNSET ? null : (v as ClubAgeCategory),
+                      })
+                    }
                   >
                     <SelectTrigger className="bg-background border-border">
                       <SelectValue />

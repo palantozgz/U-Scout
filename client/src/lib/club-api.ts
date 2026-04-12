@@ -1,4 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type {
+  ClubAgeCategory,
+  ClubGender,
+  ClubLeagueType,
+  ClubLevel,
+} from "@shared/club-context";
 import { apiRequest } from "./queryClient";
 
 export const clubQueryKey = ["/api/club"] as const;
@@ -61,10 +67,10 @@ export function useClub() {
 export type PatchClubBody = {
   name?: string;
   logo?: string;
-  leagueType?: string | null;
-  gender?: string | null;
-  level?: string | null;
-  ageCategory?: string | null;
+  leagueType?: ClubLeagueType | null;
+  gender?: ClubGender | null;
+  level?: ClubLevel | null;
+  ageCategory?: ClubAgeCategory | null;
 };
 
 export function usePatchClub() {

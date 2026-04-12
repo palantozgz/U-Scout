@@ -3,6 +3,7 @@ import { apiRequest, enqueueOfflinePlayerMutation } from "./queryClient";
 import {
   motor,
   motorOutputToPlanString,
+  type ClubContext,
   type PlayerInputs,
   type PostMove as MotorPostMoveId,
   type MotorOutput,
@@ -11,7 +12,23 @@ import {
   type TransRoleEditor,
 } from "./motor-v2.1";
 
-export type { HighPostAction, HighPostZonesMotor, TransRoleEditor };
+export type { ClubContext, HighPostAction, HighPostZonesMotor, TransRoleEditor };
+
+/** Build motor club context from API club row when any field is set. */
+export function clubRowToMotorContext(club: {
+  leagueType?: string | null;
+  gender?: string | null;
+  level?: string | null;
+  ageCategory?: string | null;
+} | null | undefined): ClubContext | undefined {
+  if (!club) return undefined;
+  const out: ClubContext = {};
+  if (club.leagueType) out.leagueType = club.leagueType as ClubContext["leagueType"];
+  if (club.gender) out.gender = club.gender as ClubContext["gender"];
+  if (club.level) out.level = club.level as ClubContext["level"];
+  if (club.ageCategory) out.ageCategory = club.ageCategory as ClubContext["ageCategory"];
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 export const TRANS_ROLE_SUB_OPTIONS = {
   rim_runner: ["seal_catch", "regular_rim_run", "finish_contact", "only_unguarded"],
@@ -880,7 +897,11 @@ function resolveTransRole(inputs: PlayerInput): TransRoleEditor {
   }
 }
 
-export function generateProfile(inputs: PlayerInput, playerName?: string): GenerateProfileResult {
+export function generateProfile(
+  inputs: PlayerInput,
+  playerName?: string,
+  clubContext?: ClubContext,
+): GenerateProfileResult {
   const nameRef = playerName ? playerName.split(" ").pop()! : ""; // Use last name
   const internal: InternalProfileModel = {
     ...defaultInternal,
@@ -1567,7 +1588,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string): Gener
     concede.push("con_no_perimeter");
 
   const motorInputs = playerInputToMotorInputs(inputs);
-  const motorReport = motor.generateReport(motorInputs);
+  const motorReport = motor.generateReport(motorInputs, clubContext);
   const { selected, categorized, inputs: motorEnriched } = motorReport;
 
   const md = selected.deny.map(motorOutputToPlanString).slice(0, 3);
