@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
@@ -6,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { Pencil, FileText, Settings, LogOut, ChevronRight, Users } from "lucide-react";
 import { UScoutLogo } from "@/components/UScoutLogo";
 import type { AppUserRole } from "@/lib/useAuth";
+import { useClub } from "@/lib/club-api";
+import { getStoredRosterSignature, rosterSignature, setStoredRosterSignature } from "@/lib/clubRosterSeen";
 
 const ROLE_LABEL_KEY: Record<AppUserRole, "role_master" | "role_head_coach" | "role_coach" | "role_player"> = {
   master: "role_master",
@@ -22,6 +25,27 @@ export default function CoachHome() {
   const displayName = profile?.username?.trim() || profile?.email || t("coach_home_name_fallback");
   const roleLabel = profile?.role ? t(ROLE_LABEL_KEY[profile.role]) : "";
   const hideClubButton = profile?.role === "player";
+  const watchesClubActivity = !hideClubButton && profile?.role === "head_coach";
+  const clubQuery = useClub({ enabled: watchesClubActivity });
+  const clubData = clubQuery.data;
+
+  useEffect(() => {
+    if (!clubData || clubQuery.isError || !profile?.id) return;
+    const clubId = clubData.club.id;
+    const sig = rosterSignature(clubData.members);
+    const prev = getStoredRosterSignature(profile.id, clubId);
+    if (prev === null) {
+      setStoredRosterSignature(profile.id, clubId, sig);
+    }
+  }, [clubData, clubQuery.isError, profile?.id]);
+
+  const showClubActivityDot = useMemo(() => {
+    if (!clubData || clubQuery.isError || !profile?.id) return false;
+    if (profile.role !== "head_coach") return false;
+    const prev = getStoredRosterSignature(profile.id, clubData.club.id);
+    if (prev === null) return false;
+    return prev !== rosterSignature(clubData.members);
+  }, [clubData, clubQuery.isError, profile?.id, profile?.role]);
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
@@ -113,9 +137,21 @@ export default function CoachHome() {
             tabIndex={hideClubButton ? -1 : undefined}
             aria-hidden={hideClubButton || undefined}
             data-testid="coach-home-team"
+            title={showClubActivityDot ? t("menu_team_activity_aria") : undefined}
+            aria-label={
+              showClubActivityDot
+                ? `${t("menu_team")}. ${t("menu_team_activity_aria")}`
+                : `${t("menu_team")}. ${t("menu_team_sub")}`
+            }
           >
-            <div className="flex items-center justify-center w-14 shrink-0 text-primary">
+            <div className="relative flex items-center justify-center w-14 shrink-0 text-primary">
               <Users className="w-9 h-9" strokeWidth={2} />
+              {showClubActivityDot ? (
+                <span
+                  className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-card"
+                  aria-hidden
+                />
+              ) : null}
             </div>
             <div className="flex-1 min-w-0 py-0.5">
               <p className="text-lg font-black text-foreground tracking-tight">{t("menu_team")}</p>

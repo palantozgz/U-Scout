@@ -56,11 +56,12 @@ export interface ClubPayload {
   pendingInvitations: ClubInvitationDto[];
 }
 
-export function useClub() {
+export function useClub(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: clubQueryKey,
     queryFn: async (): Promise<ClubPayload> => (await apiRequest("GET", "/api/club")).json(),
     networkMode: "offlineFirst",
+    enabled: options?.enabled !== false,
   });
 }
 

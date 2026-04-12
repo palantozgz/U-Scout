@@ -40,6 +40,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { isShortUserIdFallback, userDisplayLabel } from "@/lib/userDisplayLabel";
 import { cn } from "@/lib/utils";
+import { rosterSignature, setStoredRosterSignature } from "@/lib/clubRosterSeen";
 import type {
   ClubAgeCategory,
   ClubGender,
@@ -240,6 +241,11 @@ export default function ClubManagement() {
 
   const q = useClub();
   const patchClub = usePatchClub();
+
+  useEffect(() => {
+    if (!q.data || !profile?.id) return;
+    setStoredRosterSignature(profile.id, q.data.club.id, rosterSignature(q.data.members));
+  }, [q.data, profile?.id]);
   const inviteMut = useClubInvite();
   const delMember = useDeleteClubMember();
   const banMut = useBanClubMember();
