@@ -380,15 +380,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClubForUser(userId: string): Promise<Club | undefined> {
-    const owned = await this.getClubByOwnerId(userId);
-    if (owned) return owned;
-    const [row] = await db
+    const [viaMember] = await db
       .select({ c: clubs })
       .from(clubMembers)
       .innerJoin(clubs, eq(clubMembers.clubId, clubs.id))
       .where(eq(clubMembers.userId, userId))
+      .orderBy(desc(clubMembers.createdAt))
       .limit(1);
-    return row?.c;
+    if (viaMember?.c) return viaMember.c;
+    return this.getClubByOwnerId(userId);
   }
 
   async findClubForApprovalStaff(userId: string): Promise<Club | undefined> {

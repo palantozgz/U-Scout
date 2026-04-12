@@ -26,23 +26,39 @@ export type ClubLevel = (typeof CLUB_LEVELS)[number];
 export const CLUB_AGE_CATEGORIES = ["senior", "U23", "U18", "U16"] as const;
 export type ClubAgeCategory = (typeof CLUB_AGE_CATEGORIES)[number];
 
-/** Auto-inferred gender and level when a leagueType is selected and the field is currently null */
-export const LEAGUE_AUTO_INFER: Partial<
-  Record<ClubLeagueType, { gender?: ClubGender; level?: ClubLevel }>
+/** Preset club context when a known league is selected (motor v3). */
+export const LEAGUE_AUTO_INFER: Record<
+  ClubLeagueType,
+  { gender: ClubGender; level: ClubLevel; ageCategory: ClubAgeCategory }
 > = {
-  nba: { gender: "M", level: "elite" },
-  euroleague_m: { gender: "M", level: "elite" },
-  euroleague_f: { gender: "F", level: "elite" },
-  acb: { gender: "M", level: "elite" },
-  cba: { gender: "M", level: "elite" },
-  wcba: { gender: "F", level: "elite" },
-  ncaa_m: { gender: "M", level: "competitive" },
-  ncaa_f: { gender: "F", level: "competitive" },
-  cuba_m: { gender: "M", level: "competitive" },
-  cuba_f: { gender: "F", level: "competitive" },
-  fiba_americas: { level: "competitive" },
-  amateur: { level: "developmental" },
+  nba: { gender: "M", level: "elite", ageCategory: "senior" },
+  euroleague_m: { gender: "M", level: "elite", ageCategory: "senior" },
+  euroleague_f: { gender: "F", level: "elite", ageCategory: "senior" },
+  acb: { gender: "M", level: "elite", ageCategory: "senior" },
+  cba: { gender: "M", level: "elite", ageCategory: "senior" },
+  wcba: { gender: "F", level: "elite", ageCategory: "senior" },
+  ncaa_m: { gender: "M", level: "competitive", ageCategory: "senior" },
+  ncaa_f: { gender: "F", level: "competitive", ageCategory: "senior" },
+  cuba_m: { gender: "M", level: "competitive", ageCategory: "U18" },
+  cuba_f: { gender: "F", level: "competitive", ageCategory: "U18" },
+  fiba_americas: { gender: "mixed", level: "competitive", ageCategory: "senior" },
+  amateur: { gender: "mixed", level: "developmental", ageCategory: "senior" },
 };
+
+const CLUB_LOGO_MAX_LEN = 520_000;
+
+function isValidClubLogoString(s: string): boolean {
+  if (s.length > CLUB_LOGO_MAX_LEN) return false;
+  if (/^https:\/\//i.test(s)) return s.length <= 2048;
+  if (s.startsWith("data:image/")) {
+    return /^data:image\/(png|jpeg|jpg|webp);base64,/i.test(s);
+  }
+  return s.length <= 64;
+}
+
+const zClubLogo = z.string().min(1).max(CLUB_LOGO_MAX_LEN).refine(isValidClubLogoString, {
+  message: "Invalid club logo (emoji, https URL, or small base64 image)",
+});
 
 const tuple1 = <T extends readonly string[]>(arr: T) =>
   arr as unknown as [T[number], ...T[number][]];
@@ -55,7 +71,7 @@ export const zClubAgeCategory = z.enum(tuple1(CLUB_AGE_CATEGORIES));
 /** PATCH /api/club body (all optional; null clears context fields). */
 export const patchClubBodySchema = z.object({
   name: z.string().min(1).optional(),
-  logo: z.string().min(1).max(8).optional(),
+  logo: zClubLogo.optional(),
   leagueType: z.union([zClubLeagueType, z.null()]).optional(),
   gender: z.union([zClubGender, z.null()]).optional(),
   level: z.union([zClubLevel, z.null()]).optional(),

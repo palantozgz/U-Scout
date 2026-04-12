@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Shield, ShieldAlert } from "lucide-react";
@@ -10,6 +10,20 @@ import { supabase } from "@/lib/supabase";
 import { fetchClubInvitationPublic, useAcceptClubInvitation } from "@/lib/club-api";
 
 type Mode = "login" | "register";
+
+function ClubLogoPreview({ logo }: { logo: string }) {
+  const isImg = logo.startsWith("data:image/") || /^https:\/\//i.test(logo);
+  if (isImg) {
+    return (
+      <img
+        src={logo}
+        alt=""
+        className="mx-auto h-20 w-20 object-contain rounded-xl border border-border bg-muted/20"
+      />
+    );
+  }
+  return <p className="text-4xl">{logo}</p>;
+}
 
 export default function JoinClub() {
   const { t, locale } = useLocale();
@@ -23,7 +37,6 @@ export default function JoinClub() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [registerRole, setRegisterRole] = useState<"head_coach" | "coach" | "player">("coach");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [registerSuccess, setRegisterSuccess] = useState(false);
@@ -34,6 +47,22 @@ export default function JoinClub() {
     enabled: Boolean(token),
     networkMode: "offlineFirst",
   });
+
+  const autoAcceptTried = useRef(false);
+  useEffect(() => {
+    if (autoAcceptTried.current || !token || !user || !preview.isSuccess || !preview.data) return;
+    const d = preview.data;
+    if (d.used || d.expired) return;
+    autoAcceptTried.current = true;
+    acceptMutation.mutate(token, {
+      onSuccess: (body) => {
+        setLocation(body.role === "player" ? "/player" : "/coach");
+      },
+      onError: () => {
+        autoAcceptTried.current = false;
+      },
+    });
+  }, [token, user, preview.isSuccess, preview.data, acceptMutation, setLocation]);
 
   const roleLabel = (role: string) => {
     if (role === "head_coach") return t("invite_role_head_coach");
@@ -60,10 +89,21 @@ export default function JoinClub() {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) setError(err.message);
     } else {
+      if (!preview.data) {
+        setError("Invalid invitation");
+        setLoading(false);
+        return;
+      }
       const { error: err } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName, role: registerRole } },
+        options: {
+          data: {
+            full_name: fullName,
+            role: preview.data.role,
+            club_invitation_token: token,
+          },
+        },
       });
       if (err) setError(err.message);
       else setRegisterSuccess(true);
@@ -153,7 +193,7 @@ export default function JoinClub() {
     <div className="min-h-[100dvh] bg-background flex flex-col">
       <main className="flex-1 p-6 flex flex-col justify-center max-w-md mx-auto w-full space-y-6">
         <div className="text-center space-y-2">
-          <p className="text-4xl">{data.club.logo}</p>
+          <ClubLogoPreview logo={data.club.logo} />
           <h1 className="text-2xl font-black text-foreground">{t("join_club_title")}</h1>
         </div>
 
@@ -181,12 +221,17 @@ export default function JoinClub() {
             <p className="text-sm text-center text-muted-foreground">{t("join_club_sign_in_prompt")}</p>
             <div className="w-full space-y-3">
               {mode === "register" && (
-                <Input
-                  placeholder={t("full_name")}
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="h-12 rounded-xl bg-background"
-                />
+                <>
+                  <p className="text-xs text-center text-muted-foreground">
+                    {t("join_role_label")}: <span className="font-semibold text-foreground">{roleLabel(data.role)}</span>
+                  </p>
+                  <Input
+                    placeholder={t("full_name")}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="h-12 rounded-xl bg-background"
+                  />
+                </>
               )}
               <Input
                 type="email"
@@ -204,24 +249,6 @@ export default function JoinClub() {
                 className="h-12 rounded-xl bg-background"
                 onKeyDown={(e) => e.key === "Enter" && handleAuth()}
               />
-              {mode === "register" && (
-                <div className="grid grid-cols-3 gap-2">
-                  {(["head_coach", "coach", "player"] as const).map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setRegisterRole(r)}
-                      className={`h-10 rounded-xl border text-[11px] font-semibold transition-all ${
-                        registerRole === r
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background border-border text-muted-foreground"
-                      }`}
-                    >
-                      {r === "head_coach" ? t("invite_role_head_coach") : r === "coach" ? t("role_coach") : t("role_player")}
-                    </button>
-                  ))}
-                </div>
-              )}
               {error && <p className="text-sm text-destructive text-center">{error}</p>}
               <Button className="w-full font-bold h-12 rounded-xl" onClick={handleAuth} disabled={loading}>
                 {loading ? t("saving") : mode === "login" ? t("sign_in") : t("sign_up")}

@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, Copy, Check, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,52 @@ const CLUB_LEAGUE_SELECT_OPTIONS: { value: ClubLeagueType; i18nKey: string }[] =
 
 const LOGO_EMOJIS = ["🏀", "⛹️", "🔥", "⭐", "💪", "🎯"];
 const CTX_UNSET = "__unset__";
+const CLUB_LOGO_DATAURL_MAX = 480_000;
+
+function isClubLogoImageUrl(logo: string): boolean {
+  return logo.startsWith("data:image/") || /^https:\/\//i.test(logo);
+}
+
+function ClubLogoView({ logo, className }: { logo: string; className?: string }) {
+  if (isClubLogoImageUrl(logo)) {
+    return <img src={logo} alt="" className={cn("object-contain", className)} />;
+  }
+  return <span className={className}>{logo || "🏀"}</span>;
+}
+
+async function compressImageFileToDataUrl(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("load"));
+      img.src = url;
+    });
+    const max = 256;
+    let w = img.naturalWidth;
+    let h = img.naturalHeight;
+    const scale = Math.min(1, max / Math.max(w, h));
+    w = Math.max(1, Math.round(w * scale));
+    h = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas");
+    ctx.drawImage(img, 0, 0, w, h);
+    let q = 0.88;
+    let data = canvas.toDataURL("image/jpeg", q);
+    while (data.length > CLUB_LOGO_DATAURL_MAX && q > 0.42) {
+      q -= 0.07;
+      data = canvas.toDataURL("image/jpeg", q);
+    }
+    if (data.length > CLUB_LOGO_DATAURL_MAX) throw new Error("too_large");
+    return data;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 function formatWhen(iso: string, locale: string): string {
   try {
@@ -176,6 +222,7 @@ export default function ClubManagement() {
   const [inviteRole, setInviteRole] = useState<"coach" | "player">("coach");
   const [inviteEmail, setInviteEmail] = useState("");
   const [dialogLink, setDialogLink] = useState<string | null>(null);
+  const logoFileRef = useRef<HTMLInputElement>(null);
 
   const canAccess = profile?.role === "master" || profile?.role === "head_coach" || profile?.role === "coach";
 
@@ -267,9 +314,21 @@ export default function ClubManagement() {
   const cycleLogo = () => {
     if (!q.data?.club || !canEditBranding) return;
     const cur = q.data.club.logo || "🏀";
-    const i = LOGO_EMOJIS.indexOf(cur);
+    const i = isClubLogoImageUrl(cur) ? -1 : LOGO_EMOJIS.indexOf(cur);
     const next = LOGO_EMOJIS[(i + 1) % LOGO_EMOJIS.length];
     patchClub.mutate({ logo: next });
+  };
+
+  const onLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f || !canEditBranding || !q.data) return;
+    try {
+      const dataUrl = await compressImageFileToDataUrl(f);
+      patchClub.mutate({ logo: dataUrl });
+    } catch {
+      toast({ variant: "destructive", description: t("club_logo_upload_error") });
+    }
   };
 
   const onNameBlur = () => {
@@ -333,16 +392,46 @@ export default function ClubManagement() {
           <>
             <section className="rounded-2xl border border-border bg-card p-4 mb-6 space-y-4">
               <div className="flex items-start gap-4">
-                <button
-                  type="button"
-                  onClick={cycleLogo}
-                  disabled={!canEditBranding || patchClub.isPending}
-                  className="text-5xl leading-none rounded-xl border border-border bg-muted/30 px-3 py-2 shrink-0 disabled:opacity-50"
-                  title={t("club_logo_hint")}
-                  aria-label={t("club_logo_hint")}
+                <input
+                  ref={logoFileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={onLogoFile}
+                />
+                <div
+                  className={cn(
+                    "flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30 text-5xl leading-none",
+                    canEditBranding && "ring-offset-background cursor-default ring-2 ring-transparent hover:ring-primary/30",
+                  )}
+                  title={canEditBranding ? t("club_logo_upload") : undefined}
                 >
-                  {q.data.club.logo}
-                </button>
+                  <ClubLogoView logo={q.data.club.logo} className="max-h-[5.5rem] max-w-[5.5rem]" />
+                </div>
+                {canEditBranding && (
+                  <div className="flex flex-col gap-2 pt-0.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="font-bold"
+                      disabled={patchClub.isPending}
+                      onClick={() => logoFileRef.current?.click()}
+                    >
+                      {t("club_logo_upload")}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="font-bold"
+                      disabled={patchClub.isPending}
+                      onClick={cycleLogo}
+                    >
+                      {t("club_logo_hint")}
+                    </Button>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0 space-y-1">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_name_label")}</p>
                   {canEditBranding ? (
@@ -365,6 +454,11 @@ export default function ClubManagement() {
             <section className="rounded-2xl border border-border bg-card p-4 mb-6 space-y-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_ctx_section")}</p>
               <p className="text-xs text-muted-foreground leading-relaxed">{t("club_ctx_hint")}</p>
+              {!canEditBranding && (
+                <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-primary/40 pl-3">
+                  {t("club_ctx_viewer_hint")}
+                </p>
+              )}
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_league")}</Label>
@@ -374,27 +468,19 @@ export default function ClubManagement() {
                     onValueChange={(v) => {
                       const newLeague = v === CTX_UNSET ? null : (v as ClubLeagueType);
                       const updates: PatchClubBody = { leagueType: newLeague };
-                      let didInfer = false;
                       if (newLeague) {
                         const infer = LEAGUE_AUTO_INFER[newLeague];
-                        if (infer) {
-                          if (infer.gender && !q.data?.club.gender) {
-                            updates.gender = infer.gender;
-                            didInfer = true;
-                          }
-                          if (infer.level && !q.data?.club.level) {
-                            updates.level = infer.level;
-                            didInfer = true;
-                          }
-                        }
-                      }
-                      patchClub.mutate(updates, {
-                        onSuccess: () => {
-                          if (didInfer) {
+                        updates.gender = infer.gender;
+                        updates.level = infer.level;
+                        updates.ageCategory = infer.ageCategory;
+                        patchClub.mutate(updates, {
+                          onSuccess: () => {
                             toast({ description: t("club_league_infer_toast") });
-                          }
-                        },
-                      });
+                          },
+                        });
+                        return;
+                      }
+                      patchClub.mutate(updates);
                     }}
                   >
                     <SelectTrigger className="bg-background border-border">
@@ -413,7 +499,7 @@ export default function ClubManagement() {
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_gender")}</Label>
                   <Select
-                    disabled={!canEditBranding || patchClub.isPending}
+                    disabled={!canEditBranding || patchClub.isPending || Boolean(q.data.club.leagueType)}
                     value={q.data.club.gender ?? CTX_UNSET}
                     onValueChange={(v) =>
                       patchClub.mutate({ gender: v === CTX_UNSET ? null : (v as ClubGender) })
@@ -435,7 +521,7 @@ export default function ClubManagement() {
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_level")}</Label>
                   <Select
-                    disabled={!canEditBranding || patchClub.isPending}
+                    disabled={!canEditBranding || patchClub.isPending || Boolean(q.data.club.leagueType)}
                     value={q.data.club.level ?? CTX_UNSET}
                     onValueChange={(v) =>
                       patchClub.mutate({ level: v === CTX_UNSET ? null : (v as ClubLevel) })
@@ -457,7 +543,7 @@ export default function ClubManagement() {
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_age")}</Label>
                   <Select
-                    disabled={!canEditBranding || patchClub.isPending}
+                    disabled={!canEditBranding || patchClub.isPending || Boolean(q.data.club.leagueType)}
                     value={q.data.club.ageCategory ?? CTX_UNSET}
                     onValueChange={(v) =>
                       patchClub.mutate({
