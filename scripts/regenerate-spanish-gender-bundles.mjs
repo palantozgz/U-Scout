@@ -60,11 +60,38 @@ function emit(moduleFileBase, outEn, outEs, outZh) {
 function traitTransforms() {
   function toM(s) {
     let o = s;
+    // Adjective agreement (player = masculine in club M) — before role noun swaps
+    o = o.replace(/\bClásica\b/g, "Clásico");
+    o = o.replace(/\bclásica\b/g, "clásico");
+    o = o.replace(/\bdominador física\b/gi, "dominador físico");
+    o = o.replace(/\bfísica de espaldas\b/g, "físico de espaldas");
+    o = o.replace(/\(física\)/g, "(físico)");
+    o = o.replace(/\(fina\)/g, "(fino)");
+    o = o.replace(/\bTirador secundaria\b/g, "Tirador secundario");
+    o = o.replace(/\bAmenaza exterior primaria\b/g, "Amenaza exterior primario");
+    o = o.replace(/\bpara una interior\b/g, "para un interior");
+    o = o.replace(/\bdejar sola en\b/g, "dejar solo en");
+    o = o.replace(/\bsé disciplinada\b/g, "sé disciplinado");
+    o = o.replace(/No te quedes pegada/g, "No te quedes pegado");
+    o = o.replace(/\bno te quedes pegada\b/g, "no te quedes pegado");
+    o = o.replace(/\bsecundaria desde\b/g, "secundario desde");
+    o = o.replace(/\bCortadora activa\b/g, "Cortador activo");
+    o = o.replace(/\bCortador activa\b/g, "Cortador activo");
+    o = o.replace(/\bempujarla\b/g, "empujarlo");
+    o = o.replace(/\blocalizarla\b/g, "localizarlo");
+    o = o.replace(/\bcomo bloqueadora\b/g, "como bloqueador");
+    o = o.replace(/\bbloqueadora:/g, "bloqueador:");
+    o = o.replace(/\bbloqueadora\b/g, "bloqueador");
+    o = o.replace(/\btiradoras\b/g, "tiradores");
+    o = o.replace(/\btodas las tiradores\b/g, "todos los tiradores");
+    o = o.replace(/\bsobre-negación la castiga\b/g, "sobre-negación lo castiga");
+    o = o.replace(/\bSi la defensa la quita\b/g, "Si la defensa lo quita");
+    // "cómoda" → "cómodo" for the *player*, but "cobertura cómoda" stays feminine
+    o = o.replace(/(?<!cobertura )\bCómoda\b/g, "Cómodo");
+    o = o.replace(/(?<!cobertura )\bcómoda\b/g, "cómodo");
     o = o.replace(/\bAnotadora\b/g, "Anotador");
     o = o.replace(/\banotadora\b/g, "anotador");
     o = o.replace(/\bdominadora\b/gi, "dominador");
-    o = o.replace(/\bCómoda\b/g, "Cómodo");
-    o = o.replace(/\bcómoda\b/g, "cómodo");
     o = o.replace(/\bCreadora\b/g, "Creador");
     o = o.replace(/\bcreadora\b/g, "creador");
     o = o.replace(/\bManejadora\b/g, "Manejador");
@@ -84,12 +111,16 @@ function traitTransforms() {
     o = o.replace(/\bPasadora\b/g, "Pasador");
     o = o.replace(/\bpasadora\b/g, "pasador");
     o = o.replace(/\bno la dejes\b/g, "no le dejes");
+    o = o.replace(/\bno se puede dejar sola\b/g, "no se puede dejar solo");
+    o = o.replace(/\bno le dejes sola\b/g, "no le dejes solo");
     o = o.replace(/\bEmpujadora\b/g, "Empujador");
     o = o.replace(/\bempujadora\b/g, "empujador");
     o = o.replace(/\brecógele\b/g, "recógelo");
     o = o.replace(/\brecogerla\b/g, "recogerlo");
     o = o.replace(/\bActiva en\b/g, "Activo en");
     o = o.replace(/\bMuy activa\b/g, "Muy activo");
+    // Safety: "cobertura" is feminine — never "cobertura cómodo"
+    o = o.replace(/cobertura cómodo\b/g, "cobertura cómoda");
     return o;
   }
   function toN(s) {
