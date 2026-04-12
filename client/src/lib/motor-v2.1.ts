@@ -339,6 +339,8 @@ const SOURCE_TO_SITUATION: Record<string, string> = {
   no_range_no_threat: 'misc',
   gender_f_interior: 'misc',
   oreb_and_transition: 'oreb',
+  no_range_spot_active: 'spot',
+  interior_low_impact: 'misc',
 };
 
 export interface InferredField {
@@ -1871,6 +1873,33 @@ export class UScoutMotor {
     }
 
     // force_perimeter ELIMINADO en v3 — reemplazado por force_no_space y force_paint_deny
+    // force_no_space: perimetral sin rango pero con amenaza de drive (spotUp activo + no deepRange)
+    if (
+      !inputs.deepRange &&
+      inputs.spotUpFreq &&
+      inputs.spotUpFreq !== 'N' &&
+      inputs.isoFreq !== 'P'
+    ) {
+      outputs.push({
+        key: 'force_no_space',
+        category: 'force',
+        weight: 0.78,
+        source: 'no_range_spot_active',
+      });
+    }
+    // force_paint_deny: interior de bajo impacto o pasador (no anotador de poste)
+    if (
+      (inputs.pos === 'PF' || inputs.pos === 'C') &&
+      (inputs.postFreq === 'N' || inputs.postFreq === 'R') &&
+      inputs.usage === 'role'
+    ) {
+      outputs.push({
+        key: 'force_paint_deny',
+        category: 'force',
+        weight: 0.65,
+        source: 'interior_low_impact',
+      });
+    }
     // allow_distance para no-tiradores sin deepRange
     if (
       !inputs.deepRange &&
