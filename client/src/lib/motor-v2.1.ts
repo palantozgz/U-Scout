@@ -530,7 +530,6 @@ export const OUTPUT_CATALOG = {
     screen_pop: { key: 'deny_screen_pop', i18nKey: 'output.deny.screen_pop', template: 'DENY off-ball screen pop — contest jumper' },
     screen_slip: { key: 'deny_screen_slip', i18nKey: 'output.deny.screen_slip', template: 'DENY slip off off-ball screen — stay with cutter' },
     off_ball_curl: { key: 'deny_off_ball_curl', i18nKey: 'output.deny.off_ball_curl', template: 'DENY curl off screen — chase or switch tight' },
-    screen_hold: { key: 'aware_screen_hold', i18nKey: 'output.aware.screen_hold', template: 'Pantalla aguantada — comunicar antes del bloqueo' }
   },
   force: {
     direction: { key: 'force_direction', i18nKey: 'output.force.direction', template: 'FORCE {direction} - away from comfort' },

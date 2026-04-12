@@ -859,6 +859,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     transFinishing: inputs.transFinishing ?? null,
     offBallScreenerAction: inputs.screenerAction ?? null,
     offBallCutAction: inputs.offBallCutAction ?? null,
+    starPlayer: inputs.starPlayer ?? null,
   };
 }
 
