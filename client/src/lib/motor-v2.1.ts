@@ -226,6 +226,8 @@ export interface PlayerInputs {
   freeCutsFrequency?: 'Primary' | 'Secondary' | 'Rare' | 'Never' | null;
   freeCutsType?: 'basket' | 'flash' | 'both' | null;
   putbackQuality?: 'primary' | 'capable' | 'palms_only' | 'not_observed' | null;
+  /** Team star — extra defensive emphasis when true (optional; bridge may omit). */
+  starPlayer?: boolean | null;
 }
 
 export interface MotorOutput {
@@ -527,7 +529,8 @@ export const OUTPUT_CATALOG = {
     high_post_catch: { key: 'deny_high_post_catch', i18nKey: 'output.deny.high_post_catch', template: 'DENY high post/elbow catches — crowd the elbow' },
     screen_pop: { key: 'deny_screen_pop', i18nKey: 'output.deny.screen_pop', template: 'DENY off-ball screen pop — contest jumper' },
     screen_slip: { key: 'deny_screen_slip', i18nKey: 'output.deny.screen_slip', template: 'DENY slip off off-ball screen — stay with cutter' },
-    off_ball_curl: { key: 'deny_off_ball_curl', i18nKey: 'output.deny.off_ball_curl', template: 'DENY curl off screen — chase or switch tight' }
+    off_ball_curl: { key: 'deny_off_ball_curl', i18nKey: 'output.deny.off_ball_curl', template: 'DENY curl off screen — chase or switch tight' },
+    screen_hold: { key: 'aware_screen_hold', i18nKey: 'output.aware.screen_hold', template: 'Pantalla aguantada — comunicar antes del bloqueo' }
   },
   force: {
     direction: { key: 'force_direction', i18nKey: 'output.force.direction', template: 'FORCE {direction} - away from comfort' },
@@ -539,14 +542,17 @@ export const OUTPUT_CATALOG = {
     // v2.1 - NEW FORCE outputs
     full_court: { key: 'force_full_court', i18nKey: 'output.force.full_court', template: 'FORCE full court pressure - attack the ball' },
     no_ball: { key: 'force_no_ball', i18nKey: 'output.force.no_ball', template: 'FORCE off ball - deny advance' },
-    no_push: { key: 'force_no_push', i18nKey: 'output.force.no_push', template: 'FORCE no dribble push — contain the advance' }
+    no_push: { key: 'force_no_push', i18nKey: 'output.force.no_push', template: 'FORCE no dribble push — contain the advance' },
+    no_space: { key: 'force_no_space', i18nKey: 'output.force.no_space', template: 'FORCE no space — no dar distancia de tiro' },
+    paint_deny: { key: 'force_paint_deny', i18nKey: 'output.force.paint_deny', template: 'FORCE out of paint — mantener fuera de la pintura' }
   },
   allow: {
     post: { key: 'allow_post', i18nKey: 'output.allow.post', template: 'Allow post attempts - no threat' },
     spot_three: { key: 'allow_spot_three', i18nKey: 'output.allow.spot_three', template: 'Allow spot-up threes - help off' },
     iso: { key: 'allow_iso', i18nKey: 'output.allow.iso', template: 'Allow isolation - low efficiency' },
     // v2.1 - NEW ALLOW output
-    ball_handling: { key: 'allow_ball_handling', i18nKey: 'output.allow.ball_handling', template: 'Allow ball handling - limited threat with ball' }
+    ball_handling: { key: 'allow_ball_handling', i18nKey: 'output.allow.ball_handling', template: 'Allow ball handling - limited threat with ball' },
+    distance: { key: 'allow_distance', i18nKey: 'output.allow.distance', template: 'Allow distance — dar espacio, no amenaza de tiro' }
   },
   aware: {
     passer: { key: 'aware_passer', i18nKey: 'output.aware.passer', template: 'Elite passer - don\'t gamble' },
@@ -602,6 +608,8 @@ export const OUTPUT_CATALOG = {
       i18nKey: 'output.aware.off_ball_role',
       template: 'Off-ball role tendency: {role}.',
     },
+    screen_hold: { key: 'aware_screen_hold', i18nKey: 'output.aware.screen_hold', template: 'Pantalla aguantada — comunicar antes del bloqueo' },
+    selfish_pattern: { key: 'aware_selfish_pattern', i18nKey: 'output.aware.selfish_pattern', template: 'Jugador egoísta — busca su opción siempre, no especular' },
   }
 };
 
@@ -699,33 +707,63 @@ export class UScoutMotor {
     const freqW = w.frequencyToWeight;
     const effM = w.efficiencyMultiplier;
     const usageM = w.usageMultiplier[inputs.usage] || 1.0;
-    
+    const personalityMod = inputs.personality?.includes('clutch')
+      ? 1.1
+      : inputs.personality?.includes('freezes')
+        ? 0.85
+        : 1.0;
+    const starMod = inputs.starPlayer ? 1.05 : 1.0;
+    const globalMod = personalityMod * starMod;
+    const effectiveUsageM = usageM * globalMod;
+
     // =========================================================================
     // ISO outputs
     // =========================================================================
     if (inputs.isoFreq && inputs.isoFreq !== 'N') {
       const baseWeight = freqW[inputs.isoFreq] * w.outputWeights.iso.baseWeight;
-      let weight = baseWeight * usageM;
-      
+      let weight = baseWeight * effectiveUsageM;
+
       if (inputs.isoEff) weight *= effM[inputs.isoEff];
-      
+
       outputs.push({
         key: 'deny_iso_space',
         category: 'deny',
         weight: Math.min(weight, 1.0),
         source: 'iso'
       });
-      
+
       if (inputs.isoDir) {
-        const weakDir = inputs.isoDir === 'L' ? 'R' : inputs.isoDir === 'R' ? 'L' : null;
-        if (weakDir) {
+        const handWeakDir = inputs.hand === 'R' ? 'L' : 'R';
+        const offHandWeak = inputs.offHandFinish === 'weak';
+        const allAgree =
+          inputs.isoDir !== 'B' && (inputs.isoDir === handWeakDir || offHandWeak);
+        const contradiction =
+          inputs.isoDir !== 'B' && inputs.isoDir !== handWeakDir && !offHandWeak;
+        if (allAgree) {
+          const dirParams: Record<string, string> = {
+            direction: inputs.isoDir === handWeakDir ? inputs.isoDir : handWeakDir,
+          };
+          if (inputs.isoStartZone) dirParams.zone = inputs.isoStartZone;
           outputs.push({
             key: 'force_direction',
             category: 'force',
-            weight: Math.min(weight * 0.9, 1.0),
-            params: { direction: weakDir },
-            source: 'iso_dir'
+            weight: Math.min(weight * 0.9 + 0.1, 1.0),
+            params: dirParams,
+            source: 'iso_dir_confirmed',
           });
+        } else if (!contradiction) {
+          const weakDir = inputs.isoDir === 'L' ? 'R' : inputs.isoDir === 'R' ? 'L' : null;
+          if (weakDir) {
+            const dirParams: Record<string, string> = { direction: weakDir };
+            if (inputs.isoStartZone) dirParams.zone = inputs.isoStartZone;
+            outputs.push({
+              key: 'force_direction',
+              category: 'force',
+              weight: Math.min(weight * 0.9, 1.0),
+              params: dirParams,
+              source: 'iso_dir',
+            });
+          }
         }
       }
 
@@ -748,12 +786,28 @@ export class UScoutMotor {
         });
       }
     }
-    
+
+    if (inputs.personality?.includes('selfish')) {
+      if (inputs.isoEff === 'low' || inputs.isoEff === 'medium') {
+        const idxDeny = outputs.findIndex((o) => o.key === 'deny_iso_space');
+        if (idxDeny >= 0) outputs[idxDeny].weight = Math.max(outputs[idxDeny].weight - 0.15, 0);
+        if (!outputs.some((o) => o.key === 'allow_iso')) {
+          outputs.push({ key: 'allow_iso', category: 'allow', weight: 0.65, source: 'selfish_low_eff' });
+        }
+      }
+      outputs.push({
+        key: 'aware_selfish_pattern',
+        category: 'aware',
+        weight: 0.7,
+        source: 'selfish',
+      });
+    }
+
     // =========================================================================
     // PnR Handler outputs
     // =========================================================================
     if (inputs.pnrFreq && inputs.pnrFreq !== 'N') {
-      let weight = freqW[inputs.pnrFreq] * w.outputWeights.pnr.baseWeight * usageM;
+      let weight = freqW[inputs.pnrFreq] * w.outputWeights.pnr.baseWeight * effectiveUsageM;
       
       if (inputs.pnrPri) {
         weight += w.outputWeights.pnr.priorityBonus[inputs.pnrPri] || 0;
@@ -769,27 +823,42 @@ export class UScoutMotor {
         source: 'pnr'
       });
 
-      if (
-        inputs.pnrFinishLeft &&
-        inputs.pnrFinishRight &&
-        inputs.pnrFinishLeft !== inputs.pnrFinishRight
-      ) {
-        outputs.push({
-          key: 'aware_pnr_direction',
-          category: 'aware',
-          weight: 0.72,
-          source: 'pnr_finish_asymmetry',
-          params: { left: inputs.pnrFinishLeft, right: inputs.pnrFinishRight },
-        });
+      if (inputs.pnrFinishLeft && inputs.pnrFinishRight) {
+        const leftEff = inputs.pnrEffLeft ?? null;
+        const rightEff = inputs.pnrEffRight ?? null;
+        const meaningfulDiff =
+          inputs.pnrFinishLeft !== inputs.pnrFinishRight ||
+          (leftEff && rightEff && leftEff !== rightEff);
+        if (meaningfulDiff) {
+          outputs.push({
+            key: 'aware_pnr_direction',
+            category: 'aware',
+            weight: 0.72,
+            source: 'pnr_finish_asymmetry',
+            params: { left: inputs.pnrFinishLeft, right: inputs.pnrFinishRight },
+          });
+        }
       }
-      
+
       if (inputs.trapResponse === 'struggle') {
         outputs.push({
           key: 'force_trap',
           category: 'force',
           weight: weight * 0.85,
-          source: 'trap_response'
+          source: 'trap_response',
         });
+      } else if (inputs.trapResponse === 'escape' && inputs.pnrPri === 'PF') {
+        const passerIdx = outputs.findIndex((o) => o.key === 'aware_passer');
+        if (passerIdx >= 0) {
+          outputs[passerIdx].weight = Math.min(outputs[passerIdx].weight + 0.15, 1.0);
+        } else {
+          outputs.push({
+            key: 'aware_passer',
+            category: 'aware',
+            weight: 0.9,
+            source: 'escape_pass_first',
+          });
+        }
       }
     }
     
@@ -807,28 +876,64 @@ export class UScoutMotor {
         });
       } else if (action === 'pop') {
         let popWeight = w.outputWeights.screener.popWeight;
-        if (inputs.deepRange) popWeight += 0.2;
-        outputs.push({
-          key: 'deny_pnr_pop',
-          category: 'deny',
-          weight: Math.min(popWeight, 1.0),
-          source: 'screener_pop'
-        });
+        if (inputs.deepRange) {
+          popWeight += 0.2;
+          outputs.push({
+            key: 'deny_pnr_pop',
+            category: 'deny',
+            weight: Math.min(popWeight, 1.0),
+            source: 'screener_pop',
+          });
+        } else {
+          outputs.push({
+            key: 'deny_pnr_pop',
+            category: 'deny',
+            weight: 0.45,
+            source: 'screener_pop_no_range',
+          });
+          outputs.push({
+            key: 'aware_screen_short_roll',
+            category: 'aware',
+            weight: 0.55,
+            source: 'screener_pop_no_range',
+          });
+        }
       } else if (action === 'slip') {
+        const slipWeight =
+          inputs.pnrScreenTiming === 'ghost_touch' ? 0.9 : w.outputWeights.screener.slipWeight;
         outputs.push({
           key: 'deny_pnr_slip',
           category: 'deny',
-          weight: w.outputWeights.screener.slipWeight,
-          source: 'screener_slip'
+          weight: slipWeight,
+          source: 'screener_slip',
         });
       }
     }
-    
+
+    if (inputs.screenerAction === 'roll' && inputs.pnrScreenTiming === 'slip') {
+      outputs.push({
+        key: 'aware_passer',
+        category: 'aware',
+        weight: 0,
+        source: 'data_inconsistency',
+        params: { note: 'screener_action_timing_mismatch' },
+      });
+    }
+
+    if (inputs.pnrScreenTiming === 'holds_long') {
+      outputs.push({
+        key: 'aware_screen_hold',
+        category: 'aware',
+        weight: 0.65,
+        source: 'screen_timing',
+      });
+    }
+
     // =========================================================================
     // Post outputs - v2.1 ENHANCED with postEff and postMoves
     // =========================================================================
     if (inputs.postFreq && inputs.postFreq !== 'N') {
-      let weight = freqW[inputs.postFreq] * w.outputWeights.post.baseWeight * usageM;
+      let weight = freqW[inputs.postFreq] * w.outputWeights.post.baseWeight * effectiveUsageM;
       
       if (inputs.postProfile) {
         weight += w.outputWeights.post.profileBonus[inputs.postProfile] || 0;
@@ -896,7 +1001,8 @@ export class UScoutMotor {
               key: 'aware_post_fade',
               category: 'aware',
               weight: moveWeight,
-              source: 'post_move_fade'
+              source: 'post_move_fade',
+              params: inputs.postShoulder ? { shoulder: inputs.postShoulder } : undefined,
             });
           } else if (move === 'turnaround') {
             outputs.push({
@@ -912,6 +1018,16 @@ export class UScoutMotor {
               weight: moveWeight,
               source: 'post_move_hook'
             });
+          }
+        }
+        if (inputs.postMoves?.includes('hook') && inputs.postMoves?.includes('up_and_under')) {
+          const hookIdx = outputs.findIndex(
+            (o) => o.key === 'aware_post_hook' && o.source === 'post_move_hook',
+          );
+          if (hookIdx >= 0) {
+            outputs[hookIdx].weight = 0.85;
+            outputs[hookIdx].params = { combo: 'hook_up_under' };
+            outputs[hookIdx].source = 'post_combo_hook_upunder';
           }
         }
       }
@@ -956,12 +1072,24 @@ export class UScoutMotor {
       if (vals.length > 0) {
         let catchW = 0.8;
         if (inputs.postProfile === 'FU' || inputs.postProfile === 'M') catchW += 0.1;
+        const isElbowISO = inputs.postProfile === 'FU' && inputs.isoFreq === 'S';
         outputs.push({
           key: 'deny_high_post_catch',
           category: 'deny',
           weight: Math.min(catchW, 1.0),
           source: 'high_post',
+          params: isElbowISO ? { stance: 'gap' } : undefined,
         });
+        if (inputs.postProfile === 'B2B' && vals.length > 0) {
+          const postEntryIdx = outputs.findIndex((o) => o.key === 'deny_post_entry');
+          if (postEntryIdx >= 0) {
+            outputs[postEntryIdx].weight = Math.min(outputs[postEntryIdx].weight + 0.1, 1.0);
+            outputs[postEntryIdx].params = {
+              ...(outputs[postEntryIdx].params ?? {}),
+              note: 'two_initiation_zones',
+            };
+          }
+        }
         if (vals.some((z) => z === 'face_up_drive')) {
           outputs.push({
             key: 'aware_high_post_face_up',
@@ -1014,7 +1142,7 @@ export class UScoutMotor {
           outputs.push({
             key: 'deny_trans_rim',
             category: 'deny',
-            weight: Math.min(weight * roleWeight * usageM, 1.0),
+            weight: Math.min(weight * roleWeight * effectiveUsageM, 1.0),
             source: 'trans_rim_run'
           });
         } else if (inputs.transRole === 'trail') {
@@ -1023,7 +1151,7 @@ export class UScoutMotor {
             outputs.push({
               key: 'deny_trans_trail',
               category: 'deny',
-              weight: Math.min(weight * roleWeight + 0.15, 1.0),
+              weight: Math.min(weight * roleWeight * effectiveUsageM + 0.15, 1.0),
               source: 'trans_trail'
             });
           }
@@ -1041,7 +1169,7 @@ export class UScoutMotor {
         outputs.push({
           key: 'deny_trans_run',
           category: 'deny',
-          weight: Math.min(weight * usageM, 1.0),
+          weight: Math.min(weight * effectiveUsageM, 1.0),
           source: 'transition'
         });
       }
@@ -1077,12 +1205,23 @@ export class UScoutMotor {
             source: 'trans_sub',
           });
         } else if (sub === 'dribble_push') {
+          const pushWeight = inputs.ballHandling === 'elite' ? 0.9 : 0.75;
           outputs.push({
             key: 'force_no_push',
             category: 'force',
-            weight: Math.min(0.75 * mult, 1.0),
+            weight: Math.min(pushWeight * mult, 1.0),
             source: 'trans_sub',
           });
+        } else if (sub === 'cut_to_rim' || sub === 'cut') {
+          if (inputs.transFinishing === 'high') {
+            outputs.push({
+              key: 'deny_trans_rim',
+              category: 'deny',
+              weight: Math.min(0.85 * mult, 1.0),
+              source: 'trans_cut_finishing',
+              params: { finishing: 'contact_expected' },
+            });
+          }
         }
       };
       applyTransSub(inputs.transSubPrimary, 1);
@@ -1106,19 +1245,53 @@ export class UScoutMotor {
           params: { freq: inputs.trailFrequency },
         });
       }
+
+      if (inputs.transFinishing === 'not_observed') {
+        outputs
+          .filter((o) => {
+            const s = o.source ?? '';
+            return (
+              s.startsWith('trans') ||
+              s === 'transition' ||
+              s === 'off_ball_roll_rim' ||
+              s === 'duck_in_rim_runner_unified'
+            );
+          })
+          .forEach((o) => {
+            o.weight = o.weight * 0.85;
+            o.params = { ...(o.params ?? {}), confidence: 'medium' };
+          });
+      }
     }
-    
+
+    if (inputs.postEntry === 'duck_in' && inputs.transRolePrimary === 'rim_runner') {
+      const duckIdx = outputs.findIndex((o) => o.key === 'deny_duck_in');
+      const rimIdx = outputs.findIndex((o) => o.key === 'deny_trans_rim');
+      for (const idx of [duckIdx, rimIdx].filter((i) => i >= 0).sort((a, b) => b - a)) {
+        outputs.splice(idx, 1);
+      }
+      outputs.push({
+        key: 'deny_trans_rim',
+        category: 'deny',
+        weight: 0.9,
+        source: 'duck_in_rim_runner_unified',
+        params: { context: 'both_halfcourt_and_transition' },
+      });
+    }
+
     // =========================================================================
     // v2.1: Ball handling & pressure outputs
     // =========================================================================
     if (inputs.pressureResponse === 'struggles') {
-      outputs.push({
-        key: 'force_full_court',
-        category: 'force',
-        weight: w.forceRules.fullCourt.baseWeight,
-        source: 'pressure_struggles'
-      });
-      
+      if (inputs.ballHandling !== 'elite') {
+        outputs.push({
+          key: 'force_full_court',
+          category: 'force',
+          weight: w.forceRules.fullCourt.baseWeight,
+          source: 'pressure_struggles',
+        });
+      }
+
       outputs.push({
         key: 'aware_pressure_vuln',
         category: 'aware',
@@ -1157,15 +1330,26 @@ export class UScoutMotor {
     // Spot-up outputs
     // =========================================================================
     if (inputs.spotUpFreq && inputs.spotUpFreq !== 'N') {
-      const weight = freqW[inputs.spotUpFreq] * w.outputWeights.spotUp.baseWeight;
-      
+      const weight =
+        freqW[inputs.spotUpFreq] * w.outputWeights.spotUp.baseWeight * effectiveUsageM;
+
       if (inputs.spotZone === 'corner') {
-        outputs.push({
-          key: 'deny_spot_corner',
-          category: 'deny',
-          weight: weight + w.outputWeights.spotUp.zoneBonus.corner,
-          source: 'corner_spot'
-        });
+        if (inputs.deepRange) {
+          outputs.push({
+            key: 'deny_spot_corner',
+            category: 'deny',
+            weight: weight + w.outputWeights.spotUp.zoneBonus.corner,
+            source: 'corner_spot',
+          });
+        } else {
+          outputs.push({
+            key: 'force_no_space',
+            category: 'force',
+            weight: 0.7,
+            source: 'corner_no_range',
+            params: { zone: 'corner' },
+          });
+        }
       }
     }
     
@@ -1180,7 +1364,11 @@ export class UScoutMotor {
     }
     
     // ALLOW spot-up threes when poor shooter
-    if (!inputs.deepRange && inputs.spotUpFreq !== 'P') {
+    if (
+      !inputs.deepRange &&
+      (inputs.spotUpFreq === 'N' || inputs.spotUpFreq === 'R') &&
+      inputs.isoFreq !== 'P'
+    ) {
       outputs.push({
         key: 'allow_spot_three',
         category: 'allow',
@@ -1203,7 +1391,8 @@ export class UScoutMotor {
     // DHO outputs
     // =========================================================================
     if (inputs.dhoFreq && inputs.dhoFreq !== 'N') {
-      let weight = freqW[inputs.dhoFreq] * w.outputWeights.dho.baseWeight;
+      let weight =
+        freqW[inputs.dhoFreq] * w.outputWeights.dho.baseWeight * effectiveUsageM;
       
       if (inputs.dhoRole) {
         weight += w.outputWeights.dho.roleBonus[inputs.dhoRole] || 0;
@@ -1225,7 +1414,8 @@ export class UScoutMotor {
     // Cut outputs - v2.1 (duck_in removed from cutType)
     // =========================================================================
     if (inputs.cutFreq && inputs.cutFreq !== 'N' && inputs.cutType) {
-      let weight = freqW[inputs.cutFreq] * w.outputWeights.cut.baseWeight;
+      let weight =
+        freqW[inputs.cutFreq] * w.outputWeights.cut.baseWeight * effectiveUsageM;
       const bonus = w.outputWeights.cut.typeBonus[inputs.cutType] || 0;
       weight += bonus;
       
@@ -1241,6 +1431,18 @@ export class UScoutMotor {
       });
     }
 
+    if (
+      inputs.offBallRole === 'cutter' &&
+      inputs.cutFreq === 'P' &&
+      inputs.freeCutsFrequency === 'Primary'
+    ) {
+      const cutDenyIdx = outputs.findIndex((o) => o.key?.startsWith('deny_cut'));
+      if (cutDenyIdx >= 0) {
+        outputs[cutDenyIdx].weight = Math.min(outputs[cutDenyIdx].weight + 0.1, 0.8);
+        outputs[cutDenyIdx].source = 'cut_compulsive_unified';
+      }
+    }
+
     // =========================================================================
     // Off-ball screens (indirects) — screener / cut actions
     // =========================================================================
@@ -1249,10 +1451,11 @@ export class UScoutMotor {
       const ob = inputs.offBallScreenerAction;
       const obl = inputs.offBallCutAction;
       if (ob === 'pop_3') {
+        const popW = inputs.deepRange ? 0.85 : 0.4;
         outputs.push({
           key: 'deny_screen_pop',
           category: 'deny',
-          weight: 0.85,
+          weight: popW,
           source: 'off_ball_screen',
         });
       }
@@ -1298,7 +1501,7 @@ export class UScoutMotor {
           source: 'off_ball_cut',
         });
       }
-      if (obl === 'catch_and_shoot') {
+      if (obl === 'catch_and_shoot' && inputs.deepRange) {
         outputs.push({
           key: 'deny_screen_pop',
           category: 'deny',
@@ -1347,78 +1550,147 @@ export class UScoutMotor {
     // Offensive rebounding
     // =========================================================================
     if (inputs.orebThreat === 'high') {
+      const pq = inputs.putbackQuality;
+      if (pq === 'primary') {
+        outputs.push({
+          key: 'deny_oreb',
+          category: 'deny',
+          weight: 0.9,
+          source: 'oreb_finisher',
+          params: { instruction: 'box_out_before_shot' },
+        });
+      } else if (pq === 'capable' || !pq) {
+        outputs.push({
+          key: 'deny_oreb',
+          category: 'deny',
+          weight: w.outputWeights.oreb.baseWeight * w.outputWeights.oreb.threatMultiplier.high,
+          source: 'oreb',
+        });
+        outputs.push({
+          key: 'aware_oreb',
+          category: 'aware',
+          weight: 0.8,
+          source: 'oreb_threat',
+        });
+      } else if (pq === 'palms_only') {
+        outputs.push({
+          key: 'deny_oreb',
+          category: 'deny',
+          weight: 0.55,
+          source: 'oreb_distributor',
+          params: { instruction: 'no_second_chance_passes' },
+        });
+      }
+    } else if (inputs.orebThreat === 'medium') {
       outputs.push({
-        key: 'deny_oreb',
-        category: 'deny',
-        weight: w.outputWeights.oreb.baseWeight * w.outputWeights.oreb.threatMultiplier.high,
-        source: 'oreb'
+        key: 'aware_oreb',
+        category: 'aware',
+        weight: 0.55,
+        source: 'oreb_medium',
       });
     }
-    
+
+    if (inputs.orebThreat === 'high' && inputs.transRolePrimary === 'rim_runner') {
+      const orebIdx = outputs.findIndex((o) => o.key === 'deny_oreb');
+      const rimIdx = outputs.findIndex((o) => o.key === 'deny_trans_rim');
+      if (orebIdx >= 0 && rimIdx >= 0) {
+        const maxWeight = Math.max(outputs[orebIdx].weight, outputs[rimIdx].weight);
+        outputs[orebIdx].weight = Math.min(maxWeight + 0.05, 1.0);
+        outputs[orebIdx].params = { ...(outputs[orebIdx].params ?? {}), context: 'oreb_and_transition' };
+        outputs.splice(rimIdx, 1);
+      }
+    }
+
     // =========================================================================
     // Floater
     // =========================================================================
     if (inputs.floater && inputs.floater !== 'N') {
       const floaterWeight = freqW[inputs.floater] * w.outputWeights.floater.baseWeight;
-      outputs.push({
-        key: 'deny_floater',
-        category: 'deny',
-        weight: Math.min(floaterWeight * 1.3, 1.0),
-        source: 'floater'
-      });
+      const isPnrFloater =
+        inputs.pnrFreq &&
+        inputs.pnrFreq !== 'N' &&
+        (inputs.pnrFinishLeft === 'Floater' || inputs.pnrFinishRight === 'Floater');
+      if (isPnrFloater) {
+        const pnrIdx = outputs.findIndex((o) => o.key === 'deny_pnr_downhill');
+        if (pnrIdx >= 0) {
+          outputs[pnrIdx].weight = Math.min(outputs[pnrIdx].weight + 0.05, 1.0);
+          outputs[pnrIdx].params = { ...(outputs[pnrIdx].params ?? {}), finish: 'floater' };
+          outputs[pnrIdx].source = 'pnr_floater_unified';
+        }
+      } else {
+        outputs.push({
+          key: 'deny_floater',
+          category: 'deny',
+          weight: Math.min(floaterWeight * 1.3, 1.0),
+          source: 'floater',
+        });
+      }
     }
-    
+
     // =========================================================================
     // Force weak hand
     // =========================================================================
     if (inputs.offHandFinish === 'weak') {
       const weakHand = inputs.hand === 'R' ? 'L' : 'R';
-      outputs.push({
-        key: 'force_weak_hand',
-        category: 'force',
-        weight: w.forceRules.weakHand.baseWeight + w.forceRules.weakHand.offHandWeakBonus,
-        params: { hand: weakHand },
-        source: 'off_hand'
-      });
-    }
-    
-    // =========================================================================
-    // Force perimeter
-    // =========================================================================
-    if (!inputs.deepRange) {
-      let perimeterWeight = w.forceRules.perimeter.noDeepRangeWeight;
-      if (inputs.spotUpFreq === 'R' || inputs.spotUpFreq === 'N') {
-        perimeterWeight += 0.1;
+      if (inputs.contactFinish === 'avoids') {
+        outputs.push({
+          key: 'force_contact',
+          category: 'force',
+          weight: 0.85,
+          params: { hand: weakHand, instruction: 'physical_to_weak_hand' },
+          source: 'contact_weak_hand_combined',
+        });
+      } else {
+        outputs.push({
+          key: 'force_weak_hand',
+          category: 'force',
+          weight: w.forceRules.weakHand.baseWeight + w.forceRules.weakHand.offHandWeakBonus,
+          params: { hand: weakHand },
+          source: 'off_hand',
+        });
       }
+    }
+
+    // force_perimeter ELIMINADO en v3 — reemplazado por force_no_space y force_paint_deny
+    // allow_distance para no-tiradores sin deepRange
+    if (
+      !inputs.deepRange &&
+      (inputs.spotUpFreq === 'N' || inputs.spotUpFreq === 'R') &&
+      inputs.isoFreq !== 'P'
+    ) {
       outputs.push({
-        key: 'force_perimeter',
-        category: 'force',
-        weight: Math.min(perimeterWeight, 1.0),
-        source: 'no_range'
+        key: 'allow_distance',
+        category: 'allow',
+        weight: 0.65,
+        source: 'no_range_no_threat',
       });
     }
-    
+
     // =========================================================================
     // Force contact
     // =========================================================================
-    if (inputs.contactFinish === 'avoids') {
+    if (inputs.contactFinish === 'avoids' && inputs.offHandFinish !== 'weak') {
       outputs.push({
         key: 'force_contact',
         category: 'force',
         weight: w.forceRules.contactFinish.avoidsWeight,
-        source: 'contact_avoids'
+        source: 'contact_avoids',
       });
     }
-    
+
     // =========================================================================
     // Force early shot clock
     // =========================================================================
-    if (inputs.selfCreation === 'high') {
+    if (
+      inputs.selfCreation === 'high' &&
+      inputs.usage === 'primary' &&
+      (inputs.isoFreq === 'P' || inputs.pnrFreq === 'P')
+    ) {
       outputs.push({
         key: 'force_early',
         category: 'force',
         weight: w.forceRules.earlyShot.baseWeight + w.forceRules.earlyShot.selfCreationHighBonus,
-        source: 'self_creation'
+        source: 'self_creation',
       });
     }
     
@@ -1467,15 +1739,6 @@ export class UScoutMotor {
         category: 'aware',
         weight: 0.65,
         source: 'both_hands'
-      });
-    }
-    
-    if (inputs.orebThreat === 'high') {
-      outputs.push({
-        key: 'aware_oreb',
-        category: 'aware',
-        weight: 0.8,
-        source: 'oreb_threat'
       });
     }
     
