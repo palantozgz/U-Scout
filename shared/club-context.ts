@@ -23,7 +23,7 @@ export type ClubGender = (typeof CLUB_GENDERS)[number];
 export const CLUB_LEVELS = ["elite", "competitive", "developmental"] as const;
 export type ClubLevel = (typeof CLUB_LEVELS)[number];
 
-export const CLUB_AGE_CATEGORIES = ["senior", "U23", "U18", "U16"] as const;
+export const CLUB_AGE_CATEGORIES = ["senior", "U23", "U22", "U18", "U16"] as const;
 export type ClubAgeCategory = (typeof CLUB_AGE_CATEGORIES)[number];
 
 /** Preset club context when a known league is selected (motor v3). */
@@ -37,10 +37,10 @@ export const LEAGUE_AUTO_INFER: Record<
   acb: { gender: "M", level: "elite", ageCategory: "senior" },
   cba: { gender: "M", level: "elite", ageCategory: "senior" },
   wcba: { gender: "F", level: "elite", ageCategory: "senior" },
-  ncaa_m: { gender: "M", level: "competitive", ageCategory: "senior" },
-  ncaa_f: { gender: "F", level: "competitive", ageCategory: "senior" },
-  cuba_m: { gender: "M", level: "competitive", ageCategory: "U18" },
-  cuba_f: { gender: "F", level: "competitive", ageCategory: "U18" },
+  ncaa_m: { gender: "M", level: "competitive", ageCategory: "U22" },
+  ncaa_f: { gender: "F", level: "competitive", ageCategory: "U22" },
+  cuba_m: { gender: "M", level: "competitive", ageCategory: "U22" },
+  cuba_f: { gender: "F", level: "competitive", ageCategory: "U22" },
   fiba_americas: { gender: "mixed", level: "competitive", ageCategory: "senior" },
   amateur: { gender: "mixed", level: "developmental", ageCategory: "senior" },
 };

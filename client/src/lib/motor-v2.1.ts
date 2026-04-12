@@ -138,7 +138,7 @@ export interface ClubContext {
     | null;
   gender?: 'M' | 'F' | 'mixed' | null;
   level?: 'elite' | 'competitive' | 'developmental' | null;
-  ageCategory?: 'senior' | 'U23' | 'U18' | 'U16' | null;
+  ageCategory?: 'senior' | 'U23' | 'U22' | 'U18' | 'U16' | null;
 }
 
 export interface PlayerInputs {

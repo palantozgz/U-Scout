@@ -73,6 +73,11 @@ const LOGO_EMOJIS = ["🏀", "⛹️", "🔥", "⭐", "💪", "🎯"];
 const CTX_UNSET = "__unset__";
 const CLUB_LOGO_DATAURL_MAX = 480_000;
 
+/** Preset leagues fix gender/level/age — except amateur, where the coach configures freely. */
+function leagueLocksContextFields(leagueType: string | null | undefined): boolean {
+  return Boolean(leagueType) && leagueType !== "amateur";
+}
+
 function isClubLogoImageUrl(logo: string): boolean {
   return logo.startsWith("data:image/") || /^https:\/\//i.test(logo);
 }
@@ -270,6 +275,14 @@ export default function ClubManagement() {
     profile &&
     q.data &&
     (profile.role === "master" || q.data.club.ownerId === profile.id);
+
+  /** Owner/master, or active club head coach — can edit league / gender / level / age (head coach cannot rename club or logo). */
+  const canEditClubContext = useMemo(() => {
+    if (!profile || !q.data) return false;
+    if (profile.role === "master" || q.data.club.ownerId === profile.id) return true;
+    const me = q.data.members.find((m) => m.userId === profile.id);
+    return me?.status === "active" && me.role === "head_coach";
+  }, [profile, q.data]);
 
   const canManage = useMemo(() => {
     if (!profile || !q.data) return false;
@@ -503,7 +516,7 @@ export default function ClubManagement() {
             <section className="rounded-2xl border border-border bg-card p-4 mb-6 space-y-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_ctx_section")}</p>
               <p className="text-xs text-muted-foreground leading-relaxed">{t("club_ctx_hint")}</p>
-              {!canEditBranding && (
+              {!canEditClubContext && (
                 <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-primary/40 pl-3">
                   {t("club_ctx_viewer_hint")}
                 </p>
@@ -512,7 +525,7 @@ export default function ClubManagement() {
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_league")}</Label>
                   <Select
-                    disabled={!canEditBranding || patchClub.isPending}
+                    disabled={!canEditClubContext || patchClub.isPending}
                     value={q.data.club.leagueType ?? CTX_UNSET}
                     onValueChange={(v) => {
                       const newLeague = v === CTX_UNSET ? null : (v as ClubLeagueType);
@@ -548,7 +561,11 @@ export default function ClubManagement() {
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_gender")}</Label>
                   <Select
-                    disabled={!canEditBranding || patchClub.isPending || Boolean(q.data.club.leagueType)}
+                    disabled={
+                      !canEditClubContext ||
+                      patchClub.isPending ||
+                      leagueLocksContextFields(q.data.club.leagueType)
+                    }
                     value={q.data.club.gender ?? CTX_UNSET}
                     onValueChange={(v) =>
                       patchClub.mutate({ gender: v === CTX_UNSET ? null : (v as ClubGender) })
@@ -570,7 +587,11 @@ export default function ClubManagement() {
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_level")}</Label>
                   <Select
-                    disabled={!canEditBranding || patchClub.isPending || Boolean(q.data.club.leagueType)}
+                    disabled={
+                      !canEditClubContext ||
+                      patchClub.isPending ||
+                      leagueLocksContextFields(q.data.club.leagueType)
+                    }
                     value={q.data.club.level ?? CTX_UNSET}
                     onValueChange={(v) =>
                       patchClub.mutate({ level: v === CTX_UNSET ? null : (v as ClubLevel) })
@@ -592,7 +613,11 @@ export default function ClubManagement() {
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_age")}</Label>
                   <Select
-                    disabled={!canEditBranding || patchClub.isPending || Boolean(q.data.club.leagueType)}
+                    disabled={
+                      !canEditClubContext ||
+                      patchClub.isPending ||
+                      leagueLocksContextFields(q.data.club.leagueType)
+                    }
                     value={q.data.club.ageCategory ?? CTX_UNSET}
                     onValueChange={(v) =>
                       patchClub.mutate({

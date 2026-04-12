@@ -705,12 +705,21 @@ export async function registerRoutes(
       const appRole = req.user!.role;
       const club = await storage.getClubForUser(uid);
       if (!club) return res.status(404).json({ error: "Club not found" });
-      if (club.ownerId !== uid && appRole !== "master") {
+      const isOwnerOrMaster = club.ownerId === uid || appRole === "master";
+      const memberRow = await storage.getClubMemberByClubAndUser(club.id, uid);
+      const isActiveHeadCoach =
+        memberRow?.status === "active" && memberRow.role === "head_coach";
+      if (!isOwnerOrMaster && !isActiveHeadCoach) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      const updates = Object.fromEntries(
+      let updates = Object.fromEntries(
         Object.entries(parsed.data).filter(([, v]) => v !== undefined),
       ) as Record<string, unknown>;
+      /** Head coach (non-owner) may only change league context, not branding. */
+      if (!isOwnerOrMaster && isActiveHeadCoach) {
+        const allowed = new Set(["leagueType", "gender", "level", "ageCategory"]);
+        updates = Object.fromEntries(Object.entries(updates).filter(([k]) => allowed.has(k)));
+      }
       if (Object.keys(updates).length === 0) {
         return res.json({
           id: club.id,
