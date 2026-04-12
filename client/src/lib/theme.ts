@@ -18,12 +18,17 @@ export function normalizeStoredTheme(raw: string | null): Theme {
   return DEFAULT_THEME;
 }
 
-function applyTheme(theme: Theme) {
+/** Apply theme classes on `<html>` (used by onboarding before `useTheme` mounts). */
+export function applyThemeToDocument(theme: Theme) {
   const root = document.documentElement;
   root.classList.remove("dark", "theme-office", "theme-oldschool");
   if (theme === "gamenight") root.classList.add("dark");
   if (theme === "office") root.classList.add("theme-office");
   if (theme === "oldschool") root.classList.add("theme-oldschool");
+}
+
+function applyTheme(theme: Theme) {
+  applyThemeToDocument(theme);
 }
 
 export function useTheme() {

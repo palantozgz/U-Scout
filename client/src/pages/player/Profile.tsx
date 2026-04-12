@@ -1,6 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRoute, useLocation, useSearch } from "wouter";
-import { usePlayer, useTeams, generateProfile, type MotorPlanCandidate } from "@/lib/mock-data";
+import { usePlayer, useTeams, generateProfile, clubRowToMotorContext, type MotorPlanCandidate } from "@/lib/mock-data";
+import { useClub } from "@/lib/club-api";
+import { translateMotorOutputLine } from "@/lib/translateMotorOutput";
+import type { ClubGender } from "@shared/club-context";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
@@ -26,39 +29,6 @@ import {
   type ApprovalSlide,
 } from "@/lib/approval-api";
 import { useRecordPlayerSlideView } from "@/lib/player-home";
-
-// ─── translateOutput ──────────────────────────────────────────────────────────
-// Converts motor output keys to translated strings at render time.
-// Static key:  "def_screen_roll" → t("def_screen_roll")
-// Dynamic key: "for_direction|weak=left|wl=floater" → t("for_direction", {weak:"left", wl:"floater"})
-// Fallback:    if key not in i18n, display as-is (backwards compatible with old saved data)
-function translateOutput(item: string, tFn: (key: any) => string): string {
-  if (!item) return item;
-  // Check if it's a serialized dynamic key
-  if (item.includes("|")) {
-    const [key, ...paramParts] = item.split("|");
-    const params: Record<string, string> = {};
-    paramParts.forEach(p => {
-      const [k, v] = p.split("=");
-      if (k && v !== undefined) params[k] = v;
-    });
-    let s = tFn(key);
-    // If t() returned the key itself, it's not in i18n — show raw
-    if (s === key) return item;
-    Object.entries(params).forEach(([k, v]) => {
-      // Translate param values too (e.g. {side}=left, {wl}=opt_finish_pullup)
-      // If there's no i18n entry for the param value, fallback to the raw one.
-      const translatedParam = tFn(v as any);
-      const replacement = translatedParam === v ? v : translatedParam;
-      s = s.replace(new RegExp(`\\{${k}\\}`, "g"), replacement);
-    });
-    return s;
-  }
-  // Static key
-  const translated = tFn(item);
-  // If t() returned the key itself, it's not in i18n — show raw
-  return translated === item ? item : translated;
-}
 
 /** Legacy runner-ups were plain strings; v2.1 stores { line, weight }. */
 function normalizeRunnerCandidates(list: unknown): MotorPlanCandidate[] {
@@ -483,7 +453,7 @@ function ScrollSlide({
 
 // ─── main ──────────────────────────────────────────────────────────────────────
 export default function PlayerProfileViewer() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [, params] = useRoute("/player/:id");
   const [, paramsCoach] = useRoute("/coach/player/:id/profile");
   const [, setLocation] = useLocation();
@@ -552,6 +522,16 @@ export default function PlayerProfileViewer() {
   const { data: teams = [], isLoading: tLoad } = useTeams();
   const team = teams.find(t => t.id === player?.teamId);
 
+  const clubQ = useClub({ enabled: Boolean(user) });
+  const clubMotorCtx = useMemo(() => clubRowToMotorContext(clubQ.data?.club), [clubQ.data?.club]);
+  const clubGender = (clubQ.data?.club?.gender ?? null) as ClubGender | null;
+
+  const translatePlan = useCallback(
+    (item: string) =>
+      translateMotorOutputLine(item, (k) => t(k as never), { locale, clubGender }),
+    [t, locale, clubGender],
+  );
+
   if (pLoad || tLoad) return (
     <div className="flex items-center justify-center h-[100dvh] bg-background">
       <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -576,7 +556,10 @@ export default function PlayerProfileViewer() {
   );
 
   const inp = player.scoutingInputs ?? player.inputs;
-  const generated = React.useMemo(() => generateProfile(inp, player.name), [player?.id, inp, player?.name]);
+  const generated = React.useMemo(
+    () => generateProfile(inp, player.name, clubMotorCtx),
+    [player?.id, inp, player?.name, clubMotorCtx],
+  );
   const im  = generated.internalModel;
   const dp  = generated.defensivePlan ?? { defender: [], forzar: [], concede: [] };
   const archetype = generated.archetype ?? player.archetype;
@@ -585,7 +568,7 @@ export default function PlayerProfileViewer() {
   const getTraits = (arr: any[] = []) =>
     arr.map((item: any) => {
       const raw = typeof item === "string" ? item : (item?.valueToken ?? item?.value);
-      return raw ? translateOutput(raw, t) : null;
+      return raw ? translatePlan(raw) : null;
     }).filter(Boolean) as string[];
 
   const postTraits    = getTraits(im?.postTraits);
@@ -672,7 +655,7 @@ export default function PlayerProfileViewer() {
   // Slide 4 — PnR
   const slide4Items = [...pnrTraits];
   if ((inp as any).slipFrequency && isAct((inp as any).slipFrequency)) {
-    slide4Items.push(translateOutput("spatial_slips", t));
+    slide4Items.push(translatePlan("spatial_slips"));
   }
 
   const ath  = toNum(inp.athleticism, 3);
@@ -920,7 +903,7 @@ export default function PlayerProfileViewer() {
   );
 
   // ── SLIDE 3 — Where dangerous ─────────────────────────────────────────────
-  const slide3TranslatedItems = slide3Items.map(s => translateOutput(s, t));
+  const slide3TranslatedItems = slide3Items.map((s) => translatePlan(s));
   const S3 = (
     <div className="relative h-full min-h-0 bg-background flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 z-20" />
@@ -988,9 +971,9 @@ export default function PlayerProfileViewer() {
   );
 
   // ── SLIDE 5 — Defensive plan ──────────────────────────────────────────────
-  const defender = (dp.defender ?? []).map(s => translateOutput(s, t));
-  const forzar   = (dp.forzar   ?? []).map(s => translateOutput(s, t));
-  const concede  = (dp.concede  ?? []).map(s => translateOutput(s, t));
+  const defender = (dp.defender ?? []).map((s) => translatePlan(s));
+  const forzar   = (dp.forzar   ?? []).map((s) => translatePlan(s));
+  const concede  = (dp.concede  ?? []).map((s) => translatePlan(s));
   const hasPlan  = defender.length > 0 || forzar.length > 0 || concede.length > 0;
 
   const S5 = (
@@ -1051,7 +1034,7 @@ export default function PlayerProfileViewer() {
               <MotorRunnerUpsReviewPanel
                 runnerUps={dp.motorRunnerUps}
                 t={t}
-                translateFn={(s) => translateOutput(s, t)}
+                translateFn={(s) => translatePlan(s)}
               />
             ) : null}
           </>

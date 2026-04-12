@@ -58,14 +58,13 @@ export default function Login() {
           <Shield className="w-8 h-8 text-primary" />
         </div>
         <div className="text-center">
-          <h2 className="text-xl font-bold mb-2">Check your email</h2>
+          <h2 className="text-xl font-bold mb-2">{t("auth_check_email_title")}</h2>
           <p className="text-muted-foreground text-sm">
-            We sent a confirmation link to <strong>{email}</strong>.
-            Click it to activate your account.
+            {t("auth_check_email_body").replace("{email}", email)}
           </p>
         </div>
         <Button variant="outline" onClick={() => setMode("login")}>
-          Back to login
+          {t("auth_back_to_login")}
         </Button>
       </div>
     );

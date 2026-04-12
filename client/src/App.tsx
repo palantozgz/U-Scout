@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Switch, Route, useLocation } from "wouter";
+import { migrateLegacyOnboarding, shouldOfferOnboarding } from "@/lib/onboarding-state";
+import OnboardingFlow from "@/pages/OnboardingFlow";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -88,7 +90,30 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
 
 function AuthGate() {
   const { user, profile } = useAuth();
+  const [onboardingReady, setOnboardingReady] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id || !profile) {
+      setOnboardingReady(false);
+      return;
+    }
+    migrateLegacyOnboarding(user.created_at, user.id);
+    setNeedsOnboarding(shouldOfferOnboarding(user.created_at, user.id));
+    setOnboardingReady(true);
+  }, [user?.id, user?.created_at, profile?.id]);
+
   if (!user || !profile) return <Login />;
+  if (!onboardingReady) {
+    return (
+      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+  if (needsOnboarding) {
+    return <OnboardingFlow userId={user.id} onDone={() => setNeedsOnboarding(false)} />;
+  }
   const defaultPath = profile.role === "player" ? "/player" : "/coach";
   return <AuthenticatedRoutes defaultPath={defaultPath} />;
 }
