@@ -1,9 +1,47 @@
 /**
- * Spanish archetype & sub-archetype strings by club gender (__es_m / __es_f / __es_n).
- * EN/ZH mirror base UI so lookups never fall through to wrong language.
+ * Manual Spanish club-gender bundles (`key__es_m|f|n`) merged for i18n.
+ * Sections: app shell, archetypes/sub-archetypes, short trait labels.
+ * Generated bundles (traits/plan/spatial/hints) stay in generated*.ts + regen script.
  */
 
-export const ARCHETYPE_GENDER_I18N_EN: Record<string, string> = {
+const APP_UI_CLUB_GENDER_I18N_EN = {
+  role_master__es_n: "Director",
+  role_master__es_m: "Director",
+  role_master__es_f: "Directora",
+  role_head_coach__es_n: "Head coach",
+  role_head_coach__es_m: "Head coach",
+  role_head_coach__es_f: "Head coach",
+  role_coach__es_n: "Coach",
+  role_coach__es_m: "Coach",
+  role_coach__es_f: "Coach",
+  role_player__es_n: "Player",
+  role_player__es_m: "Player",
+  role_player__es_f: "Player",
+  coach_home_name_fallback__es_n: "Coach",
+  coach_home_name_fallback__es_m: "Coach",
+  coach_home_name_fallback__es_f: "Coach",
+  player_mode__es_n: "Player mode",
+  player_mode__es_m: "Player mode",
+  player_mode__es_f: "Player mode",
+  dashboard_player_singular__es_n: "player",
+  dashboard_player_singular__es_m: "player",
+  dashboard_player_singular__es_f: "player",
+  how_she_attacks__es_n: "How they attack",
+  how_she_attacks__es_m: "How they attack",
+  how_she_attacks__es_f: "How they attack",
+  where_dangerous__es_n: "Where they're dangerous",
+  where_dangerous__es_m: "Where they're dangerous",
+  where_dangerous__es_f: "Where they're dangerous",
+  onboarding_publish_step__es_n: "📢 Publish — team can view it",
+  onboarding_publish_step__es_m: "📢 Publish — team can view it",
+  onboarding_publish_step__es_f: "📢 Publish — team can view it",
+  approval_unpublish_confirm__es_n: "Unpublish this report? The team will no longer see it.",
+  approval_unpublish_confirm__es_m: "Unpublish this report? The team will no longer see it.",
+  approval_unpublish_confirm__es_f: "Unpublish this report? The team will no longer see it.",
+};
+
+// Archetypes & sub-archetypes (EN mirrors EN UI strings)
+const ARCHETYPE_GENDER_I18N_EN = {
   subarchetype__es_n: "Also:",
   subarchetype__es_m: "Also:",
   subarchetype__es_f: "Also:",
@@ -101,8 +139,54 @@ export const ARCHETYPE_GENDER_I18N_EN: Record<string, string> = {
   arch_complementary_piece__es_m: "Complementary Piece",
   arch_complementary_piece__es_f: "Complementary Piece",
 };
+const TRAIT_SHORT_LABEL_GENDER_I18N_EN = {
+  trait_primary_post_scorer__es_n: "Primary Post Scorer",
+  trait_primary_post_scorer__es_m: "Primary Post Scorer",
+  trait_primary_post_scorer__es_f: "Primary Post Scorer",
+  trait_primary_scorer__es_n: "Primary Scorer",
+  trait_primary_scorer__es_m: "Primary Scorer",
+  trait_primary_scorer__es_f: "Primary Scorer",
+  trait_secondary_creator__es_n: "Secondary Creator",
+  trait_secondary_creator__es_m: "Secondary Creator",
+  trait_secondary_creator__es_f: "Secondary Creator",
+};
 
-export const ARCHETYPE_GENDER_I18N_ES: Record<string, string> = {
+const APP_UI_CLUB_GENDER_I18N_ES = {
+  role_master__es_n: "Dirección",
+  role_master__es_m: "Director",
+  role_master__es_f: "Directora",
+  role_head_coach__es_n: "Entrenador/a jefe",
+  role_head_coach__es_m: "Entrenador jefe",
+  role_head_coach__es_f: "Entrenadora jefe",
+  role_coach__es_n: "Entrenador/a",
+  role_coach__es_m: "Entrenador",
+  role_coach__es_f: "Entrenadora",
+  role_player__es_n: "Jugador/a",
+  role_player__es_m: "Jugador",
+  role_player__es_f: "Jugadora",
+  coach_home_name_fallback__es_n: "Entrenador/a",
+  coach_home_name_fallback__es_m: "Entrenador",
+  coach_home_name_fallback__es_f: "Entrenadora",
+  player_mode__es_n: "Modo jugador/a",
+  player_mode__es_m: "Modo jugador",
+  player_mode__es_f: "Modo jugadora",
+  dashboard_player_singular__es_n: "jugador/a",
+  dashboard_player_singular__es_m: "jugador",
+  dashboard_player_singular__es_f: "jugadora",
+  how_she_attacks__es_n: "Cómo ataca",
+  how_she_attacks__es_m: "Cómo ataca",
+  how_she_attacks__es_f: "Cómo ataca",
+  where_dangerous__es_n: "Zona de peligro",
+  where_dangerous__es_m: "Zona de peligro",
+  where_dangerous__es_f: "Zona de peligro",
+  onboarding_publish_step__es_n: "📢 Publicar — el equipo puede verlo",
+  onboarding_publish_step__es_m: "📢 Publicar — el equipo puede verlo",
+  onboarding_publish_step__es_f: "📢 Publicar — el equipo puede verlo",
+  approval_unpublish_confirm__es_n: "¿Despublicar este informe? El equipo dejará de verlo.",
+  approval_unpublish_confirm__es_m: "¿Despublicar este informe? El equipo dejará de verlo.",
+  approval_unpublish_confirm__es_f: "¿Despublicar este informe? El equipo dejará de verlo.",
+};
+const ARCHETYPE_GENDER_I18N_ES = {
   subarchetype__es_n: "También:",
   subarchetype__es_m: "También:",
   subarchetype__es_f: "También:",
@@ -200,8 +284,54 @@ export const ARCHETYPE_GENDER_I18N_ES: Record<string, string> = {
   arch_complementary_piece__es_m: "Pieza complementaria",
   arch_complementary_piece__es_f: "Pieza complementaria",
 };
+const TRAIT_SHORT_LABEL_GENDER_I18N_ES = {
+  trait_primary_post_scorer__es_n: "Anotador/a primario/a de poste",
+  trait_primary_post_scorer__es_m: "Anotador primario de poste",
+  trait_primary_post_scorer__es_f: "Anotadora primaria de poste",
+  trait_primary_scorer__es_n: "Anotador/a primario/a",
+  trait_primary_scorer__es_m: "Anotador primario",
+  trait_primary_scorer__es_f: "Anotadora primaria",
+  trait_secondary_creator__es_n: "Creador/a secundario/a",
+  trait_secondary_creator__es_m: "Creador secundario",
+  trait_secondary_creator__es_f: "Creadora secundaria",
+};
 
-export const ARCHETYPE_GENDER_I18N_ZH: Record<string, string> = {
+const APP_UI_CLUB_GENDER_I18N_ZH = {
+  role_master__es_n: "负责人",
+  role_master__es_m: "负责人",
+  role_master__es_f: "负责人",
+  role_head_coach__es_n: "主教练",
+  role_head_coach__es_m: "主教练",
+  role_head_coach__es_f: "主教练",
+  role_coach__es_n: "教练",
+  role_coach__es_m: "教练",
+  role_coach__es_f: "教练",
+  role_player__es_n: "球员",
+  role_player__es_m: "球员",
+  role_player__es_f: "球员",
+  coach_home_name_fallback__es_n: "教练",
+  coach_home_name_fallback__es_m: "教练",
+  coach_home_name_fallback__es_f: "教练",
+  player_mode__es_n: "球员模式",
+  player_mode__es_m: "球员模式",
+  player_mode__es_f: "球员模式",
+  dashboard_player_singular__es_n: "球员",
+  dashboard_player_singular__es_m: "球员",
+  dashboard_player_singular__es_f: "球员",
+  how_she_attacks__es_n: "进攻方式",
+  how_she_attacks__es_m: "进攻方式",
+  how_she_attacks__es_f: "进攻方式",
+  where_dangerous__es_n: "危险区域",
+  where_dangerous__es_m: "危险区域",
+  where_dangerous__es_f: "危险区域",
+  onboarding_publish_step__es_n: "📢 发布 — 球队可见",
+  onboarding_publish_step__es_m: "📢 发布 — 球队可见",
+  onboarding_publish_step__es_f: "📢 发布 — 球队可见",
+  approval_unpublish_confirm__es_n: "取消发布此报告？球队将无法再看到。",
+  approval_unpublish_confirm__es_m: "取消发布此报告？球队将无法再看到。",
+  approval_unpublish_confirm__es_f: "取消发布此报告？球队将无法再看到。",
+};
+const ARCHETYPE_GENDER_I18N_ZH = {
   subarchetype__es_n: "兼：",
   subarchetype__es_m: "兼：",
   subarchetype__es_f: "兼：",
@@ -298,4 +428,31 @@ export const ARCHETYPE_GENDER_I18N_ZH: Record<string, string> = {
   arch_complementary_piece__es_n: "角色互补球员",
   arch_complementary_piece__es_m: "角色互补球员",
   arch_complementary_piece__es_f: "角色互补球员",
+};
+const TRAIT_SHORT_LABEL_GENDER_I18N_ZH = {
+  trait_primary_post_scorer__es_n: "低位主攻得分手",
+  trait_primary_post_scorer__es_m: "低位主攻得分手",
+  trait_primary_post_scorer__es_f: "低位主攻得分手",
+  trait_primary_scorer__es_n: "主攻得分手",
+  trait_primary_scorer__es_m: "主攻得分手",
+  trait_primary_scorer__es_f: "主攻得分手",
+  trait_secondary_creator__es_n: "副攻组织者",
+  trait_secondary_creator__es_m: "副攻组织者",
+  trait_secondary_creator__es_f: "副攻组织者",
+};
+
+export const CLUB_GENDER_MANUAL_I18N_EN: Record<string, string> = {
+  ...APP_UI_CLUB_GENDER_I18N_EN,
+  ...ARCHETYPE_GENDER_I18N_EN,
+  ...TRAIT_SHORT_LABEL_GENDER_I18N_EN,
+};
+export const CLUB_GENDER_MANUAL_I18N_ES: Record<string, string> = {
+  ...APP_UI_CLUB_GENDER_I18N_ES,
+  ...ARCHETYPE_GENDER_I18N_ES,
+  ...TRAIT_SHORT_LABEL_GENDER_I18N_ES,
+};
+export const CLUB_GENDER_MANUAL_I18N_ZH: Record<string, string> = {
+  ...APP_UI_CLUB_GENDER_I18N_ZH,
+  ...ARCHETYPE_GENDER_I18N_ZH,
+  ...TRAIT_SHORT_LABEL_GENDER_I18N_ZH,
 };

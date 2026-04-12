@@ -10,6 +10,9 @@
 //   3. Add translations in ES and ZH
 //   4. Use t("my_key") in the component
 //
+// Spanish club-gender overrides (`key__es_m|f|n`): edit clubGenderManualI18n.ts (hand-written)
+// or run `npm run i18n:regen-gender-bundles` for generatedTrait/Plan/Spatial/Hint bundles.
+//
 // HOW TO ADD A NEW LANGUAGE:
 //   1. Add the locale to the Locale type: "en" | "es" | "zh" | "fr"
 //   2. Create a new const block: const fr: I18nStrings = { ... }
@@ -28,20 +31,10 @@
 import { useState, useCallback, useEffect } from "react";
 import { MOTOR_V2_1_I18N } from "./motor-v2.1-i18n";
 import {
-  APP_UI_CLUB_GENDER_I18N_EN,
-  APP_UI_CLUB_GENDER_I18N_ES,
-  APP_UI_CLUB_GENDER_I18N_ZH,
-} from "./appUiClubGenderI18n";
-import {
-  ARCHETYPE_GENDER_I18N_EN,
-  ARCHETYPE_GENDER_I18N_ES,
-  ARCHETYPE_GENDER_I18N_ZH,
-} from "./archetypeGenderI18n";
-import {
-  TRAIT_SHORT_LABEL_GENDER_I18N_EN,
-  TRAIT_SHORT_LABEL_GENDER_I18N_ES,
-  TRAIT_SHORT_LABEL_GENDER_I18N_ZH,
-} from "./traitShortLabelGenderI18n";
+  CLUB_GENDER_MANUAL_I18N_EN,
+  CLUB_GENDER_MANUAL_I18N_ES,
+  CLUB_GENDER_MANUAL_I18N_ZH,
+} from "./clubGenderManualI18n";
 import {
   GENERATED_TRAIT_TXT_GENDER_I18N_EN,
   GENERATED_TRAIT_TXT_GENDER_I18N_ES,
@@ -1087,9 +1080,7 @@ const en = {
   "editor.off_ball_cut_action.flare": "Flare",
   "editor.off_ball_cut_frequency": "Frequency",
 
-  ...APP_UI_CLUB_GENDER_I18N_EN,
-  ...ARCHETYPE_GENDER_I18N_EN,
-  ...TRAIT_SHORT_LABEL_GENDER_I18N_EN,
+  ...CLUB_GENDER_MANUAL_I18N_EN,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_EN,
   ...GENERATED_PLAN_LINE_GENDER_I18N_EN,
   ...GENERATED_SPATIAL_GENDER_I18N_EN,
@@ -2078,9 +2069,7 @@ const es: I18nStrings = {
   "editor.off_ball_cut_action.flare": "Flare",
   "editor.off_ball_cut_frequency": "Frecuencia",
 
-  ...APP_UI_CLUB_GENDER_I18N_ES,
-  ...ARCHETYPE_GENDER_I18N_ES,
-  ...TRAIT_SHORT_LABEL_GENDER_I18N_ES,
+  ...CLUB_GENDER_MANUAL_I18N_ES,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_ES,
   ...GENERATED_PLAN_LINE_GENDER_I18N_ES,
   ...GENERATED_SPATIAL_GENDER_I18N_ES,
@@ -3059,9 +3048,7 @@ const zh: I18nStrings = {
   "editor.off_ball_cut_action.flare": "外弹拉开",
   "editor.off_ball_cut_frequency": "频率",
 
-  ...APP_UI_CLUB_GENDER_I18N_ZH,
-  ...ARCHETYPE_GENDER_I18N_ZH,
-  ...TRAIT_SHORT_LABEL_GENDER_I18N_ZH,
+  ...CLUB_GENDER_MANUAL_I18N_ZH,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_ZH,
   ...GENERATED_PLAN_LINE_GENDER_I18N_ZH,
   ...GENERATED_SPATIAL_GENDER_I18N_ZH,

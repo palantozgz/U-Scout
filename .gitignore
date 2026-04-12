@@ -3,3 +3,6 @@ dist
 .env
 .DS_Store
 .env
+
+# Motor batch test output (see npm run motor:test)
+scripts/test-results.json
