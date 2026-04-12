@@ -38,6 +38,11 @@ import {
   ARCHETYPE_GENDER_I18N_ZH,
 } from "./archetypeGenderI18n";
 import {
+  TRAIT_SHORT_LABEL_GENDER_I18N_EN,
+  TRAIT_SHORT_LABEL_GENDER_I18N_ES,
+  TRAIT_SHORT_LABEL_GENDER_I18N_ZH,
+} from "./traitShortLabelGenderI18n";
+import {
   GENERATED_TRAIT_TXT_GENDER_I18N_EN,
   GENERATED_TRAIT_TXT_GENDER_I18N_ES,
   GENERATED_TRAIT_TXT_GENDER_I18N_ZH,
@@ -1084,6 +1089,7 @@ const en = {
 
   ...APP_UI_CLUB_GENDER_I18N_EN,
   ...ARCHETYPE_GENDER_I18N_EN,
+  ...TRAIT_SHORT_LABEL_GENDER_I18N_EN,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_EN,
   ...GENERATED_PLAN_LINE_GENDER_I18N_EN,
   ...GENERATED_SPATIAL_GENDER_I18N_EN,
@@ -1442,10 +1448,10 @@ const es: I18nStrings = {
   trait_screen_coverage: "Cobertura en PnR",
   trait_slip_threat: "Slip",
   trait_transition: "Transición",
-  trait_primary_post_scorer: "Anotadora primaria de poste",
+  trait_primary_post_scorer: "Anotador primario de poste",
   trait_post_threat: "Amenaza de poste",
-  trait_primary_scorer: "Anotadora primaria",
-  trait_secondary_creator: "Creadora secundaria",
+  trait_primary_scorer: "Anotador primario",
+  trait_secondary_creator: "Creador secundario",
   trait_radar_post: "Poste",
   trait_radar_iso: "ISO",
   trait_radar_pnr: "PnR",
@@ -2074,6 +2080,7 @@ const es: I18nStrings = {
 
   ...APP_UI_CLUB_GENDER_I18N_ES,
   ...ARCHETYPE_GENDER_I18N_ES,
+  ...TRAIT_SHORT_LABEL_GENDER_I18N_ES,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_ES,
   ...GENERATED_PLAN_LINE_GENDER_I18N_ES,
   ...GENERATED_SPATIAL_GENDER_I18N_ES,
@@ -3054,6 +3061,7 @@ const zh: I18nStrings = {
 
   ...APP_UI_CLUB_GENDER_I18N_ZH,
   ...ARCHETYPE_GENDER_I18N_ZH,
+  ...TRAIT_SHORT_LABEL_GENDER_I18N_ZH,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_ZH,
   ...GENERATED_PLAN_LINE_GENDER_I18N_ZH,
   ...GENERATED_SPATIAL_GENDER_I18N_ZH,
