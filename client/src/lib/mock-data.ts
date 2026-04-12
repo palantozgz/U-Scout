@@ -765,6 +765,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     }
   }
 
+
   const transAgg = maxIntensityLevel(
     inputs.transitionFrequency,
     inputs.motorTransRimIntensity ?? "Never",
@@ -865,6 +866,18 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
 // Philosophy: "shortest letter" — every input gets interpreted, 
 // but only the 3 most actionable conclusions reach the output.
 // inputs → danger scores → archetype → interpreted traits → defensive plan
+
+// Resolve legacy transitionRole field to new TransRoleEditor values
+function resolveTransRole(inputs: PlayerInput): TransRoleEditor {
+  if (inputs.transRolePrimary) return inputs.transRolePrimary;
+  switch (inputs.transitionRole) {
+    case "Rim Runner": return "rim_runner";
+    case "Trailer":    return "trail";
+    case "Pusher":     return "pusher";
+    case "Outlet":     return "pusher";
+    default:           return null;
+  }
+}
 
 export function generateProfile(inputs: PlayerInput, playerName?: string): GenerateProfileResult {
   const nameRef = playerName ? playerName.split(" ").pop()! : ""; // Use last name
@@ -992,7 +1005,7 @@ export function generateProfile(inputs: PlayerInput, playerName?: string): Gener
     else if (inputs.pnrReactionVsUnder === "Reject / Attack") scoringType = "Driver";
   } else { // Off-Ball
     if (inputs.closeoutReaction === "Catch & Shoot") scoringType = "Shooter";
-    else if (athHigh && inputs.transitionRole === "Rim Runner") scoringType = "Driver";
+    else if (athHigh && resolveTransRole(inputs) === "rim_runner") scoringType = "Driver";
   }
   internal.scoringType = scoringType;
 
@@ -1317,11 +1330,12 @@ export function generateProfile(inputs: PlayerInput, playerName?: string): Gener
   if (offBallDanger >= 5) {
     if (isPrimary(inputs.transitionFrequency)) {
       let transitionToken = "trait_txt_offball_trans_generic";
-      if (inputs.transitionRole === "Pusher") transitionToken = "trait_txt_offball_trans_pusher";
-      else if (inputs.transitionRole === "Trailer") transitionToken = "trait_txt_offball_trans_trailer";
+      const _tr = resolveTransRole(inputs);
+      if (_tr === "pusher") transitionToken = "trait_txt_offball_trans_pusher";
+      else if (_tr === "trail") transitionToken = "trait_txt_offball_trans_trailer";
       else if (inputs.transitionRole === "Outlet")
         transitionToken = athHigh ? "trait_txt_offball_trans_outlet_fast" : "trait_txt_offball_trans_outlet";
-      else if (inputs.transitionRole === "Rim Runner")
+      else if (_tr === "rim_runner")
         transitionToken = athElite ? "trait_txt_offball_trans_rim_elite" : "trait_txt_offball_trans_rim_playback";
 
       internal.offBallTraits.push({
@@ -1441,12 +1455,16 @@ export function generateProfile(inputs: PlayerInput, playerName?: string): Gener
     if (isPrimary(inputs.backdoorFrequency) && athHigh)
       defender.push("def_backdoor");
     else if (isPrimary(inputs.transitionFrequency))
-      defender.push({
-        Pusher:       "def_trans_pusher",
-        Outlet:       "def_trans_outlet",
-        "Rim Runner": "def_trans_runner",
-        Trailer:      "def_trans_trailer",
-      }[inputs.transitionRole] ?? "def_trans_pusher");
+      {
+        const _transKey = resolveTransRole(inputs) ?? "";
+        const _transMap: Record<string, string> = {
+          rim_runner: "def_trans_runner",
+          trail:      "def_trans_trailer",
+          pusher:     "def_trans_pusher",
+          runner:     "def_trans_runner",
+        };
+        defender.push(_transMap[_transKey] ?? "def_trans_pusher");
+      }
   }
 
   // FT danger universal — append if not already mentioned
