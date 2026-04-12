@@ -251,6 +251,96 @@ export interface MotorOutput {
   source: string;
 }
 
+export interface SituationThreatScore {
+  situation: string;
+  score: number;
+  /** Key of the highest-weight deny output in this situation */
+  topOutput: string;
+}
+
+const THREAT_THRESHOLDS = {
+  denyEligible: 0.7,
+  awareHigh: 0.4,
+  awareLow: 0.2,
+  allowCandidate: 0.2,
+} as const;
+
+/** Map from output `source` to situation bucket (threat scores use deny outputs only). */
+const SOURCE_TO_SITUATION: Record<string, string> = {
+  iso: 'iso',
+  iso_dir: 'iso',
+  iso_dir_confirmed: 'iso',
+  iso_strong_hand_finish: 'iso',
+  iso_weak_hand_finish: 'iso',
+  selfish_low_eff: 'iso',
+  selfish: 'iso',
+  pnr: 'pnr',
+  pnr_finish_asymmetry: 'pnr',
+  trap_response: 'pnr',
+  escape_pass_first: 'pnr',
+  screener_roll: 'screener',
+  screener_pop: 'screener',
+  screener_pop_no_range: 'screener',
+  screener_slip: 'screener',
+  screen_timing: 'screener',
+  data_inconsistency: 'screener',
+  post: 'post',
+  post_shoulder: 'post',
+  post_entry_duck_in: 'post',
+  post_entry_seal: 'post',
+  post_rare_efficient: 'post',
+  post_move_fade: 'post',
+  post_move_turnaround: 'post',
+  post_move_hook: 'post',
+  post_combo_hook_upunder: 'post',
+  no_post: 'post',
+  dunker_spot: 'post',
+  high_post: 'post',
+  duck_in_rim_runner_unified: 'post',
+  trans_rim_run: 'transition',
+  trans_trail: 'transition',
+  trans_leak: 'transition',
+  trans_sub: 'transition',
+  trans_cut_finishing: 'transition',
+  transition: 'transition',
+  transition_graded: 'transition',
+  corner_spot: 'spot',
+  corner_no_range: 'spot',
+  no_deep_range: 'spot',
+  deep_range: 'spot',
+  dho: 'dho',
+  cut: 'cut',
+  cut_compulsive_unified: 'cut',
+  oreb: 'oreb',
+  oreb_finisher: 'oreb',
+  oreb_distributor: 'oreb',
+  oreb_medium: 'oreb',
+  oreb_threat: 'oreb',
+  off_ball_screen: 'offball',
+  off_ball_cut: 'offball',
+  off_ball_roll_rim: 'offball',
+  off_ball_screen_graded: 'offball',
+  off_ball_role: 'offball',
+  floater: 'floater',
+  pnr_floater_unified: 'pnr',
+  contact_avoids: 'misc',
+  off_hand: 'misc',
+  contact_weak_hand_combined: 'misc',
+  self_creation: 'misc',
+  vision: 'misc',
+  physical: 'misc',
+  both_hands: 'misc',
+  connector: 'misc',
+  weak_iso: 'misc',
+  ball_handling_liability: 'misc',
+  limited_handling_struggles: 'misc',
+  ball_handling_limited: 'misc',
+  pressure_struggles: 'misc',
+  no_range_no_threat: 'misc',
+  gender_f_interior: 'misc',
+  oreb_and_transition: 'oreb',
+};
+
 export interface InferredField {
   value: unknown;
   confidence: 'high' | 'medium' | 'low';
@@ -312,6 +402,8 @@ export interface MotorReport {
   categorized: Record<string, MotorOutput[]>;
   selected: Record<string, MotorOutput[]>;
   slides: Slides;
+  threatScores?: SituationThreatScore[];
+  runnersUp?: MotorOutput[];
 }
 
 // ============================================================================
@@ -652,18 +744,31 @@ export class UScoutMotor {
     // Step 3: Categorize and rank outputs
     const categorized = this.categorizeOutputs(rawOutputs);
 
-    // Step 4: Select top outputs per category
-    const selected = this.selectTopOutputs(categorized);
+    // Step 4: Select top outputs per category (threat-ranked)
+    const threatScores = this.calculateThreatScores(rawOutputs);
+    const picked = this.selectTopOutputs(categorized, threatScores);
 
     // Step 5: Generate slides
-    const slides = this.generateSlides(enrichedInputs, selected);
+    const slides = this.generateSlides(enrichedInputs, {
+      deny: picked.deny,
+      force: picked.force,
+      allow: picked.allow,
+      aware: picked.aware,
+    });
 
     return {
       inputs: enrichedInputs,
       rawOutputs,
       categorized,
-      selected,
+      selected: {
+        deny: picked.deny,
+        force: picked.force,
+        allow: picked.allow,
+        aware: picked.aware,
+      },
       slides,
+      threatScores,
+      runnersUp: picked.runnersUp ?? [],
     };
   }
 
@@ -739,6 +844,29 @@ export class UScoutMotor {
     }
 
     return result;
+  }
+
+  private calculateThreatScores(outputs: MotorOutput[]): SituationThreatScore[] {
+    const situationMap = new Map<string, { maxWeight: number; topOutput: string }>();
+
+    for (const output of outputs) {
+      if (output.category !== 'deny') continue;
+      if (output.weight === 0) continue;
+
+      const situation = SOURCE_TO_SITUATION[output.source] ?? 'misc';
+      const current = situationMap.get(situation);
+      if (!current || output.weight > current.maxWeight) {
+        situationMap.set(situation, { maxWeight: output.weight, topOutput: output.key });
+      }
+    }
+
+    return Array.from(situationMap.entries())
+      .map(([situation, { maxWeight, topOutput }]) => ({
+        situation,
+        score: maxWeight,
+        topOutput,
+      }))
+      .sort((a, b) => b.score - a.score);
   }
 
   /**
@@ -1871,18 +1999,101 @@ export class UScoutMotor {
   }
 
   /**
-   * Select top N outputs per category
+   * Threat-ranked selection: top situations drive DENY; ALLOW gated by situation threat.
    */
-  private selectTopOutputs(categorized: Record<string, MotorOutput[]>): Record<string, MotorOutput[]> {
-    const limits = this.weights.maxOutputsPerCategory;
-    const selected: Record<string, MotorOutput[]> = {};
-    
-    for (const [cat, outputs] of Object.entries(categorized)) {
-      const limit = limits[cat as keyof typeof limits] || 3;
-      selected[cat] = outputs.slice(0, limit);
+  private selectTopOutputs(
+    categorized: Record<string, MotorOutput[]>,
+    threatScores: SituationThreatScore[],
+  ): {
+    deny: MotorOutput[];
+    force: MotorOutput[];
+    allow: MotorOutput[];
+    aware: MotorOutput[];
+    runnersUp: MotorOutput[];
+  } {
+    const allOutputs = Object.values(categorized).flat();
+
+    const eligible = threatScores.filter((t) => t.score >= THREAT_THRESHOLDS.denyEligible);
+    const topTwo: SituationThreatScore[] = [];
+    for (const t of eligible) {
+      if (topTwo.length >= 2) break;
+      topTwo.push(t);
     }
-    
-    return selected;
+    for (const t of threatScores) {
+      if (topTwo.length >= 2) break;
+      if (!topTwo.some((x) => x.situation === t.situation)) topTwo.push(t);
+    }
+    const top2Situations = new Set(topTwo.map((t) => t.situation));
+
+    const denyOutputs = (categorized.deny ?? [])
+      .filter((o) => {
+        if (o.weight === 0) return false;
+        const sit = SOURCE_TO_SITUATION[o.source] ?? 'misc';
+        return top2Situations.has(sit) || sit === 'misc';
+      })
+      .slice(0, this.weights.maxOutputsPerCategory.deny);
+
+    const forceOutputs = (categorized.force ?? [])
+      .filter((o) => o.weight > 0)
+      .slice(0, this.weights.maxOutputsPerCategory.force);
+
+    const allowOutputs = (categorized.allow ?? [])
+      .filter((o) => {
+        if (o.weight === 0) return false;
+        const sit = SOURCE_TO_SITUATION[o.source] ?? 'misc';
+        const threat = threatScores.find((t) => t.situation === sit);
+        return (
+          !threat ||
+          threat.score < THREAT_THRESHOLDS.allowCandidate ||
+          sit === 'misc'
+        );
+      })
+      .slice(0, this.weights.maxOutputsPerCategory.allow);
+
+    const awareOutputs = (categorized.aware ?? [])
+      .filter((o) => o.weight > 0)
+      .sort((a, b) => {
+        const sitA = SOURCE_TO_SITUATION[a.source] ?? 'misc';
+        const sitB = SOURCE_TO_SITUATION[b.source] ?? 'misc';
+        const thrA = threatScores.find((t) => t.situation === sitA)?.score ?? 0;
+        const thrB = threatScores.find((t) => t.situation === sitB)?.score ?? 0;
+        const priA = thrA < THREAT_THRESHOLDS.awareHigh ? 0 : 1;
+        const priB = thrB < THREAT_THRESHOLDS.awareHigh ? 0 : 1;
+        if (priA !== priB) return priA - priB;
+        const lowA = thrA < THREAT_THRESHOLDS.awareLow ? 1 : 0;
+        const lowB = thrB < THREAT_THRESHOLDS.awareLow ? 1 : 0;
+        if (lowA !== lowB) return lowB - lowA;
+        return b.weight - a.weight;
+      })
+      .map((o) => {
+        const sit = SOURCE_TO_SITUATION[o.source] ?? 'misc';
+        const thr = threatScores.find((t) => t.situation === sit)?.score ?? 0;
+        if (thr > 0 && thr < THREAT_THRESHOLDS.awareLow && sit !== 'misc') {
+          return { ...o, weight: Math.min(o.weight * 0.85, 1.0) };
+        }
+        return o;
+      })
+      .slice(0, this.weights.maxOutputsPerCategory.aware);
+
+    const selectedKeys = new Set([
+      ...denyOutputs.map((o) => o.key),
+      ...forceOutputs.map((o) => o.key),
+      ...allowOutputs.map((o) => o.key),
+      ...awareOutputs.map((o) => o.key),
+    ]);
+
+    const runnersUp = allOutputs
+      .filter((o) => !selectedKeys.has(o.key) && o.weight > 0)
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 10);
+
+    return {
+      deny: denyOutputs,
+      force: forceOutputs,
+      allow: allowOutputs,
+      aware: awareOutputs,
+      runnersUp,
+    };
   }
 
   /**
