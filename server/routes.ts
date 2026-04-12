@@ -2,7 +2,8 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { z } from "zod";
 import { storage } from "./storage";
-import { insertTeamSchema, insertPlayerSchema } from "@shared/schema";
+import { insertTeamSchema, insertPlayerSchema, type Club } from "@shared/schema";
+import { patchClubBodySchema } from "@shared/club-context";
 import { requireAuth } from "./auth";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { lookupAuthBasicsByUserIds, mergeAuthWithSession } from "./authUserLookup";
@@ -38,11 +39,6 @@ const playerSlideViewBodySchema = z.object({
 const clubInviteBodySchema = z.object({
   role: z.enum(["head_coach", "coach", "player"]),
   email: z.string().email().optional().or(z.literal("")),
-});
-
-const patchClubBodySchema = z.object({
-  name: z.string().min(1).optional(),
-  logo: z.string().min(1).max(8).optional(),
 });
 
 const reportOverrideBodySchema = z.object({
@@ -594,6 +590,10 @@ export async function registerRoutes(
           logo: club.logo,
           ownerId: club.ownerId,
           createdAt: club.createdAt.toISOString(),
+          leagueType: club.leagueType ?? null,
+          gender: club.gender ?? null,
+          level: club.level ?? null,
+          ageCategory: club.ageCategory ?? null,
         },
         members: members.map((m) => {
           const fromAdmin = authByUserId.get(m.userId) ?? { fullName: null, email: null };
@@ -644,7 +644,26 @@ export async function registerRoutes(
       if (club.ownerId !== uid && appRole !== "master") {
         return res.status(403).json({ error: "Forbidden" });
       }
-      const updated = await storage.updateClub(club.id, parsed.data);
+      const updates = Object.fromEntries(
+        Object.entries(parsed.data).filter(([, v]) => v !== undefined),
+      ) as Record<string, unknown>;
+      if (Object.keys(updates).length === 0) {
+        return res.json({
+          id: club.id,
+          name: club.name,
+          logo: club.logo,
+          ownerId: club.ownerId,
+          createdAt: club.createdAt.toISOString(),
+          leagueType: club.leagueType ?? null,
+          gender: club.gender ?? null,
+          level: club.level ?? null,
+          ageCategory: club.ageCategory ?? null,
+        });
+      }
+      const updated = await storage.updateClub(
+        club.id,
+        updates as Partial<Pick<Club, "name" | "logo" | "leagueType" | "gender" | "level" | "ageCategory">>,
+      );
       if (!updated) return res.status(404).json({ error: "Club not found" });
       res.json({
         id: updated.id,
@@ -652,6 +671,10 @@ export async function registerRoutes(
         logo: updated.logo,
         ownerId: updated.ownerId,
         createdAt: updated.createdAt.toISOString(),
+        leagueType: updated.leagueType ?? null,
+        gender: updated.gender ?? null,
+        level: updated.level ?? null,
+        ageCategory: updated.ageCategory ?? null,
       });
     } catch (err) {
       res.status(500).json({ error: "Failed to update club" });

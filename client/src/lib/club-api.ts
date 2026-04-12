@@ -35,7 +35,17 @@ export interface ClubInvitationDto {
 }
 
 export interface ClubPayload {
-  club: { id: string; name: string; logo: string; ownerId: string; createdAt: string };
+  club: {
+    id: string;
+    name: string;
+    logo: string;
+    ownerId: string;
+    createdAt: string;
+    leagueType?: string | null;
+    gender?: string | null;
+    level?: string | null;
+    ageCategory?: string | null;
+  };
   members: ClubMemberDto[];
   pendingInvitations: ClubInvitationDto[];
 }
@@ -48,10 +58,19 @@ export function useClub() {
   });
 }
 
+export type PatchClubBody = {
+  name?: string;
+  logo?: string;
+  leagueType?: string | null;
+  gender?: string | null;
+  level?: string | null;
+  ageCategory?: string | null;
+};
+
 export function usePatchClub() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { name?: string; logo?: string }) => {
+    mutationFn: async (body: PatchClubBody) => {
       const res = await apiRequest("PATCH", "/api/club", body);
       return res.json() as Promise<ClubPayload["club"]>;
     },

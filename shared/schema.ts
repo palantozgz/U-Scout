@@ -128,6 +128,11 @@ export const clubs = pgTable("clubs", {
   logo: text("logo").notNull().default("🏀"),
   ownerId: varchar("owner_id").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  /** League context for motor v3 (nullable = unset). */
+  leagueType: varchar("league_type", { length: 32 }),
+  gender: varchar("gender", { length: 16 }),
+  level: varchar("level", { length: 32 }),
+  ageCategory: varchar("age_category", { length: 16 }),
 });
 
 export type Club = typeof clubs.$inferSelect;

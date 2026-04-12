@@ -9,7 +9,8 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "db:push": "DATABASE_URL=postgresql://postgres.ybpzvkkxcmwwxrrouyhm:Miercoles_13@aws-1-eu-west-1.pooler.supabase.com:5432/postgres drizzle-kit push"
+    "db:push": "DATABASE_URL=postgresql://postgres.ybpzvkkxcmwwxrrouyhm:Miercoles_13@aws-1-eu-west-1.pooler.supabase.com:5432/postgres drizzle-kit push",
+    "db:migrate": "DATABASE_URL=postgresql://postgres.ybpzvkkxcmwwxrrouyhm:Miercoles_13@aws-1-eu-west-1.pooler.supabase.com:5432/postgres drizzle-kit migrate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

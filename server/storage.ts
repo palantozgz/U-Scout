@@ -95,7 +95,10 @@ export interface IStorage {
   /** Club for approval staff tally: membership club first, else owned club. */
   findClubForApprovalStaff(userId: string): Promise<Club | undefined>;
   createClub(row: InsertClub): Promise<Club>;
-  updateClub(id: string, updates: Partial<{ name: string; logo: string }>): Promise<Club | undefined>;
+  updateClub(
+    id: string,
+    updates: Partial<Pick<Club, "name" | "logo" | "leagueType" | "gender" | "level" | "ageCategory">>,
+  ): Promise<Club | undefined>;
 
   createClubMember(row: InsertClubMember): Promise<ClubMember>;
   listClubMembers(clubId: string): Promise<ClubMember[]>;
@@ -405,7 +408,10 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateClub(id: string, updates: Partial<{ name: string; logo: string }>): Promise<Club | undefined> {
+  async updateClub(
+    id: string,
+    updates: Partial<Pick<Club, "name" | "logo" | "leagueType" | "gender" | "level" | "ageCategory">>,
+  ): Promise<Club | undefined> {
     const [updated] = await db.update(clubs).set(updates).where(eq(clubs.id, id)).returning();
     return updated;
   }

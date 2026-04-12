@@ -4,6 +4,8 @@ import { useLocation } from "wouter";
 import { ArrowLeft, Copy, Check, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -30,8 +32,15 @@ import {
 } from "@/lib/club-api";
 import { isShortUserIdFallback, userDisplayLabel } from "@/lib/userDisplayLabel";
 import { cn } from "@/lib/utils";
+import {
+  CLUB_AGE_CATEGORIES,
+  CLUB_GENDERS,
+  CLUB_LEAGUE_TYPES,
+  CLUB_LEVELS,
+} from "@shared/club-context";
 
 const LOGO_EMOJIS = ["🏀", "⛹️", "🔥", "⭐", "💪", "🎯"];
+const CTX_UNSET = "__unset__";
 
 function formatWhen(iso: string, locale: string): string {
   try {
@@ -326,6 +335,93 @@ export default function ClubManagement() {
                   ) : (
                     <p className="text-lg font-bold text-foreground truncate">{q.data.club.name}</p>
                   )}
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border bg-card p-4 mb-6 space-y-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_ctx_section")}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{t("club_ctx_hint")}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_league")}</Label>
+                  <Select
+                    disabled={!canEditBranding || patchClub.isPending}
+                    value={q.data.club.leagueType ?? CTX_UNSET}
+                    onValueChange={(v) => patchClub.mutate({ leagueType: v === CTX_UNSET ? null : v })}
+                  >
+                    <SelectTrigger className="bg-background border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
+                      {CLUB_LEAGUE_TYPES.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {t(`club_league_${opt}` as never)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_gender")}</Label>
+                  <Select
+                    disabled={!canEditBranding || patchClub.isPending}
+                    value={q.data.club.gender ?? CTX_UNSET}
+                    onValueChange={(v) => patchClub.mutate({ gender: v === CTX_UNSET ? null : v })}
+                  >
+                    <SelectTrigger className="bg-background border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
+                      {CLUB_GENDERS.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {t(`club_gender_${opt}` as never)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_level")}</Label>
+                  <Select
+                    disabled={!canEditBranding || patchClub.isPending}
+                    value={q.data.club.level ?? CTX_UNSET}
+                    onValueChange={(v) => patchClub.mutate({ level: v === CTX_UNSET ? null : v })}
+                  >
+                    <SelectTrigger className="bg-background border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
+                      {CLUB_LEVELS.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {t(`club_level_${opt}` as never)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_age")}</Label>
+                  <Select
+                    disabled={!canEditBranding || patchClub.isPending}
+                    value={q.data.club.ageCategory ?? CTX_UNSET}
+                    onValueChange={(v) => patchClub.mutate({ ageCategory: v === CTX_UNSET ? null : v })}
+                  >
+                    <SelectTrigger className="bg-background border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
+                      {CLUB_AGE_CATEGORIES.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {t(`club_age_${opt}` as never)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </section>
