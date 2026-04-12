@@ -94,11 +94,11 @@ function MotorRunnerUpsReviewPanel({
   ];
   if (!sections.some((s) => s.list.length > 0)) return null;
   return (
-    <div className="mt-4 w-full rounded-2xl border border-amber-500/35 bg-amber-950/30 px-4 py-3">
-      <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-0.5">
+    <div className="mt-4 w-full rounded-2xl border border-border bg-muted/50 px-4 py-3">
+      <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-0.5">
         {t("review_runner_ups_title")}
       </p>
-      <p className="text-[11px] text-slate-500 leading-snug mb-3">{t("review_runner_ups_hint")}</p>
+      <p className="text-[11px] text-muted-foreground leading-snug mb-3">{t("review_runner_ups_hint")}</p>
       {sections.map((sec) =>
         sec.list.length === 0 ? null : (
           <div key={sec.titleKey} className="mb-3 last:mb-0">
@@ -116,7 +116,7 @@ function MotorRunnerUpsReviewPanel({
                   >
                     {pct}
                   </span>
-                  <span className="text-sm font-semibold leading-snug text-slate-100 min-w-0 flex-1 break-words whitespace-normal">
+                  <span className="text-sm font-semibold leading-snug text-foreground min-w-0 flex-1 break-words whitespace-normal">
                     {translateFn(c.line)}
                   </span>
                 </div>
@@ -192,7 +192,7 @@ function ProfileReviewToggle({
       disabled={pending}
       title={hidden ? labelRestore : labelHide}
       aria-label={hidden ? labelRestore : labelHide}
-      className="shrink-0 mt-0.5 p-1 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-800/80 border border-transparent transition-colors"
+      className="shrink-0 mt-0.5 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent transition-colors"
       onClick={() => (hidden ? onRestore(itemKey) : onHide(slide, itemKey))}
     >
       {hidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -206,8 +206,7 @@ function BulletCard({
   top,
   rest = [],
   accent,
-  bg,
-  border,
+  barClass,
   deepReport,
   reviewMode,
   slide,
@@ -223,8 +222,8 @@ function BulletCard({
   top: string[];
   rest?: string[];
   accent: string;
-  bg: string;
-  border: string;
+  /** Left accent stripe only (no full-bleed tinted background). */
+  barClass: string;
   deepReport: boolean;
   reviewMode?: boolean;
   slide?: ApprovalSlide;
@@ -249,9 +248,22 @@ function BulletCard({
       labelRestore,
   );
   return (
-    <div className={`w-full rounded-2xl border ${bg} ${border}`}>
+    <div
+      className={cn(
+        "w-full overflow-hidden rounded-2xl border border-border bg-card/95 shadow-sm",
+        "border-l-4",
+        barClass,
+      )}
+    >
       <div className="px-4 pt-3 pb-3 w-full">
-        <p className={`text-[10px] font-black uppercase tracking-widest mb-2.5 ${accent}`}>{title}</p>
+        <p
+          className={cn(
+            "text-[10px] font-black uppercase tracking-widest mb-3 border-b border-border pb-2",
+            accent,
+          )}
+        >
+          {title}
+        </p>
         {visible.map((item, i) => {
           const ik = itemKeys?.[i];
           const hidden = Boolean(ik && hiddenKeys?.has(ik));
@@ -279,7 +291,7 @@ function BulletCard({
               <span className={`font-black text-sm shrink-0 leading-snug ${accent}`}>—</span>
               <span
                 className={cn(
-                  "text-sm font-semibold leading-snug text-slate-100 min-w-0 flex-1 break-words whitespace-normal",
+                  "text-sm font-semibold leading-snug text-foreground min-w-0 flex-1 break-words whitespace-normal",
                   hidden && "line-through",
                 )}
               >
@@ -299,8 +311,7 @@ function PlanCard({
   symbol,
   items,
   accent,
-  bg,
-  border,
+  barClass,
   deepReport,
   reviewMode,
   slide,
@@ -316,8 +327,7 @@ function PlanCard({
   symbol: string;
   items: string[];
   accent: string;
-  bg: string;
-  border: string;
+  barClass: string;
   deepReport: boolean;
   reviewMode?: boolean;
   slide?: ApprovalSlide;
@@ -343,9 +353,20 @@ function PlanCard({
       labelRestore,
   );
   return (
-    <div className={`w-full rounded-2xl border ${bg} ${border}`}>
+    <div
+      className={cn(
+        "w-full overflow-hidden rounded-2xl border border-border bg-card/95 shadow-sm",
+        "border-l-4",
+        barClass,
+      )}
+    >
       <div className="px-4 pt-3 pb-3 w-full">
-        <p className={`text-[10px] font-black uppercase tracking-widest mb-2.5 ${accent}`}>
+        <p
+          className={cn(
+            "text-[10px] font-black uppercase tracking-widest mb-3 border-b border-border pb-2",
+            accent,
+          )}
+        >
           {symbol} {label}
         </p>
         {visible.map((item, i) => {
@@ -372,7 +393,7 @@ function PlanCard({
               <span className={`font-black text-sm shrink-0 leading-snug ${accent}`}>{symbol}</span>
               <span
                 className={cn(
-                  "text-sm font-semibold leading-snug text-slate-100 min-w-0 flex-1 break-words whitespace-normal",
+                  "text-sm font-semibold leading-snug text-foreground min-w-0 flex-1 break-words whitespace-normal",
                   hidden && "line-through",
                 )}
               >
@@ -389,8 +410,8 @@ function PlanCard({
 function EmptySlate({ text }: { text: string }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 opacity-25 py-16">
-      <ShieldAlert className="w-10 h-10 text-slate-400" />
-      <p className="text-sm font-semibold text-slate-400 text-center px-8">{text}</p>
+      <ShieldAlert className="w-10 h-10 text-muted-foreground" />
+      <p className="text-sm font-semibold text-muted-foreground text-center px-8">{text}</p>
     </div>
   );
 }
@@ -427,12 +448,11 @@ function ScrollSlide({
   return (
     <div
       ref={ref}
-      className="relative flex-1 min-h-0 flex flex-col w-full overflow-y-auto overflow-x-hidden bg-[#060a14] scroll-smooth"
+      className="relative flex-1 min-h-0 flex flex-col w-full overflow-y-auto overflow-x-hidden bg-background scroll-smooth"
     >
       {/* Top fade + indicator */}
       {canScrollUp && (
-        <div className="absolute top-0 left-0 w-full h-12 z-10 pointer-events-none"
-          style={{ background: "linear-gradient(to bottom, #020617 60%, transparent)" }}>
+        <div className="absolute top-0 left-0 w-full h-12 z-10 pointer-events-none bg-gradient-to-b from-background via-background/85 to-transparent">
           <div className="flex justify-center pt-1">
             <div className={`w-4 h-4 flex items-center justify-center opacity-60 ${accentColor}`}>
               <svg viewBox="0 0 10 6" className="w-3 h-3 fill-current"><path d="M5 0L10 6H0z"/></svg>
@@ -447,8 +467,7 @@ function ScrollSlide({
 
       {/* Bottom fade + indicator */}
       {canScrollDown && (
-        <div className="absolute bottom-0 left-0 w-full h-16 z-10 pointer-events-none"
-          style={{ background: "linear-gradient(to top, #020617 50%, transparent)" }}>
+        <div className="absolute bottom-0 left-0 w-full h-16 z-10 pointer-events-none bg-gradient-to-t from-background via-background/80 to-transparent">
           <div className="flex justify-center absolute bottom-3 w-full">
             <div className={`flex items-center gap-1 opacity-70 ${accentColor}`}>
               <svg viewBox="0 0 10 6" className="w-3 h-3 fill-current rotate-180"><path d="M5 0L10 6H0z"/></svg>
@@ -534,15 +553,15 @@ export default function PlayerProfileViewer() {
   const team = teams.find(t => t.id === player?.teamId);
 
   if (pLoad || tLoad) return (
-    <div className="flex items-center justify-center h-[100dvh] bg-[#060a14]">
-      <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+    <div className="flex items-center justify-center h-[100dvh] bg-background">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (!player || !team) return (
-    <div className="flex flex-col items-center justify-center h-[100dvh] bg-[#060a14] p-6 text-center gap-4">
-      <ShieldAlert className="w-16 h-16 text-slate-700" />
-      <h2 className="text-xl font-bold text-white">{t("profile_not_found")}</h2>
+    <div className="flex flex-col items-center justify-center h-[100dvh] bg-background p-6 text-center gap-4">
+      <ShieldAlert className="w-16 h-16 text-muted-foreground" />
+      <h2 className="text-xl font-bold text-foreground">{t("profile_not_found")}</h2>
       <Button
         onClick={() =>
           setLocation(
@@ -581,11 +600,39 @@ export default function PlayerProfileViewer() {
 
   // Threats ordered by danger
   const allThreatSections = [
-    { label: "tab_post",     traits: postTraits,    score: postScore,    freq: inp.postFrequency,       accent: "text-purple-400", bg: "bg-purple-950/40", border: "border-purple-800/30" },
-    { label: "tab_iso",      traits: isoTraits,     score: isoScore,     freq: inp.isoFrequency,        accent: "text-orange-400", bg: "bg-orange-950/40", border: "border-orange-800/30" },
-    { label: "tab_pnr",      traits: pnrTraits,     score: pnrScore,     freq: inp.pnrFrequency,        accent: "text-blue-400",   bg: "bg-blue-950/40",   border: "border-blue-800/30"   },
-    { label: "tab_offball", traits: offBallTraits, score: offBallScore, freq: inp.transitionFrequency, accent: "text-emerald-400", bg: "bg-emerald-950/40", border: "border-emerald-800/30" },
-  ].filter(s => s.traits.length > 0).sort((a, b) => b.score - a.score);
+    {
+      label: "tab_post",
+      traits: postTraits,
+      score: postScore,
+      freq: inp.postFrequency,
+      accent: "text-purple-800 dark:text-purple-300",
+      barClass: "border-l-purple-600/75 dark:border-l-purple-400/55",
+    },
+    {
+      label: "tab_iso",
+      traits: isoTraits,
+      score: isoScore,
+      freq: inp.isoFrequency,
+      accent: "text-orange-800 dark:text-orange-300",
+      barClass: "border-l-orange-600/75 dark:border-l-orange-400/55",
+    },
+    {
+      label: "tab_pnr",
+      traits: pnrTraits,
+      score: pnrScore,
+      freq: inp.pnrFrequency,
+      accent: "text-blue-800 dark:text-blue-300",
+      barClass: "border-l-blue-600/75 dark:border-l-blue-400/55",
+    },
+    {
+      label: "tab_offball",
+      traits: offBallTraits,
+      score: offBallScore,
+      freq: inp.transitionFrequency,
+      accent: "text-emerald-800 dark:text-emerald-300",
+      barClass: "border-l-emerald-600/75 dark:border-l-emerald-400/55",
+    },
+  ].filter((s) => s.traits.length > 0).sort((a, b) => b.score - a.score);
 
   // Slide 3 — spatial
   const slide3Items: string[] = [];
@@ -658,7 +705,9 @@ export default function PlayerProfileViewer() {
     identityPhysTags.push({
       key: "identity:phys:ath_low",
       el: (
-        <span className="text-xs font-bold text-slate-400 bg-slate-800 px-3 py-1 rounded-full">{t("limited_athlete")}</span>
+        <span className="text-xs font-bold text-muted-foreground bg-muted px-3 py-1 rounded-full border border-border">
+          {t("limited_athlete")}
+        </span>
       ),
     });
   }
@@ -699,35 +748,35 @@ export default function PlayerProfileViewer() {
   const S1 = (
     <div
       className={cn(
-        "h-full min-h-0 flex flex-col items-center justify-center text-center px-6 gap-5 bg-[#060a14] overflow-y-auto",
+        "h-full min-h-0 flex flex-col items-center justify-center text-center px-6 gap-5 bg-background overflow-y-auto",
         isReviewMode && "pb-36",
       )}
     >
-      <div className="absolute top-0 left-0 w-full h-1 bg-orange-500" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
       <div className="relative mt-4">
-        <div className="absolute inset-0 blur-2xl opacity-25 rounded-full bg-orange-500" />
+        <div className="absolute inset-0 blur-2xl opacity-25 rounded-full bg-primary" />
         {isRealPhoto(player.imageUrl)
           ? <img src={player.imageUrl} alt={player.name}
-              className="w-32 h-32 rounded-full object-cover border-4 border-orange-500/30 shadow-2xl relative z-10" />
-          : <div className="w-32 h-32 rounded-full border-4 border-orange-500/30 shadow-2xl relative z-10 overflow-hidden">
+              className="w-32 h-32 rounded-full object-cover border-4 border-primary/35 shadow-2xl relative z-10" />
+          : <div className="w-32 h-32 rounded-full border-4 border-primary/35 shadow-2xl relative z-10 overflow-hidden">
               <BasketballPlaceholderAvatar size={128} />
             </div>
         }
-        <div className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full border-2 border-slate-950 flex items-center justify-center text-white font-black text-sm z-20 bg-orange-500 shadow-lg">
+        <div className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full border-2 border-background flex items-center justify-center font-black text-sm z-20 bg-primary text-primary-foreground shadow-lg">
           {player.number}
         </div>
       </div>
 
       <div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">{player.name}</h1>
-        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
+        <h1 className="text-3xl font-extrabold text-foreground tracking-tight">{player.name}</h1>
+        <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1">
           {inp.position} · {inp.height} · {inp.weight}
         </p>
       </div>
 
       {/* Archetype + subarchetype */}
-      <div className="w-full bg-orange-500/10 border border-orange-500/20 rounded-2xl px-5 py-4 text-left">
-        <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-1">{t("archetype")}</p>
+      <div className="w-full bg-primary/10 border border-primary/25 rounded-2xl px-5 py-4 text-left">
+        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">{t("archetype")}</p>
         <div className="flex gap-2 items-start justify-center">
           <ProfileReviewToggle
             reviewMode={isReviewMode}
@@ -742,7 +791,7 @@ export default function PlayerProfileViewer() {
           />
           <p
             className={cn(
-              "text-2xl font-black italic text-white leading-tight flex-1 text-center",
+              "text-2xl font-black italic text-foreground leading-tight flex-1 text-center",
               hiddenKeys.has("identity:archetype") && "opacity-45 line-through",
             )}
           >
@@ -764,7 +813,7 @@ export default function PlayerProfileViewer() {
             />
             <p
               className={cn(
-                "text-xs font-bold text-orange-400/60 uppercase tracking-widest flex-1 text-center",
+                "text-xs font-bold text-primary/70 uppercase tracking-widest flex-1 text-center",
                 hiddenKeys.has("identity:subarch") && "opacity-45 line-through",
               )}
             >
@@ -796,7 +845,7 @@ export default function PlayerProfileViewer() {
                 />
                 <span
                   className={cn(
-                    "px-3 py-1 bg-slate-800 text-slate-300 rounded-full text-xs font-bold border border-slate-700",
+                    "px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-xs font-bold border border-border",
                     hid && "opacity-45 line-through",
                   )}
                 >
@@ -835,11 +884,11 @@ export default function PlayerProfileViewer() {
 
   // ── SLIDE 2 — How she attacks ─────────────────────────────────────────────
   const S2 = (
-    <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
+    <div className="relative h-full min-h-0 bg-background flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-red-500 z-20" />
       <ScrollSlide accentColor="text-red-400" bottomPadClass={slideBottomPad}>
-      <h2 className="text-lg font-black text-white">⚠ {t("how_she_attacks")}</h2>
-      <p className="text-xs text-slate-500 -mt-1">{t("top_threats")}</p>
+      <h2 className="text-lg font-black text-foreground">⚠ {t("how_she_attacks")}</h2>
+      <p className="text-xs text-muted-foreground -mt-1">{t("top_threats")}</p>
       {allThreatSections.length === 0
         ? <EmptySlate text={t("no_threats")} />
         : allThreatSections.map((s, i) => (
@@ -847,7 +896,8 @@ export default function PlayerProfileViewer() {
             title={`${t(s.label as any)} · ${s.freq ? t(("freq_" + s.freq.toLowerCase()) as any) : ""}`}
             top={s.traits.slice(0, 2)}
             rest={s.traits.slice(2)}
-            accent={s.accent} bg={s.bg} border={s.border}
+            accent={s.accent}
+            barClass={s.barClass}
             deepReport={deepReport}
             reviewMode={isReviewMode}
             slide="attack"
@@ -872,16 +922,17 @@ export default function PlayerProfileViewer() {
   // ── SLIDE 3 — Where dangerous ─────────────────────────────────────────────
   const slide3TranslatedItems = slide3Items.map(s => translateOutput(s, t));
   const S3 = (
-    <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
+    <div className="relative h-full min-h-0 bg-background flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 z-20" />
       <ScrollSlide accentColor="text-amber-400" bottomPadClass={slideBottomPad}>
-      <h2 className="text-lg font-black text-white">📍 {t("where_dangerous")}</h2>
-      <p className="text-xs text-slate-500 -mt-1">{t("direction_space")}</p>
+      <h2 className="text-lg font-black text-foreground">📍 {t("where_dangerous")}</h2>
+      <p className="text-xs text-muted-foreground -mt-1">{t("direction_space")}</p>
       <BulletCard
         title={t("spatial_reads")}
         top={slide3TranslatedItems.slice(0, 2)}
         rest={slide3TranslatedItems.slice(2)}
-        accent="text-amber-400" bg="bg-amber-950/40" border="border-amber-800/30"
+        accent="text-amber-900 dark:text-amber-200"
+        barClass="border-l-amber-600/75 dark:border-l-amber-400/55"
         deepReport={deepReport}
         reviewMode={isReviewMode}
         slide="danger"
@@ -903,17 +954,18 @@ export default function PlayerProfileViewer() {
 
   // ── SLIDE 4 — Screens ─────────────────────────────────────────────────────
   const S4 = (
-    <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
+    <div className="relative h-full min-h-0 bg-background flex flex-col">
       <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 z-20" />
       <ScrollSlide accentColor="text-blue-400" bottomPadClass={slideBottomPad}>
-      <h2 className="text-lg font-black text-white">⚡ {t("screens_actions")}</h2>
-      <p className="text-xs text-slate-500 -mt-1">{t("pnr_coverage")}</p>
+      <h2 className="text-lg font-black text-foreground">⚡ {t("screens_actions")}</h2>
+      <p className="text-xs text-muted-foreground -mt-1">{t("pnr_coverage")}</p>
       {slide4Items.length > 0
         ? <BulletCard
             title={`${t("tab_pnr")} · ${inp.pnrFrequency ? t(("freq_" + inp.pnrFrequency.toLowerCase()) as any) : ""}`}
             top={slide4Items.slice(0, 2)}
             rest={slide4Items.slice(2)}
-            accent="text-blue-400" bg="bg-blue-950/40" border="border-blue-800/30"
+            accent="text-blue-800 dark:text-blue-300"
+            barClass="border-l-blue-600/75 dark:border-l-blue-400/55"
             deepReport={deepReport}
             reviewMode={isReviewMode}
             slide="screens"
@@ -942,19 +994,21 @@ export default function PlayerProfileViewer() {
   const hasPlan  = defender.length > 0 || forzar.length > 0 || concede.length > 0;
 
   const S5 = (
-    <div className="relative h-full min-h-0 bg-[#060a14] flex flex-col">
-      <div className="absolute top-0 left-0 w-full h-1 bg-slate-500 z-20" />
-      <ScrollSlide accentColor="text-slate-400" bottomPadClass={slideBottomPad}>
+    <div className="relative h-full min-h-0 bg-background flex flex-col">
+      <div className="absolute top-0 left-0 w-full h-1 bg-muted-foreground z-20" />
+      <ScrollSlide accentColor="text-muted-foreground" bottomPadClass={slideBottomPad}>
       <div className="flex items-center gap-2">
-        <Shield className="w-4 h-4 text-slate-400" />
-        <h2 className="text-lg font-black text-white">{t("defensive_plan")}</h2>
+        <Shield className="w-4 h-4 text-muted-foreground" />
+        <h2 className="text-lg font-black text-foreground">{t("defensive_plan")}</h2>
       </div>
-      <p className="text-xs text-slate-500 -mt-1">{t("full_plan")}</p>
+      <p className="text-xs text-muted-foreground -mt-1">{t("full_plan")}</p>
       {!hasPlan
         ? <EmptySlate text={t("save_to_generate")} />
         : <>
             <PlanCard label={t("defend_tab")} symbol="—" items={defender}
-              accent="text-red-400" bg="bg-red-950/40" border="border-red-800/30" deepReport={deepReport}
+              accent="text-red-800 dark:text-red-300"
+              barClass="border-l-red-600/75 dark:border-l-red-400/55"
+              deepReport={deepReport}
               reviewMode={isReviewMode}
               slide="plan"
               itemKeys={defender.map((_, idx) => `plan:defender:${idx}`).slice(0, deepReport ? defender.length : Math.min(2, defender.length))}
@@ -966,7 +1020,9 @@ export default function PlayerProfileViewer() {
               labelRestore={labelRestore}
             />
             <PlanCard label={t("force_tab")} symbol="→" items={forzar}
-              accent="text-blue-400" bg="bg-blue-950/40" border="border-blue-800/30" deepReport={deepReport}
+              accent="text-blue-800 dark:text-blue-300"
+              barClass="border-l-blue-600/75 dark:border-l-blue-400/55"
+              deepReport={deepReport}
               reviewMode={isReviewMode}
               slide="plan"
               itemKeys={forzar.map((_, idx) => `plan:forzar:${idx}`).slice(0, deepReport ? forzar.length : Math.min(2, forzar.length))}
@@ -978,7 +1034,9 @@ export default function PlayerProfileViewer() {
               labelRestore={labelRestore}
             />
             <PlanCard label={t("give_tab")} symbol="✓" items={concede}
-              accent="text-emerald-400" bg="bg-emerald-950/40" border="border-emerald-800/30" deepReport={deepReport}
+              accent="text-emerald-800 dark:text-emerald-300"
+              barClass="border-l-emerald-600/75 dark:border-l-emerald-400/55"
+              deepReport={deepReport}
               reviewMode={isReviewMode}
               slide="plan"
               itemKeys={concede.map((_, idx) => `plan:concede:${idx}`).slice(0, deepReport ? concede.length : Math.min(2, concede.length))}
@@ -1004,11 +1062,11 @@ export default function PlayerProfileViewer() {
 
   // ── Navigation ─────────────────────────────────────────────────────────────
   const PAGES = [
-    { id: "identity", node: S1, color: "bg-orange-500" },
+    { id: "identity", node: S1, color: "bg-primary" },
     { id: "attack",   node: S2, color: "bg-red-500"    },
     { id: "space",    node: S3, color: "bg-amber-500"  },
     { id: "screens",  node: S4, color: "bg-blue-500"   },
-    { id: "plan",     node: S5, color: "bg-slate-500"  },
+    { id: "plan",     node: S5, color: "bg-muted-foreground"  },
   ];
   const total = PAGES.length;
   const next  = () => { setDir(1);  setPage(p => Math.min(total - 1, p + 1)); };
@@ -1023,7 +1081,7 @@ export default function PlayerProfileViewer() {
   return (
     <div
       className={cn(
-        "flex flex-col h-[100dvh] bg-[#060a14] overflow-hidden relative",
+        "flex flex-col h-[100dvh] bg-background overflow-hidden relative",
         isReviewMode && "pb-[5.5rem]",
       )}
     >
@@ -1038,22 +1096,22 @@ export default function PlayerProfileViewer() {
               paramsCoach ? (isReviewMode ? "/coach/editor" : "/coach/reports") : "/player",
             )
           }
-          className="bg-slate-800/80 backdrop-blur rounded-full border-0 text-white hover:bg-slate-700"
+          className="bg-secondary/85 backdrop-blur-md rounded-full border border-border/60 text-foreground hover:bg-muted"
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
 
         {/* Page dots */}
-        <div className="flex gap-1.5 items-center p-2 bg-slate-900/60 backdrop-blur rounded-full">
+        <div className="flex gap-1.5 items-center p-2 bg-card/80 backdrop-blur-md border border-border/50 rounded-full">
           {PAGES.map((p, i) => (
             <button key={i} onClick={() => { setDir(i > page ? 1 : -1); setPage(i); }}
-              className={`rounded-full transition-all duration-300 ${page === i ? `w-5 h-2 ${p.color}` : "w-2 h-2 bg-slate-700"}`} />
+              className={`rounded-full transition-all duration-300 ${page === i ? `w-5 h-2 ${p.color}` : "w-2 h-2 bg-muted-foreground/35"}`} />
           ))}
         </div>
 
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" onClick={() => setLocation("/player/settings")}
-            className="bg-slate-800/80 backdrop-blur rounded-full border-0 text-slate-400 hover:text-white w-9 h-9">
+            className="bg-secondary/85 backdrop-blur-md rounded-full border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted w-9 h-9">
             <Settings className="w-4 h-4" />
           </Button>
 
@@ -1063,8 +1121,8 @@ export default function PlayerProfileViewer() {
           className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all"
           title={deepReport ? t("deep_report_on") : t("deep_report_off")}
         >
-          <BookOpen className={`w-4 h-4 transition-colors ${deepReport ? "text-amber-400" : "text-slate-500"}`} />
-          <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${deepReport ? "text-amber-400" : "text-slate-600"}`}>
+          <BookOpen className={`w-4 h-4 transition-colors ${deepReport ? "text-primary" : "text-muted-foreground"}`} />
+          <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${deepReport ? "text-primary" : "text-muted-foreground"}`}>
             {deepReport ? t("deep") : t("basic")}
           </span>
         </button>
@@ -1117,11 +1175,11 @@ export default function PlayerProfileViewer() {
         )}
       >
         <Button variant="ghost" size="icon" onClick={prev}
-          className={`rounded-full pointer-events-auto border-0 w-12 h-12 bg-slate-800/80 text-white transition-opacity ${page === 0 ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+          className={`rounded-full pointer-events-auto border border-border/60 w-12 h-12 bg-secondary/85 backdrop-blur-md text-foreground hover:bg-muted transition-opacity ${page === 0 ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
           <ChevronLeft className="w-6 h-6" />
         </Button>
         <Button variant="ghost" size="icon" onClick={next}
-          className={`rounded-full pointer-events-auto border-0 w-12 h-12 bg-slate-800/80 text-white transition-opacity ${page === total - 1 ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+          className={`rounded-full pointer-events-auto border border-border/60 w-12 h-12 bg-secondary/85 backdrop-blur-md text-foreground hover:bg-muted transition-opacity ${page === total - 1 ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
           <ChevronRight className="w-6 h-6" />
         </Button>
       </div>

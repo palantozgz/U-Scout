@@ -1,0 +1,206 @@
+[
+  {
+    "id": "p001",
+    "name": "Luka Doncic — ISO/PnR star",
+    "note": "Creador primario, ISO y PnR handler, clutch, deepRange, visión élite",
+    "inputs": {
+      "pos": "SG", "hand": "L", "ath": 4, "phys": 4, "usage": "primary",
+      "selfCreation": "high", "starPlayer": true, "personality": ["clutch"],
+      "isoFreq": "P", "isoEff": "high", "isoDir": "L", "isoDec": "F",
+      "pnrFreq": "P", "pnrEff": "high", "pnrPri": "SF",
+      "trapResponse": "escape",
+      "postFreq": "S", "postEff": "medium", "postProfile": "FU",
+      "transFreq": "S", "transRole": "pusher",
+      "spotUpFreq": "R", "deepRange": true,
+      "floater": "S",
+      "vision": 5, "orebThreat": "low",
+      "contactFinish": "neutral", "offHandFinish": "capable",
+      "cutFreq": "N", "dhoFreq": "N", "indirectFreq": "N",
+      "screenerAction": null, "ballHandling": "elite", "pressureResponse": "escapes"
+    }
+  },
+  {
+    "id": "p002",
+    "name": "Nikola Jokic — Post/PnR passer",
+    "note": "Poste primario, PnR distribuidor, visión 5, físico alto",
+    "inputs": {
+      "pos": "C", "hand": "R", "ath": 3, "phys": 5, "usage": "primary",
+      "selfCreation": "high", "starPlayer": true,
+      "postFreq": "P", "postEff": "high", "postProfile": "B2B",
+      "postShoulder": "R", "postMoves": ["hook", "fade", "turnaround"],
+      "postEntry": "seal",
+      "highPostZones": { "leftElbow": "pass_to_cutter", "rightElbow": "face_up_drive" },
+      "pnrFreq": "S", "pnrEff": "high", "pnrPri": "PF", "trapResponse": "escape",
+      "isoFreq": "R", "isoEff": "medium",
+      "transFreq": "R",
+      "spotUpFreq": "N", "deepRange": false,
+      "vision": 5, "orebThreat": "medium", "putbackQuality": "capable",
+      "contactFinish": "neutral", "offHandFinish": "capable",
+      "floater": "N", "cutFreq": "N", "dhoFreq": "N", "indirectFreq": "N",
+      "screenerAction": null, "ballHandling": null, "pressureResponse": null
+    }
+  },
+  {
+    "id": "p003",
+    "name": "Steph Curry — Spot-up + off-ball",
+    "note": "Tirador spot-up primario, deepRange, off-ball screens, ISO ocasional",
+    "inputs": {
+      "pos": "PG", "hand": "R", "ath": 4, "phys": 2, "usage": "primary",
+      "selfCreation": "high", "starPlayer": true,
+      "spotUpFreq": "P", "spotZone": "wing", "deepRange": true,
+      "isoFreq": "S", "isoEff": "high",
+      "pnrFreq": "S", "pnrEff": "medium", "pnrPri": "SF",
+      "indirectFreq": "P", "offBallCutAction": "catch_and_shoot",
+      "cutFreq": "S", "cutType": "curl",
+      "transFreq": "S",
+      "postFreq": "N",
+      "vision": 4, "orebThreat": "low",
+      "floater": "N",
+      "contactFinish": "neutral", "offHandFinish": "capable",
+      "dhoFreq": "N", "screenerAction": null,
+      "ballHandling": "elite", "pressureResponse": "escapes"
+    }
+  },
+  {
+    "id": "p004",
+    "name": "Giannis Antetokounmpo — Driver/PnR",
+    "note": "Penetrador primario, PnR handler, físico élite, sin tiro exterior",
+    "inputs": {
+      "pos": "PF", "hand": "R", "ath": 5, "phys": 5, "usage": "primary",
+      "selfCreation": "high", "starPlayer": true,
+      "isoFreq": "S", "isoEff": "high", "isoDir": "R", "isoDec": "F",
+      "pnrFreq": "P", "pnrEff": "high", "pnrPri": "SF", "trapResponse": "struggle",
+      "postFreq": "R", "postEff": "medium",
+      "transFreq": "P", "transRole": "rim_run", "transRolePrimary": "rim_runner",
+      "transFinishing": "high",
+      "spotUpFreq": "N", "deepRange": false,
+      "orebThreat": "high", "putbackQuality": "primary",
+      "contactFinish": "seeks", "offHandFinish": "weak",
+      "vision": 3, "floater": "N",
+      "cutFreq": "N", "dhoFreq": "N", "indirectFreq": "N",
+      "screenerAction": null, "ballHandling": "capable", "pressureResponse": null
+    }
+  },
+  {
+    "id": "p005",
+    "name": "Klay Thompson — Spot-up trail",
+    "note": "Tirador spot-up y trail, off-ball screens, sin creación propia",
+    "inputs": {
+      "pos": "SG", "hand": "R", "ath": 4, "phys": 3, "usage": "secondary",
+      "selfCreation": "low",
+      "spotUpFreq": "P", "spotZone": "corner", "deepRange": true,
+      "transFreq": "P", "transRole": "trail", "transRolePrimary": "trail",
+      "trailFrequency": "primary", "motorTransitionPrimary": "trail",
+      "transSubPrimary": "shoot_off_trail",
+      "cutFreq": "S", "cutType": "curl",
+      "indirectFreq": "S", "offBallCutAction": "catch_and_shoot",
+      "isoFreq": "N", "pnrFreq": "N", "postFreq": "N",
+      "vision": 3, "orebThreat": "low",
+      "floater": "N", "dhoFreq": "N",
+      "contactFinish": "neutral", "offHandFinish": "capable",
+      "screenerAction": null, "ballHandling": null, "pressureResponse": null
+    }
+  },
+  {
+    "id": "p006",
+    "name": "Joel Embiid — Post dominante",
+    "note": "Poste primario con all moves, highPost, face-up, físico máximo",
+    "inputs": {
+      "pos": "C", "hand": "R", "ath": 4, "phys": 5, "usage": "primary",
+      "selfCreation": "high", "starPlayer": true,
+      "postFreq": "P", "postEff": "high", "postProfile": "B2B",
+      "postShoulder": "R", "postMoves": ["hook", "fade", "up_and_under", "drop_step"],
+      "postEntry": "seal",
+      "highPostZones": { "leftElbow": "face_up_drive", "rightElbow": "pull_up" },
+      "pnrFreq": "R", "pnrEff": "medium",
+      "isoFreq": "R", "isoEff": "medium",
+      "transFreq": "N",
+      "spotUpFreq": "R", "deepRange": false,
+      "orebThreat": "high", "putbackQuality": "primary",
+      "contactFinish": "seeks", "offHandFinish": "capable",
+      "vision": 3, "floater": "N",
+      "cutFreq": "N", "dhoFreq": "N", "indirectFreq": "N",
+      "screenerAction": null, "ballHandling": null, "pressureResponse": null
+    }
+  },
+  {
+    "id": "p007",
+    "name": "Tyrese Haliburton — PnR pasador",
+    "note": "PnR handler pass-first, vision élite, trap escape, spot-up secundario",
+    "inputs": {
+      "pos": "PG", "hand": "R", "ath": 3, "phys": 2, "usage": "primary",
+      "selfCreation": "high",
+      "pnrFreq": "P", "pnrEff": "high", "pnrPri": "PF",
+      "pnrFinishLeft": "Pull-up", "pnrFinishRight": "Pass",
+      "trapResponse": "escape",
+      "isoFreq": "R", "isoEff": "low",
+      "spotUpFreq": "S", "deepRange": true,
+      "dhoFreq": "S", "dhoRole": "giver", "dhoAction": "pass",
+      "transFreq": "S",
+      "postFreq": "N",
+      "vision": 5, "orebThreat": "low",
+      "floater": "S", "cutFreq": "N", "indirectFreq": "N",
+      "contactFinish": "neutral", "offHandFinish": "capable",
+      "screenerAction": null, "ballHandling": "capable", "pressureResponse": "escapes"
+    }
+  },
+  {
+    "id": "p008",
+    "name": "Rudy Gobert — Screener + rim runner",
+    "note": "Roll puro, rim runner, sin tiro, rebote ofensivo fuerte",
+    "inputs": {
+      "pos": "C", "hand": "R", "ath": 4, "phys": 5, "usage": "role",
+      "selfCreation": "low",
+      "screenerAction": "roll", "pnrScreenTiming": "holds_long",
+      "transFreq": "S", "transRole": "rim_run", "transRolePrimary": "rim_runner",
+      "transFinishing": "high",
+      "postFreq": "R", "postEntry": "duck_in",
+      "orebThreat": "high", "putbackQuality": "capable",
+      "isoFreq": "N", "pnrFreq": "N",
+      "spotUpFreq": "N", "deepRange": false,
+      "vision": 2, "floater": "N",
+      "cutFreq": "S", "cutType": "basket",
+      "dhoFreq": "N", "indirectFreq": "N",
+      "contactFinish": "neutral", "offHandFinish": "capable",
+      "ballHandling": null, "pressureResponse": null
+    }
+  },
+  {
+    "id": "p009",
+    "name": "Draymond Green — Screener/Conector",
+    "note": "Screener slip, pasador élite, sin tiro, conector defensivo",
+    "inputs": {
+      "pos": "PF", "hand": "R", "ath": 3, "phys": 4, "usage": "role",
+      "selfCreation": "low",
+      "screenerAction": "slip", "pnrScreenTiming": "ghost_touch",
+      "pnrFreq": "N",
+      "isoFreq": "N", "postFreq": "N",
+      "spotUpFreq": "N", "deepRange": false,
+      "cutFreq": "S", "cutType": "basket",
+      "transFreq": "S", "transRole": "fill",
+      "orebThreat": "medium", "putbackQuality": "palms_only",
+      "vision": 5, "floater": "N",
+      "dhoFreq": "N", "indirectFreq": "N",
+      "contactFinish": "neutral", "offHandFinish": "capable",
+      "ballHandling": null, "pressureResponse": null
+    }
+  },
+  {
+    "id": "p010",
+    "name": "3-and-D wing — rol puro",
+    "note": "Spot-up corner, sin creación, cortes esporádicos, bajo impacto",
+    "inputs": {
+      "pos": "SF", "hand": "R", "ath": 3, "phys": 3, "usage": "role",
+      "selfCreation": "low",
+      "spotUpFreq": "S", "spotZone": "corner", "deepRange": true,
+      "cutFreq": "S", "cutType": "basket",
+      "isoFreq": "N", "pnrFreq": "N", "postFreq": "N",
+      "transFreq": "R",
+      "orebThreat": "low",
+      "vision": 3, "floater": "N",
+      "dhoFreq": "N", "indirectFreq": "N",
+      "contactFinish": "neutral", "offHandFinish": "capable",
+      "screenerAction": null, "ballHandling": null, "pressureResponse": null
+    }
+  }
+]

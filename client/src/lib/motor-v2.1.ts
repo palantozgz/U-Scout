@@ -341,6 +341,7 @@ const SOURCE_TO_SITUATION: Record<string, string> = {
   oreb_and_transition: 'oreb',
   no_range_spot_active: 'spot',
   interior_low_impact: 'misc',
+  selfish_exploitable: 'misc',
 };
 
 export interface InferredField {
@@ -425,7 +426,7 @@ export const WEIGHTS = {
     post: { baseWeight: 0.85, profileBonus: { B2B: 0.1, FU: 0.05, M: 0 } },
     transition: { baseWeight: 0.8, athBonus: true },
     spotUp: { baseWeight: 0.75, deepRangeBonus: 0.15, zoneBonus: { corner: 0.15, wing: 0.05, top: 0 } },
-    dho: { baseWeight: 0.7, roleBonus: { giver: 0.1, receiver: 0.05, both: 0.15 } },
+    dho: { baseWeight: 0.85, roleBonus: { giver: 0.15, receiver: 0.05, both: 0.20 } },
     cut: { baseWeight: 0.6, typeBonus: { basket: 0.1, backdoor: 0.15, flash: 0.05, curl: 0.1 } },
     oreb: { baseWeight: 0.7, threatMultiplier: { high: 1.3, medium: 1.0, low: 0.6 } },
     floater: { baseWeight: 0.7 },
@@ -433,7 +434,7 @@ export const WEIGHTS = {
     // v2.1 - New weights
     transRole: { 
       rim_run: 0.9, 
-      trail: 0.85, 
+      trail: 0.95, 
       leak: 0.75, 
       fill: 0.5 
     },
@@ -478,10 +479,10 @@ export const WEIGHTS = {
     spotUp: { lowFreqWeight: 0.6, noDeepRangeBonus: 0.3 },
     iso: { lowEffWeight: 0.65 },
     // v2.1 - New allow rules
-    ballHandling: { limitedWeight: 0.7 }
+    ballHandling: { limitedWeight: 0.92 }
   },
   
-  maxOutputsPerCategory: { deny: 3, force: 2, allow: 2, aware: 5 },
+  maxOutputsPerCategory: { deny: 3, force: 2, allow: 3, aware: 5 },
   slideOutputLimits: { defensivePlan: { deny: 2, force: 1, allow: 1 } }
 };
 
@@ -493,6 +494,8 @@ const INFERENCE_RULES = {
   neverInfer: [
     'isoDir', 'isoDec', 'postShoulder', 'postZone', 'spotZone', 'cutType', 
     'dhoAction', 'floater', 'vision',
+    // Never infer screener behavior or pressure response — these are scout observations
+    'screenerAction', 'pressureResponse', 'ballHandling',
     // v2.1 - Never infer these
     'transRole',
     'transRolePrimary',
@@ -747,7 +750,7 @@ export class UScoutMotor {
     const categorized = this.categorizeOutputs(rawOutputs);
 
     // Step 4: Select top outputs per category (threat-ranked)
-    const threatScores = this.calculateThreatScores(rawOutputs);
+    const threatScores = this.calculateThreatScores(rawOutputs, enrichedInputs);
     const picked = this.selectTopOutputs(categorized, threatScores);
 
     // Step 5: Generate slides
@@ -848,17 +851,34 @@ export class UScoutMotor {
     return result;
   }
 
-  private calculateThreatScores(outputs: MotorOutput[]): SituationThreatScore[] {
+  private calculateThreatScores(outputs: MotorOutput[], inputs?: EnrichedInputs): SituationThreatScore[] {
     const situationMap = new Map<string, { maxWeight: number; topOutput: string }>();
+
+    // When player has 2+ primary freq situations, cap secondary situations at 0.72
+    const primarySituations = new Set<string>();
+    if (inputs) {
+      if (inputs.isoFreq   === 'P') primarySituations.add('iso');
+      if (inputs.pnrFreq   === 'P') primarySituations.add('pnr');
+      if (inputs.postFreq  === 'P') primarySituations.add('post');
+      if (inputs.transFreq === 'P') primarySituations.add('transition');
+      if (inputs.spotUpFreq === 'P') primarySituations.add('spot');
+      if (inputs.dhoFreq   === 'P') primarySituations.add('dho');
+      if (inputs.cutFreq   === 'P') primarySituations.add('cut');
+    }
+    const manyPrimaries = primarySituations.size >= 2;
 
     for (const output of outputs) {
       if (output.category !== 'deny') continue;
       if (output.weight === 0) continue;
 
       const situation = SOURCE_TO_SITUATION[output.source] ?? 'misc';
+      let effectiveWeight = output.weight;
+      if (manyPrimaries && !primarySituations.has(situation) && situation !== 'misc') {
+        effectiveWeight = Math.min(effectiveWeight, 0.72);
+      }
       const current = situationMap.get(situation);
-      if (!current || output.weight > current.maxWeight) {
-        situationMap.set(situation, { maxWeight: output.weight, topOutput: output.key });
+      if (!current || effectiveWeight > current.maxWeight) {
+        situationMap.set(situation, { maxWeight: effectiveWeight, topOutput: output.key });
       }
     }
 
@@ -1013,7 +1033,7 @@ export class UScoutMotor {
         const idxDeny = outputs.findIndex((o) => o.key === 'deny_iso_space');
         if (idxDeny >= 0) outputs[idxDeny].weight = Math.max(outputs[idxDeny].weight - 0.15, 0);
         if (!outputs.some((o) => o.key === 'allow_iso')) {
-          outputs.push({ key: 'allow_iso', category: 'allow', weight: 0.65, source: 'selfish_low_eff' });
+          outputs.push({ key: 'allow_iso', category: 'allow', weight: 0.85, source: 'selfish_exploitable' });
         }
       }
       outputs.push({
@@ -1253,12 +1273,15 @@ export class UScoutMotor {
         }
       }
     } else if (!inputs.postFreq || inputs.postFreq === 'N') {
-      outputs.push({
-        key: 'allow_post',
-        category: 'allow',
-        weight: w.allowRules.postUp.neverWeight,
-        source: 'no_post'
-      });
+      // Don't generate allow_post for primary creators — it's noise
+      if (inputs.usage !== 'primary') {
+        outputs.push({
+          key: 'allow_post',
+          category: 'allow',
+          weight: w.allowRules.postUp.neverWeight,
+          source: 'no_post'
+        });
+      }
     }
 
     // Dunker spot (half-court positioning) — additive with post entry / rare-efficient aware
@@ -1360,19 +1383,21 @@ export class UScoutMotor {
         const roleWeight = w.outputWeights.transRole[inputs.transRole];
         
         if (inputs.transRole === 'rim_run') {
+          // rim_run is a role-defined situation — don't penalize with usageM
           outputs.push({
             key: 'deny_trans_rim',
             category: 'deny',
-            weight: Math.min(weight * roleWeight * effectiveUsageM, 1.0),
+            weight: Math.min(weight * roleWeight, 1.0),
             source: 'trans_rim_run'
           });
         } else if (inputs.transRole === 'trail') {
           // Trail shooter - deny the trailing three
           if (inputs.deepRange) {
+            // trail is a role-defined situation — don't penalize with usageM
             outputs.push({
               key: 'deny_trans_trail',
               category: 'deny',
-              weight: Math.min(weight * roleWeight * effectiveUsageM + 0.15, 1.0),
+              weight: Math.min(weight * roleWeight + 0.15, 1.0),
               source: 'trans_trail'
             });
           }
@@ -1495,7 +1520,8 @@ export class UScoutMotor {
         key: 'deny_trans_rim',
         category: 'deny',
         weight: 0.9,
-        source: 'duck_in_rim_runner_unified',
+        // Source maps to 'transition' so threat score is calculated correctly
+        source: 'trans_rim_run',
         params: { context: 'both_halfcourt_and_transition' },
       });
     }
@@ -1574,12 +1600,13 @@ export class UScoutMotor {
       }
     }
     
-    // Deep range threat
-    if (inputs.deepRange) {
+    // Deep range threat — only if player actually uses spot-up (not just has range)
+    if (inputs.deepRange && inputs.spotUpFreq && inputs.spotUpFreq !== 'N') {
+      const spotWeight = inputs.spotUpFreq === 'P' ? 0.95 : inputs.spotUpFreq === 'S' ? 0.80 : 0.60;
       outputs.push({
         key: 'deny_spot_deep',
         category: 'deny',
-        weight: 0.95,
+        weight: spotWeight,
         source: 'deep_range'
       });
     }
@@ -1599,7 +1626,9 @@ export class UScoutMotor {
     }
     
     // ALLOW isolation when low efficiency or low frequency
-    if (inputs.isoFreq === 'R' || inputs.isoFreq === 'N' || inputs.isoEff === 'low') {
+    // Skip if orebThreat=high — the player is dangerous even without ISO
+    if ((inputs.isoFreq === 'R' || inputs.isoFreq === 'N' || inputs.isoEff === 'low')
+        && inputs.orebThreat !== 'high') {
       outputs.push({
         key: 'allow_iso',
         category: 'allow',
@@ -1815,10 +1844,12 @@ export class UScoutMotor {
       const orebIdx = outputs.findIndex((o) => o.key === 'deny_oreb');
       const rimIdx = outputs.findIndex((o) => o.key === 'deny_trans_rim');
       if (orebIdx >= 0 && rimIdx >= 0) {
+        // Keep deny_trans_rim (transition instruction), remove deny_oreb duplicate
+        // The unified instruction covers both: sprint back + box out
         const maxWeight = Math.max(outputs[orebIdx].weight, outputs[rimIdx].weight);
-        outputs[orebIdx].weight = Math.min(maxWeight + 0.05, 1.0);
-        outputs[orebIdx].params = { ...(outputs[orebIdx].params ?? {}), context: 'oreb_and_transition' };
-        outputs.splice(rimIdx, 1);
+        outputs[rimIdx].weight = Math.min(maxWeight + 0.05, 1.0);
+        outputs[rimIdx].params = { ...(outputs[rimIdx].params ?? {}), context: 'oreb_and_transition' };
+        outputs.splice(orebIdx, 1);
       }
     }
 
@@ -2006,6 +2037,15 @@ export class UScoutMotor {
    * Group outputs by category
    */
   private categorizeOutputs(rawOutputs: MotorOutput[]): Record<string, MotorOutput[]> {
+    // Deduplicate by key — keep highest weight for same key
+    const deduped = new Map<string, MotorOutput>();
+    for (const o of rawOutputs) {
+      const existing = deduped.get(o.key);
+      if (!existing || o.weight > existing.weight) {
+        deduped.set(o.key, o);
+      }
+    }
+
     const categorized: Record<string, MotorOutput[]> = {
       deny: [],
       force: [],
@@ -2013,7 +2053,7 @@ export class UScoutMotor {
       aware: []
     };
     
-    for (const output of rawOutputs) {
+    for (const output of Array.from(deduped.values())) {
       if (categorized[output.category]) {
         categorized[output.category].push(output);
       }
@@ -2042,21 +2082,33 @@ export class UScoutMotor {
   } {
     const allOutputs = Object.values(categorized).flat();
 
-    const eligible = threatScores.filter((t) => t.score >= THREAT_THRESHOLDS.denyEligible);
+    // Raise threshold for 3rd deny slot when top 2 are already dominant (>=0.90)
+    const top2scores = threatScores.slice(0, 2).map(t => t.score);
+    const top2Dominant = top2scores.length >= 2 && top2scores[1] >= 0.90;
+    const denyThreshold = top2Dominant
+      ? THREAT_THRESHOLDS.denyEligible + 0.10  // 0.80 when top 2 dominate
+      : THREAT_THRESHOLDS.denyEligible;         // 0.70 otherwise
+    const eligible = threatScores.filter((t) => t.score >= denyThreshold);
+    // Use top 3 slots when 5+ situations compete; otherwise top 2
+    const topN = threatScores.length >= 5 ? 3 : 2;
     const topTwo: SituationThreatScore[] = [];
     for (const t of eligible) {
-      if (topTwo.length >= 2) break;
+      if (topTwo.length >= topN) break;
       topTwo.push(t);
     }
-    for (const t of threatScores) {
-      if (topTwo.length >= 2) break;
-      if (!topTwo.some((x) => x.situation === t.situation)) topTwo.push(t);
+    // Fallback: fill remaining slots only if not in dominant-top2 mode
+    if (!top2Dominant) {
+      for (const t of threatScores) {
+        if (topTwo.length >= topN) break;
+        if (!topTwo.some((x) => x.situation === t.situation)) topTwo.push(t);
+      }
     }
     const top2Situations = new Set(topTwo.map((t) => t.situation));
 
     const denyOutputs = (categorized.deny ?? [])
       .filter((o) => {
         if (o.weight === 0) return false;
+        if (o.weight < 0.35) return false;
         const sit = SOURCE_TO_SITUATION[o.source] ?? 'misc';
         return top2Situations.has(sit) || sit === 'misc';
       })

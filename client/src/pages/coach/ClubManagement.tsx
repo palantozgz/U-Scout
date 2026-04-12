@@ -15,6 +15,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useLocale } from "@/lib/i18n";
 
 type Translate = ReturnType<typeof useLocale>["t"];
@@ -314,7 +320,8 @@ export default function ClubManagement() {
   const cycleLogo = () => {
     if (!q.data?.club || !canEditBranding) return;
     const cur = q.data.club.logo || "🏀";
-    const i = isClubLogoImageUrl(cur) ? -1 : LOGO_EMOJIS.indexOf(cur);
+    if (isClubLogoImageUrl(cur)) return;
+    const i = LOGO_EMOJIS.indexOf(cur);
     const next = LOGO_EMOJIS[(i + 1) % LOGO_EMOJIS.length];
     patchClub.mutate({ logo: next });
   };
@@ -399,40 +406,76 @@ export default function ClubManagement() {
                   className="hidden"
                   onChange={onLogoFile}
                 />
-                <div
-                  className={cn(
-                    "flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30 text-5xl leading-none",
-                    canEditBranding && "ring-offset-background cursor-default ring-2 ring-transparent hover:ring-primary/30",
-                  )}
-                  title={canEditBranding ? t("club_logo_upload") : undefined}
-                >
-                  <ClubLogoView logo={q.data.club.logo} className="max-h-[5.5rem] max-w-[5.5rem]" />
-                </div>
-                {canEditBranding && (
-                  <div className="flex flex-col gap-2 pt-0.5">
-                    <Button
+                <div className="flex w-[6.75rem] shrink-0 flex-col items-stretch gap-2">
+                  {canEditBranding && !isClubLogoImageUrl(q.data.club.logo) ? (
+                    <button
                       type="button"
-                      size="sm"
-                      variant="secondary"
-                      className="font-bold"
-                      disabled={patchClub.isPending}
-                      onClick={() => logoFileRef.current?.click()}
-                    >
-                      {t("club_logo_upload")}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="font-bold"
-                      disabled={patchClub.isPending}
                       onClick={cycleLogo}
+                      disabled={patchClub.isPending}
+                      className={cn(
+                        "flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30 text-5xl leading-none transition-[box-shadow]",
+                        "ring-offset-background hover:ring-2 hover:ring-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50",
+                      )}
+                      title={t("club_logo_hint")}
+                      aria-label={t("club_logo_hint")}
                     >
-                      {t("club_logo_hint")}
-                    </Button>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0 space-y-1">
+                      <ClubLogoView logo={q.data.club.logo} className="max-h-[5.5rem] max-w-[5.5rem]" />
+                    </button>
+                  ) : (
+                    <div
+                      className={cn(
+                        "flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30 text-5xl leading-none",
+                        canEditBranding && isClubLogoImageUrl(q.data.club.logo) && "ring-offset-background ring-2 ring-transparent",
+                      )}
+                    >
+                      <ClubLogoView logo={q.data.club.logo} className="max-h-[5.5rem] max-w-[5.5rem]" />
+                    </div>
+                  )}
+                  {canEditBranding &&
+                    (isClubLogoImageUrl(q.data.club.logo) ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="h-8 w-full px-1 text-[10px] font-bold leading-tight"
+                            disabled={patchClub.isPending}
+                          >
+                            {t("club_logo_manage")}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="center" className="min-w-[10rem]">
+                          <DropdownMenuItem
+                            className="font-medium"
+                            onSelect={() => {
+                              window.requestAnimationFrame(() => logoFileRef.current?.click());
+                            }}
+                          >
+                            {t("club_logo_replace")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="font-medium text-destructive focus:text-destructive"
+                            onSelect={() => patchClub.mutate({ logo: "🏀" })}
+                          >
+                            {t("club_logo_remove")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 w-full px-1 text-[10px] font-bold leading-tight"
+                        disabled={patchClub.isPending}
+                        onClick={() => logoFileRef.current?.click()}
+                      >
+                        {t("club_logo_upload")}
+                      </Button>
+                    ))}
+                </div>
+                <div className="min-w-0 flex-1 space-y-1">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_name_label")}</p>
                   {canEditBranding ? (
                     <Input
