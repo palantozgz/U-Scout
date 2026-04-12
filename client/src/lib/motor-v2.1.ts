@@ -1960,10 +1960,13 @@ export class UScoutMotor {
     // =========================================================================
     // Force early shot clock
     // =========================================================================
+    // force_early only for ball handlers — not for PnR screeners
+    // A player with pnrFreq=P who has screenerAction defined is a screener, not a handler
+    const isPnrHandler = inputs.pnrFreq === 'P' && !inputs.screenerAction;
     if (
       inputs.selfCreation === 'high' &&
       inputs.usage === 'primary' &&
-      (inputs.isoFreq === 'P' || inputs.pnrFreq === 'P')
+      (inputs.isoFreq === 'P' || isPnrHandler)
     ) {
       outputs.push({
         key: 'force_early',
@@ -2105,10 +2108,13 @@ export class UScoutMotor {
     }
     const top2Situations = new Set(topTwo.map((t) => t.situation));
 
+    const hasAllowIso = (categorized.allow ?? []).some(o => o.key === 'allow_iso' && o.weight > 0.70);
     const denyOutputs = (categorized.deny ?? [])
       .filter((o) => {
         if (o.weight === 0) return false;
         if (o.weight < 0.35) return false;
+        // Suppress deny_iso_space if allow_iso is dominant (selfish/low-eff profile)
+        if (o.key === 'deny_iso_space' && hasAllowIso) return false;
         const sit = SOURCE_TO_SITUATION[o.source] ?? 'misc';
         return top2Situations.has(sit) || sit === 'misc';
       })
