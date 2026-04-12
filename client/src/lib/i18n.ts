@@ -27,6 +27,34 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { MOTOR_V2_1_I18N } from "./motor-v2.1-i18n";
+import {
+  APP_UI_CLUB_GENDER_I18N_EN,
+  APP_UI_CLUB_GENDER_I18N_ES,
+  APP_UI_CLUB_GENDER_I18N_ZH,
+} from "./appUiClubGenderI18n";
+import {
+  GENERATED_TRAIT_TXT_GENDER_I18N_EN,
+  GENERATED_TRAIT_TXT_GENDER_I18N_ES,
+  GENERATED_TRAIT_TXT_GENDER_I18N_ZH,
+} from "./generatedTraitTxtGenderI18n";
+import {
+  GENERATED_PLAN_LINE_GENDER_I18N_EN,
+  GENERATED_PLAN_LINE_GENDER_I18N_ES,
+  GENERATED_PLAN_LINE_GENDER_I18N_ZH,
+} from "./generatedPlanLineGenderI18n";
+import {
+  GENERATED_SPATIAL_GENDER_I18N_EN,
+  GENERATED_SPATIAL_GENDER_I18N_ES,
+  GENERATED_SPATIAL_GENDER_I18N_ZH,
+} from "./generatedSpatialGenderI18n";
+import {
+  GENERATED_HINT_GENDER_I18N_EN,
+  GENERATED_HINT_GENDER_I18N_ES,
+  GENERATED_HINT_GENDER_I18N_ZH,
+} from "./generatedHintGenderI18n";
+import { useClubGenderValue } from "./clubGenderContext";
+import { candidateSpanishKeysForGender } from "./spanishClubGenderI18n";
+import type { ClubGender } from "@shared/club-context";
 
 export type Locale = "en" | "es" | "zh";
 // To add a language: extend this type and add a new translation block below.
@@ -1049,6 +1077,11 @@ const en = {
   "editor.off_ball_cut_action.flare": "Flare",
   "editor.off_ball_cut_frequency": "Frequency",
 
+  ...APP_UI_CLUB_GENDER_I18N_EN,
+  ...GENERATED_TRAIT_TXT_GENDER_I18N_EN,
+  ...GENERATED_PLAN_LINE_GENDER_I18N_EN,
+  ...GENERATED_SPATIAL_GENDER_I18N_EN,
+  ...GENERATED_HINT_GENDER_I18N_EN,
 } as const;
 
 /** All locales share the same keys as `en`; values are plain strings (translations). */
@@ -2033,6 +2066,11 @@ const es: I18nStrings = {
   "editor.off_ball_cut_action.flare": "Flare",
   "editor.off_ball_cut_frequency": "Frecuencia",
 
+  ...APP_UI_CLUB_GENDER_I18N_ES,
+  ...GENERATED_TRAIT_TXT_GENDER_I18N_ES,
+  ...GENERATED_PLAN_LINE_GENDER_I18N_ES,
+  ...GENERATED_SPATIAL_GENDER_I18N_ES,
+  ...GENERATED_HINT_GENDER_I18N_ES,
 };
 
 // ─── CHINESE (Simplified) ─────────────────────────────────────────────────────
@@ -3007,11 +3045,32 @@ const zh: I18nStrings = {
   "editor.off_ball_cut_action.flare": "外弹拉开",
   "editor.off_ball_cut_frequency": "频率",
 
+  ...APP_UI_CLUB_GENDER_I18N_ZH,
+  ...GENERATED_TRAIT_TXT_GENDER_I18N_ZH,
+  ...GENERATED_PLAN_LINE_GENDER_I18N_ZH,
+  ...GENERATED_SPATIAL_GENDER_I18N_ZH,
+  ...GENERATED_HINT_GENDER_I18N_ZH,
 };
 
 // ─── Runtime ──────────────────────────────────────────────────────────────────
 // To add a language: add it to this map and extend Locale type above.
 const translations: Record<Locale, I18nStrings> = { en, es, zh };
+
+function translateWithClubGender(
+  locale: Locale,
+  baseKey: keyof typeof en,
+  clubGender: ClubGender | null,
+): string {
+  const raw = String(baseKey);
+  const bundle = translations[locale] as Record<string, string | undefined>;
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(bundle, k);
+  const key =
+    locale === "es"
+      ? candidateSpanishKeysForGender(raw, clubGender).find(has) ?? raw
+      : raw;
+  const enFlat = translations.en as Record<string, string | undefined>;
+  return bundle[key] ?? enFlat[key] ?? enFlat[raw] ?? raw;
+}
 
 let globalLocale: Locale = "en";
 const listeners = new Set<() => void>();
@@ -3036,12 +3095,13 @@ globalLocale = loadSavedLocale();
 
 // Static t() — use only outside React components
 export function t(key: keyof typeof en): string {
-  return translations[globalLocale]?.[key] ?? translations.en[key] ?? key;
+  return translateWithClubGender(getLocale(), key, null);
 }
 
 // React hook — always use this inside components
 export function useLocale() {
   const [locale, setLocaleState] = useState<Locale>(globalLocale);
+  const clubGender = useClubGenderValue();
 
   useEffect(() => {
     const update = () => setLocaleState(globalLocale);
@@ -3054,9 +3114,10 @@ export function useLocale() {
     setLocaleState(newLocale);
   }, []);
 
-  const tFn = useCallback((key: keyof typeof en): string => {
-    return translations[locale]?.[key] ?? translations.en[key] ?? key;
-  }, [locale]);
+  const tFn = useCallback(
+    (key: keyof typeof en): string => translateWithClubGender(locale, key, clubGender),
+    [locale, clubGender],
+  );
 
   return { locale, changeLocale, t: tFn };
 }

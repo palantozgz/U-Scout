@@ -4,6 +4,7 @@ import { migrateLegacyOnboarding, shouldOfferOnboarding } from "@/lib/onboarding
 import OnboardingFlow from "@/pages/OnboardingFlow";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { ClubGenderProvider } from "@/lib/clubGenderContext";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
@@ -189,6 +190,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ClubGenderProvider>
       <TooltipProvider>
         <Toaster />
         <div className="min-h-[100dvh] bg-background max-w-md mx-auto relative shadow-2xl overflow-hidden overflow-y-auto border-x border-border">
@@ -205,6 +207,7 @@ function App() {
           )}
         </div>
       </TooltipProvider>
+      </ClubGenderProvider>
     </QueryClientProvider>
   );
 }
