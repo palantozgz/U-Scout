@@ -7,6 +7,7 @@ import {
   type PlayerInputs,
   type PostMove as MotorPostMoveId,
   type MotorOutput,
+  type EnrichedInputs,
   type HighPostZonesMotor,
   type HighPostAction,
   type TransRoleEditor,
@@ -897,6 +898,354 @@ function resolveTransRole(inputs: PlayerInput): TransRoleEditor {
   }
 }
 
+// ─── Rich text generator for defensive plan outputs ──────────────────────────
+// Generates specific, actionable text using enriched player inputs.
+// Inspired by Synergy/Basketball Immersion scouting report style:
+// direct instruction + player-specific context.
+
+function motorOutputToRichText(
+  output: MotorOutput,
+  inputs: EnrichedInputs,
+  _locale: string = "es",
+): string {
+  const key = output.key;
+  const p = output.params ?? {};
+
+  const shoulder = (s: string | null | undefined) =>
+    s === "L" ? "izquierdo" : s === "R" ? "derecho" : null;
+
+  const moves = (arr: string[] | null | undefined): string => {
+    if (!arr || arr.length === 0) return "";
+    const map: Record<string, string> = {
+      hook: "gancho",
+      up_and_under: "up & under",
+      fade: "fadeaway",
+      drop_step: "drop step",
+      turnaround: "turnaround",
+      spin_move: "spin move",
+      baby_hook: "baby hook",
+      cross_hook: "cross hook",
+      dream_shake: "dream shake",
+      face_up_drive: "drive de frente",
+      pull_up: "pull-up",
+    };
+    return arr.map((m) => map[m] ?? m).join(", ");
+  };
+
+  const dir = (d: string | null | undefined) =>
+    d === "L" ? "izquierda" : d === "R" ? "derecha" : d === "Balanced" ? "ambos lados" : null;
+
+  const finishing = (f: string | null | undefined) =>
+    f === "high"
+      ? "excelente finalizador en el aro"
+      : f === "normal"
+        ? "finalizador normal"
+        : "mal finalizador";
+
+  if (key === "deny_post_entry") {
+    const sh = shoulder(inputs.postShoulder);
+    const mv = moves(inputs.postMoves ?? undefined);
+    const entry = inputs.postEntry;
+    let text = "Frontear en el poste. Negar la recepción.";
+    if (sh) text += ` Mano dominante ${sh} — forzar hacia el hombro opuesto.`;
+    if (entry === "duck_in") text += " Duck-in como primera entrada — anticipar el sellado.";
+    if (entry === "seal") text += " Entra con sello profundo — pelear la posición antes del pase.";
+    if (mv) text += ` Movimientos: ${mv}.`;
+    return text;
+  }
+
+  if (key === "deny_pnr_downhill") {
+    const action = inputs.screenerAction;
+    const timing = inputs.pnrScreenTiming;
+    const trap = inputs.trapResponse;
+    let text = "Hedge duro en el PnR — negar la bajada.";
+    if (trap === "escape") text += " Maneja bien las trampas — rotar rápido al receptor.";
+    if (trap === "struggle") text += " Le cuesta salir de trampas — hedge agresivo.";
+    if (action === "roll") text += " Bloqueador hace roll — comunicar al ayudante.";
+    if (action === "slip" || timing === "ghost_touch")
+      text += " Bloqueador hace slip — atención al corte temprano.";
+    if (timing === "holds_long") text += " Pantalla larga — más tiempo en el hedge.";
+    return text;
+  }
+
+  if (key === "deny_trans_rim") {
+    const sub = inputs.transSubPrimary;
+    const fin = inputs.transFinishing;
+    let text = "Sprint de vuelta antes de que reciba.";
+    if (sub === "seal_catch") text += " Primera opción: sello y recepción — anticipar el pase profundo.";
+    if (fin === "high") text += ` ${finishing("high")} — no dejar recepciones cómodas en el aro.`;
+    if (inputs.postEntry === "duck_in") text += " Duck-in como recurso de medio campo — bloquear el sellado.";
+    return text;
+  }
+
+  if (key === "deny_iso_space") {
+    const d = dir(inputs.isoDir);
+    const dec = inputs.isoDec;
+    let text = "Cerrar el espacio — no dejar recepción cómoda.";
+    if (d) text += ` Ataca preferentemente por ${d}.`;
+    if (dec === "F") text += " Decide rápido — estar en stance desde el catch.";
+    if (dec === "P") text += " Puede holdear el bote — forzar antes de que distribuya.";
+    return text;
+  }
+
+  if (key === "deny_pnr_roll") {
+    const timing = inputs.pnrScreenTiming;
+    let text = "Pegarse al roller — no dejar recepción en pintura.";
+    if (timing === "holds_long") text += " Aguanta la pantalla — cambio de rol posible.";
+    if (timing === "slip" || timing === "ghost_touch") text += " Sale rápido al aro — anticipar.";
+    return text;
+  }
+
+  if (key === "deny_spot_deep") {
+    const zone = inputs.spotZone;
+    let text = "Extender la defensa — no dejar tiro de 3 cómodo.";
+    if (zone === "corner") text += " Especialista de esquina — closeout largo sin falta.";
+    if (zone === "wing") text += " Tirador de ala — recuperar sobre pantalla.";
+    return text;
+  }
+
+  if (key === "deny_spot_corner") {
+    return "Closeout agresivo en esquina. Cerrar sin falta — closeout largo.";
+  }
+
+  if (key === "deny_trans_trail") {
+    return "Localizar al trail en transición. No perder la línea visual — contestar el triple antes del catch.";
+  }
+
+  if (key === "deny_oreb") {
+    const quality = inputs.putbackQuality;
+    let text = "Box out sistemático en cada tiro.";
+    if (quality === "primary") text += " Convierte el rebote ofensivo — contacto antes de que salte.";
+    if (quality === "palms_only")
+      text += " Toca para compañeros — bloquear también la segunda oportunidad.";
+    return text;
+  }
+
+  if (key === "deny_duck_in") {
+    return "Prevenir el duck-in. Anticipar el sellado antes de que se establezca — posición alta.";
+  }
+
+  if (key === "deny_high_post_catch") {
+    const zones = inputs.highPostZones;
+    let text = "Negar recepciones en el codo. Stance en gap.";
+    if (zones?.leftElbow === "pull_up" || zones?.rightElbow === "pull_up")
+      text += " Pull-up desde el codo — no dejar tiro fácil.";
+    if (zones?.leftElbow === "pass_to_cutter" || zones?.rightElbow === "pass_to_cutter")
+      text += " Distribuye desde el codo — negar y vigilar cortes.";
+    if (zones?.leftElbow === "face_up_drive" || zones?.rightElbow === "face_up_drive")
+      text += " Drive de frente desde el codo — no abrir camino al aro.";
+    return text;
+  }
+
+  if (key === "deny_pnr_pop") {
+    const range = inputs.popRange;
+    let text = "Seguir al bloqueador al abrir.";
+    if (range === "three") text += " Tiene tiro de 3 confirmado — no dejar abierto.";
+    if (range === "midrange") text += " Abre al mid-range — contestar sin perder al handler.";
+    return text;
+  }
+
+  if (key === "deny_pnr_slip") {
+    const timing = inputs.pnrScreenTiming;
+    let text = "Atención al slip — corte temprano al aro.";
+    if (timing === "ghost_touch")
+      text += " Ghost touch — sale antes del contacto, máxima alerta.";
+    return text;
+  }
+
+  if (key === "deny_floater") {
+    return "Contestar el floater — mano arriba en la zona, no saltar al drive.";
+  }
+
+  if (key === "deny_cut_basket") {
+    return "Mantener posición lado balón. Negar el corte al aro — contacto visual constante.";
+  }
+
+  if (key === "deny_cut_curl") {
+    return "Perseguir sobre la pantalla. No tomar el atajo — seguir el cuerpo.";
+  }
+
+  if (key === "deny_dho") {
+    const role = inputs.dhoRole;
+    const action = inputs.dhoAction;
+    let text = "Saltar el handoff — adelantarse al pase.";
+    if (role === "giver" && action === "pass")
+      text += " Distribuye desde el DHO — alta visión, esperar el pase posterior.";
+    return text;
+  }
+
+  if (key === "deny_trans_seal") {
+    return "Anticipar al roller en transición. Frontar el sello antes de que reciba el pase.";
+  }
+
+  if (key === "deny_post_shoulder") {
+    const sh = shoulder((p.shoulder as string | undefined) ?? inputs.postShoulder);
+    if (sh)
+      return `Forzar al hombro ${sh === "izquierdo" ? "derecho" : "izquierdo"} — el hombro ${sh} es el dominante.`;
+    return "Forzar al hombro débil — negar el lado preferido.";
+  }
+
+  if (key === "deny_post_seal") {
+    return "Pelear la posición antes del pase. No dejar sellado profundo — anticipar el duck-in.";
+  }
+
+  if (key === "force_direction") {
+    const d = dir((inputs.isoDir as string | undefined) ?? (p.direction as string | undefined));
+    if (d && d !== "ambos lados") {
+      const opposite = d === "izquierda" ? "derecha" : "izquierda";
+      return `Forzar hacia la ${opposite}. Ataca preferentemente por ${d} — canalizar al lado débil.`;
+    }
+    return "Forzar a un lado — canalizar fuera de la zona de confort.";
+  }
+
+  if (key === "force_weak_hand") {
+    const hand = (p.hand as string | undefined) ?? inputs.hand;
+    const weak = hand === "R" ? "izquierda" : "derecha";
+    return `Forzar mano débil (${weak}). Posición defensiva lateral — no dejar el lado dominante.`;
+  }
+
+  if (key === "force_contact") {
+    const cf = inputs.contactFinish;
+    if (cf === "avoids") return "Forzar contacto — evita el choque, buscar el cuerpo a cuerpo.";
+    if (cf === "seeks")
+      return "Cuidado con el contacto — busca el foul activamente. Ser físico pero disciplinado.";
+    return "Ser físico — forzar contacto en cada acción.";
+  }
+
+  if (key === "force_early") {
+    return "Forzar tiros tempranos. Alta auto-creación — presionar desde el catch para reducir su tiempo de decisión.";
+  }
+
+  if (key === "force_trap") {
+    const trap = inputs.trapResponse;
+    if (trap === "struggle") return "Trapear en PnR — le cuesta salir, rotaciones lentas.";
+    return "Hedge agresivo en PnR — forzar decisión rápida.";
+  }
+
+  if (key === "force_no_push") {
+    return "Contener el avance con bote. No dejar empujar el ritmo — cuerpo en el camino.";
+  }
+
+  if (key === "force_no_ball") {
+    const bh = inputs.ballHandling;
+    if (bh === "liability")
+      return "Negar el balón. Manejo deficiente — atacar agresivamente, buscar robo en cuanto recibe.";
+    return "Negar el balón — presión para forzar pase atrás.";
+  }
+
+  if (key === "force_no_space") {
+    return "Cerrar espacio. Sin tiro exterior confirmado — saggear y ayudar adentro.";
+  }
+
+  if (key === "force_paint_deny") {
+    return "Negar recepciones en pintura. Sin creación propia — mantener fuera del área.";
+  }
+
+  if (key === "force_full_court") {
+    const pr = inputs.pressureResponse;
+    if (pr === "breaks")
+      return "Presión toda cancha. Se rompe bajo presión — atacar el balón en el avance.";
+    return "Presión activa — dificultar el avance del balón.";
+  }
+
+  if (key === "allow_post") {
+    return "Conceder el poste. Sin amenaza interior real — saggear y ayudar adentro.";
+  }
+
+  if (key === "allow_spot_three") {
+    return "Conceder el triple spot-up. Sin rango exterior confirmado — priorizar ayuda interior.";
+  }
+
+  if (key === "allow_iso") {
+    const eff = inputs.isoEff;
+    const sel = (inputs.personality ?? []).includes("selfish");
+    if (sel)
+      return "Conceder el ISO. Egoísta y baja eficiencia — dejar que tome la decisión difícil.";
+    if (eff === "low") return "Conceder el ISO. Baja eficiencia en aislamiento — no gastar energía defensiva.";
+    return "Conceder el aislamiento — focalizar energía en otras situaciones.";
+  }
+
+  if (key === "allow_distance") {
+    return "Conceder el tiro de distancia. Sin rango real — dejar el espacio y ayudar.";
+  }
+
+  if (key === "allow_ball_handling") {
+    return "Conceder el bote. Manejo limitado pero no crítico — ceder y priorizar posición.";
+  }
+
+  if (key === "aware_passer") {
+    const vision = inputs.vision;
+    if (vision >= 5)
+      return "Pasador/a de élite. No forzar robos — rotar antes de que distribuya.";
+    if (vision >= 4) return "Alta visión de juego. Leer el pase antes de que lo ejecute.";
+    return "Buena visión. No sobrecomprometer — mantener líneas de pase cubiertas.";
+  }
+
+  if (key === "aware_physical") {
+    const cf = inputs.contactFinish;
+    if (cf === "seeks")
+      return "Busca el contacto activamente. Disciplina en las ayudas — no conceder faltas tontas.";
+    return "Finaliza con contacto. Ser disciplinado en las ayudas — no cargar innecesariamente.";
+  }
+
+  if (key === "aware_oreb") {
+    return "Rebote ofensivo presente. Box out sistemático — no saltar antes de bloquear.";
+  }
+
+  if (key === "aware_post_hook") {
+    const combo = p.combo;
+    if (combo === "hook_up_under")
+      return "Gancho + up & under en combinación. No saltar al primer fake — esperar el arco.";
+    return "Amenaza de gancho. Contestar sin cometer falta — esperar el arco real.";
+  }
+
+  if (key === "aware_high_post_versatile") {
+    return "Versátil en poste alto y bajo. Scoutear ambas zonas — no asumir una sola posición.";
+  }
+
+  if (key === "aware_off_ball_role") {
+    const role = (p.role as string | undefined) ?? inputs.offBallRole;
+    if (role === "screener")
+      return "Pone pantallas sin balón activamente. Comunicar en cada bloqueo — no perder el contacto.";
+    if (role === "cutter")
+      return "Cortador/a activo sin balón. Contacto visual constante — no perder el cuerpo.";
+    return "Rol activo sin balón. Mantener presencia en su zona.";
+  }
+
+  if (key === "aware_selfish_pattern") {
+    return "Patrón egoísta confirmado. Busca el ISO aunque no esté en buena posición — dejarle decidir.";
+  }
+
+  if (key === "aware_screen_hold") {
+    return "Aguanta la pantalla larga. Cambio de rol posible — comunicar antes de que decida.";
+  }
+
+  if (key === "aware_connector") {
+    return "Rol conector. Lee la defensa y redistribuye — negar la recepción en el pase interior.";
+  }
+
+  if (key === "aware_trap") {
+    return "Maneja bien las trampas. Rotar rápido al receptor — no comprometerse sin rotación lista.";
+  }
+
+  if (key === "aware_deep") {
+    return "Amenaza de profundidad. Defender hasta el medio campo — no dejar recepciones cómodas en 3/4 de pista.";
+  }
+
+  if (key === "aware_trans_trail_shoot") {
+    return "Disparo en trail. Detectar la línea de carrera pronto — no perder al tirador en la transición.";
+  }
+
+  if (key === "aware_pnr_direction") {
+    const left = p.left;
+    const right = p.right;
+    if (left && right) return `PnR: por izquierda ${left}, por derecha ${right} — ajustar cobertura.`;
+    return "Finalización en PnR varía según el lado — leer la posición.";
+  }
+
+  return motorOutputToPlanString(output);
+}
+
 export function generateProfile(
   inputs: PlayerInput,
   playerName?: string,
@@ -1591,10 +1940,10 @@ export function generateProfile(
   const motorReport = motor.generateReport(motorInputs, clubContext);
   const { selected, categorized, inputs: motorEnriched } = motorReport;
 
-  const md = selected.deny.map(motorOutputToPlanString).slice(0, 3);
-  const mf = selected.force.map(motorOutputToPlanString).slice(0, 3);
-  const mc = selected.allow.map(motorOutputToPlanString).slice(0, 3);
-  const ma = selected.aware.map(motorOutputToPlanString).slice(0, 3);
+  const md = selected.deny.map((o) => motorOutputToRichText(o, motorEnriched, "es")).slice(0, 3);
+  const mf = selected.force.map((o) => motorOutputToRichText(o, motorEnriched, "es")).slice(0, 3);
+  const mc = selected.allow.map((o) => motorOutputToRichText(o, motorEnriched, "es")).slice(0, 3);
+  const ma = selected.aware.map((o) => motorOutputToRichText(o, motorEnriched, "es")).slice(0, 3);
 
   const runnerUps: MotorDefensiveRunnerUps = {
     defender: motorPlanCandidates(categorized.deny, 3, 3),
