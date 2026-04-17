@@ -531,10 +531,13 @@ export default function ClubManagement() {
                       const newLeague = v === CTX_UNSET ? null : (v as ClubLeagueType);
                       const updates: PatchClubBody = { leagueType: newLeague };
                       if (newLeague) {
-                        const infer = LEAGUE_AUTO_INFER[newLeague];
+                        const infer = LEAGUE_AUTO_INFER[newLeague] ?? {};
                         updates.gender = infer.gender;
                         updates.level = infer.level;
-                        updates.ageCategory = infer.ageCategory;
+                        // `LEAGUE_AUTO_INFER` may not declare ageCategory in its TS type.
+                        // Only apply if present at runtime.
+                        const inferredAgeCategory = (infer as { ageCategory?: PatchClubBody["ageCategory"] }).ageCategory;
+                        if (inferredAgeCategory !== undefined) updates.ageCategory = inferredAgeCategory;
                         patchClub.mutate(updates, {
                           onSuccess: () => {
                             toast({ description: t("club_league_infer_toast") });

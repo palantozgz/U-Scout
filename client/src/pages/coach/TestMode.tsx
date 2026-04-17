@@ -503,7 +503,12 @@ export default function TestMode() {
                 <ManualField label="PnR Frequency" value={manualInputs.pnrFrequency} options={[...INTENSITIES]} onChange={v => updateManual("pnrFrequency", v)} />
                 <ManualField label="PnR Role" value={manualInputs.pnrRole} options={["Handler", "Screener"]} onChange={v => updateManual("pnrRole", v as any)} />
                 <ManualField label="PnR Priority" value={manualInputs.pnrScoringPriority} options={["Score First", "Pass First", "Balanced"]} onChange={v => updateManual("pnrScoringPriority", v as any)} />
-                <ManualField label="PnR vs Under" value={manualInputs.pnrReactionVsUnder} options={["Pull-up 3", "Re-screen", "Reject / Attack"]} onChange={v => updateManual("pnrReactionVsUnder", v as any)} />
+                <ManualField
+                  label="PnR vs Under"
+                  value={manualInputs.pnrReactionVsUnder ?? "__none__"}
+                  options={["__none__", "Pull-up 3", "Re-screen", "Reject / Attack", "Mixed"]}
+                  onChange={v => updateManual("pnrReactionVsUnder", v === "__none__" ? null : (v as any))}
+                />
                 <ManualField<PhysicalLevel>
                   label="Athleticism"
                   value={manualInputs.athleticism}
