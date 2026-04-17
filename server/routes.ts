@@ -93,61 +93,6 @@ async function canManageTeam(req: Request, teamId: string): Promise<boolean> {
   return false;
 }
 
-async function tryAcceptClubInvitationFromToken(args: {
-  token: string;
-  userId: string;
-  email: string;
-  fullName: string | null;
-}): Promise<
-  | { outcome: "joined"; clubId: string; role: string }
-  | { outcome: "already"; clubId: string; role: string }
-  | { outcome: "fail"; http: number; error: string }
-> {
-  const { token, userId, email, fullName } = args;
-  const inv = await storage.getClubInvitationByToken(token);
-  if (!inv) return { outcome: "fail", http: 404, error: "Invalid invitation" };
-  const now = new Date();
-  if (inv.expiresAt < now) return { outcome: "fail", http: 410, error: "Invitation expired" };
-
-  if (inv.usedBy) {
-    if (inv.usedBy !== userId) {
-      return { outcome: "fail", http: 409, error: "Invitation already used" };
-    }
-    const m = await storage.getClubMemberByClubAndUser(inv.clubId, userId);
-    if (m) return { outcome: "already", clubId: inv.clubId, role: inv.role };
-    return { outcome: "fail", http: 409, error: "Invitation already used" };
-  }
-
-  if (inv.invitedEmail?.trim()) {
-    const want = inv.invitedEmail.trim().toLowerCase();
-    const got = email.trim().toLowerCase();
-    if (!got || want !== got) {
-      return { outcome: "fail", http: 403, error: "Invitation email mismatch" };
-    }
-  }
-
-  const existing = await storage.getClubMemberByClubAndUser(inv.clubId, userId);
-  if (!existing) {
-    const initial =
-      (fullName?.trim() ||
-        (email.includes("@") ? email.split("@")[0] : email.trim()) ||
-        "").trim() || "";
-    await storage.createClubMember({
-      clubId: inv.clubId,
-      userId,
-      role: inv.role,
-      displayName: initial,
-      jerseyNumber: "",
-      position: "",
-      status: "active",
-      invitedEmail: inv.invitedEmail,
-      joinedAt: new Date(),
-    });
-  }
-  await storage.markClubInvitationUsed(inv.id, userId);
-  return { outcome: "joined", clubId: inv.clubId, role: inv.role };
-}
-
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -606,15 +551,6 @@ export async function registerRoutes(
     try {
       const uid = req.user!.id;
       const appRole = req.user!.role;
-      const pendingTok = req.user!.pendingClubInviteToken;
-      if (pendingTok) {
-        await tryAcceptClubInvitationFromToken({
-          token: pendingTok,
-          userId: uid,
-          email: req.user!.email || "",
-          fullName: req.user!.fullName ?? null,
-        });
-      }
       let club = await storage.getClubForUser(uid);
       if (!club && (appRole === "head_coach" || appRole === "master")) {
         club = await storage.createClub({
@@ -705,21 +641,12 @@ export async function registerRoutes(
       const appRole = req.user!.role;
       const club = await storage.getClubForUser(uid);
       if (!club) return res.status(404).json({ error: "Club not found" });
-      const isOwnerOrMaster = club.ownerId === uid || appRole === "master";
-      const memberRow = await storage.getClubMemberByClubAndUser(club.id, uid);
-      const isActiveHeadCoach =
-        memberRow?.status === "active" && memberRow.role === "head_coach";
-      if (!isOwnerOrMaster && !isActiveHeadCoach) {
+      if (club.ownerId !== uid && appRole !== "master") {
         return res.status(403).json({ error: "Forbidden" });
       }
-      let updates = Object.fromEntries(
+      const updates = Object.fromEntries(
         Object.entries(parsed.data).filter(([, v]) => v !== undefined),
       ) as Record<string, unknown>;
-      /** Head coach (non-owner) may only change league context, not branding. */
-      if (!isOwnerOrMaster && isActiveHeadCoach) {
-        const allowed = new Set(["leagueType", "gender", "level", "ageCategory"]);
-        updates = Object.fromEntries(Object.entries(updates).filter(([k]) => allowed.has(k)));
-      }
       if (Object.keys(updates).length === 0) {
         return res.json({
           id: club.id,
@@ -806,17 +733,32 @@ export async function registerRoutes(
   app.post("/api/club/invitations/:token/accept", requireAuth, async (req, res) => {
     try {
       const token = req.params.token as string;
-      const u = req.user!;
-      const r = await tryAcceptClubInvitationFromToken({
-        token,
-        userId: u.id,
-        email: u.email || "",
-        fullName: u.fullName ?? null,
-      });
-      if (r.outcome === "fail") {
-        return res.status(r.http).json({ error: r.error });
+      const inv = await storage.getClubInvitationByToken(token);
+      if (!inv) return res.status(404).json({ error: "Invalid invitation" });
+      if (inv.usedBy) return res.status(409).json({ error: "Invitation already used" });
+      const now = new Date();
+      if (inv.expiresAt < now) return res.status(410).json({ error: "Invitation expired" });
+
+      const userId = req.user!.id;
+      const email = req.user!.email || "";
+
+      const existing = await storage.getClubMemberByClubAndUser(inv.clubId, userId);
+      if (!existing) {
+        await storage.createClubMember({
+          clubId: inv.clubId,
+          userId,
+          role: inv.role,
+          displayName: email.split("@")[0] || "",
+          jerseyNumber: "",
+          position: "",
+          status: "active",
+          invitedEmail: inv.invitedEmail,
+          joinedAt: new Date(),
+        });
       }
-      res.json({ ok: true, clubId: r.clubId, role: r.role });
+      await storage.markClubInvitationUsed(inv.id, userId);
+
+      res.json({ ok: true, clubId: inv.clubId, role: inv.role });
     } catch (err) {
       res.status(500).json({ error: "Failed to accept club invitation" });
     }

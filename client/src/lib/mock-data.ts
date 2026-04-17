@@ -118,7 +118,7 @@ export interface PlayerInput {
   pnrScreenTiming?: "holds_long" | "quick_release" | "ghost_touch" | "slip" | null;
   pnrScreenerAction: ScreenerAction;
   pnrScreenerActionSecondary?: ScreenerAction;
-  pnrReactionVsUnder: "Pull-up 3" | "Re-screen" | "Reject / Attack";
+  pnrReactionVsUnder: "Pull-up 3" | "Re-screen" | "Reject / Attack" | "Mixed" | null;
   pnrTiming: "Early (Drag)" | "Deep (Half-court)";
   pnrDirection: DirectionTendency;
   pnrDominantFinish?: PnrFinish;
@@ -204,7 +204,7 @@ export interface PlayerInput {
     | "short_roll"
     | "slip"
     | null;
-  offBallCutAction?: "catch_and_shoot" | "catch_and_drive" | "curl" | "flare" | null;
+  offBallCutAction?: "catch_and_shoot" | "catch_and_drive" | "curl" | "flare" | "backdoor" | null;
 
   // Legacy
   pnrRoleSecondaryLegacy?: "Handler" | "Screener" | "None";
@@ -876,7 +876,8 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     isoWeakHandFinish: inputs.isoWeakHandFinish ?? null,
     transFinishing: inputs.transFinishing ?? null,
     offBallScreenerAction: inputs.screenerAction ?? null,
-    offBallCutAction: inputs.offBallCutAction ?? null,
+    // Motor schema doesn't currently support storing a dedicated "backdoor" token here.
+    offBallCutAction: inputs.offBallCutAction === "backdoor" ? null : (inputs.offBallCutAction ?? null),
     starPlayer: inputs.starPlayer ?? null,
   };
 }

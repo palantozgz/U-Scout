@@ -23,14 +23,7 @@ function fullNameFromUserMetadata(user: { user_metadata?: Record<string, unknown
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        id: string;
-        email: string;
-        role: string;
-        fullName: string | null;
-        /** From Supabase user_metadata; used to finish club join after email signup. */
-        pendingClubInviteToken: string | null;
-      };
+      user?: { id: string; email: string; role: string; fullName: string | null };
     }
   }
 }
@@ -58,18 +51,12 @@ export async function requireAuth(
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 
-  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-  const rawTok = meta.club_invitation_token;
-  const pendingClubInviteToken =
-    typeof rawTok === "string" && rawTok.trim().length > 0 ? rawTok.trim() : null;
-
   // Attach user to request
   req.user = {
     id: user.id,
     email: user.email ?? "",
     role: user.user_metadata?.role ?? "coach",
     fullName: fullNameFromUserMetadata(user),
-    pendingClubInviteToken,
   };
 
   next();
@@ -94,16 +81,11 @@ export async function optionalAuth(
   const { data: { user } } = await supabase.auth.getUser();
 
   if (user) {
-    const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-    const rawTok = meta.club_invitation_token;
-    const pendingClubInviteToken =
-      typeof rawTok === "string" && rawTok.trim().length > 0 ? rawTok.trim() : null;
     req.user = {
       id: user.id,
       email: user.email ?? "",
       role: user.user_metadata?.role ?? "coach",
       fullName: fullNameFromUserMetadata(user),
-      pendingClubInviteToken,
     };
   }
 
