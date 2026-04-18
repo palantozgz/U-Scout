@@ -90,6 +90,10 @@ export default function ReportViewV4({
     );
   }
 
+  const approvalCount = approvalData?.approvals.length ?? 0;
+  const totalStaff = Math.max(approvalData?.totalStaff ?? 0, 1);
+  const canPublish = approvalCount >= 1;
+
   return (
     <div className="relative min-h-[100dvh] bg-background">
       <ReportSlidesV1
@@ -98,41 +102,43 @@ export default function ReportViewV4({
         coachMode={mode === "coach_review"}
       />
 
-      {/* Barra de aprobación compacta — solo coach_review */}
+      {/* ── Barra de aprobación compacta — solo coach_review ── */}
       {mode === "coach_review" && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-background/95 px-4 py-2.5 backdrop-blur-sm">
+        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-background/95 px-4 py-2 backdrop-blur-sm">
           {approvalData?.hasDiscrepancy && (
-            <p className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-center text-[11px] font-medium text-amber-800 dark:text-amber-200">
+            <p className="mb-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-center text-[10px] font-medium text-amber-700 dark:text-amber-300">
               {t("report_discrepancy_banner")}
             </p>
           )}
-          <div className="flex items-center gap-2">
-            {/* Contador propuestas */}
-            <span className="shrink-0 text-[11px] font-bold text-muted-foreground">
-              {(approvalData?.approvals.length ?? 0)}/{Math.max(approvalData?.totalStaff ?? 0, 1)}
+          <div className="flex items-center justify-between gap-3">
+            {/* Contador */}
+            <span className="shrink-0 text-[11px] font-bold tabular-nums text-muted-foreground">
+              {approvalCount}/{totalStaff}
             </span>
-            {/* Proponer */}
-            <Button
-              size="sm"
-              className="h-8 flex-1 rounded-lg font-bold text-xs"
-              onClick={() => void handlePropose()}
-              disabled={isApproving}
-            >
-              {isApproving ? t("report_sending") : t("report_propose_staff")}
-            </Button>
-            {/* Publicar — solo si hay ≥1 aprobación */}
-            {(approvalData?.approvals.length ?? 0) >= 1 && (
+
+            {/* Acciones — centradas, ancho auto */}
+            <div className="flex items-center gap-2">
+              {canPublish && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 rounded-lg px-4 font-bold text-xs"
+                  onClick={() => void handlePublish()}
+                  disabled={isPublishing}
+                >
+                  {isPublishing ? t("saving") : t("dashboard_player_publish")}
+                </Button>
+              )}
               <Button
-                type="button"
                 size="sm"
-                variant="secondary"
-                className="h-8 flex-1 rounded-lg font-bold text-xs"
-                onClick={() => void handlePublish()}
-                disabled={isPublishing}
+                className="h-7 rounded-lg px-4 font-bold text-xs"
+                onClick={() => void handlePropose()}
+                disabled={isApproving}
               >
-                {isPublishing ? t("saving") : t("dashboard_player_publish")}
+                {isApproving ? t("report_sending") : t("report_propose_staff")}
               </Button>
-            )}
+            </div>
           </div>
         </div>
       )}
