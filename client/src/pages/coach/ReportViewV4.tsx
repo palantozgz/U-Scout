@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, MoreVertical, EyeOff, RotateCcw, AlertTriangle } from "lucide-react";
 import { generateMotorV4 } from "@/lib/motor-v4";
 import {
@@ -20,7 +20,8 @@ import { useAuth } from "@/lib/useAuth";
 import { useClub } from "@/lib/club-api";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { cn, isRealPhoto } from "@/lib/utils";
+import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 
 export interface ReportViewV4Props {
   playerId: string;
@@ -74,6 +75,18 @@ export default function ReportViewV4({
     if (!renderedBase) return null;
     return applyOverrides(renderedBase, localOverrides);
   }, [renderedBase, localOverrides]);
+
+  const isHidden = (itemKey: string) =>
+    localOverrides.some((o) => o.itemKey === itemKey && o.action === "hide");
+
+  const openSheet = (
+    slide: string,
+    itemKey: string,
+    currentText: string,
+    alternatives: { text: string; score: number }[],
+  ) => {
+    setActiveSheet({ slide, itemKey, currentText, alternatives });
+  };
 
   const handleOverride = (
     slide: string,
@@ -136,188 +149,374 @@ export default function ReportViewV4({
     );
   }
 
+  const photo = isRealPhoto(player.imageUrl);
+  const subAlt = renderedFinal.identity.archetypeAlternatives[0];
+
   return (
     <div className="min-h-[100dvh] bg-background">
-      <div className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background px-4 py-3">
+      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="text-muted-foreground hover:text-foreground"
+            className="-ml-1 rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
         )}
+        <div className="relative h-10 w-10 shrink-0">
+          {photo ? (
+            <>
+              <div
+                className="absolute inset-0 scale-110 rounded-full bg-primary/35 blur-md"
+                aria-hidden
+              />
+              <img
+                src={player.imageUrl!}
+                alt=""
+                className="relative h-10 w-10 rounded-full border border-primary/25 object-cover shadow-md ring-2 ring-primary/15"
+              />
+            </>
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+              <BasketballPlaceholderAvatar size={40} />
+            </div>
+          )}
+        </div>
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg font-medium">
+          <h1 className="truncate text-lg font-extrabold text-foreground">
             {player.name?.trim() || t("dashboard_unnamed_player")}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="truncate text-xs font-bold uppercase tracking-widest text-muted-foreground">
             {renderedFinal.identity.archetypeLabel}
           </p>
         </div>
         {mode === "coach_review" && (
-          <Badge className="text-xs">{t("report_reviewing_badge")}</Badge>
+          <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-1 text-xs font-black uppercase tracking-widest text-amber-500">
+            {t("report_reviewing_badge")}
+          </span>
         )}
       </div>
 
       {mode === "coach_review" && (
-        <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+        <div className="mx-4 mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-medium text-amber-700 dark:text-amber-300">
           {t("report_review_banner")}
         </div>
       )}
 
-      <ReportBlock
-        slide="identity"
-        itemKey="archetype"
-        restoreLabel={t("report_restore")}
-        mode={mode}
-        isHidden={localOverrides.some(
-          (o) => o.itemKey === "archetype" && o.action === "hide",
-        )}
-        isModified={localOverrides.some(
-          (o) => o.itemKey === "archetype" && o.action === "replace",
-        )}
-        onKebabTap={() =>
-          setActiveSheet({
-            slide: "identity",
-            itemKey: "archetype",
-            currentText: renderedFinal.identity.archetypeLabel,
-            alternatives: renderedFinal.identity.archetypeAlternatives.map(
-              (a) => ({
-                text: a.label,
-                score: a.score,
-              }),
-            ),
-          })
-        }
-        onRestore={() => handleRestore("archetype")}
-      >
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="text-base font-medium">
-              {renderedFinal.identity.archetypeLabel}
-            </span>
-            <DangerBadge level={renderedFinal.identity.dangerLevel} />
-          </div>
-          <p className="text-sm italic text-muted-foreground">
-            {renderedFinal.identity.tagline}
-          </p>
-        </div>
-      </ReportBlock>
-
-      <SectionHeader label={t("report_how_attacks")} color="teal" />
-      {renderedFinal.situations.map((sit, idx) => (
-        <ReportBlock
-          key={`${sit.id}-${idx}`}
-          slide="situations"
-          itemKey={`situations.${idx}`}
-          restoreLabel={t("report_restore")}
-          mode={mode}
-          isHidden={localOverrides.some(
-            (o) => o.itemKey === `situations.${idx}` && o.action === "hide",
-          )}
-          isModified={localOverrides.some(
-            (o) => o.itemKey === `situations.${idx}` && o.action === "replace",
-          )}
-          onKebabTap={() =>
-            setActiveSheet({
-              slide: "situations",
-              itemKey: `situations.${idx}`,
-              currentText: sit.description,
-              alternatives: [],
-            })
-          }
-          onRestore={() => handleRestore(`situations.${idx}`)}
-        >
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <TierBadge tier={sit.tier} />
-              <span className="text-sm font-medium">{sit.label}</span>
-              <span className="ml-auto text-xs text-muted-foreground">
-                {Math.round(sit.score * 100)}
+      {/* CAPA 1 — Identidad */}
+      <div className="px-4 pb-2 pt-5">
+        {mode === "player" && isHidden("archetype") ? null : mode === "coach_review" &&
+          isHidden("archetype") ? (
+          <div className="mb-3 rounded-2xl border border-dashed border-muted-foreground/35 bg-muted/30 px-4 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground line-through">
+                archetype
               </span>
-            </div>
-            <p className="text-sm text-muted-foreground">{sit.description}</p>
-          </div>
-        </ReportBlock>
-      ))}
-
-      <SectionHeader label={t("report_how_defend")} color="blue" />
-      {(["deny", "force", "allow"] as const).map((type) => {
-        const instr = renderedFinal.defense[type];
-        if (!instr) return null;
-        return (
-          <ReportBlock
-            key={type}
-            slide="defense"
-            itemKey={`${type}.instruction`}
-            restoreLabel={t("report_restore")}
-            mode={mode}
-            isHidden={localOverrides.some(
-              (o) =>
-                o.itemKey === `${type}.instruction` && o.action === "hide",
-            )}
-            isModified={localOverrides.some(
-              (o) =>
-                o.itemKey === `${type}.instruction` && o.action === "replace",
-            )}
-            onKebabTap={() =>
-              setActiveSheet({
-                slide: "defense",
-                itemKey: `${type}.instruction`,
-                currentText: instr.instruction,
-                alternatives: instr.alternatives.map((a) => ({
-                  text: a.instruction,
-                  score: a.score,
-                })),
-              })
-            }
-            onRestore={() => handleRestore(`${type}.instruction`)}
-          >
-            <div className="space-y-1">
-              <span
-                className={`text-xs font-bold tracking-wider ${
-                  type === "deny"
-                    ? "text-blue-600 dark:text-blue-400"
-                    : type === "force"
-                      ? "text-blue-500 dark:text-blue-300"
-                      : "text-blue-400 dark:text-blue-200"
-                }`}
+              <button
+                type="button"
+                onClick={() => handleRestore("archetype")}
+                className="flex items-center gap-1 text-xs font-bold text-primary"
               >
-                {instr.label}
-              </span>
-              <p className="text-sm font-medium">{instr.instruction}</p>
+                <RotateCcw className="h-3 w-3" />
+                {t("report_restore")}
+              </button>
             </div>
-          </ReportBlock>
-        );
-      })}
-
-      {(renderedFinal.alerts?.length ?? 0) > 0 && (
-        <div className="mx-4 my-2 space-y-2">
-          <SectionHeader label={t("report_aware")} color="red" />
-          {renderedFinal.alerts.map((alert, idx) => (
-            <div
-              key={idx}
-              className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950"
-            >
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-red-800 dark:text-red-200">
-                    {alert.text}
+          </div>
+        ) : (
+          <div className="w-full rounded-2xl border border-primary/25 bg-primary/10 px-5 py-4">
+            <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-primary">
+              {t("archetype")}
+            </p>
+            <div className="flex items-start gap-2">
+              {mode === "coach_review" && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openSheet(
+                      "identity",
+                      "archetype",
+                      renderedFinal.identity.archetypeLabel,
+                      renderedFinal.identity.archetypeAlternatives.map((a) => ({
+                        text: a.label,
+                        score: a.score,
+                      })),
+                    )
+                  }
+                  className="mt-1 shrink-0 rounded-md border border-transparent p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <div
+                className={cn(
+                  "flex-1",
+                  isHidden("archetype") && "opacity-45 line-through",
+                )}
+              >
+                <p className="text-2xl font-black italic leading-tight text-foreground">
+                  {renderedFinal.identity.archetypeLabel}
+                </p>
+                {subAlt && (
+                  <p className="mt-1 text-xs font-bold uppercase tracking-widest text-primary/70">
+                    {t("subarchetype")} {subAlt.label}
                   </p>
-                  <p className="text-xs italic text-red-600 dark:text-red-300">
-                    {alert.triggerCue}
-                  </p>
-                </div>
+                )}
               </div>
             </div>
-          ))}
+          </div>
+        )}
+
+        {mode === "player" && isHidden("tagline") ? null : (
+          <div className="mt-3 flex items-start gap-2 px-1">
+            {mode === "coach_review" && !isHidden("tagline") && (
+              <button
+                type="button"
+                onClick={() =>
+                  openSheet("identity", "tagline", renderedFinal.identity.tagline, [])
+                }
+                className="mt-0.5 shrink-0 rounded-md border border-transparent p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <MoreVertical className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {mode === "coach_review" && isHidden("tagline") ? (
+              <div className="flex flex-1 items-center justify-between gap-2 rounded-lg border border-dashed border-muted-foreground/35 px-2 py-2">
+                <span className="text-xs text-muted-foreground line-through">
+                  tagline
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRestore("tagline")}
+                  className="flex items-center gap-1 text-xs font-bold text-primary"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  {t("report_restore")}
+                </button>
+              </div>
+            ) : (
+              <p
+                className={cn(
+                  "flex-1 text-sm italic leading-relaxed text-muted-foreground",
+                  isHidden("tagline") && "opacity-45 line-through",
+                )}
+              >
+                {renderedFinal.identity.tagline}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <DangerBadge level={renderedFinal.identity.dangerLevel ?? 1} />
+          <DifficultyBadge level={renderedFinal.identity.difficultyLevel ?? 1} />
+        </div>
+      </div>
+
+      {/* CAPA 2 — Cómo ataca */}
+      <div className="px-4 pb-1 pt-4">
+        <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-teal-600 dark:text-teal-400">
+          {t("report_how_attacks")}
+        </p>
+        <div className="space-y-2">
+          {renderedFinal.situations.map((sit, idx) => {
+            const key = `situations.${idx}`;
+            const hidden = isHidden(key);
+            if (mode === "player" && hidden) return null;
+            const colors = situationColors(sit.id);
+            return (
+              <div
+                key={`${sit.id}-${idx}`}
+                className={cn(
+                  "w-full overflow-hidden rounded-2xl border border-border bg-card/95 shadow-sm border-l-4",
+                  colors.border,
+                  hidden && "opacity-40",
+                )}
+              >
+                <div className="px-4 py-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {mode === "coach_review" && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openSheet("situations", key, sit.description, [])
+                          }
+                          className="rounded-md border border-transparent p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      <TierBadge tier={sit.tier} />
+                      <span
+                        className={cn(
+                          "text-[10px] font-black uppercase tracking-widest",
+                          colors.text,
+                        )}
+                      >
+                        {sit.label}
+                      </span>
+                    </div>
+                    <span
+                      className={cn(
+                        "shrink-0 text-sm font-black tabular-nums",
+                        colors.text,
+                      )}
+                    >
+                      {Math.round(sit.score * 100)}
+                    </span>
+                  </div>
+                  <p
+                    className={cn(
+                      "text-sm font-semibold leading-snug text-foreground",
+                      hidden && "line-through",
+                    )}
+                  >
+                    {sit.description}
+                  </p>
+                  {mode === "coach_review" && hidden && (
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleRestore(key)}
+                        className="flex items-center gap-1 text-xs font-bold text-primary"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        {t("report_restore")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* CAPA 3 — Defensa */}
+      <div className="px-4 pb-1 pt-4">
+        <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">
+          {t("report_how_defend")}
+        </p>
+        <div className="space-y-2">
+          {(["deny", "force", "allow"] as const).map((type) => {
+            const instr = renderedFinal.defense[type];
+            if (!instr) return null;
+            const itemKey = `${type}.instruction`;
+            const hidden = isHidden(itemKey);
+            if (mode === "player" && hidden) return null;
+            const defColors = {
+              deny: {
+                border: "border-l-red-500",
+                text: "text-red-500",
+              },
+              force: {
+                border: "border-l-blue-500",
+                text: "text-blue-500",
+              },
+              allow: {
+                border: "border-l-emerald-500",
+                text: "text-emerald-500",
+              },
+            }[type];
+            return (
+              <div
+                key={type}
+                className={cn(
+                  "w-full overflow-hidden rounded-2xl border border-border bg-card/95 shadow-sm border-l-4",
+                  defColors.border,
+                  hidden && "opacity-40",
+                )}
+              >
+                <div className="px-4 py-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {mode === "coach_review" && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openSheet(
+                              "defense",
+                              itemKey,
+                              instr.instruction,
+                              instr.alternatives.map((a) => ({
+                                text: a.instruction,
+                                score: a.score,
+                              })),
+                            )
+                          }
+                          className="rounded-md border border-transparent p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      <span
+                        className={cn(
+                          "text-[10px] font-black uppercase tracking-widest",
+                          defColors.text,
+                        )}
+                      >
+                        {instr.label}
+                      </span>
+                    </div>
+                  </div>
+                  <p
+                    className={cn(
+                      "text-sm font-semibold leading-snug text-foreground",
+                      hidden && "line-through",
+                    )}
+                  >
+                    {instr.instruction}
+                  </p>
+                  {mode === "coach_review" && hidden && (
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleRestore(itemKey)}
+                        className="flex items-center gap-1 text-xs font-bold text-primary"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        {t("report_restore")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* AWARE */}
+      {(renderedFinal.alerts.length ?? 0) > 0 && (
+        <div className="px-4 pb-1 pt-4">
+          <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+            {t("report_aware")}
+          </p>
+          <div className="space-y-2">
+            {renderedFinal.alerts.map((alert, idx) => (
+              <div
+                key={idx}
+                className="w-full overflow-hidden rounded-2xl border border-amber-500/30 bg-amber-500/5 shadow-sm border-l-4 border-l-amber-500"
+              >
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-black text-foreground">
+                      {alert.text}
+                    </p>
+                    <p className="text-xs italic leading-snug text-amber-600 dark:text-amber-400">
+                      {alert.triggerCue}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <div className={mode === "coach_review" ? "h-32" : "h-8"} />
+      <div className={mode === "coach_review" ? "h-28" : "h-10"} />
 
       <Sheet
         open={activeSheet !== null}
@@ -325,21 +524,24 @@ export default function ReportViewV4({
       >
         <SheetContent
           side="bottom"
-          className="max-h-[70vh] overflow-y-auto rounded-t-xl"
+          className="max-h-[75vh] overflow-y-auto rounded-t-2xl px-4 pb-8"
         >
-          <SheetHeader className="pb-2">
-            <SheetTitle className="text-base">{t("report_modify_title")}</SheetTitle>
+          <div className="mx-auto mb-4 mt-1 h-1 w-10 rounded-full bg-muted" />
+          <SheetHeader className="pb-3 text-left">
+            <SheetTitle className="text-base font-black">
+              {t("report_modify_title")}
+            </SheetTitle>
           </SheetHeader>
 
-          <div className="mb-3 rounded-lg bg-muted px-1 py-2">
-            <p className="text-sm text-muted-foreground">
+          <div className="mb-4 rounded-xl border border-border bg-muted/60 p-3">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               {activeSheet?.currentText}
             </p>
           </div>
 
           {activeSheet && activeSheet.alternatives.length > 0 && (
             <div className="mb-4 space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                 {t("report_alternatives")}
               </p>
               {activeSheet.alternatives.map((alt, idx) => (
@@ -356,11 +558,13 @@ export default function ReportViewV4({
                       alt.score,
                     )
                   }
-                  className="w-full rounded-lg border border-border p-3 text-left transition-colors hover:border-primary hover:bg-primary/5"
+                  className="w-full rounded-xl border border-border p-3 text-left transition-colors hover:border-primary hover:bg-primary/5"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm">{alt.text}</p>
-                    <span className="shrink-0 text-xs text-muted-foreground">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="flex-1 text-sm font-semibold leading-snug text-foreground">
+                      {alt.text}
+                    </p>
+                    <span className="shrink-0 text-xs font-black tabular-nums text-muted-foreground">
                       {Math.round(alt.score * 100)}
                     </span>
                   </div>
@@ -371,12 +575,11 @@ export default function ReportViewV4({
 
           <button
             type="button"
-            disabled={!activeSheet}
             onClick={() => {
               if (!activeSheet) return;
               handleOverride(activeSheet.slide, activeSheet.itemKey, "hide");
             }}
-            className="flex w-full items-center gap-2 rounded-lg border border-red-200 p-3 text-sm text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 p-3 text-sm font-bold text-red-500 hover:bg-red-500/5"
           >
             <EyeOff className="h-4 w-4" />
             {t("report_hide_element")}
@@ -385,9 +588,9 @@ export default function ReportViewV4({
       </Sheet>
 
       {mode === "coach_review" && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 space-y-2 border-t bg-background px-4 py-3">
+        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm">
           <Button
-            className="w-full"
+            className="h-11 w-full rounded-xl font-black"
             onClick={handlePropose}
             disabled={isApproving}
           >
@@ -399,129 +602,113 @@ export default function ReportViewV4({
   );
 }
 
-function ReportBlock({
-  children,
-  slide: _slide,
-  itemKey,
-  restoreLabel,
-  mode,
-  isHidden,
-  isModified,
-  onKebabTap,
-  onRestore,
-}: {
-  children: ReactNode;
-  slide: string;
-  itemKey: string;
-  restoreLabel: string;
-  mode: "player" | "coach_review";
-  isHidden: boolean;
-  isModified: boolean;
-  onKebabTap: () => void;
-  onRestore: () => void;
-}) {
-  if (isHidden) {
-    if (mode === "coach_review") {
-      return (
-        <div className="mx-4 my-1 rounded-lg border border-dashed border-muted-foreground/30 p-3 opacity-40">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground line-through">
-              {itemKey}
-            </span>
-            <button
-              type="button"
-              onClick={onRestore}
-              className="flex items-center gap-1 text-xs text-primary"
-            >
-              <RotateCcw className="h-3 w-3" />
-              {restoreLabel}
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  }
-
-  return (
-    <div
-      className={`mx-4 my-2 rounded-lg border bg-card p-3 ${
-        isModified ? "border-primary/50" : "border-border"
-      }`}
-    >
-      <div className="flex items-start gap-2">
-        <div className="flex-1">{children}</div>
-        {mode === "coach_review" && (
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={onKebabTap}
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
-            {isModified && (
-              <div className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SectionHeader({
-  label,
-  color,
-}: {
-  label: string;
-  color: "teal" | "blue" | "red" | "purple";
-}) {
-  const colors = {
-    teal: "text-teal-600 dark:text-teal-400",
-    blue: "text-blue-600 dark:text-blue-400",
-    red: "text-red-600 dark:text-red-400",
-    purple: "text-purple-600 dark:text-purple-400",
+function situationColors(id: string): { border: string; text: string } {
+  if (id.startsWith("iso"))
+    return {
+      border: "border-l-orange-500",
+      text: "text-orange-600 dark:text-orange-400",
+    };
+  if (id.startsWith("pnr"))
+    return {
+      border: "border-l-blue-500",
+      text: "text-blue-600 dark:text-blue-400",
+    };
+  if (id.startsWith("post"))
+    return {
+      border: "border-l-purple-500",
+      text: "text-purple-600 dark:text-purple-400",
+    };
+  if (id === "catch_shoot")
+    return {
+      border: "border-l-teal-500",
+      text: "text-teal-600 dark:text-teal-400",
+    };
+  if (id === "transition")
+    return {
+      border: "border-l-emerald-500",
+      text: "text-emerald-600 dark:text-emerald-400",
+    };
+  if (id === "off_ball")
+    return {
+      border: "border-l-violet-500",
+      text: "text-violet-600 dark:text-violet-400",
+    };
+  if (id === "floater")
+    return {
+      border: "border-l-cyan-500",
+      text: "text-cyan-600 dark:text-cyan-400",
+    };
+  if (id === "oreb")
+    return {
+      border: "border-l-rose-500",
+      text: "text-rose-600 dark:text-rose-400",
+    };
+  return {
+    border: "border-l-muted-foreground",
+    text: "text-muted-foreground",
   };
-  return (
-    <div
-      className={`px-4 pb-1 pt-4 text-xs font-bold uppercase tracking-widest ${colors[color]}`}
-    >
-      {label}
-    </div>
-  );
 }
 
 function DangerBadge({ level }: { level: number }) {
-  const colors = [
-    "",
-    "bg-gray-100 text-gray-600",
-    "bg-yellow-100 text-yellow-700",
-    "bg-orange-100 text-orange-700",
-    "bg-red-100 text-red-700",
-    "bg-red-200 text-red-800",
+  const configs: { label: string; cls: string }[] = [
+    { label: "", cls: "" },
+    {
+      label: "Low threat",
+      cls: "text-muted-foreground bg-muted",
+    },
+    {
+      label: "Moderate",
+      cls: "text-yellow-700 dark:text-yellow-300 bg-yellow-500/10",
+    },
+    {
+      label: "Dangerous",
+      cls: "text-orange-700 dark:text-orange-300 bg-orange-500/10",
+    },
+    {
+      label: "High danger",
+      cls: "text-red-600 dark:text-red-400 bg-red-500/10",
+    },
+    {
+      label: "Elite threat",
+      cls: "text-red-700 dark:text-red-300 bg-red-500/20 font-black",
+    },
   ];
+  const safe = Math.min(Math.max(level, 1), 5);
+  const c = configs[safe];
   return (
     <span
-      className={`rounded px-1.5 py-0.5 text-xs font-medium ${colors[level] ?? colors[1]}`}
+      className={cn(
+        "rounded-full px-3 py-1 text-xs font-bold",
+        c.cls || "text-muted-foreground bg-muted",
+      )}
     >
-      {"●".repeat(level)}
+      {"●".repeat(safe)} {c.label}
+    </span>
+  );
+}
+
+function DifficultyBadge({ level }: { level: number }) {
+  const labels = ["", "Easy", "Moderate", "Challenging", "Hard", "Elite"];
+  const safe = Math.min(Math.max(level, 1), 5);
+  return (
+    <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-bold text-muted-foreground">
+      {labels[safe] ?? labels[1]}
     </span>
   );
 }
 
 function TierBadge({ tier }: { tier: "primary" | "secondary" | "situational" }) {
   const styles = {
-    primary:
-      "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
-    secondary:
-      "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
-    situational:
-      "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+    primary: "bg-red-500/15 text-red-600 dark:text-red-400",
+    secondary: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
+    situational: "bg-muted text-muted-foreground",
   };
   return (
     <span
-      className={`rounded px-1.5 py-0.5 text-xs font-medium ${styles[tier]}`}
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest",
+        styles[tier],
+      )}
     >
       {tier}
     </span>

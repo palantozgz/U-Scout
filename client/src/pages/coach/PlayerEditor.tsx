@@ -589,7 +589,7 @@ export default function PlayerEditor() {
 
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => { if (isNew) setLocation("/coach/editor"); else setLocation(`/coach/player/${getPlayerId()}/profile?mode=review`); }} className="-ml-2" data-testid="player-editor-back">
+          <Button variant="ghost" size="icon" onClick={() => { if (isNew) setLocation("/coach/editor"); else setLocation(`/coach/scout/${getPlayerId()}/review`); }} className="-ml-2" data-testid="player-editor-back">
             <ArrowLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
           </Button>
           <div className="flex items-center gap-2">
