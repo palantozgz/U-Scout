@@ -1,8 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { apiRequest } from "./queryClient";
 import { supabase } from "./supabase";
+import type { ReportOverride } from "./overrideEngine";
 
-export type ApprovalSlide = "identity" | "attack" | "danger" | "screens" | "plan";
+export type ApprovalSlide =
+  | "identity"
+  | "attack"
+  | "danger"
+  | "screens"
+  | "plan"
+  | "situations"
+  | "defense"
+  | "alerts";
 
 export interface ApprovalStatusPayload {
   approvals: Array<{ coachId: string; approvedAt: string }>;
@@ -16,17 +25,38 @@ export function approvalStatusQueryKey(playerId: string | undefined) {
   return ["approval-status", playerId] as const;
 }
 
-export function useApprovalStatus(playerId: string | undefined, options?: { enabled?: boolean }) {
+export function useApprovalStatus(
+  playerId: string | undefined,
+  options?: { enabled?: boolean; coachReviewMode?: boolean },
+) {
   return useQuery({
     queryKey: approvalStatusQueryKey(playerId),
     queryFn: async (): Promise<ApprovalStatusPayload> =>
       (await apiRequest("GET", `/api/players/${encodeURIComponent(playerId!)}/approval-status`)).json(),
     enabled: Boolean(playerId) && (options?.enabled ?? true),
+    refetchInterval: options?.coachReviewMode ? 30_000 : false,
     networkMode: "offlineFirst",
   });
 }
 
-async function invalidatePlayerApprovalQueries(qc: ReturnType<typeof useQueryClient>, playerId: string) {
+/** Map server rows to client ReportOverride (keep → replace without persisted replacement text). */
+export function serverOverridesToReportOverrides(
+  rows: ApprovalStatusPayload["overrides"],
+  playerId: string,
+  coachId: string,
+): ReportOverride[] {
+  return rows
+    .filter((o) => o.coachId === coachId)
+    .map((o) => ({
+      playerId,
+      coachId: o.coachId,
+      slide: o.slide,
+      itemKey: o.itemKey,
+      action: o.action === "hide" ? "hide" : "replace",
+    }));
+}
+
+export async function invalidatePlayerApprovalQueries(qc: QueryClient, playerId: string) {
   const key = approvalStatusQueryKey(playerId);
   await qc.invalidateQueries({ queryKey: key });
   await qc.refetchQueries({ queryKey: key, type: "active" });

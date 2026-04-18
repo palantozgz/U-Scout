@@ -1169,6 +1169,21 @@ const en = {
   report_sending: "Sending...",
   report_review_banner:
     "You're reviewing this report. Tap ⋮ on any block to edit it.",
+  report_staff_proposed: "{current}/{total} coaches have proposed",
+  report_discrepancy_banner:
+    "Coaches disagree on some items. Review before publishing.",
+  editor_review_report: "Review",
+  report_preview_as_player: "View as player",
+  report_back_to_review: "Back to review",
+  "editor.contact_type_heading": "Contact on drives",
+  "editor.contact_seeks": "Seeks contact",
+  "editor.contact_absorbs": "Absorbs contact",
+  "editor.contact_avoids": "Avoids contact",
+  hint_contact_type:
+    "How the player reacts to defensive contact on drives",
+  "editor.ft_rating": "FT rating",
+  hint_ft_rating:
+    "Free throw shooting quality (1=poor, 5=elite). Affects defensive strategy when player seeks contact.",
 
   ...CLUB_GENDER_MANUAL_I18N_EN,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_EN,
@@ -2248,6 +2263,21 @@ const es: I18nStrings = {
   report_sending: "Enviando...",
   report_review_banner:
     "Estás revisando este report. Toca ⋮ en cualquier bloque para modificarlo.",
+  report_staff_proposed: "{current}/{total} entrenadores han propuesto",
+  report_discrepancy_banner:
+    "Hay discrepancias entre entrenadores. Revisar antes de publicar.",
+  editor_review_report: "Revisar",
+  report_preview_as_player: "Ver como jugadora",
+  report_back_to_review: "Volver a revisión",
+  "editor.contact_type_heading": "Contacto en penetración",
+  "editor.contact_seeks": "Busca contacto",
+  "editor.contact_absorbs": "Absorbe contacto",
+  "editor.contact_avoids": "Evita contacto",
+  hint_contact_type:
+    "Cómo reacciona al contacto defensivo en drives",
+  "editor.ft_rating": "Acierto en tiros libres",
+  hint_ft_rating:
+    "Calidad en tiros libres (1=malo, 5=élite). Afecta la estrategia defensiva cuando busca contacto.",
 
   ...CLUB_GENDER_MANUAL_I18N_ES,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_ES,
@@ -3316,6 +3346,18 @@ const zh: I18nStrings = {
   report_propose_staff: "提交给教练组",
   report_sending: "提交中…",
   report_review_banner: "你正在审阅此报告。点 ⋮ 可修改任意区块。",
+  report_staff_proposed: "{current}/{total} 位教练已提交",
+  report_discrepancy_banner: "教练对部分条目意见不一致，发布前请核对。",
+  editor_review_report: "审查",
+  report_preview_as_player: "球员视角",
+  report_back_to_review: "返回审查",
+  "editor.contact_type_heading": "突破接触",
+  "editor.contact_seeks": "寻求接触",
+  "editor.contact_absorbs": "吸收接触",
+  "editor.contact_avoids": "避免接触",
+  hint_contact_type: "球员在突破时对防守接触的反应",
+  "editor.ft_rating": "罚球能力",
+  hint_ft_rating: "罚球质量(1=差,5=精英)。在主动寻求接触时影响防守策略。",
 
   ...CLUB_GENDER_MANUAL_I18N_ZH,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_ZH,

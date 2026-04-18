@@ -191,8 +191,19 @@ export interface PlayerInput {
     | null;
   offBallScreenPatternFreq?: "primary" | "secondary" | "rare" | "never" | null;
   cutterFrequency?: "primary" | "secondary" | "rare" | "never" | null;
+  /** Per-hand ISO finish (POV: player's left/right). */
+  isoFinishLeft?: "drive" | "pullup" | "floater" | "pass" | null;
+  isoFinishRight?: "drive" | "pullup" | "floater" | "pass" | null;
+  /** @deprecated Mapped to isoFinishLeft/Right via dominant hand in playerInputToMotorInputs */
   isoStrongHandFinish?: "drive" | "pullup" | "floater" | "pass" | null;
+  /** @deprecated Mapped to isoFinishLeft/Right via dominant hand in playerInputToMotorInputs */
   isoWeakHandFinish?: "drive" | "pullup" | "floater" | "pass" | null;
+  /** Screener “snake” cut — extra slip threat in PnR. */
+  pnrSnake?: boolean | null;
+  /** How the player handles contact on drives (ISO / paint). */
+  contactType?: "seeks" | "absorbs" | "avoids" | null;
+  /** Free throws 1–5; meaningful when seeking contact. */
+  ftRating?: 1 | 2 | 3 | 4 | 5 | null;
 
   transFinishing?: "high" | "medium" | "low" | "not_observed" | null;
 
@@ -531,8 +542,13 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     offBallScreenPattern: null,
     offBallScreenPatternFreq: "never",
     cutterFrequency: "never",
+    isoFinishLeft: null,
+    isoFinishRight: null,
     isoStrongHandFinish: null,
     isoWeakHandFinish: null,
+    pnrSnake: null,
+    contactType: null,
+    ftRating: null,
     transFinishing: null,
     screenerAction: null,
     offBallCutAction: null,
@@ -615,6 +631,48 @@ function motorPlanCandidates(outputs: MotorOutput[], start: number, count: numbe
     line: motorOutputToPlanString(o),
     weight: o.weight,
   }));
+}
+
+type MotorIsoHandFinish = NonNullable<PlayerInputs["isoStrongHandFinish"]>;
+
+function normalizeIsoHandFinish(v: unknown): MotorIsoHandFinish | null {
+  if (v === "midrange") return "pullup";
+  if (v === "drive" || v === "pullup" || v === "floater" || v === "pass") return v;
+  return null;
+}
+
+function dominantHandForIso(inputs: PlayerInput): "Left" | "Right" | "Ambidextrous" {
+  const h = inputs.postDominantHand;
+  if (h === "Left") return "Left";
+  if (h === "Right") return "Right";
+  return "Ambidextrous";
+}
+
+/** Map isoFinishLeft/Right + dominant hand → motor strong/weak; legacy isoStrong/Weak as fallback. */
+function resolveIsoHandFinishesForMotor(inputs: PlayerInput): {
+  isoStrongHandFinish: MotorIsoHandFinish | null;
+  isoWeakHandFinish: MotorIsoHandFinish | null;
+} {
+  const dom = dominantHandForIso(inputs);
+  let L = normalizeIsoHandFinish(inputs.isoFinishLeft);
+  let R = normalizeIsoHandFinish(inputs.isoFinishRight);
+  const oldS = normalizeIsoHandFinish(inputs.isoStrongHandFinish);
+  const oldW = normalizeIsoHandFinish(inputs.isoWeakHandFinish);
+  if (L == null && R == null && (oldS != null || oldW != null)) {
+    if (dom === "Right") {
+      R = oldS;
+      L = oldW;
+    } else if (dom === "Left") {
+      L = oldS;
+      R = oldW;
+    } else {
+      R = oldS;
+      L = oldW;
+    }
+  }
+  if (dom === "Right") return { isoStrongHandFinish: R, isoWeakHandFinish: L };
+  if (dom === "Left") return { isoStrongHandFinish: L, isoWeakHandFinish: R };
+  return { isoStrongHandFinish: R, isoWeakHandFinish: L };
 }
 
 /** Maps editor `PlayerInput` to Motor v2.1 `PlayerInputs`. */
@@ -728,11 +786,17 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
   }
 
   const contactFinish: PlayerInputs["contactFinish"] =
-    phys >= 5 && isPrimary(inputs.postFrequency)
+    inputs.contactType === "seeks"
       ? "seeks"
-      : phys <= 2
+      : inputs.contactType === "avoids"
         ? "avoids"
-        : "neutral";
+        : inputs.contactType === "absorbs"
+          ? "neutral"
+          : phys >= 5 && isPrimary(inputs.postFrequency)
+            ? "seeks"
+            : phys <= 2
+              ? "avoids"
+              : "neutral";
 
   const offHandFinish: PlayerInputs["offHandFinish"] =
     inputs.closeoutReaction === "Attacks Weak Hand"
@@ -872,8 +936,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     trailFrequency: inputs.trailFrequency ?? null,
     offBallScreenPattern: inputs.offBallScreenPattern ?? null,
     offBallScreenPatternFreq: inputs.offBallScreenPatternFreq ?? null,
-    isoStrongHandFinish: inputs.isoStrongHandFinish ?? null,
-    isoWeakHandFinish: inputs.isoWeakHandFinish ?? null,
+    ...resolveIsoHandFinishesForMotor(inputs),
     transFinishing: inputs.transFinishing ?? null,
     offBallScreenerAction: inputs.screenerAction ?? null,
     // Motor schema doesn't currently support storing a dedicated "backdoor" token here.
@@ -1303,16 +1366,34 @@ export function generateProfile(
     + (physHigh ? 2 : physLow ? -2 : 0);
 
   // ISO: base + explosiveness bonus when finishing + directional read
-  const isoDanger = danger(inputs.isoFrequency, 10)
+  let isoDanger = danger(inputs.isoFrequency, 10)
     + (isoDecision === "Finish" && athHigh ? 2 : 0)
     + (inputs.isoDominantDirection !== "Balanced" ? 1 : 0)
     + (isActive(perimeterThreat) && isInterior ? 2 : 0); // big who can shoot adds ISO danger
 
+  if (inputs.contactType === "seeks") isoDanger += 2;
+  else if (inputs.contactType === "avoids") isoDanger -= 1;
+
+  if (inputs.contactType === "seeks" && inputs.ftRating != null) {
+    const ftR = inputs.ftRating;
+    if (ftR >= 4 && (inputs.isoFrequency === "Primary" || inputs.isoFrequency === "Secondary")) {
+      isoDanger += 1;
+    }
+    if (ftR <= 2) isoDanger -= 1;
+  }
+
   // PnR: base + handler punishes under + screener slip threat + vision multiplier
-  const pnrDanger = danger(inputs.pnrFrequency, 10)
+  let pnrDanger = danger(inputs.pnrFrequency, 10)
     + (pnrIsHandler && inputs.pnrReactionVsUnder !== "Re-screen" ? 2 : 0)
     + (pnrIsScreener && inputs.pnrScreenerAction === "Slip" ? 1 : 0)
     + (pnrIsScreener && inputs.pnrScreenerAction === "Short Roll" && visionHigh ? 1 : 0);
+
+  if (inputs.pnrSnake === true && pnrIsScreener) {
+    pnrDanger += 2;
+    if (inputs.pnrScreenerAction === "Slip" || inputs.offBallScreenPattern === "slip") {
+      pnrDanger += 1;
+    }
+  }
 
   // Off-ball: transition + movement + cutting + athleticism (only when active)
   const offBallBase = danger(inputs.transitionFrequency, 8)

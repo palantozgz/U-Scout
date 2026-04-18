@@ -42,7 +42,16 @@ const clubInviteBodySchema = z.object({
 });
 
 const reportOverrideBodySchema = z.object({
-  slide: z.enum(["identity", "attack", "danger", "screens", "plan"]),
+  slide: z.enum([
+    "identity",
+    "attack",
+    "danger",
+    "screens",
+    "plan",
+    "situations",
+    "defense",
+    "alerts",
+  ]),
   itemKey: z.string().min(1),
   action: z.enum(["hide", "keep"]),
 });

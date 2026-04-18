@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { ArrowLeft, MoreVertical, EyeOff, RotateCcw, AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, MoreVertical, Eye, EyeOff, RotateCcw, AlertTriangle } from "lucide-react";
 import { generateMotorV4 } from "@/lib/motor-v4";
 import {
   renderReport,
@@ -18,6 +19,12 @@ import {
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { useClub } from "@/lib/club-api";
+import {
+  useApprovalStatus,
+  serverOverridesToReportOverrides,
+  invalidatePlayerApprovalQueries,
+} from "@/lib/approval-api";
+import { supabase } from "@/lib/supabase";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn, isRealPhoto } from "@/lib/utils";
@@ -29,6 +36,27 @@ export interface ReportViewV4Props {
   onBack?: () => void;
 }
 
+async function authedFetch(url: string, init: RequestInit) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const res = await fetch(url, {
+    ...init,
+    credentials: "include",
+    headers: {
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init.headers as Record<string, string>),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`${init.method ?? "GET"} ${url} → ${res.status}: ${text}`);
+  }
+  return res;
+}
+
 export default function ReportViewV4({
   playerId,
   mode,
@@ -36,6 +64,7 @@ export default function ReportViewV4({
 }: ReportViewV4Props) {
   const { t, locale } = useLocale();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: player, isLoading: playerLoading } = usePlayer(playerId);
   const clubQ = useClub({ enabled: Boolean(user) });
   const clubMotorCtx = useMemo(
@@ -54,6 +83,35 @@ export default function ReportViewV4({
     alternatives: { text: string; score: number }[];
   } | null>(null);
   const [isApproving, setIsApproving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
+  const showAsPlayer =
+    mode === "player" || (mode === "coach_review" && previewMode);
+  const showCoachReviewChrome = mode === "coach_review" && !previewMode;
+  const seededPlayerIdRef = useRef<string | null>(null);
+
+  const { data: approvalData } = useApprovalStatus(playerId, {
+    enabled: Boolean(playerId),
+    coachReviewMode: showCoachReviewChrome,
+  });
+
+  useEffect(() => {
+    seededPlayerIdRef.current = null;
+    setPreviewMode(false);
+  }, [playerId]);
+
+  useEffect(() => {
+    if (previewMode) setActiveSheet(null);
+  }, [previewMode]);
+
+  useEffect(() => {
+    if (!user?.id || !approvalData) return;
+    if (seededPlayerIdRef.current === playerId) return;
+    setLocalOverrides(
+      serverOverridesToReportOverrides(approvalData.overrides, playerId, user.id),
+    );
+    seededPlayerIdRef.current = playerId;
+  }, [playerId, user?.id, approvalData]);
 
   const motorOutput = useMemo(() => {
     if (!player) return null;
@@ -88,7 +146,7 @@ export default function ReportViewV4({
     setActiveSheet({ slide, itemKey, currentText, alternatives });
   };
 
-  const handleOverride = (
+  const handleOverride = async (
     slide: string,
     itemKey: string,
     action: "hide" | "replace",
@@ -113,19 +171,62 @@ export default function ReportViewV4({
       return [...filtered, record as ReportOverride];
     });
     setActiveSheet(null);
+    const serverAction = action === "hide" ? "hide" : "keep";
+    try {
+      await authedFetch(`/api/players/${encodeURIComponent(playerId)}/overrides`, {
+        method: "POST",
+        body: JSON.stringify({
+          slide,
+          itemKey,
+          action: serverAction,
+        }),
+      });
+      await invalidatePlayerApprovalQueries(queryClient, playerId);
+    } catch (e) {
+      console.error("[ReportViewV4] override persist failed", e);
+    }
   };
 
-  const handleRestore = (itemKey: string) => {
+  const handleRestore = async (itemKey: string) => {
     setLocalOverrides((prev) => prev.filter((o) => o.itemKey !== itemKey));
+    try {
+      await authedFetch(
+        `/api/players/${encodeURIComponent(playerId)}/overrides/${encodeURIComponent(itemKey)}`,
+        { method: "DELETE" },
+      );
+      await invalidatePlayerApprovalQueries(queryClient, playerId);
+    } catch (e) {
+      console.error("[ReportViewV4] restore failed", e);
+      await invalidatePlayerApprovalQueries(queryClient, playerId);
+    }
   };
 
   const handlePropose = async () => {
     setIsApproving(true);
     try {
-      console.log("Proposing report with overrides:", localOverrides);
+      await authedFetch(`/api/players/${encodeURIComponent(playerId)}/approve`, {
+        method: "POST",
+      });
+      await invalidatePlayerApprovalQueries(queryClient, playerId);
       if (onBack) onBack();
+    } catch (e) {
+      console.error("[ReportViewV4] approve failed", e);
     } finally {
       setIsApproving(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    setIsPublishing(true);
+    try {
+      await authedFetch(`/api/players/${encodeURIComponent(playerId)}/publish`, {
+        method: "POST",
+      });
+      await invalidatePlayerApprovalQueries(queryClient, playerId);
+    } catch (e) {
+      console.error("[ReportViewV4] publish failed", e);
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -192,13 +293,37 @@ export default function ReportViewV4({
           </p>
         </div>
         {mode === "coach_review" && (
-          <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-1 text-xs font-black uppercase tracking-widest text-amber-500">
-            {t("report_reviewing_badge")}
-          </span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {showCoachReviewChrome && (
+              <span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs font-black uppercase tracking-widest text-amber-500">
+                {t("report_reviewing_badge")}
+              </span>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 shrink-0 gap-1 px-2 text-xs font-bold text-foreground"
+              onClick={() => setPreviewMode((p) => !p)}
+              aria-pressed={previewMode}
+            >
+              {previewMode ? (
+                <>
+                  <EyeOff className="h-4 w-4 shrink-0" />
+                  <span className="max-w-[9rem] truncate">{t("report_back_to_review")}</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4 shrink-0" />
+                  <span className="max-w-[9rem] truncate">{t("report_preview_as_player")}</span>
+                </>
+              )}
+            </Button>
+          </div>
         )}
       </div>
 
-      {mode === "coach_review" && (
+      {showCoachReviewChrome && (
         <div className="mx-4 mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-medium text-amber-700 dark:text-amber-300">
           {t("report_review_banner")}
         </div>
@@ -206,7 +331,7 @@ export default function ReportViewV4({
 
       {/* CAPA 1 — Identidad */}
       <div className="px-4 pb-2 pt-5">
-        {mode === "player" && isHidden("archetype") ? null : mode === "coach_review" &&
+        {showAsPlayer && isHidden("archetype") ? null : showCoachReviewChrome &&
           isHidden("archetype") ? (
           <div className="mb-3 rounded-2xl border border-dashed border-muted-foreground/35 bg-muted/30 px-4 py-3">
             <div className="flex items-center justify-between gap-2">
@@ -215,7 +340,7 @@ export default function ReportViewV4({
               </span>
               <button
                 type="button"
-                onClick={() => handleRestore("archetype")}
+                onClick={() => void handleRestore("archetype")}
                 className="flex items-center gap-1 text-xs font-bold text-primary"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -229,7 +354,7 @@ export default function ReportViewV4({
               {t("archetype")}
             </p>
             <div className="flex items-start gap-2">
-              {mode === "coach_review" && (
+              {showCoachReviewChrome && (
                 <button
                   type="button"
                   onClick={() =>
@@ -267,9 +392,9 @@ export default function ReportViewV4({
           </div>
         )}
 
-        {mode === "player" && isHidden("tagline") ? null : (
+        {showAsPlayer && isHidden("tagline") ? null : (
           <div className="mt-3 flex items-start gap-2 px-1">
-            {mode === "coach_review" && !isHidden("tagline") && (
+            {showCoachReviewChrome && !isHidden("tagline") && (
               <button
                 type="button"
                 onClick={() =>
@@ -280,14 +405,14 @@ export default function ReportViewV4({
                 <MoreVertical className="h-3.5 w-3.5" />
               </button>
             )}
-            {mode === "coach_review" && isHidden("tagline") ? (
+            {showCoachReviewChrome && isHidden("tagline") ? (
               <div className="flex flex-1 items-center justify-between gap-2 rounded-lg border border-dashed border-muted-foreground/35 px-2 py-2">
                 <span className="text-xs text-muted-foreground line-through">
                   tagline
                 </span>
                 <button
                   type="button"
-                  onClick={() => handleRestore("tagline")}
+                  onClick={() => void handleRestore("tagline")}
                   className="flex items-center gap-1 text-xs font-bold text-primary"
                 >
                   <RotateCcw className="h-3 w-3" />
@@ -322,7 +447,7 @@ export default function ReportViewV4({
           {renderedFinal.situations.map((sit, idx) => {
             const key = `situations.${idx}`;
             const hidden = isHidden(key);
-            if (mode === "player" && hidden) return null;
+            if (showAsPlayer && hidden) return null;
             const colors = situationColors(sit.id);
             return (
               <div
@@ -336,7 +461,7 @@ export default function ReportViewV4({
                 <div className="px-4 py-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      {mode === "coach_review" && (
+                      {showCoachReviewChrome && (
                         <button
                           type="button"
                           onClick={() =>
@@ -374,11 +499,11 @@ export default function ReportViewV4({
                   >
                     {sit.description}
                   </p>
-                  {mode === "coach_review" && hidden && (
+                  {showCoachReviewChrome && hidden && (
                     <div className="mt-2 flex justify-end">
                       <button
                         type="button"
-                        onClick={() => handleRestore(key)}
+                        onClick={() => void handleRestore(key)}
                         className="flex items-center gap-1 text-xs font-bold text-primary"
                       >
                         <RotateCcw className="h-3 w-3" />
@@ -404,7 +529,7 @@ export default function ReportViewV4({
             if (!instr) return null;
             const itemKey = `${type}.instruction`;
             const hidden = isHidden(itemKey);
-            if (mode === "player" && hidden) return null;
+            if (showAsPlayer && hidden) return null;
             const defColors = {
               deny: {
                 border: "border-l-red-500",
@@ -431,7 +556,7 @@ export default function ReportViewV4({
                 <div className="px-4 py-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      {mode === "coach_review" && (
+                      {showCoachReviewChrome && (
                         <button
                           type="button"
                           onClick={() =>
@@ -468,11 +593,11 @@ export default function ReportViewV4({
                   >
                     {instr.instruction}
                   </p>
-                  {mode === "coach_review" && hidden && (
+                  {showCoachReviewChrome && hidden && (
                     <div className="mt-2 flex justify-end">
                       <button
                         type="button"
-                        onClick={() => handleRestore(itemKey)}
+                        onClick={() => void handleRestore(itemKey)}
                         className="flex items-center gap-1 text-xs font-bold text-primary"
                       >
                         <RotateCcw className="h-3 w-3" />
@@ -516,7 +641,7 @@ export default function ReportViewV4({
         </div>
       )}
 
-      <div className={mode === "coach_review" ? "h-28" : "h-10"} />
+      <div className={showCoachReviewChrome ? "h-52" : "h-10"} />
 
       <Sheet
         open={activeSheet !== null}
@@ -549,7 +674,7 @@ export default function ReportViewV4({
                   key={idx}
                   type="button"
                   onClick={() =>
-                    handleOverride(
+                    void handleOverride(
                       activeSheet.slide,
                       activeSheet.itemKey,
                       "replace",
@@ -577,7 +702,7 @@ export default function ReportViewV4({
             type="button"
             onClick={() => {
               if (!activeSheet) return;
-              handleOverride(activeSheet.slide, activeSheet.itemKey, "hide");
+              void handleOverride(activeSheet.slide, activeSheet.itemKey, "hide");
             }}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 p-3 text-sm font-bold text-red-500 hover:bg-red-500/5"
           >
@@ -587,15 +712,36 @@ export default function ReportViewV4({
         </SheetContent>
       </Sheet>
 
-      {mode === "coach_review" && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm">
+      {showCoachReviewChrome && (
+        <div className="fixed bottom-0 left-0 right-0 z-20 space-y-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm">
+          <p className="text-center text-xs font-bold text-muted-foreground">
+            {t("report_staff_proposed")
+              .replace("{current}", String(approvalData?.approvals.length ?? 0))
+              .replace("{total}", String(Math.max(approvalData?.totalStaff ?? 0, 1)))}
+          </p>
+          {approvalData?.hasDiscrepancy && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center text-xs font-medium text-amber-800 dark:text-amber-200">
+              {t("report_discrepancy_banner")}
+            </div>
+          )}
           <Button
             className="h-11 w-full rounded-xl font-black"
-            onClick={handlePropose}
+            onClick={() => void handlePropose()}
             disabled={isApproving}
           >
             {isApproving ? t("report_sending") : t("report_propose_staff")}
           </Button>
+          {(approvalData?.approvals.length ?? 0) >= 1 && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-11 w-full rounded-xl font-black"
+              onClick={() => void handlePublish()}
+              disabled={isPublishing}
+            >
+              {isPublishing ? t("saving") : t("dashboard_player_publish")}
+            </Button>
+          )}
         </div>
       )}
     </div>

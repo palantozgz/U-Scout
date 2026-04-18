@@ -363,7 +363,30 @@ function PlayerRow({
           <span className="skew-x-12">{num}</span>
         </span>
       </div>
-      <div className="flex-1 min-w-0">
+      <div
+        className={cn(
+          "flex-1 min-w-0",
+          mode === "editor" && "cursor-pointer rounded-md -m-1 p-1 hover:bg-muted/60",
+        )}
+        onClick={
+          mode === "editor"
+            ? () => setLocation(`/coach/scout/${player.id}/review`)
+            : undefined
+        }
+        role={mode === "editor" ? "button" : undefined}
+        tabIndex={mode === "editor" ? 0 : undefined}
+        onKeyDown={
+          mode === "editor"
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setLocation(`/coach/scout/${player.id}/review`);
+                }
+              }
+            : undefined
+        }
+        data-testid={mode === "editor" ? `player-row-open-review-${player.id}` : undefined}
+      >
         <h3 className="font-extrabold text-sm truncate text-foreground">{player.name?.trim() || t("dashboard_unnamed_player")}</h3>
         {mode === "editor" && approvalStatus?.hasDiscrepancy && (
           <div className="flex flex-wrap items-center gap-1 mt-1">
@@ -429,26 +452,17 @@ function PlayerRow({
               </>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
             <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => setLocation(`/coach/scout/${player.id}/preview`)}
-              className="w-7 h-7 shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
-              title="Ver report"
-              data-testid={`button-preview-report-${player.id}`}
-            >
-              <FileText className="w-4 h-4" />
-            </Button>
-            <Button
-              size="icon"
+              size="sm"
               variant="ghost"
               onClick={() => setLocation(`/coach/scout/${player.id}/review`)}
-              className="w-7 h-7 shrink-0 text-primary hover:bg-primary/10 rounded-lg"
-              title="Revisar y proponer"
+              className="h-8 shrink-0 gap-1 px-2 text-primary hover:bg-primary/10 rounded-lg text-xs font-bold"
+              title={t("editor_review_report")}
               data-testid={`button-review-report-${player.id}`}
             >
               <Check className="w-4 h-4" />
+              {t("editor_review_report")}
             </Button>
             <Button size="sm" variant="outline" onClick={onEdit} className="h-8 px-3 shrink-0 rounded-lg text-xs font-bold border-border bg-transparent text-foreground hover:bg-muted" data-testid={`button-edit-player-${player.id}`}>
               <Pencil className="w-3 h-3 mr-1" /> {t("edit")}

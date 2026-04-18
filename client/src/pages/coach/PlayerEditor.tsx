@@ -545,7 +545,18 @@ export default function PlayerEditor() {
       if (!currentId || currentId === "new") { const created = await createPlayerMutation.mutateAsync(updated as Omit<PlayerProfile, "id">); createdIdRef.current = created.id; }
       else await updatePlayerMutation.mutateAsync({ id: currentId, updates: updated });
     } catch { }
-    setTimeout(() => { setShowSaveFlash(false); setLocation("/coach"); }, 600);
+    setTimeout(() => {
+      setShowSaveFlash(false);
+      const navId =
+        isNew || !getPlayerId() || getPlayerId() === "new"
+          ? createdIdRef.current ?? urlPlayerId
+          : getPlayerId();
+      if (navId && navId !== "new") {
+        setLocation(`/coach/scout/${navId}/review`);
+      } else {
+        setLocation("/coach/editor");
+      }
+    }, 600);
   };
 
   const ui = (key: keyof PlayerInput, value: any) => {
@@ -1013,6 +1024,53 @@ export default function PlayerEditor() {
                     </div>
                   </div>
 
+                  {/* Contact on drives + FT when seeking contact */}
+                  <div className="space-y-2">
+                    <FieldLabel label={t("editor.contact_type_heading")} tooltip={t("hint_contact_type")} />
+                    <div className="flex flex-wrap gap-2">
+                      {(
+                        [
+                          { v: "seeks" as const, labelKey: "editor.contact_seeks", emoji: "💥" },
+                          { v: "absorbs" as const, labelKey: "editor.contact_absorbs", emoji: "🛡️" },
+                          { v: "avoids" as const, labelKey: "editor.contact_avoids", emoji: "💨" },
+                        ] as const
+                      ).map(({ v, labelKey, emoji }) => (
+                        <Button
+                          key={v}
+                          type="button"
+                          variant={inputs.contactType === v ? "default" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className={`h-auto min-h-11 gap-2 rounded-full px-4 text-sm font-semibold ${inputs.contactType === v ? pillActiveClasses("neutral") : "border-slate-200 bg-transparent dark:border-slate-700"}`}
+                          onClick={() => ui("contactType", inputs.contactType === v ? null : v)}
+                        >
+                          <span aria-hidden>{emoji}</span>
+                          {t(labelKey as never)}
+                        </Button>
+                      ))}
+                      <Button
+                        type="button"
+                        variant={inputs.contactType == null ? "secondary" : "outline"}
+                        style={{ minHeight: 44 }}
+                        className="h-auto min-h-11 rounded-full px-4 text-sm font-semibold"
+                        onClick={() => ui("contactType", null)}
+                      >
+                        {t("not_observed")}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {inputs.contactType === "seeks" && (
+                    <PowerBar
+                      label={t("editor.ft_rating")}
+                      value={(inputs.ftRating ?? 0) as PhysicalLevel}
+                      onChange={(v) => {
+                        if (v === 0) ui("ftRating", null);
+                        else ui("ftRating", v as PlayerInput["ftRating"]);
+                      }}
+                      tooltip={t("hint_ft_rating")}
+                    />
+                  )}
+
                   {/* Finalización por lado */}
                   <div className="space-y-2">
                     <FieldLabel label={t("editor.iso_finish_by_side")} tooltip={t("hint_iso_finish_by_side")} />
@@ -1021,7 +1079,7 @@ export default function PlayerEditor() {
                         <div key={field} className="space-y-2">
                           <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t(labelKey as never)}</Label>
                           <div className="flex flex-row flex-wrap gap-1">
-                            {([{ v: "drive" as const, lk: "opt_finish_drive" }, { v: "floater" as const, lk: "opt_finish_floater" }, { v: "pullup" as const, lk: "opt_finish_pullup" }, { v: "midrange" as const, lk: "opt_finish_midrange" }] as const).map(({ v, lk }) => (
+                            {([{ v: "drive" as const, lk: "opt_finish_drive" }, { v: "floater" as const, lk: "opt_finish_floater" }, { v: "pullup" as const, lk: "opt_finish_pullup" }, { v: "pass" as const, lk: "opt_iso_decision_pass" }] as const).map(({ v, lk }) => (
                               <Button key={v} type="button" variant={inputs[field] === v ? "default" : "outline"} style={{ minHeight: 40 }}
                                 className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${inputs[field] === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
                                 onClick={() => ui(field, inputs[field] === v ? null : v)}>
@@ -1228,15 +1286,15 @@ export default function PlayerEditor() {
                         <FieldLabel label={t("pnr_snake")} tooltip={t("hint_pnr_snake")} />
                         <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                           {([{ v: true as const, labelKey: "opt_pnr_snake_yes" }, { v: false as const, labelKey: "opt_pnr_snake_no" }] as const).map(({ v, labelKey }) => (
-                            <Button key={String(v)} type="button" variant={(inputs as any).pnrSnake === v ? "default" : "outline"}
+                            <Button key={String(v)} type="button" variant={inputs.pnrSnake === v ? "default" : "outline"}
                               style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${(inputs as any).pnrSnake === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
-                              onClick={() => ui("pnrSnake" as any, (inputs as any).pnrSnake === v ? null : v)}>
+                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.pnrSnake === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                              onClick={() => ui("pnrSnake", inputs.pnrSnake === v ? null : v)}>
                               {t(labelKey as never)}
                             </Button>
                           ))}
-                          <Button type="button" variant={(inputs as any).pnrSnake == null ? "secondary" : "outline"} style={{ minHeight: 44 }}
-                            className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold" onClick={() => ui("pnrSnake" as any, null)}>
+                          <Button type="button" variant={inputs.pnrSnake == null ? "secondary" : "outline"} style={{ minHeight: 44 }}
+                            className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold" onClick={() => ui("pnrSnake", null)}>
                             {t("not_observed")}
                           </Button>
                         </div>
