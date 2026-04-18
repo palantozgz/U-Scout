@@ -318,6 +318,7 @@ function PlayerRow({
   onEdit: () => void; onViewReport: () => void;
 }) {
   const { t } = useLocale();
+  const [, setLocation] = useLocation();
   const { data: approvalStatus, isLoading: approvalLoading } = useApprovalStatus(player.id, {
     enabled: mode === "editor",
   });
@@ -454,6 +455,26 @@ function PlayerRow({
             )}
           </div>
           <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setLocation(`/coach/scout/${player.id}/preview`)}
+              className="w-7 h-7 shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
+              title="Ver report"
+              data-testid={`button-preview-report-${player.id}`}
+            >
+              <FileText className="w-4 h-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setLocation(`/coach/scout/${player.id}/review`)}
+              className="w-7 h-7 shrink-0 text-primary hover:bg-primary/10 rounded-lg"
+              title="Revisar y proponer"
+              data-testid={`button-review-report-${player.id}`}
+            >
+              <Check className="w-4 h-4" />
+            </Button>
             <Button size="sm" variant="outline" onClick={onEdit} className="h-8 px-3 shrink-0 rounded-lg text-xs font-bold border-border bg-transparent text-foreground hover:bg-muted" data-testid={`button-edit-player-${player.id}`}>
               <Pencil className="w-3 h-3 mr-1" /> {t("edit")}
             </Button>

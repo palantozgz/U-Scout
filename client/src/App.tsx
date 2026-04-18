@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, useRoute } from "wouter";
 import { migrateLegacyOnboarding, shouldOfferOnboarding } from "@/lib/onboarding-state";
 import OnboardingFlow from "@/pages/OnboardingFlow";
 import { queryClient } from "./lib/queryClient";
@@ -17,6 +17,7 @@ import ClubManagement from "@/pages/coach/ClubManagement";
 import JoinClub from "@/pages/JoinClub";
 import CoachDashboard from "@/pages/coach/Dashboard";
 import PlayerEditor from "@/pages/coach/PlayerEditor";
+import ReportViewV4 from "@/pages/coach/ReportViewV4";
 import TestMode from "@/pages/coach/TestMode";
 import Settings from "@/pages/coach/Settings";
 import PlayerHome from "@/pages/player/PlayerHome";
@@ -46,6 +47,34 @@ function RootRedirect({ to }: { to: string }) {
   return null;
 }
 
+function CoachScoutReportPreview() {
+  const [, params] = useRoute("/coach/scout/:id/preview");
+  const [, setLocation] = useLocation();
+  const id = params?.id;
+  if (!id) return null;
+  return (
+    <ReportViewV4
+      playerId={id}
+      mode="player"
+      onBack={() => setLocation("/coach/editor")}
+    />
+  );
+}
+
+function CoachScoutReportReview() {
+  const [, params] = useRoute("/coach/scout/:id/review");
+  const [, setLocation] = useLocation();
+  const id = params?.id;
+  if (!id) return null;
+  return (
+    <ReportViewV4
+      playerId={id}
+      mode="coach_review"
+      onBack={() => setLocation("/coach/editor")}
+    />
+  );
+}
+
 function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
   return (
     <Switch>
@@ -59,6 +88,8 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       {/* Coach Mode — specific paths before /coach */}
       <Route path="/coach/player/:id/profile" component={PlayerProfileViewer} />
       <Route path="/coach/player/:id" component={PlayerEditor} />
+      <Route path="/coach/scout/:id/preview" component={CoachScoutReportPreview} />
+      <Route path="/coach/scout/:id/review" component={CoachScoutReportReview} />
       <Route path="/coach/club" component={ClubManagement} />
       <Route path="/coach/team/:id">
         <CoachDashboard mode="editor" />
