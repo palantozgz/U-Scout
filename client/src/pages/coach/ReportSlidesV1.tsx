@@ -17,6 +17,8 @@ export interface ReportSlidesV1Props {
   playerId: string;
   onBack?: () => void;
   coachMode?: boolean;
+  /** Nodo React opcional que se renderiza en una barra sticky al fondo — usado por ReportViewV4 */
+  bottomBar?: React.ReactNode;
 }
 
 const TOTAL_SLIDES = 3;
@@ -27,6 +29,7 @@ export default function ReportSlidesV1({
   playerId,
   onBack,
   coachMode = false,
+  bottomBar,
 }: ReportSlidesV1Props) {
   const { t, locale } = useLocale();
   const { user } = useAuth();
@@ -126,7 +129,7 @@ export default function ReportSlidesV1({
 
   return (
     <div
-      className="relative flex min-h-[100dvh] flex-col bg-background select-none"
+      className="flex min-h-[100dvh] flex-col bg-background select-none"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onMouseEnter={() => setHovering(true)}
@@ -169,6 +172,7 @@ export default function ReportSlidesV1({
       </div>
 
       {/* ── SLIDE VIEWPORT ───────────────────────────── */}
+      {/* flex-1 para que ocupe todo el espacio disponible entre header y bottomBar */}
       <div
         className="relative flex-1 overflow-hidden cursor-grab active:cursor-grabbing"
         onPointerDown={handlePointerDown}
@@ -185,7 +189,7 @@ export default function ReportSlidesV1({
         >
           {/* ── SLIDE 1 — Quién es ───────────────────── */}
           <div
-            className="flex flex-col items-center overflow-y-auto px-6 pb-20 pt-8"
+            className="flex flex-col items-center overflow-y-auto px-6 pb-10 pt-8"
             style={{ width: `${100 / TOTAL_SLIDES}%` }}
           >
             <SlideLabel label={t("slides_who_is")} />
@@ -236,7 +240,7 @@ export default function ReportSlidesV1({
 
           {/* ── SLIDE 2 — Qué hará ───────────────────── */}
           <div
-            className="flex flex-col overflow-y-auto px-4 pb-20 pt-8"
+            className="flex flex-col overflow-y-auto px-4 pb-10 pt-8"
             style={{ width: `${100 / TOTAL_SLIDES}%` }}
           >
             <SlideLabel label={t("slides_what_will_do")} />
@@ -281,7 +285,7 @@ export default function ReportSlidesV1({
 
           {/* ── SLIDE 3 — Qué hago yo ────────────────── */}
           <div
-            className="flex flex-col overflow-y-auto px-4 pb-20 pt-8"
+            className="flex flex-col overflow-y-auto px-4 pb-10 pt-8"
             style={{ width: `${100 / TOTAL_SLIDES}%` }}
           >
             <SlideLabel label={t("slides_what_do_i")} />
@@ -325,24 +329,20 @@ export default function ReportSlidesV1({
           </div>
         </div>
 
-        {/* ── FLECHAS — desktop, zona inferior, sin fondo ── */}
-        {/* Aparecen al hover, posicionadas en la franja baja donde no hay texto denso */}
+        {/* ── FLECHAS — desktop, centradas verticalmente, sin fondo ── */}
         <button
           type="button"
           onClick={() => goTo(slide - 1)}
           aria-label="Slide anterior"
           className={cn(
-            "absolute bottom-6 left-4 z-10 hidden md:flex items-center justify-center",
+            "absolute left-1 top-1/2 z-10 hidden -translate-y-1/2 md:flex items-center justify-center p-2",
             "transition-all duration-300",
             hasPrev && hovering
-              ? "opacity-40 hover:opacity-80 pointer-events-auto"
+              ? "opacity-35 hover:opacity-70 pointer-events-auto"
               : "opacity-0 pointer-events-none",
           )}
         >
-          <ChevronLeft
-            className="h-8 w-8 text-foreground drop-shadow-sm"
-            strokeWidth={1.5}
-          />
+          <ChevronLeft className="h-7 w-7 text-foreground drop-shadow" strokeWidth={1.5} />
         </button>
 
         <button
@@ -350,19 +350,23 @@ export default function ReportSlidesV1({
           onClick={() => goTo(slide + 1)}
           aria-label="Slide siguiente"
           className={cn(
-            "absolute bottom-6 right-4 z-10 hidden md:flex items-center justify-center",
+            "absolute right-1 top-1/2 z-10 hidden -translate-y-1/2 md:flex items-center justify-center p-2",
             "transition-all duration-300",
             hasNext && hovering
-              ? "opacity-40 hover:opacity-80 pointer-events-auto"
+              ? "opacity-35 hover:opacity-70 pointer-events-auto"
               : "opacity-0 pointer-events-none",
           )}
         >
-          <ChevronRight
-            className="h-8 w-8 text-foreground drop-shadow-sm"
-            strokeWidth={1.5}
-          />
+          <ChevronRight className="h-7 w-7 text-foreground drop-shadow" strokeWidth={1.5} />
         </button>
       </div>
+
+      {/* ── BOTTOM BAR — sticky dentro del contenedor, respeta max-w-md ── */}
+      {bottomBar && (
+        <div className="sticky bottom-0 z-10 border-t border-border bg-background/95 backdrop-blur-sm">
+          {bottomBar}
+        </div>
+      )}
     </div>
   );
 }
