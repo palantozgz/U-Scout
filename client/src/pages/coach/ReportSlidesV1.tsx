@@ -17,13 +17,14 @@ export interface ReportSlidesV1Props {
   playerId: string;
   onBack?: () => void;
   coachMode?: boolean;
-  /** Nodo React opcional que se renderiza en una barra sticky al fondo — usado por ReportViewV4 */
+  /** Nodo React opcional que se renderiza en una barra sticky al fondo */
   bottomBar?: React.ReactNode;
 }
 
 const TOTAL_SLIDES = 3;
 const SWIPE_THRESHOLD = 50;
 const DRAG_THRESHOLD = 40;
+const ARROW_HIDE_DELAY = 1800; // ms sin actividad hasta que desaparecen
 
 export default function ReportSlidesV1({
   playerId,
@@ -45,11 +46,19 @@ export default function ReportSlidesV1({
     (clubQ.data?.club as { emoji?: string } | undefined)?.emoji ?? "🏀";
 
   const [slide, setSlide] = useState(0);
-  const [hovering, setHovering] = useState(false);
+  const [arrowsVisible, setArrowsVisible] = useState(false);
 
   const touchStartX = useRef<number | null>(null);
   const dragStartX = useRef<number | null>(null);
   const isDragging = useRef(false);
+  const arrowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Muestra las flechas y programa su desaparición tras ARROW_HIDE_DELAY ms
+  function showArrows() {
+    setArrowsVisible(true);
+    if (arrowTimer.current) clearTimeout(arrowTimer.current);
+    arrowTimer.current = setTimeout(() => setArrowsVisible(false), ARROW_HIDE_DELAY);
+  }
 
   const motorOutput = useMemo(() => {
     if (!player) return null;
@@ -70,6 +79,7 @@ export default function ReportSlidesV1({
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
+    showArrows();
   }
   function handleTouchEnd(e: React.TouchEvent) {
     if (touchStartX.current === null) return;
@@ -87,6 +97,7 @@ export default function ReportSlidesV1({
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
   function handlePointerMove(e: React.PointerEvent) {
+    if (e.pointerType !== "touch") showArrows();
     if (!isDragging.current || dragStartX.current === null) return;
     if (Math.abs(e.clientX - dragStartX.current) > 8) e.preventDefault();
   }
@@ -132,8 +143,6 @@ export default function ReportSlidesV1({
       className="flex min-h-[100dvh] flex-col bg-background select-none"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
     >
       {/* ── HEADER ───────────────────────────────────── */}
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm">
@@ -172,7 +181,6 @@ export default function ReportSlidesV1({
       </div>
 
       {/* ── SLIDE VIEWPORT ───────────────────────────── */}
-      {/* flex-1 para que ocupe todo el espacio disponible entre header y bottomBar */}
       <div
         className="relative flex-1 overflow-hidden cursor-grab active:cursor-grabbing"
         onPointerDown={handlePointerDown}
@@ -329,16 +337,16 @@ export default function ReportSlidesV1({
           </div>
         </div>
 
-        {/* ── FLECHAS — desktop, centradas verticalmente, sin fondo ── */}
+        {/* ── FLECHAS — aparecen con actividad, se desvanecen solas ── */}
         <button
           type="button"
           onClick={() => goTo(slide - 1)}
           aria-label="Slide anterior"
           className={cn(
-            "absolute left-1 top-1/2 z-10 hidden -translate-y-1/2 md:flex items-center justify-center p-2",
-            "transition-all duration-300",
-            hasPrev && hovering
-              ? "opacity-35 hover:opacity-70 pointer-events-auto"
+            "absolute left-1 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center p-2",
+            "transition-opacity duration-500",
+            hasPrev && arrowsVisible
+              ? "opacity-40 hover:opacity-75 pointer-events-auto"
               : "opacity-0 pointer-events-none",
           )}
         >
@@ -350,10 +358,10 @@ export default function ReportSlidesV1({
           onClick={() => goTo(slide + 1)}
           aria-label="Slide siguiente"
           className={cn(
-            "absolute right-1 top-1/2 z-10 hidden -translate-y-1/2 md:flex items-center justify-center p-2",
-            "transition-all duration-300",
-            hasNext && hovering
-              ? "opacity-35 hover:opacity-70 pointer-events-auto"
+            "absolute right-1 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center p-2",
+            "transition-opacity duration-500",
+            hasNext && arrowsVisible
+              ? "opacity-40 hover:opacity-75 pointer-events-auto"
               : "opacity-0 pointer-events-none",
           )}
         >
@@ -361,7 +369,7 @@ export default function ReportSlidesV1({
         </button>
       </div>
 
-      {/* ── BOTTOM BAR — sticky dentro del contenedor, respeta max-w-md ── */}
+      {/* ── BOTTOM BAR ───────────────────────────────── */}
       {bottomBar && (
         <div className="sticky bottom-0 z-10 border-t border-border bg-background/95 backdrop-blur-sm">
           {bottomBar}
