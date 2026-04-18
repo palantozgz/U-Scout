@@ -1156,6 +1156,20 @@ const en = {
   "editor.off_ball_cut_action.flare": "Flare",
   "editor.off_ball_cut_frequency": "Frequency",
 
+  // ── ReportViewV4 ────────────────────────────────────────────────────────
+  report_how_attacks: "How they attack",
+  report_how_defend: "How to defend them",
+  report_aware: "AWARE",
+  report_reviewing_badge: "Reviewing",
+  report_modify_title: "Modify",
+  report_alternatives: "Alternatives",
+  report_hide_element: "Hide this element",
+  report_restore: "Restore",
+  report_propose_staff: "Propose to staff",
+  report_sending: "Sending...",
+  report_review_banner:
+    "You're reviewing this report. Tap ⋮ on any block to edit it.",
+
   ...CLUB_GENDER_MANUAL_I18N_EN,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_EN,
   ...GENERATED_PLAN_LINE_GENDER_I18N_EN,
@@ -2221,6 +2235,20 @@ const es: I18nStrings = {
   "editor.off_ball_cut_action.flare": "Flare",
   "editor.off_ball_cut_frequency": "Frecuencia",
 
+  // ReportViewV4
+  report_how_attacks: "Cómo ataca",
+  report_how_defend: "Cómo defenderla",
+  report_aware: "AWARE",
+  report_reviewing_badge: "Revisando",
+  report_modify_title: "Modificar",
+  report_alternatives: "Alternativas",
+  report_hide_element: "Ocultar este elemento",
+  report_restore: "Restaurar",
+  report_propose_staff: "Proponer esta versión al staff",
+  report_sending: "Enviando...",
+  report_review_banner:
+    "Estás revisando este report. Toca ⋮ en cualquier bloque para modificarlo.",
+
   ...CLUB_GENDER_MANUAL_I18N_ES,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_ES,
   ...GENERATED_PLAN_LINE_GENDER_I18N_ES,
@@ -3275,6 +3303,19 @@ const zh: I18nStrings = {
   "editor.off_ball_cut_action.curl": "绕切",
   "editor.off_ball_cut_action.flare": "外弹拉开",
   "editor.off_ball_cut_frequency": "频率",
+
+  // ReportViewV4
+  report_how_attacks: "进攻特点",
+  report_how_defend: "防守要点",
+  report_aware: "AWARE",
+  report_reviewing_badge: "审阅中",
+  report_modify_title: "修改",
+  report_alternatives: "备选方案",
+  report_hide_element: "隐藏此项",
+  report_restore: "恢复",
+  report_propose_staff: "提交给教练组",
+  report_sending: "提交中…",
+  report_review_banner: "你正在审阅此报告。点 ⋮ 可修改任意区块。",
 
   ...CLUB_GENDER_MANUAL_I18N_ZH,
   ...GENERATED_TRAIT_TXT_GENDER_I18N_ZH,

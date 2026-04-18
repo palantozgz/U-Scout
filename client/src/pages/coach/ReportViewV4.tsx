@@ -21,66 +21,11 @@ import { useClub } from "@/lib/club-api";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { Locale } from "@/lib/i18n";
 
 export interface ReportViewV4Props {
   playerId: string;
   mode: "player" | "coach_review";
   onBack?: () => void;
-}
-
-function sectionCopy(locale: Locale) {
-  return {
-    howAttacks:
-      locale === "es"
-        ? "Cómo ataca"
-        : locale === "zh"
-          ? "进攻特点"
-          : "How they attack",
-    howDefend:
-      locale === "es"
-        ? "Cómo defenderla"
-        : locale === "zh"
-          ? "防守要点"
-          : "How to defend them",
-    aware: "AWARE",
-    reviewBanner:
-      locale === "es"
-        ? "Estás revisando este report. Toca ⋮ en cualquier bloque para modificarlo."
-        : locale === "zh"
-          ? "你正在审阅此报告。点 ⋮ 可修改任意区块。"
-          : "You're reviewing this report. Tap ⋮ on any block to edit it.",
-    reviewingBadge:
-      locale === "es" ? "Revisando" : locale === "zh" ? "审阅中" : "Reviewing",
-    modifyTitle:
-      locale === "es" ? "Modificar" : locale === "zh" ? "修改" : "Modify",
-    alternatives:
-      locale === "es"
-        ? "Alternativas"
-        : locale === "zh"
-          ? "备选"
-          : "Alternatives",
-    hide:
-      locale === "es"
-        ? "Ocultar este elemento"
-        : locale === "zh"
-          ? "隐藏此项"
-          : "Hide this item",
-    restore:
-      locale === "es"
-        ? "Restaurar"
-        : locale === "zh"
-          ? "恢复"
-          : "Restore",
-    propose:
-      locale === "es"
-        ? "Proponer esta versión al staff"
-        : locale === "zh"
-          ? "向团队提交此版本"
-          : "Propose this version to staff",
-    sending:
-      locale === "es" ? "Enviando..." : locale === "zh" ? "提交中…" : "Sending...",
-  };
 }
 
 export default function ReportViewV4({
@@ -89,7 +34,6 @@ export default function ReportViewV4({
   onBack,
 }: ReportViewV4Props) {
   const { t, locale } = useLocale();
-  const copy = sectionCopy(locale);
   const { user } = useAuth();
   const { data: player, isLoading: playerLoading } = usePlayer(playerId);
   const clubQ = useClub({ enabled: Boolean(user) });
@@ -213,20 +157,20 @@ export default function ReportViewV4({
           </p>
         </div>
         {mode === "coach_review" && (
-          <Badge className="text-xs">{copy.reviewingBadge}</Badge>
+          <Badge className="text-xs">{t("report_reviewing_badge")}</Badge>
         )}
       </div>
 
       {mode === "coach_review" && (
         <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-          {copy.reviewBanner}
+          {t("report_review_banner")}
         </div>
       )}
 
       <ReportBlock
         slide="identity"
         itemKey="archetype"
-        restoreLabel={copy.restore}
+        restoreLabel={t("report_restore")}
         mode={mode}
         isHidden={localOverrides.some(
           (o) => o.itemKey === "archetype" && o.action === "hide",
@@ -262,13 +206,13 @@ export default function ReportViewV4({
         </div>
       </ReportBlock>
 
-      <SectionHeader label={copy.howAttacks} color="teal" />
+      <SectionHeader label={t("report_how_attacks")} color="teal" />
       {renderedFinal.situations.map((sit, idx) => (
         <ReportBlock
           key={`${sit.id}-${idx}`}
           slide="situations"
           itemKey={`situations.${idx}`}
-          restoreLabel={copy.restore}
+          restoreLabel={t("report_restore")}
           mode={mode}
           isHidden={localOverrides.some(
             (o) => o.itemKey === `situations.${idx}` && o.action === "hide",
@@ -299,7 +243,7 @@ export default function ReportViewV4({
         </ReportBlock>
       ))}
 
-      <SectionHeader label={copy.howDefend} color="blue" />
+      <SectionHeader label={t("report_how_defend")} color="blue" />
       {(["deny", "force", "allow"] as const).map((type) => {
         const instr = renderedFinal.defense[type];
         if (!instr) return null;
@@ -308,7 +252,7 @@ export default function ReportViewV4({
             key={type}
             slide="defense"
             itemKey={`${type}.instruction`}
-            restoreLabel={copy.restore}
+            restoreLabel={t("report_restore")}
             mode={mode}
             isHidden={localOverrides.some(
               (o) =>
@@ -351,7 +295,7 @@ export default function ReportViewV4({
 
       {(renderedFinal.alerts?.length ?? 0) > 0 && (
         <div className="mx-4 my-2 space-y-2">
-          <SectionHeader label={copy.aware} color="red" />
+          <SectionHeader label={t("report_aware")} color="red" />
           {renderedFinal.alerts.map((alert, idx) => (
             <div
               key={idx}
@@ -384,7 +328,7 @@ export default function ReportViewV4({
           className="max-h-[70vh] overflow-y-auto rounded-t-xl"
         >
           <SheetHeader className="pb-2">
-            <SheetTitle className="text-base">{copy.modifyTitle}</SheetTitle>
+            <SheetTitle className="text-base">{t("report_modify_title")}</SheetTitle>
           </SheetHeader>
 
           <div className="mb-3 rounded-lg bg-muted px-1 py-2">
@@ -396,7 +340,7 @@ export default function ReportViewV4({
           {activeSheet && activeSheet.alternatives.length > 0 && (
             <div className="mb-4 space-y-2">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {copy.alternatives}
+                {t("report_alternatives")}
               </p>
               {activeSheet.alternatives.map((alt, idx) => (
                 <button
@@ -435,7 +379,7 @@ export default function ReportViewV4({
             className="flex w-full items-center gap-2 rounded-lg border border-red-200 p-3 text-sm text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
           >
             <EyeOff className="h-4 w-4" />
-            {copy.hide}
+            {t("report_hide_element")}
           </button>
         </SheetContent>
       </Sheet>
@@ -447,7 +391,7 @@ export default function ReportViewV4({
             onClick={handlePropose}
             disabled={isApproving}
           >
-            {isApproving ? copy.sending : copy.propose}
+            {isApproving ? t("report_sending") : t("report_propose_staff")}
           </Button>
         </div>
       )}

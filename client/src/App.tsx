@@ -75,6 +75,24 @@ function CoachScoutReportReview() {
   );
 }
 
+function ReportViewV4PlayerWrapper({ id }: { id: string }) {
+  const [, setLocation] = useLocation();
+  return (
+    <ReportViewV4
+      playerId={id}
+      mode="player"
+      onBack={() => setLocation("/player")}
+    />
+  );
+}
+
+function PlayerReportV4Route() {
+  const [, params] = useRoute("/player/report/:id");
+  const id = params?.id;
+  if (!id) return null;
+  return <ReportViewV4PlayerWrapper id={id} />;
+}
+
 function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
   return (
     <Switch>
@@ -112,6 +130,7 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
         <RootRedirect to="/player" />
       </Route>
       <Route path="/player/team/:teamId" component={PlayerTeamView} />
+      <Route path="/player/report/:id" component={PlayerReportV4Route} />
       <Route path="/player/:id" component={PlayerProfileViewer} />
       <Route path="/player" component={PlayerTeamList} />
 

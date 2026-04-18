@@ -10,7 +10,7 @@ import { UScoutWatermark } from "@/components/branding/UScoutBrand";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { useApprovalStatus, usePublishReport, useUnpublishReport } from "@/lib/approval-api";
+import { useApprovalStatus, useUnpublishReport } from "@/lib/approval-api";
 import { toast } from "@/hooks/use-toast";
 
 export type CoachDashboardMode = "editor" | "reports";
@@ -296,7 +296,7 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
                         onDelete={() => handleDeletePlayer(player.id)}
                         onCancelDelete={() => setPendingDeletePlayer(null)}
                         onEdit={() => setLocation(`/coach/player/${player.id}`)}
-                        onViewReport={() => setLocation(`/coach/player/${player.id}/profile`)}
+                        onViewReport={() => setLocation(`/coach/scout/${player.id}/preview`)}
                       />
                     ))
                   )}
@@ -322,7 +322,6 @@ function PlayerRow({
   const { data: approvalStatus, isLoading: approvalLoading } = useApprovalStatus(player.id, {
     enabled: mode === "editor",
   });
-  const publishMut = usePublishReport(player.id);
   const unpublishMut = useUnpublishReport(player.id);
 
   const published = Boolean(approvalStatus?.isPublished ?? player.published);
@@ -393,7 +392,7 @@ function PlayerRow({
             >
               {approvalLoading ? "—" : `${approvalFraction} ${t("dashboard_player_coaches_label")}`}
             </Badge>
-            {published ? (
+            {published && (
               <>
                 <Badge
                   variant="outline"
@@ -428,30 +427,6 @@ function PlayerRow({
                   {unpublishMut.isPending ? t("saving") : t("approval_unpublish")}
                 </Button>
               </>
-            ) : (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-7 px-2 text-[10px] font-bold rounded-lg shrink-0"
-                disabled={publishMut.isPending}
-                data-testid={`button-publish-player-${player.id}`}
-                onClick={() =>
-                  publishMut.mutate(undefined, {
-                    onSuccess: () => {
-                      toast({ title: t("approval_publish_success") });
-                    },
-                    onError: (err) => {
-                      toast({
-                        variant: "destructive",
-                        title: t("approval_publish_error"),
-                        description: (err as Error)?.message ?? "",
-                      });
-                    },
-                  })
-                }
-              >
-                {publishMut.isPending ? t("saving") : t("dashboard_player_publish")}
-              </Button>
             )}
           </div>
           <div className="flex items-center gap-1">
