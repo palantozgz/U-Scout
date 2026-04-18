@@ -7,6 +7,7 @@ import type {
   MotorV4Output,
   DefenseInstruction,
   AlertCandidate,
+  RankedSituation,
 } from "./motor-v4";
 import type { EnrichedInputs } from "./motor-v2.1";
 
@@ -24,6 +25,7 @@ export interface RenderedSituation {
   tier: "primary" | "secondary" | "situational";
   label: string;
   description: string;
+  alternatives: { description: string; score: number; id: string }[];
 }
 
 export interface RenderedInstruction {
@@ -298,7 +300,8 @@ function renderSituations(
       score: s.score,
       tier: s.tier,
       label: renderSituationLabel(s.id, ctx.locale),
-      description: renderSituationDescription(s.id, motorOutput.inputs, ctx),
+      description: renderSituationDescriptionLine(s.id, motorOutput.inputs, ctx),
+      alternatives: [],
     }));
 }
 
@@ -360,7 +363,16 @@ function renderSituationLabel(id: string, locale: Locale): string {
   return labels[id]?.[locale] ?? id;
 }
 
-function renderSituationDescription(
+/** Same text as `renderReport` uses for each situation card’s description. */
+export function renderSituationDescription(
+  sit: RankedSituation,
+  ctx: RenderContext,
+  inputs: EnrichedInputs,
+): string {
+  return renderSituationDescriptionLine(sit.id, inputs, ctx);
+}
+
+function renderSituationDescriptionLine(
   id: string,
   inputs: EnrichedInputs,
   ctx: RenderContext,

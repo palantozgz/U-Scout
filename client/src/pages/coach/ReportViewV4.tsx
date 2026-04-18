@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, MoreVertical, Eye, EyeOff, RotateCcw, AlertTriangle } from "lucide-react";
-import { generateMotorV4 } from "@/lib/motor-v4";
+import { generateMotorV4, type MotorV4Output } from "@/lib/motor-v4";
 import {
   renderReport,
+  renderSituationDescription,
   type RenderContext,
+  type RenderedReport,
 } from "@/lib/reportTextRenderer";
 import {
   applyOverrides,
@@ -55,6 +57,33 @@ async function authedFetch(url: string, init: RequestInit) {
     throw new Error(`${init.method ?? "GET"} ${url} → ${res.status}: ${text}`);
   }
   return res;
+}
+
+function useSituationAlternatives(
+  motorOutput: MotorV4Output | null,
+  renderedFinal: RenderedReport | null,
+  ctx: RenderContext,
+) {
+  return useMemo(() => {
+    const map = new Map<
+      string,
+      { description: string; score: number; id: string }[]
+    >();
+    if (!motorOutput || !renderedFinal) return map;
+    const shown = new Set(renderedFinal.situations.map((s) => s.id));
+    const runners = motorOutput.situations
+      .filter((s) => s.score > 0 && !shown.has(s.id))
+      .sort((a, b) => b.score - a.score)
+      .map((s) => ({
+        id: s.id,
+        score: s.score,
+        description: renderSituationDescription(s, ctx, motorOutput.inputs),
+      }));
+    for (const sit of renderedFinal.situations) {
+      map.set(sit.id, runners);
+    }
+    return map;
+  }, [motorOutput, renderedFinal, ctx.locale, ctx.gender]);
 }
 
 export default function ReportViewV4({
@@ -133,6 +162,12 @@ export default function ReportViewV4({
     if (!renderedBase) return null;
     return applyOverrides(renderedBase, localOverrides);
   }, [renderedBase, localOverrides]);
+
+  const situationAlternatives = useSituationAlternatives(
+    motorOutput,
+    renderedFinal,
+    ctx,
+  );
 
   const isHidden = (itemKey: string) =>
     localOverrides.some((o) => o.itemKey === itemKey && o.action === "hide");
@@ -465,7 +500,17 @@ export default function ReportViewV4({
                         <button
                           type="button"
                           onClick={() =>
-                            openSheet("situations", key, sit.description, [])
+                            openSheet(
+                              "situations",
+                              key,
+                              sit.description,
+                              (situationAlternatives.get(sit.id) ?? []).map(
+                                (a) => ({
+                                  text: a.description,
+                                  score: a.score,
+                                }),
+                              ),
+                            )
                           }
                           className="rounded-md border border-transparent p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                         >
@@ -626,10 +671,28 @@ export default function ReportViewV4({
               >
                 <div className="flex items-start gap-3 px-4 py-3">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-black text-foreground">
-                      {alert.text}
-                    </p>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-start gap-2">
+                      {showCoachReviewChrome && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openSheet(
+                              "alerts",
+                              `alerts.${idx}`,
+                              alert.text,
+                              [],
+                            )
+                          }
+                          className="mt-0.5 shrink-0 rounded-md border border-transparent p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      <p className="min-w-0 flex-1 text-sm font-black text-foreground">
+                        {alert.text}
+                      </p>
+                    </div>
                     <p className="text-xs italic leading-snug text-amber-600 dark:text-amber-400">
                       {alert.triggerCue}
                     </p>
