@@ -538,25 +538,27 @@ export default function PlayerEditor() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     const finalName = player.name.trim() || "Unnamed Player";
     const generated = generateProfile(inputs, finalName, motorClubContext);
-    const updated = { ...player, name: finalName, inputs, internalModel: generated.internalModel, archetype: generated.archetype, subArchetype: generated.subArchetype, keyTraits: generated.keyTraits, defensivePlan: generated.defensivePlan };
+    const updated = {
+      ...player,
+      name: finalName,
+      inputs,
+      internalModel: generated.internalModel,
+      archetype: generated.archetype,
+      subArchetype: generated.subArchetype,
+      keyTraits: generated.keyTraits,
+      defensivePlan: generated.defensivePlan,
+    };
     setShowSaveFlash(true);
     try {
       const currentId = getPlayerId();
-      if (!currentId || currentId === "new") { const created = await createPlayerMutation.mutateAsync(updated as Omit<PlayerProfile, "id">); createdIdRef.current = created.id; }
-      else await updatePlayerMutation.mutateAsync({ id: currentId, updates: updated });
-    } catch { }
-    setTimeout(() => {
-      setShowSaveFlash(false);
-      const navId =
-        isNew || !getPlayerId() || getPlayerId() === "new"
-          ? createdIdRef.current ?? urlPlayerId
-          : getPlayerId();
-      if (navId && navId !== "new") {
-        setLocation(`/coach/scout/${navId}/review`);
+      if (!currentId || currentId === "new") {
+        const created = await createPlayerMutation.mutateAsync(updated as Omit<PlayerProfile, "id">);
+        createdIdRef.current = created.id;
       } else {
-        setLocation("/coach/editor");
+        await updatePlayerMutation.mutateAsync({ id: currentId, updates: updated });
       }
-    }, 600);
+    } catch {}
+    setTimeout(() => setShowSaveFlash(false), 600);
   };
 
   const ui = (key: keyof PlayerInput, value: any) => {
@@ -592,7 +594,7 @@ export default function PlayerEditor() {
           <div className="flex flex-col items-center gap-1 animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-slate-900/90 dark:bg-white/90 backdrop-blur-md rounded-2xl px-6 py-4 shadow-2xl border border-white/10 flex flex-col items-center gap-2">
               <span className="text-4xl font-black italic text-white dark:text-slate-900 leading-none tracking-tighter">U</span>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 dark:text-slate-900/60">{t("saving")}</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 dark:text-slate-900/60">{t("editor_inputs_saved")}</span>
             </div>
           </div>
         </div>
@@ -600,30 +602,55 @@ export default function PlayerEditor() {
 
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => { if (isNew) setLocation("/coach/editor"); else setLocation(`/coach/scout/${getPlayerId()}/review`); }} className="-ml-2" data-testid="player-editor-back">
-            <ArrowLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+          {/* Botón volver al review — solo para jugadoras existentes */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (isNew) setLocation("/coach/editor");
+              else setLocation(`/coach/scout/${getPlayerId()}/review`);
+            }}
+            className="-ml-2 gap-1.5 text-xs font-bold text-muted-foreground"
+            data-testid="player-editor-back"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            {isNew ? t("back") : t("editor_back_to_report")}
           </Button>
-          <div className="flex items-center gap-2">
-            {isRealPhoto(player.imageUrl) ? <img src={player.imageUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700" /> : <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 flex items-center justify-center bg-slate-100 dark:bg-slate-800"><BasketballPlaceholderAvatar size={32} /></div>}
-            <div>
-              <h1 className="font-bold text-sm leading-tight text-slate-900 dark:text-white line-clamp-1 max-w-[120px]">{player.name || t("dashboard_unnamed_player")}</h1>
-              <div className="flex items-center gap-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{isNew ? t("create") : t("edit")}</p>
-                {draftSaved && <span className="flex items-center gap-0.5 text-[10px] text-emerald-500 font-bold animate-in fade-in"><Check className="w-2.5 h-2.5" /></span>}
-              </div>
-            </div>
-          </div>
         </div>
+
         <div className="flex items-center gap-2">
-          {!isNew && (confirmDelete ? (
-            <div className="flex items-center gap-1.5">
-              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)} className="text-xs h-8 px-2 text-slate-500">{t("cancel")}</Button>
-              <Button size="sm" onClick={() => { const id = getPlayerId(); setLocation("/coach"); if (id && id !== "new") setTimeout(() => deletePlayerMutation.mutate(id), 150); }} className="rounded-full h-8 px-3 font-bold bg-red-500 hover:bg-red-600 text-white text-xs">{t("delete")}</Button>
-            </div>
-          ) : (
-            <Button size="icon" variant="ghost" onClick={() => setConfirmDelete(true)} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></Button>
-          ))}
-          <Button size="sm" onClick={handleSave} className="rounded-full px-5 font-bold bg-primary hover:bg-primary/90 text-white shadow-md"><Save className="w-4 h-4 mr-1.5" /> {t("save")}</Button>
+          {!isNew && (
+            confirmDelete ? (
+              <div className="flex items-center gap-1.5">
+                <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)} className="text-xs h-8 px-2 text-slate-500">
+                  {t("cancel")}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const id = getPlayerId();
+                    setLocation("/coach");
+                    if (id && id !== "new") setTimeout(() => deletePlayerMutation.mutate(id), 150);
+                  }}
+                  className="rounded-full h-8 px-3 font-bold bg-red-500 hover:bg-red-600 text-white text-xs"
+                >
+                  {t("delete")}
+                </Button>
+              </div>
+            ) : (
+              <Button size="icon" variant="ghost" onClick={() => setConfirmDelete(true)} className="text-slate-400 hover:text-red-500">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )
+          )}
+          <Button
+            size="sm"
+            onClick={handleSave}
+            className="rounded-full px-5 font-bold bg-primary hover:bg-primary/90 text-white shadow-md"
+          >
+            <Save className="w-4 h-4 mr-1.5" />
+            {t("editor_save_inputs")}
+          </Button>
         </div>
       </header>
 

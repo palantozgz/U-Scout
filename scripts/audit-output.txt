@@ -1,4 +1,4 @@
-===== AUDIT U SCOUT — Sat Apr 18 18:29:32 CST 2026 =====
+===== AUDIT U SCOUT — Sat Apr 18 22:03:42 CST 2026 =====
 
 --- RUTAS API ---
 110:  app.get("/api/club/invitations/:token", async (req, res) => {
@@ -49,37 +49,37 @@
 --- REPORTVIEWV4 imports+hooks ---
 1:import { useEffect, useMemo, useRef, useState } from "react";
 2:import { useQueryClient } from "@tanstack/react-query";
-3:import { ArrowLeft, MoreVertical, EyeOff, RotateCcw, AlertTriangle } from "lucide-react";
-4:import { generateMotorV4 } from "@/lib/motor-v4";
+3:import { ArrowLeft, MoreVertical, Eye, EyeOff, RotateCcw, AlertTriangle } from "lucide-react";
+4:import { generateMotorV4, type MotorV4Output } from "@/lib/motor-v4";
 5:import {
-9:import {
-14:import {
-19:import { useLocale } from "@/lib/i18n";
-20:import { useAuth } from "@/lib/useAuth";
-21:import { useClub } from "@/lib/club-api";
-22:import {
-27:import { supabase } from "@/lib/supabase";
-28:import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-29:import { Button } from "@/components/ui/button";
-30:import { cn, isRealPhoto } from "@/lib/utils";
-31:import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
-67:  const queryClient = useQueryClient();
-74:  const clubMotorCtx = useMemo(
-82:  const [localOverrides, setLocalOverrides] = useState<ReportOverride[]>([]);
-83:  const [activeSheet, setActiveSheet] = useState<{
-89:  const [isApproving, setIsApproving] = useState(false);
-90:  const [isPublishing, setIsPublishing] = useState(false);
-93:  useEffect(() => {
-97:  useEffect(() => {
-106:  const motorOutput = useMemo(() => {
-117:  const renderedBase = useMemo(() => {
-122:  const renderedFinal = useMemo(() => {
+11:import {
+16:import {
+21:import { useLocale } from "@/lib/i18n";
+22:import { useAuth } from "@/lib/useAuth";
+23:import { useClub } from "@/lib/club-api";
+24:import {
+29:import { supabase } from "@/lib/supabase";
+30:import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+31:import { Button } from "@/components/ui/button";
+32:import { cn, isRealPhoto } from "@/lib/utils";
+33:import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
+67:  return useMemo(() => {
+96:  const queryClient = useQueryClient();
+99:  const clubMotorCtx = useMemo(
+107:  const [localOverrides, setLocalOverrides] = useState<ReportOverride[]>([]);
+108:  const [activeSheet, setActiveSheet] = useState<{
+114:  const [isApproving, setIsApproving] = useState(false);
+115:  const [isPublishing, setIsPublishing] = useState(false);
+116:  const [previewMode, setPreviewMode] = useState(false);
+127:  useEffect(() => {
+132:  useEffect(() => {
+136:  useEffect(() => {
+145:  const motorOutput = useMemo(() => {
+156:  const renderedBase = useMemo(() => {
+161:  const renderedFinal = useMemo(() => {
 
 --- console.log en producción ---
 
 --- npm run check ---
-
-> rest-express@1.0.0 check
-> tsc
-
+scripts/audit.sh: line 19: npm: command not found
 ===== FIN =====

@@ -18,6 +18,7 @@ import JoinClub from "@/pages/JoinClub";
 import CoachDashboard from "@/pages/coach/Dashboard";
 import PlayerEditor from "@/pages/coach/PlayerEditor";
 import ReportViewV4 from "@/pages/coach/ReportViewV4";
+import ReportSlidesV1 from "@/pages/coach/ReportSlidesV1";
 import TestMode from "@/pages/coach/TestMode";
 import Settings from "@/pages/coach/Settings";
 import PlayerHome from "@/pages/player/PlayerHome";
@@ -53,9 +54,8 @@ function CoachScoutReportPreview() {
   const id = params?.id;
   if (!id) return null;
   return (
-    <ReportViewV4
+    <ReportSlidesV1
       playerId={id}
-      mode="player"
       onBack={() => setLocation("/coach/editor")}
     />
   );
@@ -75,22 +75,12 @@ function CoachScoutReportReview() {
   );
 }
 
-function ReportViewV4PlayerWrapper({ id }: { id: string }) {
-  const [, setLocation] = useLocation();
-  return (
-    <ReportViewV4
-      playerId={id}
-      mode="player"
-      onBack={() => setLocation("/player")}
-    />
-  );
-}
-
 function PlayerReportV4Route() {
   const [, params] = useRoute("/player/report/:id");
+  const [, setLocation] = useLocation();
   const id = params?.id;
   if (!id) return null;
-  return <ReportViewV4PlayerWrapper id={id} />;
+  return <ReportSlidesV1 playerId={id} onBack={() => setLocation("/player")} />;
 }
 
 function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {

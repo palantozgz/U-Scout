@@ -19,7 +19,8 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/lib/reportTextRenderer.ts` — texto EN/ES/ZH con gender
 - `client/src/lib/overrideEngine.ts` — overrides + discrepancias + ML patterns
 - `client/src/lib/approval-api.ts` — useApprovalStatus + helpers invalidación
-- `client/src/pages/coach/ReportViewV4.tsx` — UI scroll vertical, kebab, bottom sheet, barra aprobación, toggle Ver como jugadora
+- `client/src/pages/coach/ReportViewV4.tsx` — shell mínimo: renderiza ReportSlidesV1 con coachMode + barra fija de aprobación (proponer/publicar). Solo activo en coach_review.
+- `client/src/pages/coach/ReportSlidesV1.tsx` — 3 slides (swipe táctil + pips). Prop coachMode: muestra kebab ⋮ por ítem (runners-up próximo sprint). Usado por ReportViewV4 (coach_review) y directo en /player/report/:id
 - `client/src/pages/coach/PlayerEditor.tsx` — editor inputs jugador
 - `client/src/pages/coach/Dashboard.tsx` — lista equipos/jugadores, PlayerRow
 - `client/src/lib/mock-data.ts` — usePlayer, playerInputToMotorInputs, clubRowToMotorContext
@@ -39,25 +40,25 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 1. `motor-v4.ts` → scores numéricos + candidatos rankeados (sin texto)
 2. `reportTextRenderer.ts` → texto EN/ES/ZH con gender
 3. `overrideEngine.ts` → overrides + discrepancias + ML
-4. `ReportViewV4.tsx` → UI: scroll vertical, kebab ⋮, bottom sheet, barra aprobación
+4. `ReportSlidesV1.tsx` → UI: 3 slides swipe, coachMode kebabs · `ReportViewV4.tsx` → shell coach_review: ReportSlidesV1 + barra aprobación
 
 ## Flujo de navegación (producción)
 Dashboard (coach/editor)
 └─ [tap nombre/posición jugadora]  →  ReportViewV4 (coach_review)
 └─ botón "Revisar" (✓)            →  ReportViewV4 (coach_review)
-└─ botón "Ver como jugadora" (Eye)  →  toggle previewMode interno
 └─ "Proponer al staff"              →  POST /approve → Dashboard
 └─ "Publicar"                       →  POST /publish
 └─ ← atrás                          →  Dashboard
 └─ botón "Edit"  →  PlayerEditor
-└─ Guardar  →  ReportViewV4 (coach_review) del mismo jugador
+└─ Guardar  →  persiste en sitio (se queda en editor)
 └─ ← atrás  →  ReportViewV4 (coach_review) si jugadora existente
 →  /coach/editor si jugadora nueva
 
 ## Rutas activas
 - `/coach/editor` → Dashboard modo editor
 - `/coach/scout/:id/review` → ReportViewV4 modo coach_review
-- `/coach/scout/:id/preview` → ReportViewV4 modo player (acceso directo, sin botón en Dashboard)
+- `/coach/scout/:id/preview` → ReportSlidesV1 (vista jugador, acceso directo desde coach)
+- `/player/report/:id` → ReportSlidesV1 (vista jugador nativa)
 - `/coach/player/:id` → PlayerEditor
 
 ## API aprobación (todas en routes.ts)
@@ -78,21 +79,22 @@ Dashboard (coach/editor)
 - Migración isoStrongHandFinish/isoWeakHandFinish → isoFinishLeft/Right con fallback hacia atrás
 - contactType afecta contactFinish en motor; ftRating afecta isoDanger; pnrSnake afecta pnrDanger
 - Motor v4 calibrado y activo
-- ReportViewV4: scroll vertical, kebab ⋮, bottom sheet runners-up
-- Overrides persistidos al servidor (POST/DELETE /api/players/:id/overrides)
 - Flujo aprobación conectado: handlePropose → POST /approve, handlePublish → POST /publish
 - Barra inferior coach_review: X/Y propuesto, banner discrepancias, botón Publicar
-- Toggle "Ver como jugadora" / "Volver a revisión" en header de coach_review
-- Post-save en PlayerEditor → redirige a /coach/scout/:id/review
+- renderSituationDescription exportada en reportTextRenderer.ts
 - Dashboard: botón preview (📄) eliminado; tap en card jugadora → review; botón "Revisar" único entry point
 - i18n: editor_review_report, report_preview_as_player, report_back_to_review, report_staff_proposed, report_discrepancy_banner
+- ReportSlidesV1 activo: 3 slides (Quién es / Qué hará / Qué hago yo), swipe táctil + pips clickeables, header fijo con club-emoji. coachMode=true añade kebab ⋮ por ítem. Iconos DENY/FORCE/ALLOW: SVG placeholder. Temas heredados por CSS.
+- i18n: slides_who_is, slides_what_will_do, slides_what_do_i añadidos en EN/ES/ZH
+- PlayerEditor: Guardar ya no navega (se queda en editor). Flecha atrás → review. i18n: editor_save_inputs, editor_back_to_report.
+- ReportViewV4: eliminados previewMode, toggle "Ver como jugadora", scroll vertical propio, overrides, sheet. Ahora es shell: ReportSlidesV1 + barra aprobación fixed bottom.
 
 ### 🔄 Pendientes activos (priorizados)
 1. **Runners-up** — tap en cada línea del report → bottom sheet con alternativas rankeadas
-2. **Runners-up** — tap en cada línea del report → bottom sheet con alternativas rankeadas
-3. **Versiones inputs por coach** — tabla player_inputs_versions (sprint futuro, requiere migración schema)
+2. **Versiones inputs por coach** — tabla player_inputs_versions (sprint futuro, requiere migración schema)
 
 ### 🗓 Backlog futuro
+- **Iconos/ilustraciones/animaciones en slides del report** — cada instrucción defensiva (DENY/FORCE/ALLOW/AWARE) tiene un icono SVG placeholder. Pendiente: ilustraciones reales de acción de baloncesto en Figma, y animaciones (ej. "force early" = contacto temprano animado). Ancla mental: repetición del mismo icono = memoria muscular visual. Referencia: Duolingo, Nike Training Club. Diseño obligatorio en Figma antes de implementar.
 - Favicon U Scout
 - Logo club con imagen real
 - Branding: SVG Figma → animación Rive
@@ -105,7 +107,12 @@ Dashboard (coach/editor)
 
 ## Decisiones de producto (bloqueadas)
 - Scope: solo matchup 1-on-1. Sin situaciones colectivas.
-- Report: 3 capas scroll — Identidad / Cómo ataca / Cómo defenderla+AWARE+Contexto
+- Report final (vista jugador + zona REPORTS entrenador): 3 SLIDES, mismo componente para ambos
+  - Slide 1: ¿Quién es? — foto, archetype, tagline, nivel amenaza
+  - Slide 2: ¿Qué hará? — top 3 situaciones primarias con descripción (sin secundarias)
+  - Slide 3: ¿Qué hago yo? — DENY/FORCE/ALLOW + máximo 2 AWARE
+  - Sin slide de contexto — esa info es para el entrenador al scoutear, no para el jugador
+  - Razón: 3 slides = 3 preguntas mentales, máxima retención, formato móvil
 - Mismo informe jugadora y entrenador
 - ClubContext a nivel club, no por jugadora
 - Lenguaje neutro por defecto, ajustado al ClubContext
@@ -134,8 +141,8 @@ cd "/Users/palant/Downloads/U scout" && bash scripts/audit.sh > scripts/audit-ou
 ---
 
 ## Terminología
-- SCOUT: zona trabajo entrenador (editor, review)
-- REPORTS: zona lectura jugadoras
+- SCOUT: zona trabajo entrenador — editar inputs, revisar report, proponer al staff, aprobar
+- REPORTS: zona del entrenador para consultar reports ya publicados — mismo contenido que ve la jugadora, pero acceso desde auth de entrenador. NO es la interfaz de las jugadoras.
 - Runners-up: alternativas rankeadas por el motor por línea del informe
 - Override: decisión entrenador que sobreescribe output del motor
 - Discrepancia: dos entrenadores eligieron opciones distintas para el mismo ítem

@@ -101,6 +101,9 @@ const en = {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   save: "Save",
+  editor_save_inputs: "Save",
+  editor_inputs_saved: "Inputs saved",
+  editor_back_to_report: "Report",
   cancel: "Cancel",
   delete: "Delete",
   create: "Create",
@@ -1157,6 +1160,9 @@ const en = {
   "editor.off_ball_cut_frequency": "Frequency",
 
   // ── ReportViewV4 ────────────────────────────────────────────────────────
+  slides_who_is: "Who are they",
+  slides_what_will_do: "What will they do",
+  slides_what_do_i: "What do I do",
   report_how_attacks: "How they attack",
   report_how_defend: "How to defend them",
   report_aware: "AWARE",
@@ -1233,6 +1239,9 @@ const es: I18nStrings = {
   coach_home_name_fallback: "Entrenador/a",
 
   save: "Guardar",
+  editor_save_inputs: "Guardar",
+  editor_inputs_saved: "Inputs guardados",
+  editor_back_to_report: "Informe",
   cancel: "Cancelar",
   delete: "Eliminar",
   create: "Crear",
@@ -2251,6 +2260,9 @@ const es: I18nStrings = {
   "editor.off_ball_cut_frequency": "Frecuencia",
 
   // ReportViewV4
+  slides_who_is: "¿Quién es?",
+  slides_what_will_do: "¿Qué hará?",
+  slides_what_do_i: "¿Qué hago yo?",
   report_how_attacks: "Cómo ataca",
   report_how_defend: "Cómo defenderla",
   report_aware: "AWARE",
@@ -2323,6 +2335,9 @@ const zh: I18nStrings = {
   coach_home_name_fallback: "教练",
 
   save: "保存",
+  editor_save_inputs: "保存",
+  editor_inputs_saved: "已保存",
+  editor_back_to_report: "报告",
   cancel: "取消",
   delete: "删除",
   create: "创建",
@@ -3335,6 +3350,9 @@ const zh: I18nStrings = {
   "editor.off_ball_cut_frequency": "频率",
 
   // ReportViewV4
+  slides_who_is: "她是谁",
+  slides_what_will_do: "她会做什么",
+  slides_what_do_i: "我该怎么做",
   report_how_attacks: "进攻特点",
   report_how_defend: "防守要点",
   report_aware: "AWARE",
