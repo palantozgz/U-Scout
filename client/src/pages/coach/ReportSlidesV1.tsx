@@ -17,14 +17,13 @@ export interface ReportSlidesV1Props {
   playerId: string;
   onBack?: () => void;
   coachMode?: boolean;
-  /** Nodo React opcional que se renderiza en una barra sticky al fondo */
   bottomBar?: React.ReactNode;
 }
 
 const TOTAL_SLIDES = 3;
 const SWIPE_THRESHOLD = 50;
 const DRAG_THRESHOLD = 40;
-const ARROW_HIDE_DELAY = 1800; // ms sin actividad hasta que desaparecen
+const ARROW_HIDE_DELAY = 1800;
 
 export default function ReportSlidesV1({
   playerId,
@@ -53,7 +52,6 @@ export default function ReportSlidesV1({
   const isDragging = useRef(false);
   const arrowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Muestra las flechas y programa su desaparición tras ARROW_HIDE_DELAY ms
   function showArrows() {
     setArrowsVisible(true);
     if (arrowTimer.current) clearTimeout(arrowTimer.current);
@@ -122,11 +120,9 @@ export default function ReportSlidesV1({
   if (!report || !motorOutput) {
     return (
       <div className="p-4 text-muted-foreground">
-        {locale === "es"
-          ? "No se pudo generar el informe."
-          : locale === "zh"
-            ? "无法生成报告。"
-            : "Could not generate report."}
+        {locale === "es" ? "No se pudo generar el informe."
+          : locale === "zh" ? "无法生成报告。"
+          : "Could not generate report."}
       </div>
     );
   }
@@ -137,6 +133,10 @@ export default function ReportSlidesV1({
   const topAlerts = report.alerts.slice(0, 2);
   const hasPrev = slide > 0;
   const hasNext = slide < TOTAL_SLIDES - 1;
+
+  // Posición: tomar la primera de las / separadas
+  const position = (player.inputs?.position ?? "").split("/")[0]?.trim() ?? "";
+  const jerseyNumber = player.number?.trim() ?? "";
 
   return (
     <div
@@ -187,7 +187,6 @@ export default function ReportSlidesV1({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        {/* Track */}
         <div
           className="flex h-full transition-transform duration-300 ease-out"
           style={{
@@ -195,110 +194,116 @@ export default function ReportSlidesV1({
             transform: `translateX(-${(slide * 100) / TOTAL_SLIDES}%)`,
           }}
         >
-          {/* ── SLIDE 1 — Quién es ───────────────────── */}
+
+          {/* ════════════════════════════════════════════
+              SLIDE 1 — Quién es
+          ════════════════════════════════════════════ */}
           <div
-            className="flex flex-col items-center overflow-y-auto px-6 pb-10 pt-8"
+            className="flex flex-col items-center overflow-y-auto px-6 pb-10 pt-6"
             style={{ width: `${100 / TOTAL_SLIDES}%` }}
           >
             <SlideLabel label={t("slides_who_is")} />
 
-            <div className="relative mb-5 mt-4 h-24 w-24">
-              {photo ? (
-                <>
-                  <div className="absolute inset-0 scale-110 rounded-full bg-primary/25 blur-xl" aria-hidden />
-                  <img
-                    src={player.imageUrl!}
-                    alt={player.name ?? ""}
-                    className="relative h-24 w-24 rounded-full border-2 border-primary/20 object-cover shadow-lg ring-4 ring-primary/10"
-                  />
-                </>
-              ) : (
-                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted shadow-md">
-                  <BasketballPlaceholderAvatar size={96} />
-                </div>
+            {/* Avatar + número de dorsal superpuesto */}
+            <div className="relative mb-4 mt-5">
+              <div className="relative h-28 w-28">
+                {photo ? (
+                  <>
+                    <div className="absolute inset-0 scale-110 rounded-full bg-primary/20 blur-2xl" aria-hidden />
+                    <img
+                      src={player.imageUrl!}
+                      alt={player.name ?? ""}
+                      className="relative h-28 w-28 rounded-full border-2 border-primary/20 object-cover shadow-lg ring-4 ring-primary/10"
+                    />
+                  </>
+                ) : (
+                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted shadow-md">
+                    <BasketballPlaceholderAvatar size={112} />
+                  </div>
+                )}
+                {/* Dorsal — badge superpuesto abajo-derecha */}
+                {jerseyNumber && (
+                  <div className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-primary shadow-md">
+                    <span className="text-[11px] font-black leading-none text-primary-foreground">
+                      {jerseyNumber}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Nombre + posición */}
+            <div className="mb-4 flex flex-col items-center gap-0.5">
+              <h1 className="text-center text-2xl font-black tracking-tight text-foreground">
+                {player.name?.trim() || t("dashboard_unnamed_player")}
+              </h1>
+              {position && (
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/70">
+                  {position}
+                </span>
               )}
             </div>
 
-            <h1 className="mb-3 text-center text-xl font-black tracking-tight text-foreground">
-              {player.name?.trim() || t("dashboard_unnamed_player")}
-            </h1>
-
-            <div className="mb-3 w-full rounded-2xl border border-primary/20 bg-primary/8 px-5 py-3 text-center">
-              <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-primary/70">
+            {/* Archetype — bloque central */}
+            <div className="mb-3 w-full rounded-2xl border border-primary/15 bg-primary/6 px-5 py-3.5 text-center">
+              <p className="mb-1 text-[8px] font-black uppercase tracking-[0.2em] text-primary/60">
                 {t("archetype")}
               </p>
-              <p className="text-lg font-black italic leading-tight text-foreground">
+              <p className="text-xl font-black italic leading-tight text-foreground">
                 {report.identity.archetypeLabel}
               </p>
               {subAlt && (
-                <p className="mt-1.5 text-[9px] font-bold uppercase tracking-widest text-primary/50">
+                <p className="mt-1.5 text-[8px] font-bold uppercase tracking-[0.15em] text-primary/50">
                   {t("subarchetype")} {subAlt.label}
                 </p>
               )}
             </div>
 
-            <p className="mt-1 text-center text-xs italic leading-relaxed text-muted-foreground/80">
+            {/* Tagline */}
+            <p className="mb-4 text-center text-xs italic leading-relaxed text-muted-foreground/70">
               {report.identity.tagline}
             </p>
 
-            <div className="mt-4">
-              <ThreatDots level={report.identity.dangerLevel ?? 1} />
-            </div>
+            {/* Nivel de amenaza — más prominente */}
+            <ThreatLevel level={report.identity.dangerLevel ?? 1} />
           </div>
 
-          {/* ── SLIDE 2 — Qué hará ───────────────────── */}
+          {/* ════════════════════════════════════════════
+              SLIDE 2 — Qué hará
+          ════════════════════════════════════════════ */}
           <div
-            className="flex flex-col overflow-y-auto px-4 pb-10 pt-8"
+            className="flex flex-col overflow-y-auto px-4 pb-10 pt-6"
             style={{ width: `${100 / TOTAL_SLIDES}%` }}
           >
             <SlideLabel label={t("slides_what_will_do")} />
 
-            <div className="mt-3 space-y-2.5">
-              {topSituations.map((sit) => {
+            <div className="mt-4 space-y-3">
+              {topSituations.map((sit, idx) => {
                 const colors = situationColors(sit.id);
                 return (
-                  <div
+                  <SituationCard
                     key={sit.id}
-                    className={cn(
-                      "rounded-2xl border border-border/60 bg-card px-4 py-3.5 shadow-sm border-l-[3px]",
-                      colors.border,
-                    )}
-                  >
-                    <div className="mb-1.5 flex items-center gap-2">
-                      {coachMode && (
-                        <button
-                          type="button"
-                          className="shrink-0 rounded p-0.5 text-muted-foreground/50 hover:text-muted-foreground"
-                          onClick={() => { /* runners-up — próximo sprint */ }}
-                        >
-                          <MoreVertical className="h-3 w-3" />
-                        </button>
-                      )}
-                      <TierBadge tier={sit.tier} />
-                      <span className={cn("text-[9px] font-black uppercase tracking-[0.15em]", colors.text)}>
-                        {sit.label}
-                      </span>
-                      <span className={cn("ml-auto text-xs font-black tabular-nums", colors.text)}>
-                        {Math.round(sit.score * 100)}
-                      </span>
-                    </div>
-                    <p className="text-sm leading-snug text-foreground/90">
-                      {sit.description}
-                    </p>
-                  </div>
+                    sit={sit}
+                    colors={colors}
+                    coachMode={coachMode}
+                    rank={idx + 1}
+                  />
                 );
               })}
             </div>
           </div>
 
-          {/* ── SLIDE 3 — Qué hago yo ────────────────── */}
+          {/* ════════════════════════════════════════════
+              SLIDE 3 — Qué hago yo
+          ════════════════════════════════════════════ */}
           <div
-            className="flex flex-col overflow-y-auto px-4 pb-10 pt-8"
+            className="flex flex-col overflow-y-auto px-4 pb-10 pt-6"
             style={{ width: `${100 / TOTAL_SLIDES}%` }}
           >
             <SlideLabel label={t("slides_what_do_i")} />
 
-            <div className="mt-3 space-y-2.5">
+            {/* DENY / FORCE / ALLOW */}
+            <div className="mt-4 space-y-3">
               {(["deny", "force", "allow"] as const).map((type) => {
                 const instr = report.defense[type];
                 if (!instr) return null;
@@ -314,30 +319,38 @@ export default function ReportSlidesV1({
               })}
             </div>
 
+            {/* AWARE — zona separada, menos peso visual */}
             {topAlerts.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-600/80 dark:text-amber-400/80">
-                  {t("report_aware")}
-                </p>
-                {topAlerts.map((alert, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 border-l-[3px] border-l-amber-500/60"
-                  >
-                    <p className="text-sm font-bold text-foreground/90">{alert.text}</p>
-                    {alert.triggerCue && (
-                      <p className="mt-0.5 text-xs italic text-amber-600/70 dark:text-amber-400/70">
-                        {alert.triggerCue}
-                      </p>
-                    )}
-                  </div>
-                ))}
+              <div className="mt-5">
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="h-px flex-1 bg-border/50" />
+                  <p className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-600/70 dark:text-amber-400/70">
+                    {t("report_aware")}
+                  </p>
+                  <div className="h-px flex-1 bg-border/50" />
+                </div>
+                <div className="space-y-2">
+                  {topAlerts.map((alert, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3.5 py-2.5"
+                    >
+                      <p className="text-xs font-bold leading-snug text-foreground/80">{alert.text}</p>
+                      {alert.triggerCue && (
+                        <p className="mt-0.5 text-[10px] italic text-amber-600/60 dark:text-amber-400/60">
+                          {alert.triggerCue}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
+
         </div>
 
-        {/* ── FLECHAS — aparecen con actividad, se desvanecen solas ── */}
+        {/* ── FLECHAS ───────────────────────────────────── */}
         <button
           type="button"
           onClick={() => goTo(slide - 1)}
@@ -346,7 +359,7 @@ export default function ReportSlidesV1({
             "absolute left-1 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center p-2",
             "transition-opacity duration-500",
             hasPrev && arrowsVisible
-              ? "opacity-40 hover:opacity-75 pointer-events-auto"
+              ? "opacity-35 hover:opacity-70 pointer-events-auto"
               : "opacity-0 pointer-events-none",
           )}
         >
@@ -361,7 +374,7 @@ export default function ReportSlidesV1({
             "absolute right-1 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center p-2",
             "transition-opacity duration-500",
             hasNext && arrowsVisible
-              ? "opacity-40 hover:opacity-75 pointer-events-auto"
+              ? "opacity-35 hover:opacity-70 pointer-events-auto"
               : "opacity-0 pointer-events-none",
           )}
         >
@@ -383,64 +396,121 @@ export default function ReportSlidesV1({
 
 function SlideLabel({ label }: { label: string }) {
   return (
-    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/60">
+    <p className="w-full text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">
       {label}
     </p>
   );
 }
 
-function ThreatDots({ level }: { level: number }) {
+/** Nivel de amenaza — 5 segmentos de barra + label */
+function ThreatLevel({ level }: { level: number }) {
   const safe = Math.min(Math.max(level, 1), 5);
-  const labels = ["", "Low threat", "Moderate", "Dangerous", "High danger", "Elite threat"];
-  const dotColors = ["", "bg-muted-foreground/30", "bg-yellow-500/70", "bg-orange-500/80", "bg-red-500/80", "bg-red-600"];
+  const configs = [
+    {},
+    { label: "Low threat", color: "bg-slate-400/50", text: "text-slate-500 dark:text-slate-400" },
+    { label: "Moderate",   color: "bg-yellow-500/70", text: "text-yellow-600 dark:text-yellow-400" },
+    { label: "Dangerous",  color: "bg-orange-500/80", text: "text-orange-600 dark:text-orange-400" },
+    { label: "High danger", color: "bg-red-500",       text: "text-red-600 dark:text-red-400" },
+    { label: "Elite threat", color: "bg-red-600",      text: "text-red-700 dark:text-red-300" },
+  ];
+  const cfg = configs[safe]!;
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className="flex gap-1.5">
+    <div className="flex w-full flex-col items-center gap-2">
+      <div className="flex w-full max-w-[160px] gap-1">
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
             className={cn(
-              "h-2.5 w-2.5 rounded-full",
-              i < safe ? dotColors[safe] : "bg-muted/40",
+              "h-1.5 flex-1 rounded-full transition-all",
+              i < safe ? cfg.color : "bg-muted/40",
             )}
           />
         ))}
       </div>
-      <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
-        {labels[safe]}
+      <span className={cn("text-[10px] font-black uppercase tracking-widest", cfg.text)}>
+        {cfg.label}
       </span>
     </div>
   );
 }
 
+/** Tarjeta de situación ofensiva */
+function SituationCard({
+  sit,
+  colors,
+  coachMode,
+  rank,
+}: {
+  sit: { id: string; label: string; score: number; tier: "primary" | "secondary" | "situational"; description: string };
+  colors: { border: string; text: string; bg: string };
+  coachMode: boolean;
+  rank: number;
+}) {
+  return (
+    <div className={cn("rounded-2xl border border-border/50 px-4 py-3.5 border-l-[3px]", colors.border, colors.bg)}>
+      {/* Header: tipo de situación (más prominente) + score solo en coachMode */}
+      <div className="mb-2 flex items-center gap-2">
+        {coachMode && (
+          <button
+            type="button"
+            className="shrink-0 rounded p-0.5 text-muted-foreground/40 hover:text-muted-foreground"
+            onClick={() => { /* runners-up — próximo sprint */ }}
+          >
+            <MoreVertical className="h-3 w-3" />
+          </button>
+        )}
+        {/* Número de ranking — referencia rápida */}
+        <span className={cn("text-xs font-black tabular-nums opacity-30", colors.text)}>
+          #{rank}
+        </span>
+        <span className={cn("flex-1 text-[10px] font-black uppercase tracking-[0.15em]", colors.text)}>
+          {sit.label}
+        </span>
+        {coachMode && (
+          <span className={cn("text-xs font-black tabular-nums opacity-60", colors.text)}>
+            {Math.round(sit.score * 100)}
+          </span>
+        )}
+      </div>
+      {/* Descripción — texto principal */}
+      <p className="text-sm leading-snug text-foreground/85">
+        {sit.description}
+      </p>
+    </div>
+  );
+}
+
+/** Tarjeta DENY / FORCE / ALLOW */
 const DEFENSE_CONFIG = {
   deny: {
-    border: "border-l-red-500/70",
-    text: "text-red-500",
-    bg: "bg-red-500/5",
+    border: "border-l-red-500/60",
+    bg: "bg-red-500/4",
+    text: "text-red-500 dark:text-red-400",
+    label_bg: "bg-red-500/8",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
-        <circle cx="12" cy="12" r="9" />
-        <line x1="5" y1="5" x2="19" y2="19" />
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+        <circle cx="12" cy="12" r="9" /><line x1="5" y1="5" x2="19" y2="19" />
       </svg>
     ),
   },
   force: {
-    border: "border-l-blue-500/70",
-    text: "text-blue-500",
-    bg: "bg-blue-500/5",
+    border: "border-l-blue-500/60",
+    bg: "bg-blue-500/4",
+    text: "text-blue-500 dark:text-blue-400",
+    label_bg: "bg-blue-500/8",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
         <path d="M5 12h14M13 6l6 6-6 6" />
       </svg>
     ),
   },
   allow: {
-    border: "border-l-emerald-500/70",
-    text: "text-emerald-600",
-    bg: "bg-emerald-500/5",
+    border: "border-l-emerald-500/60",
+    bg: "bg-emerald-500/4",
+    text: "text-emerald-600 dark:text-emerald-400",
+    label_bg: "bg-emerald-500/8",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
         <polyline points="20 6 9 17 4 12" />
       </svg>
     ),
@@ -460,56 +530,41 @@ function DefenseCard({
 }) {
   const cfg = DEFENSE_CONFIG[type];
   return (
-    <div
-      className={cn(
-        "flex items-start gap-3 rounded-2xl border border-border/60 px-4 py-3.5 shadow-sm border-l-[3px]",
-        cfg.border,
-        cfg.bg,
-      )}
-    >
-      <div className={cn("mt-0.5 shrink-0 opacity-80", cfg.text)}>{cfg.icon}</div>
-      <div className="min-w-0 flex-1">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <p className={cn("text-[9px] font-black uppercase tracking-[0.15em]", cfg.text)}>
+    <div className={cn("rounded-2xl border border-border/50 px-4 py-4 border-l-[3px]", cfg.border, cfg.bg)}>
+      {/* Label row */}
+      <div className="mb-2.5 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className={cn("opacity-70", cfg.text)}>{cfg.icon}</span>
+          <span className={cn("text-[9px] font-black uppercase tracking-[0.2em]", cfg.text)}>
             {label}
-          </p>
-          {coachMode && (
-            <button
-              type="button"
-              className="shrink-0 rounded p-0.5 text-muted-foreground/40 hover:text-muted-foreground"
-              onClick={() => { /* runners-up — próximo sprint */ }}
-            >
-              <MoreVertical className="h-3 w-3" />
-            </button>
-          )}
+          </span>
         </div>
-        <p className="text-sm leading-snug text-foreground/90">{instruction}</p>
+        {coachMode && (
+          <button
+            type="button"
+            className="shrink-0 rounded p-0.5 text-muted-foreground/40 hover:text-muted-foreground"
+            onClick={() => { /* runners-up — próximo sprint */ }}
+          >
+            <MoreVertical className="h-3 w-3" />
+          </button>
+        )}
       </div>
+      {/* Instrucción — texto principal, más grande */}
+      <p className="text-[15px] font-semibold leading-snug text-foreground/90">
+        {instruction}
+      </p>
     </div>
   );
 }
 
-function situationColors(id: string): { border: string; text: string } {
-  if (id.startsWith("iso")) return { border: "border-l-orange-500/70", text: "text-orange-500 dark:text-orange-400" };
-  if (id.startsWith("pnr")) return { border: "border-l-blue-500/70", text: "text-blue-500 dark:text-blue-400" };
-  if (id.startsWith("post")) return { border: "border-l-purple-500/70", text: "text-purple-500 dark:text-purple-400" };
-  if (id === "catch_shoot") return { border: "border-l-teal-500/70", text: "text-teal-600 dark:text-teal-400" };
-  if (id === "transition") return { border: "border-l-emerald-500/70", text: "text-emerald-600 dark:text-emerald-400" };
-  if (id === "off_ball") return { border: "border-l-violet-500/70", text: "text-violet-500 dark:text-violet-400" };
-  if (id === "floater") return { border: "border-l-cyan-500/70", text: "text-cyan-600 dark:text-cyan-400" };
-  if (id === "oreb") return { border: "border-l-rose-500/70", text: "text-rose-500 dark:text-rose-400" };
-  return { border: "border-l-muted-foreground/40", text: "text-muted-foreground" };
-}
-
-function TierBadge({ tier }: { tier: "primary" | "secondary" | "situational" }) {
-  const styles = {
-    primary: "bg-red-500/10 text-red-500 dark:text-red-400",
-    secondary: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-300",
-    situational: "bg-muted/60 text-muted-foreground",
-  };
-  return (
-    <span className={cn("rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest", styles[tier])}>
-      {tier}
-    </span>
-  );
+function situationColors(id: string): { border: string; text: string; bg: string } {
+  if (id.startsWith("iso"))   return { border: "border-l-orange-500/60", text: "text-orange-500 dark:text-orange-400", bg: "bg-orange-500/4" };
+  if (id.startsWith("pnr"))   return { border: "border-l-blue-500/60",   text: "text-blue-500 dark:text-blue-400",   bg: "bg-blue-500/4" };
+  if (id.startsWith("post"))  return { border: "border-l-purple-500/60", text: "text-purple-500 dark:text-purple-400", bg: "bg-purple-500/4" };
+  if (id === "catch_shoot")   return { border: "border-l-teal-500/60",   text: "text-teal-600 dark:text-teal-400",   bg: "bg-teal-500/4" };
+  if (id === "transition")    return { border: "border-l-emerald-500/60",text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/4" };
+  if (id === "off_ball")      return { border: "border-l-violet-500/60", text: "text-violet-500 dark:text-violet-400", bg: "bg-violet-500/4" };
+  if (id === "floater")       return { border: "border-l-cyan-500/60",   text: "text-cyan-600 dark:text-cyan-400",   bg: "bg-cyan-500/4" };
+  if (id === "oreb")          return { border: "border-l-rose-500/60",   text: "text-rose-500 dark:text-rose-400",   bg: "bg-rose-500/4" };
+  return { border: "border-l-muted-foreground/30", text: "text-muted-foreground", bg: "" };
 }
