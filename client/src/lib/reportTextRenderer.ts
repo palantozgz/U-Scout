@@ -687,6 +687,8 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
       return "Contest the pop immediately. They shoot off the screen — no space to set.";
     case "deny_pnr_roll":
       return "Stay attached to the roller. Do not lose contact — they roll hard to the rim.";
+    case "deny_duck_in":
+      return "Deny the duck-in. Get in front early — they seal deep for the easy catch and finish.";
     case "deny_oreb":
       return "Box out on every shot. Elite offensive rebounder — physical block-out required.";
     case "deny_dho":
@@ -770,6 +772,8 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
       return "Contesta el pop de inmediato. Lanza tras el bloqueo — no darle espacio para prepararse.";
     case "deny_pnr_roll":
       return "Mantente pegado/a al bloqueador. Sin perder contacto — corta fuerte al aro.";
+    case "deny_duck_in":
+      return "Niega el duck-in. Ponte por delante pronto — sella profundo para recibir y anotar fácil.";
     case "deny_oreb":
       return "Bloquear en cada tiro. Reboteador/a ofensivo/a élite — bloqueo físico obligatorio.";
     case "deny_dho":
@@ -839,6 +843,8 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
       return "立即补防外拆投篮，挡拆后直接出手——不给空间站稳。";
     case "deny_pnr_roll":
       return "紧跟掩护者下顺，不脱离接触——强力切向篮下。";
+        case "deny_duck_in":
+      return "封堵身后接球，提前卫位——防止其深位封位轻松接球得分。";
     case "deny_oreb":
       return "每次出手都要卡位，顶级进攻篮板手——必须物理阻挡。";
     case "deny_dho":

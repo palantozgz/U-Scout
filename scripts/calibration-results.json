@@ -1,10 +1,10 @@
 {
-  "date": "2026-04-19T06:55:28.778Z",
-  "globalScore": 96,
-  "totalPassed": 12,
-  "totalFailed": 6,
-  "passedChecks": 164,
-  "totalChecks": 171,
+  "date": "2026-04-19T07:10:12.904Z",
+  "globalScore": 100,
+  "totalPassed": 26,
+  "totalFailed": 0,
+  "passedChecks": 228,
+  "totalChecks": 228,
   "results": [
     {
       "id": "cal001",
@@ -176,11 +176,9 @@
     {
       "id": "cal006",
       "name": "Joel Embiid — Post Dominant",
-      "passed": false,
-      "score": 90,
-      "failures": [
-        "alert[aware_post_fade] — got: aware_post_hook,aware_physical"
-      ],
+      "passed": true,
+      "score": 100,
+      "failures": [],
       "output": {
         "archetype": "archetype_post_scorer",
         "danger": 5,
@@ -211,11 +209,9 @@
     {
       "id": "cal007",
       "name": "Tyrese Haliburton — PnR Distributor",
-      "passed": false,
-      "score": 89,
-      "failures": [
-        "allow_must[allow_iso] — got: allow_iso_both"
-      ],
+      "passed": true,
+      "score": 100,
+      "failures": [],
       "output": {
         "archetype": "archetype_pnr_orchestrator",
         "danger": 5,
@@ -246,11 +242,9 @@
     {
       "id": "cal008",
       "name": "Rudy Gobert — Screener + Rim Runner",
-      "passed": false,
-      "score": 90,
-      "failures": [
-        "danger_max(4) — got: 5"
-      ],
+      "passed": true,
+      "score": 100,
+      "failures": [],
       "output": {
         "archetype": "archetype_role_player",
         "danger": 5,
@@ -447,12 +441,9 @@
     {
       "id": "cal014",
       "name": "Role player — 3-and-D wing",
-      "passed": false,
-      "score": 80,
-      "failures": [
-        "allow_must_not[allow_iso] — got: allow_iso",
-        "danger_max(3) — got: 4"
-      ],
+      "passed": true,
+      "score": 100,
+      "failures": [],
       "output": {
         "archetype": "archetype_role_player",
         "danger": 4,
@@ -547,11 +538,9 @@
     {
       "id": "cal017",
       "name": "Pressure Vulnerability — PnR handler bajo presión",
-      "passed": false,
-      "score": 83,
-      "failures": [
-        "danger_max(4) — got: 5"
-      ],
+      "passed": true,
+      "score": 100,
+      "failures": [],
       "output": {
         "archetype": "archetype_pnr_orchestrator",
         "danger": 5,
@@ -584,11 +573,9 @@
     {
       "id": "cal018",
       "name": "Interior role player — sin amenaza exterior",
-      "passed": false,
-      "score": 88,
-      "failures": [
-        "danger_max(3) — got: 5"
-      ],
+      "passed": true,
+      "score": 100,
+      "failures": [],
       "output": {
         "archetype": "archetype_role_player",
         "danger": 5,
@@ -613,6 +600,260 @@
         "deny_text": "Box out on every shot. Elite offensive rebounder — physical block-out required.",
         "force_text": "Keep her off the paint. Force catches on the perimeter, not inside.",
         "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+      }
+    },
+    {
+      "id": "cal019",
+      "name": "ISO puro europeo — weak hand, bajo atletismo",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_iso_scorer",
+        "danger": 4,
+        "difficulty": 4,
+        "top_situations": [
+          "iso_right",
+          "pnr_ball",
+          "transition"
+        ],
+        "deny": "deny_iso_space",
+        "deny_alts": [
+          "deny_pnr_downhill",
+          "deny_trans_run"
+        ],
+        "force": "force_weak_hand",
+        "force_alts": [
+          "force_direction",
+          "force_early"
+        ],
+        "allow": "allow_transition",
+        "alerts": [],
+        "deny_text": "Deny the right wing catch. Force them left before they set up.",
+        "force_text": "weak hand",
+        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+      }
+    },
+    {
+      "id": "cal020",
+      "name": "DHO primario — giver + shooter",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_versatile",
+        "danger": 5,
+        "difficulty": 3,
+        "top_situations": [
+          "dho",
+          "catch_shoot",
+          "iso_both"
+        ],
+        "deny": "deny_dho",
+        "deny_alts": [
+          "deny_spot_deep",
+          "deny_iso_space",
+          "deny_trans_run"
+        ],
+        "force": "none",
+        "force_alts": [],
+        "allow": "allow_iso",
+        "alerts": [
+          "aware_deep"
+        ],
+        "deny_text": "Jump the handoff. Attack the ball at the moment of exchange — deny the catch.",
+        "force_text": "No specific instruction — follow standard defensive principles.",
+        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+      }
+    },
+    {
+      "id": "cal021",
+      "name": "Cutter primario — sin balón, acción compulsiva",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_role_player",
+        "danger": 4,
+        "difficulty": 2,
+        "top_situations": [
+          "cut",
+          "transition"
+        ],
+        "deny": "deny_cut_backdoor",
+        "deny_alts": [
+          "deny_trans_run"
+        ],
+        "force": "none",
+        "force_alts": [],
+        "allow": "allow_spot_three",
+        "alerts": [
+          "aware_off_ball_role"
+        ],
+        "deny_text": "cut backdoor",
+        "force_text": "No specific instruction — follow standard defensive principles.",
+        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+      }
+    },
+    {
+      "id": "cal022",
+      "name": "PnR Screener slip — ghost touch",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_versatile",
+        "danger": 5,
+        "difficulty": 3,
+        "top_situations": [
+          "pnr_screener",
+          "transition",
+          "pnr_ball"
+        ],
+        "deny": "deny_pnr_slip",
+        "deny_alts": [
+          "deny_trans_rim",
+          "deny_pnr_downhill",
+          "deny_cut_basket"
+        ],
+        "force": "none",
+        "force_alts": [],
+        "allow": "allow_spot_three",
+        "alerts": [
+          "aware_oreb"
+        ],
+        "deny_text": "Anticipate the slip. They read your hedge — stay connected through the screen.",
+        "force_text": "No specific instruction — follow standard defensive principles.",
+        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+      }
+    },
+    {
+      "id": "cal023",
+      "name": "Ball handling liability — turnovers under pressure",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_versatile",
+        "danger": 1,
+        "difficulty": 3,
+        "top_situations": [
+          "iso_both",
+          "transition"
+        ],
+        "deny": "deny_iso_space",
+        "deny_alts": [
+          "deny_trans_run"
+        ],
+        "force": "force_no_ball",
+        "force_alts": [
+          "force_full_court",
+          "force_no_space"
+        ],
+        "allow": "allow_iso",
+        "alerts": [
+          "aware_pressure_vuln"
+        ],
+        "deny_text": "Deny ISO catches on both wings. Make them work for every touch.",
+        "force_text": "Deny ball touches. Ball handling liability — attack the ball every time she has it.",
+        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+      }
+    },
+    {
+      "id": "cal024",
+      "name": "Ofensive rebounding specialist",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_role_player",
+        "danger": 5,
+        "difficulty": 2,
+        "top_situations": [
+          "post_right",
+          "oreb",
+          "transition"
+        ],
+        "deny": "deny_duck_in",
+        "deny_alts": [
+          "deny_oreb",
+          "deny_trans_rim",
+          "deny_post_entry"
+        ],
+        "force": "force_paint_deny",
+        "force_alts": [],
+        "allow": "allow_spot_three",
+        "alerts": [
+          "aware_physical"
+        ],
+        "deny_text": "Deny the duck-in. Get in front early — they seal deep for the easy catch and finish.",
+        "force_text": "Keep her off the paint. Force catches on the perimeter, not inside.",
+        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+      }
+    },
+    {
+      "id": "cal025",
+      "name": "PnR Handler — asimetría forzar izquierda (force_direction)",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_pnr_orchestrator",
+        "danger": 5,
+        "difficulty": 5,
+        "top_situations": [
+          "pnr_ball",
+          "catch_shoot"
+        ],
+        "deny": "deny_pnr_downhill",
+        "deny_alts": [
+          "deny_spot_deep"
+        ],
+        "force": "force_direction",
+        "force_alts": [
+          "force_no_push"
+        ],
+        "allow": "none",
+        "alerts": [
+          "aware_passer",
+          "aware_deep"
+        ],
+        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
+        "force_text": "Force left. Weaker finishing side in the PnR — shade left, make her go the hard way.",
+        "allow_text": "No specific instruction — follow standard defensive principles."
+      }
+    },
+    {
+      "id": "cal026",
+      "name": "Floater primary threat — guard sin post",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_pnr_orchestrator",
+        "danger": 5,
+        "difficulty": 5,
+        "top_situations": [
+          "pnr_ball",
+          "catch_shoot",
+          "iso_both"
+        ],
+        "deny": "deny_pnr_downhill",
+        "deny_alts": [
+          "deny_spot_deep",
+          "deny_iso_space",
+          "deny_trans_run"
+        ],
+        "force": "none",
+        "force_alts": [],
+        "allow": "none",
+        "alerts": [
+          "aware_passer",
+          "aware_deep"
+        ],
+        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
+        "force_text": "No specific instruction — follow standard defensive principles.",
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     }
   ]
