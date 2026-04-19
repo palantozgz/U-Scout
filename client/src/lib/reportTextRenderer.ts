@@ -649,6 +649,10 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
       return "Deny the catch in the floater zone. Contest high — do not give them the lane.";
     case "deny_pnr_slip":
       return "Anticipate the slip. They read your hedge — stay connected through the screen.";
+    case "force_direction": {
+      const weakSide = inputs.hand === "R" ? "left" : "right";
+      return `Force ${weakSide}. Weaker finishing side in the PnR — shade ${weakSide}, make her go the hard way.`;
+    }
     case "force_early":
       return "Force early clock shots. Apply ball pressure — do not let them settle.";
     case "force_no_space":
@@ -728,6 +732,10 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
       return "Niega el catch en la zona del floater. Contesta alto — no le des la línea.";
     case "deny_pnr_slip":
       return "Anticipa el slip. Lee el hedge — mantente conectado/a durante todo el bloqueo.";
+    case "force_direction": {
+      const weakSide = inputs.hand === "R" ? "izquierda" : "derecha";
+      return `Fuerzala a la ${weakSide}. Finaliza peor en el PnR por ese lado — cárgate a la ${weakSide}, que tome el camino difícil.`;
+    }
     case "force_early":
       return "Fuerza tiros de inicio de posesión. Presión sobre el balón — no le dejes asentarse.";
     case "force_no_space":
@@ -797,6 +805,10 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
       return "封堵远距离接球，提前补防。";
     case "deny_trans_rim":
       return "全速回防，不让其快攻上篮。";
+    case "force_direction": {
+      const weakSide = inputs.hand === "R" ? "左侧" : "右侧";
+      return `逢迫其向${weakSide}进攻，PnR中该侧终结能力较弱——靠向${weakSide}，迫其走难路。`;
+    }
     case "force_early":
       return "逼迫其在进攻时间早期出手，持续施压不让其站稳。";
     case "force_no_space":

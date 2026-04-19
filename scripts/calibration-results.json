@@ -1,5 +1,5 @@
 {
-  "date": "2026-04-19T06:28:07.106Z",
+  "date": "2026-04-19T06:55:28.778Z",
   "globalScore": 96,
   "totalPassed": 12,
   "totalFailed": 6,
@@ -367,7 +367,7 @@
           "deny_spot_corner",
           "deny_iso_space"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "none",
         "alerts": [
@@ -375,7 +375,7 @@
           "aware_deep"
         ],
         "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left. Weaker finishing side in the PnR — shade left, make her go the hard way.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },

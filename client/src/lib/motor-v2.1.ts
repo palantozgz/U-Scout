@@ -1079,6 +1079,35 @@ export class UScoutMotor {
             params: { left: inputs.pnrFinishLeft, right: inputs.pnrFinishRight },
           });
         }
+        // force_direction from PnR finish asymmetry:
+        // If one side is clearly more dangerous, force toward the weaker side.
+        // Danger ranking: Drive to Rim > Pull-up > Floater > Mid-range
+        const finishDanger: Record<string, number> = {
+          'Drive to Rim': 4, 'Pull-up': 3, 'Floater': 2, 'Mid-range': 1,
+        };
+        const dangerL = finishDanger[inputs.pnrFinishLeft ?? ''] ?? 0;
+        const dangerR = finishDanger[inputs.pnrFinishRight ?? ''] ?? 0;
+        const dangerDiff = Math.abs(dangerL - dangerR);
+        if (dangerDiff >= 1) {
+          // Force toward the less dangerous side
+          // hand R: right=strong side (R=right hand dominant), left=L=weak
+          // hand L: left=strong, right=weak
+          const strongSide = inputs.hand === 'R' ? 'R' : 'L';
+          const weakSide = inputs.hand === 'R' ? 'L' : 'R';
+          const strongDanger = strongSide === 'R' ? dangerR : dangerL;
+          const weakDanger = weakSide === 'R' ? dangerR : dangerL;
+          // Only emit if strong side is indeed more dangerous (confirms scouted asymmetry)
+          if (strongDanger > weakDanger) {
+            const forceDir = weakSide; // Force toward the weaker finishing side
+            outputs.push({
+              key: 'force_direction',
+              category: 'force',
+              weight: Math.min(weight * 0.88, 0.92),
+              params: { direction: forceDir },
+              source: 'pnr_finish_asymmetry',
+            });
+          }
+        }
       }
 
       if (inputs.trapResponse === 'struggle') {
@@ -1454,7 +1483,7 @@ export class UScoutMotor {
             source: 'trans_sub',
           });
         } else if (sub === 'dribble_push') {
-          const pushWeight = inputs.ballHandling === 'elite' ? 0.9 : 0.75;
+          const pushWeight = inputs.ballHandling === 'elite' ? 0.82 : 0.68;
           outputs.push({
             key: 'force_no_push',
             category: 'force',
