@@ -289,6 +289,9 @@ function buildAlerts(rawOutputs: MotorOutput[]): AlertCandidate[] {
     if (/oreb|putback/.test(key)) return "offensive_rebound";
     if (/connector|passer|vision/.test(key)) return "playmaking";
     if (/screen|slip/.test(key)) return "screen_action";
+    if (/pressure|trap|blitz/.test(key)) return "pressure_defense";
+    if (/clutch|freeze/.test(key)) return "clutch";
+    if (/contact|foul/.test(key)) return "contact";
     return "general";
   };
 

@@ -777,29 +777,6 @@ export default function PlayerEditor() {
               <PowerBar label={t("athleticism")} value={inputs.athleticism} onChange={v => ui("athleticism", v)} tooltip={t("hint_athleticism")} />
               <PowerBar label={t("physical_strength")} value={inputs.physicalStrength} onChange={v => ui("physicalStrength", v)} tooltip={t("hint_physical_strength")} />
               <PowerBar label={t("court_vision")} value={inputs.courtVision ?? 3} onChange={v => ui("courtVision", v)} tooltip={t("hint_court_vision")} />
-
-              {/* Actitud ante el contacto — aquí en perfil base */}
-              <div className="space-y-2">
-                <FieldLabel label={t("editor.contact_finish")} tooltip={t("editor.contact_finish_hint")} />
-                <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
-                  {([
-                    { v: "seeks" as const, labelKey: "opt_contact_seeks" },
-                    { v: "neutral" as const, labelKey: "opt_contact_neutral" },
-                    { v: "avoids" as const, labelKey: "opt_contact_avoids" },
-                  ] as const).map(({ v, labelKey }) => (
-                    <Button key={v} type="button" variant={inputs.contactFinish === v ? "default" : "outline"}
-                      style={{ minHeight: 44 }}
-                      className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.contactFinish === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
-                      onClick={() => ui("contactFinish", inputs.contactFinish === v ? null : v)}>
-                      {t(labelKey as never)}
-                    </Button>
-                  ))}
-                  <Button type="button" variant={inputs.contactFinish == null ? "secondary" : "outline"} style={{ minHeight: 44 }}
-                    className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold" onClick={() => ui("contactFinish", null)}>
-                    {t("not_observed")}
-                  </Button>
-                </div>
-              </div>
             </div>
 
             {/* Manejo de balón */}
