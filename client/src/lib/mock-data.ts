@@ -11,6 +11,7 @@ import {
   type HighPostZonesMotor,
   type HighPostAction,
   type TransRoleEditor,
+  type SpotZones,
 } from "./motor-v2.1";
 
 export type { ClubContext, HighPostAction, HighPostZonesMotor, TransRoleEditor };
@@ -206,6 +207,10 @@ export interface PlayerInput {
   ftRating?: 1 | 2 | 3 | 4 | 5 | null;
 
   transFinishing?: "high" | "medium" | "low" | "not_observed" | null;
+
+  /** @deprecated Prefer spotZones — legacy single hotspot */
+  spotZone?: "corner" | "wing" | "top" | null;
+  spotZones?: SpotZones | null;
 
   /** Off-ball: action after setting screen (not PnR screener) */
   screenerAction?:
@@ -675,6 +680,35 @@ function resolveIsoHandFinishesForMotor(inputs: PlayerInput): {
   return { isoStrongHandFinish: R, isoWeakHandFinish: L };
 }
 
+function legacySpotZoneToSpotZones(
+  sz: "corner" | "wing" | "top" | null | undefined,
+): SpotZones | null {
+  if (!sz) return null;
+  const empty = (): SpotZones => ({
+    cornerLeft: false,
+    wing45Left: false,
+    top: false,
+    wing45Right: false,
+    cornerRight: false,
+  });
+  const z = empty();
+  if (sz === "corner") {
+    z.cornerLeft = true;
+    z.cornerRight = true;
+    return z;
+  }
+  if (sz === "wing") {
+    z.wing45Left = true;
+    z.wing45Right = true;
+    return z;
+  }
+  if (sz === "top") {
+    z.top = true;
+    return z;
+  }
+  return null;
+}
+
 /** Maps editor `PlayerInput` to Motor v2.1 `PlayerInputs`. */
 export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
   const ath = inputToMotorNum(inputs.athleticism, 3);
@@ -917,7 +951,8 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     postEntry,
     spotUpAction:
       inputs.closeoutReaction === "Catch & Shoot" ? "shoot" : "either",
-    spotZone: (inputs as any).spotZone ?? null,
+    spotZone: inputs.spotZone ?? null,
+    spotZones: inputs.spotZones ?? legacySpotZoneToSpotZones(inputs.spotZone) ?? null,
     deepRange,
     pnrPri,
     pnrEff: inputs.motorPnrEff ?? null,
@@ -1077,14 +1112,31 @@ function motorOutputToRichText(
   }
 
   if (key === "deny_spot_deep") {
-    const zone = inputs.spotZone;
+    const z = inputs.spotZones;
     let text = "Extender la defensa — no dejar tiro de 3 cómodo.";
-    if (zone === "corner") text += " Especialista de esquina — closeout largo sin falta.";
-    if (zone === "wing") text += " Tirador de ala — recuperar sobre pantalla.";
+    if (z) {
+      if (z.cornerLeft || z.cornerRight) text += " Amenaza en esquina — closeout largo sin falta.";
+      if (z.wing45Left || z.wing45Right) text += " También en 45° — recuperar sobre pantalla.";
+      if (z.top) text += " Puede recibir en la parte alta — no perder la línea.";
+    } else {
+      const zone = inputs.spotZone;
+      if (zone === "corner") text += " Especialista de esquina — closeout largo sin falta.";
+      if (zone === "wing") text += " Tirador de ala — recuperar sobre pantalla.";
+    }
     return text;
   }
 
   if (key === "deny_spot_corner") {
+    const z = inputs.spotZones;
+    if (z?.cornerLeft && z?.cornerRight && !z.wing45Left && !z.wing45Right && !z.top) {
+      return "Closeout agresivo en ambas esquinas. Cerrar sin falta — closeout largo.";
+    }
+    if (z?.cornerLeft && !z.cornerRight) {
+      return "Closeout agresivo en esquina izquierda. Cerrar sin falta — closeout largo.";
+    }
+    if (z?.cornerRight && !z.cornerLeft) {
+      return "Closeout agresivo en esquina derecha. Cerrar sin falta — closeout largo.";
+    }
     return "Closeout agresivo en esquina. Cerrar sin falta — closeout largo.";
   }
 

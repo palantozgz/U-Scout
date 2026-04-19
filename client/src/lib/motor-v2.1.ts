@@ -26,6 +26,14 @@ export type IsoDecision = 'S' | 'F' | 'P' | null; // Shoot, Finish, Pass
 export type PostProfile = 'B2B' | 'FU' | 'M' | null;
 export type PostZone = 'low' | 'high' | 'short' | null;
 export type SpotZone = 'corner' | 'wing' | 'top' | null;
+
+export interface SpotZones {
+  cornerLeft: boolean;
+  wing45Left: boolean;
+  top: boolean;
+  wing45Right: boolean;
+  cornerRight: boolean;
+}
 export type ScreenerAction = 'roll' | 'pop' | 'slip' | null;
 export type PopRange = 'three' | 'midrange' | null;
 export type DhoRole = 'giver' | 'receiver' | 'both' | null;
@@ -197,7 +205,9 @@ export interface PlayerInputs {
 
   // Spot-up details
   spotUpAction: 'shoot' | 'pump' | 'either' | null;
+  /** @deprecated Prefer spotZones — kept for legacy profiles */
   spotZone: SpotZone;
+  spotZones?: SpotZones | null;
   deepRange: boolean;
   
   // PnR details
@@ -495,7 +505,7 @@ export const WEIGHTS = {
 
 const INFERENCE_RULES = {
   neverInfer: [
-    'isoDir', 'isoDec', 'postShoulder', 'postZone', 'spotZone', 'cutType', 
+    'isoDir', 'isoDec', 'postShoulder', 'postZone', 'spotZone', 'spotZones', 'cutType', 
     'dhoAction', 'floater', 'vision',
     // Never infer screener behavior or pressure response — these are scout observations
     'screenerAction', 'pressureResponse', 'ballHandling',
@@ -1678,7 +1688,31 @@ export class UScoutMotor {
       const weight =
         freqW[inputs.spotUpFreq] * w.outputWeights.spotUp.baseWeight * effectiveUsageM;
 
-      if (inputs.spotZone === 'corner') {
+      // Resolver zona desde spotZones (nuevo) o spotZone (legacy)
+      const hasCorner = inputs.spotZones
+        ? inputs.spotZones.cornerLeft || inputs.spotZones.cornerRight
+        : inputs.spotZone === 'corner';
+      const hasWing = inputs.spotZones
+        ? inputs.spotZones.wing45Left || inputs.spotZones.wing45Right
+        : inputs.spotZone === 'wing';
+      const hasTop = inputs.spotZones
+        ? inputs.spotZones.top
+        : inputs.spotZone === 'top';
+      const zoneCount = inputs.spotZones
+        ? [
+            inputs.spotZones.cornerLeft,
+            inputs.spotZones.wing45Left,
+            inputs.spotZones.top,
+            inputs.spotZones.wing45Right,
+            inputs.spotZones.cornerRight,
+          ].filter(Boolean).length
+        : 1;
+      const isAllLine = zoneCount >= 3; // Tira de toda la línea de 3
+      void hasWing;
+      void hasTop;
+      void isAllLine;
+
+      if (hasCorner) {
         if (inputs.deepRange) {
           outputs.push({
             key: 'deny_spot_corner',
@@ -1696,6 +1730,7 @@ export class UScoutMotor {
           });
         }
       }
+      // Wing sin corner ya no genera deny_spot_corner — se cubre por deny_spot_deep si deepRange=true
     }
     
     // Deep range threat — only if player actually uses spot-up (not just has range)
@@ -2406,6 +2441,42 @@ export class UScoutMotor {
     return { bullets };
   }
 
+  /** Spot-up arc label for slide heatmap (legacy spotZone vs five-zone model). */
+  private spotUpSlideZoneLabel(inputs: EnrichedInputs): string {
+    if (inputs.spotZones) {
+      const z = inputs.spotZones;
+      const n = [
+        z.cornerLeft,
+        z.wing45Left,
+        z.top,
+        z.wing45Right,
+        z.cornerRight,
+      ].filter(Boolean).length;
+      if (n >= 3) return 'perimeter';
+      if (z.top && n === 1) return 'top';
+      if ((z.wing45Left || z.wing45Right) && !z.cornerLeft && !z.cornerRight && !z.top)
+        return 'wing';
+      if (z.cornerLeft || z.cornerRight) return 'corner';
+      return 'perimeter';
+    }
+    return inputs.spotZone || 'perimeter';
+  }
+
+  private spotUpPreferenceDetails(inputs: EnrichedInputs): string | null {
+    if (inputs.spotZones) {
+      const z = inputs.spotZones;
+      const parts: string[] = [];
+      if (z.cornerLeft) parts.push('left corner');
+      if (z.wing45Left) parts.push('left 45°');
+      if (z.top) parts.push('top');
+      if (z.wing45Right) parts.push('right 45°');
+      if (z.cornerRight) parts.push('right corner');
+      if (parts.length === 0) return null;
+      return `Zones: ${parts.join(', ')}`;
+    }
+    return inputs.spotZone ? `Prefers ${inputs.spotZone}` : null;
+  }
+
   private generateWhereDangerousSlide(inputs: EnrichedInputs): Slides['whereDangerous'] {
     const zones: ZoneThreat[] = [];
     const freqW = this.weights.frequencyToWeight;
@@ -2417,7 +2488,7 @@ export class UScoutMotor {
       zones.push({ zone: 'paint', threat: freqW[inputs.cutFreq] * 0.9, source: 'cuts' });
     }
     if (inputs.spotUpFreq && freqW[inputs.spotUpFreq] > 0.3) {
-      const zone = inputs.spotZone || 'perimeter';
+      const zone = this.spotUpSlideZoneLabel(inputs);
       zones.push({ zone, threat: freqW[inputs.spotUpFreq], source: 'spot_up' });
     }
     if (inputs.deepRange) {
@@ -2446,7 +2517,7 @@ export class UScoutMotor {
       pnrFreq: { name: 'PnR Handler', details: inputs.pnrPri ? `Looks for ${inputs.pnrPri === 'SF' ? 'scoring' : 'passing'} first` : null },
       postFreq: { name: 'Post-up', details: inputs.postProfile ? this.getPostProfileText(inputs.postProfile) : null },
       transFreq: { name: 'Transition', details: inputs.transRole ? this.getTransRoleText(inputs.transRole) : null },
-      spotUpFreq: { name: 'Spot-up', details: inputs.spotZone ? `Prefers ${inputs.spotZone}` : null },
+      spotUpFreq: { name: 'Spot-up', details: this.spotUpPreferenceDetails(inputs) },
       dhoFreq: { name: 'DHO', details: inputs.dhoRole ? `${inputs.dhoRole === 'giver' ? 'Initiates' : 'Receives'}` : null },
       cutFreq: { name: 'Cuts', details: inputs.cutType || null },
       indirectFreq: { name: 'Off-screen', details: null }

@@ -11,6 +11,100 @@ import type {
 } from "./motor-v4";
 import type { EnrichedInputs } from "./motor-v2.1";
 
+function joinListEN(parts: string[]): string {
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+}
+
+function spotZonesPhraseEN(inputs: EnrichedInputs): string {
+  const z = inputs.spotZones;
+  if (z) {
+    const parts: string[] = [];
+    if (z.cornerLeft || z.cornerRight) parts.push("the corners");
+    if (z.wing45Left || z.wing45Right) parts.push("the 45-degree spots");
+    if (z.top) parts.push("the top of the key");
+    if (parts.length === 0) return "the perimeter";
+    return joinListEN(parts);
+  }
+  if (inputs.spotZone === "corner") return "the corners";
+  if (inputs.spotZone === "wing") return "the wings";
+  if (inputs.spotZone === "top") return "the top of the key";
+  return "the perimeter";
+}
+
+function cornerFocusEN(inputs: EnrichedInputs): string {
+  const z = inputs.spotZones;
+  if (z?.cornerLeft && z?.cornerRight) return "the corners";
+  if (z?.cornerLeft && !z.cornerRight) return "the left corner";
+  if (z?.cornerRight && !z.cornerLeft) return "the right corner";
+  if (inputs.spotZone === "corner") return "the corners";
+  return "the corners";
+}
+
+function joinListES(parts: string[]): string {
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return `${parts[0]} y ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, y ${parts[parts.length - 1]}`;
+}
+
+function spotZonesPhraseES(inputs: EnrichedInputs): string {
+  const z = inputs.spotZones;
+  if (z) {
+    const parts: string[] = [];
+    if (z.cornerLeft || z.cornerRight) parts.push("las esquinas");
+    if (z.wing45Left || z.wing45Right) parts.push("los 45°");
+    if (z.top) parts.push("la parte alta");
+    if (parts.length === 0) return "el perímetro";
+    return joinListES(parts);
+  }
+  if (inputs.spotZone === "corner") return "las esquinas";
+  if (inputs.spotZone === "wing") return "los costados";
+  if (inputs.spotZone === "top") return "la parte alta";
+  return "el perímetro";
+}
+
+function cornerFocusES(inputs: EnrichedInputs): string {
+  const z = inputs.spotZones;
+  if (z?.cornerLeft && z?.cornerRight) return "las esquinas";
+  if (z?.cornerLeft && !z.cornerRight) return "la esquina izquierda";
+  if (z?.cornerRight && !z.cornerLeft) return "la esquina derecha";
+  return "las esquinas";
+}
+
+function joinListZH(parts: string[]): string {
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return `${parts[0]}和${parts[1]}`;
+  return `${parts.slice(0, -1).join("、")}和${parts[parts.length - 1]}`;
+}
+
+function spotZonesPhraseZH(inputs: EnrichedInputs): string {
+  const z = inputs.spotZones;
+  if (z) {
+    const parts: string[] = [];
+    if (z.cornerLeft || z.cornerRight) parts.push("底角");
+    if (z.wing45Left || z.wing45Right) parts.push("45度角");
+    if (z.top) parts.push("弧顶");
+    if (parts.length === 0) return "外线";
+    return joinListZH(parts);
+  }
+  if (inputs.spotZone === "corner") return "底角区域";
+  if (inputs.spotZone === "wing") return "两翼";
+  if (inputs.spotZone === "top") return "弧顶";
+  return "外线";
+}
+
+function cornerFocusZH(inputs: EnrichedInputs): string {
+  const z = inputs.spotZones;
+  if (z?.cornerLeft && z?.cornerRight) return "底角";
+  if (z?.cornerLeft && !z.cornerRight) return "左侧底角";
+  if (z?.cornerRight && !z.cornerLeft) return "右侧底角";
+  return "底角";
+}
+
 export type Locale = "en" | "es" | "zh";
 export type Gender = "f" | "m" | "n";
 
@@ -663,10 +757,18 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
       return techEN + physNote;
     }
     case "deny_spot_deep": {
+      const where = spotZonesPhraseEN(inputs);
       const instantEN = inputs.spotUpAction === "shoot"
         ? "Sprint to close out — no pump fake, no hesitation. She fires immediately on the catch."
         : "Close out under control — she may attack off the dribble on a soft closeout.";
-      return `No open catch on the perimeter. ${instantEN} Contest every touch.`;
+      return `No open catch at ${where}. ${instantEN} Contest every touch.`;
+    }
+    case "deny_spot_corner": {
+      const whereCorner = cornerFocusEN(inputs);
+      const instantCorner = inputs.spotUpAction === "shoot"
+        ? "Long, aggressive closeout — she is comfortable firing from there."
+        : "Close out long but stay balanced — no rhythm catch.";
+      return `Prioritize ${whereCorner} when she spots up. ${instantCorner}`;
     }
     case "deny_trans_rim":
       return "Sprint directly to the rim. She runs hard on every miss — get between her and the basket before the ball arrives.";
@@ -782,10 +884,18 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
         ? "Fronta la entrada al bloque derecho. Tres cuartos por el lado del hombro derecho."
         : "Fronta la entrada al bloque izquierdo. Tres cuartos por el lado del hombro izquierdo.";
     case "deny_spot_deep": {
+      const donde = spotZonesPhraseES(inputs);
       const instES = inputs.spotUpAction === "shoot"
         ? "Cierre a máxima velocidad — sin finta, sin dudar. Lanza al recibir."
         : "Cierra controlado — puede atacar si llegas en exceso.";
-      return `No dejar catch limpio. ${instES} Contesta cada toque.`;
+      return `No dejar catch limpio en ${donde}. ${instES} Contesta cada toque.`;
+    }
+    case "deny_spot_corner": {
+      const wc = cornerFocusES(inputs);
+      const instC = inputs.spotUpAction === "shoot"
+        ? "Closeout largo y agresivo — cómoda lanzando desde ahí."
+        : "Cierra largo pero con equilibrio — sin catch a ritmo.";
+      return `Prioriza ${wc} en el spot-up. ${instC}`;
     }
     case "deny_trans_rim":
       return "Corre directo al aro. Va en carrera en cada pérdida — ponte entre ella y el aro antes de que llegue el balón.";
@@ -872,65 +982,118 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
 
 function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
   switch (key) {
-    case "deny_iso_space":
-      return inputs.isoDir === "R"
-        ? "封堵右翼接球，迫使其向左运球。"
-        : "封堵左翼接球，迫使其向右运球。";
-    case "deny_pnr_downhill":
-      return "封堵挡拆下坡进攻，绕过掩护，不要走底线。";
-    case "deny_post_entry":
-      return "封堵低位接球，保持前防位置。";
-    case "deny_spot_deep":
-      return "封堵远距离接球，提前补防。";
+    case "deny_iso_space": {
+      const dirZH = inputs.isoDir === "R" ? "右翼" : inputs.isoDir === "L" ? "左翼" : "两翼";
+      const forceZH =
+        inputs.isoDir === "R"
+          ? "迫使其向左——在其站稳前干扰每次接球。"
+          : inputs.isoDir === "L"
+            ? "迫使其向右——不让其按惯用方向发起进攻。"
+            : "保持身体在球与对手之间——不给轻松接球机会。";
+      const athZH = (inputs.ath ?? 3) >= 4 ? " 不要伸手犯规——她善于利用对抗。" : "";
+      return `封堵${dirZH}接球。${forceZH}${athZH}`;
+    }
+    case "deny_pnr_downhill": {
+      const deepZH = inputs.deepRange
+        ? "绕过掩护，不要走底线——给她急停跳投机会就是失误。"
+        : "紧贴绕过掩护，不让其舒适接球后中距离出手。";
+      const passerZH = inputs.pnrPri === "PF" ? " 她以传球为优先——保持与滚篮者的联系。" : "";
+      return `封堵挡拆接球。${deepZH}${passerZH}`;
+    }
+    case "deny_post_entry": {
+      const sideZH =
+        inputs.postShoulder === "R" ? "右侧" : inputs.postShoulder === "L" ? "左侧" : "惯用侧";
+      const techZH =
+        inputs.phys && inputs.phys >= 4
+          ? `前防${sideZH}低位，从${sideZH}肩膀四分之三位置封堵——将其推高，不让其建立深位。`
+          : `封堵${sideZH}低位接球，四分之三位置——在其完成密封前抢占位置。`;
+      const physZH = inputs.phys && inputs.phys >= 4 ? " 她身体对抗强——在球到达前抢到位置。" : "";
+      return techZH + physZH;
+    }
+    case "deny_spot_deep": {
+      const dondeZH = spotZonesPhraseZH(inputs);
+      const instantZH =
+        inputs.spotUpAction === "shoot"
+          ? "全速补防——无假动作，无犹豫。接球即出手。"
+          : "控制补防节奏——补防过快可能被突破利用。";
+      return `不让其在${dondeZH}轻松接球。${instantZH} 争抢每次接球机会。`;
+    }
+    case "deny_spot_corner": {
+      const wc = cornerFocusZH(inputs);
+      const instC =
+        inputs.spotUpAction === "shoot"
+          ? "长距离快速补防——该区域接球投篮很果断。"
+          : "长补防但保持平衡——不给节奏型接球投篮。";
+      return `定点进攻时优先照顾${wc}。${instC}`;
+    }
     case "deny_trans_rim":
-      return "全速回防，不让其快攻上篮。";
+      return "直接回追篮筐。她在每次失误后全力冲刺——在球到达前卡在她与篮筐之间。";
+    case "deny_floater":
+      return "封堵抛投区域接球，高高干扰——不给轻松上篮线。";
+    case "deny_pnr_slip":
+      return "预判掩护者滑出。读懂你的补防——全程与掩护保持身体接触。";
     case "force_direction": {
       const weakSide = inputs.hand === "R" ? "左侧" : "右侧";
-      const isShooterForce = inputs.deepRange &&
-        inputs.spotUpFreq != null && inputs.spotUpFreq !== "N" &&
-        inputs.pnrFinishLeft != null && inputs.pnrFinishRight != null &&
-        inputs.pnrFinishLeft !== "Drive to Rim" && inputs.pnrFinishRight !== "Drive to Rim";
+      const isShooterForce =
+        inputs.deepRange &&
+        inputs.spotUpFreq != null &&
+        inputs.spotUpFreq !== "N" &&
+        inputs.pnrFinishLeft != null &&
+        inputs.pnrFinishRight != null &&
+        inputs.pnrFinishLeft !== "Drive to Rim" &&
+        inputs.pnrFinishRight !== "Drive to Rim";
       if (isShooterForce) {
-        return `逢迫其向${weakSide}突破——封堵中距离接球机会。她逃避突破筐下，靠向${weakSide}，迫其进攻禁区。`;
+        return `逼迫其向${weakSide}突破——封堵中距离接球机会。她逃避冲击篮筐，靠向${weakSide}，迫其进攻禁区。`;
       }
-      return `逢迫其向${weakSide}进攻，PnR中该侧终结能力较弱——靠向${weakSide}，迫其走难路。`;
+      const isIsoZH = (inputs.isoFreq === "P" || inputs.isoFreq === "S") && inputs.isoDir !== "B";
+      if (isIsoZH) {
+        const cZH =
+          inputs.contactFinish === "seeks" ? ` 保持身体方正——她喜欢从惯用侧寻求对抗。` : "";
+        const handZH = inputs.hand === "R" ? "右" : "左";
+        return `在单打中逼迫其向${weakSide}——她惯用${handZH}手，在其接球前靠向${weakSide}。${cZH}`;
+      }
+      return `从掩护中逼迫其向${weakSide}进攻，该侧终结能力较弱——掩护建立前提早靠位。`;
     }
     case "force_early":
-      return "逼迫其在进攻时间早期出手，持续施压不让其站稳。";
+      return "逼迫其在前三秒出手。从一开始就紧逼——她需要时间来创造机会。";
     case "force_no_space":
       return "逼迫其在无空间处接球，紧贴防守。";
     case "force_trap":
       return "在挡拆中逼迫其陷入夹击，大力补防。";
-    case "allow_catch_shoot":
-      return "允许接球跳投，远距离补防即可——不给从防守中突破的机会。";
-    case "allow_iso":
-      return "在非主要进攻位置允许单打，效率低，让其消耗进攻时间。";
-    case "allow_spot_three":
-      return "允许定点三分，射程有限，命中率偏低。";
-    case "force_contact":
-      return "逼迫对抗——每次突破都要身体对抗，不给轻松上篮机会。";
+    case "force_paint_deny":
+      return "将其逼离禁区——迫使在外线接球，不在内线。";
+    case "force_contact": {
+      const handZH = inputs.hand === "R" ? "左侧" : "右侧";
+      return `每次突破都要身体对抗——她躲避对抗寻找空位终结。靠向${handZH}，让每次上篮都有争抢。`;
+    }
     case "force_full_court":
       return "全场紧逼，持续施压让传球推进困难。";
     case "force_no_push":
       return "限制持球推进，提前卡位，不让其全场突破。";
-    case "force_paint_deny":
-      return "将其逼离禁区，迫使其在外线接球。";
     case "force_no_ball":
-      return "封堵接球。运球能力差——每次持球都要上抢。";
+      return "封堵接球。运球是弱项——每次持球都要上抢。";
+    case "allow_catch_shoot":
+      return "允许接球跳投，远距离补防即可——不给从防守中突破的机会。";
+    case "allow_iso":
+      return "允许单打。她持球创造的效率偏低——给球，保持直立姿势，封堵出手。";
+    case "allow_spot_three":
+      return "允许外线接球。射程有限——中远距离两分是她最好的外线选择。专注保护禁区。";
     case "allow_distance":
-      return "给予外线空间，无射程威胁——协防保护禁区。";
+      return "松防。无外线射程——允许接球，专注保护禁区和卡位篮板。";
     case "allow_ball_handling":
       return "允许持球运球，控球威胁有限——让其运球，但不让其突破。";
     case "deny_pnr_pop":
       return "立即补防外拆投篮，挡拆后直接出手——不给空间站稳。";
     case "deny_pnr_roll":
       return "紧跟掩护者下顺，不脱离接触——强力切向篮下。";
-        case "deny_duck_in":
-      return "封堵身后接球，提前卫位——防止其深位封位轻松接球得分。";
+    case "deny_duck_in":
+      return "封堵低位切入接球。提前卡位——她深度密封后接球即可轻松终结。";
     case "deny_oreb":
-      return "每次出手都要卡位，顶级进攻篮板手——必须物理阻挡。";
+      return "出手前找到她——不是出手后。提前身体卡位。每次进攻她都冲抢篮板。";
     case "deny_dho":
       return "封堵手递手，在交接瞬间抢断——封死接球。";
+    case "deny_ball_advance":
+      return "施压运球推进，压力下处理球能力有限——在半场早期进行干扰。";
     case "allow_cut":
       return "允许底线切入，无切入得分威胁——专注主要进攻动作。";
     case "allow_transition":
@@ -938,11 +1101,13 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
     case "allow_post":
     case "allow_post_right":
     case "allow_post_left":
-      return "允许低位进攻，低位威胁有限——协防保护禁区。";
+      return "允许低位进攻，低位威胁有限——松防并协助内线。";
     case "allow_pnr_mid_range":
-      return "允许挡拆后中距离跳投，无远射程——中距离是效率最低的投篮，专注于快攻和切入防守。";
+      return "允许挡拆后中距离跳投，无远射程——中距离是效率最低的投篮，专注快攻和切入防守。";
     case "allow_iso_both":
-      return "允许单打，单打效率低——让其消耗进攻时间。";
+      return "允许双侧单打，单打效率低——让其消耗进攻时间。";
+    case "aware_instant_shot":
+      return "补防时立即出手——无假动作，无犹豫。";
     case "none":
       return "无特定指令，遵循标准防守原则。";
     default:
@@ -1014,7 +1179,9 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
     if (key.includes("instant_shot"))
       return "补防时立即出手——无假动作，无犹豫。";
     if (key.includes("passer") || key.includes("vision"))
-      return "传球视野极佳，夹击时能立刻找到出球点。";
+      return "传球精英——补防闭合前头部已抬起寻找出球。保持与滚篮者的联系。";
+    if (key.includes("pressure_vuln"))
+      return "压力下易出错。接球时主动施压——在其站稳前干扰。";
     if (key.includes("post_fade"))
       return "低位后仰跳投，难以有效封盖。";
     if (key.includes("stepback"))
