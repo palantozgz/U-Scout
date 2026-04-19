@@ -88,6 +88,9 @@ Dashboard (coach/editor)
 - i18n: slides_who_is, slides_what_will_do, slides_what_do_i añadidos en EN/ES/ZH
 - PlayerEditor: Guardar ya no navega (se queda en editor). Flecha atrás → review. i18n: editor_save_inputs, editor_back_to_report.
 - ReportViewV4: eliminados previewMode, toggle "Ver como jugadora", scroll vertical propio, overrides, sheet. Ahora es shell: ReportSlidesV1 + barra aprobación fixed bottom.
+- ReportSlidesV1: dorsal en badge sobre avatar, posición bajo nombre, ThreatLevel barra segmentada, score oculto en modo jugadora, AWARE con divisor visual, instrucción defensa text-[15px], flechas con showArrows() on interaction + fade 1.8s, drag mouse, bottomBar prop sticky dentro del contenedor (respeta max-w-md).
+- PlayerEditor: contactFinish eliminado de tab Contexto (duplicado con contactType en ISO). isoOppositeFinish renombrado a "Finishes on opposite side?" con opciones correctas (eurostep/swing/spin vs se queda en el lado de ataque). putbackQuality: "Reliable finisher" / "Occasional". transFinishing: "Rim finishing in transition".
+- motor-v4.ts: getMechanismType ampliada — aware_pressure_vuln ahora tipo "pressure_defense", no se descarta por colisión con otros alerts "general".
 
 ### 🔄 Pendientes activos (priorizados)
 1. **Runners-up** — tap en cada línea del report → bottom sheet con alternativas rankeadas
