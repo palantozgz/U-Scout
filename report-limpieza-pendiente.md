@@ -25,7 +25,7 @@ Los siguientes **no aparecen importados** desde `pages/`, `App.tsx` ni `componen
 
 Candidatos a auditar con [knip](https://github.com/webpro/knip) o búsqueda por imports antes de borrar:
 
-- `accordion`, `alert`, `alert-dialog`, `aspect-ratio`, `avatar`, `breadcrumb`, `calendar`, `carousel`, `chart`, `checkbox`, `collapsible`, `command`, `context-menu`, `drawer`, `empty`, `field`, `form`, `hover-card`, `input-group`, `input-otp`, `item`, `kbd`, `menubar`, `navigation-menu`, `pagination`, `popover`, `progress`, `radio-group`, `resizable`, `scroll-area`, `separator` (solo interno), `skeleton`, `slider`, `sonner`, `spinner`, `table`, `textarea` (solo vía `input-group`), `toggle`, `toggle-group`, `button-group`, `sidebar`, `carousel`, etc.
+- `accordion`, `alert`, `alert-dialog`, `aspect-ratio`, `avatar`, `breadcrumb`, `calendar`, `carousel`, `chart`, `checkbox`, `collapsible`, `command`, `context-menu`, `drawer`, `empty`, `field`, `form`, `hover-card`, `input-group`, `input-otp`, `item`, `kbd`, `menubar`, `navigation-menu`, `pagination`, `popover`, `progress`, `radio-group`, `resizable`, `scroll-area`, `separator` (solo interno), `skeleton`, `slider`, `sonner`, `spinner`, `table`, `textarea` (solo vía `input-group`), `toggle`, `toggle-group`, `button-group`, `sidebar`, etc.
 
 **Recomendación:** no borrar en bloque hasta confirmar que no los añadiréis con `shadcn` ni usáis en ramas locales. Si se poda, hacer commit pequeño y `npm run check`.
 
@@ -44,7 +44,7 @@ Candidatos a auditar con [knip](https://github.com/webpro/knip) o búsqueda por 
 
 ## Pendiente — alias y carpetas
 
-- En `vite.config.ts` existe alias `@assets` → `attached_assets`; **confirmar** si la carpeta existe y se usa (evitar alias muerto).
+- En `vite.config.ts` existe alias `@assets` → `attached_assets`; en el repo **no hay** carpeta `attached_assets` (alias muerto o pendiente de crear / eliminar alias).
 
 ---
 
