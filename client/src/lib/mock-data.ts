@@ -780,9 +780,17 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
 
   let trapResponse: PlayerInputs["trapResponse"] = null;
   if (isActive(inputs.pnrFrequency) && pnrIsHandler) {
-    if (vision >= 5) trapResponse = "escape";
-    else if (vision >= 3) trapResponse = "pass";
-    else trapResponse = "struggle";
+    // Scout's direct observation has priority over vision inference
+    if (inputs.motorPressureResponse === "struggles") {
+      trapResponse = "struggle";
+    } else if (inputs.motorPressureResponse === "escapes") {
+      trapResponse = "escape";
+    } else {
+      // Infer from vision when not observed directly
+      if (vision >= 5) trapResponse = "escape";
+      else if (vision >= 3) trapResponse = "pass";
+      else trapResponse = "struggle";
+    }
   }
 
   const contactFinish: PlayerInputs["contactFinish"] =
