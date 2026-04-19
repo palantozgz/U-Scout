@@ -17,16 +17,14 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/lib/motor-v4.ts` — scoring layer, scores + candidatos rankeados
 - `client/src/lib/motor-v2.1.ts` — motor base, lógica de inferencia
 - `client/src/lib/reportTextRenderer.ts` — texto EN/ES/ZH con gender
-- `client/src/lib/overrideEngine.ts` — overrides + discrepancias + ML patterns
-- `client/src/lib/approval-api.ts` — useApprovalStatus + helpers invalidación
-- `client/src/pages/coach/ReportViewV4.tsx` — shell mínimo: renderiza ReportSlidesV1 con coachMode + barra fija de aprobación (proponer/publicar). Solo activo en coach_review.
-- `client/src/pages/coach/ReportSlidesV1.tsx` — 3 slides (swipe táctil + pips). Prop coachMode: kebab ⋮ por ítem + bottom sheet runners-up. Usado por ReportViewV4 (coach_review) y directo en /player/report/:id
+- `client/src/lib/mock-data.ts` — playerInputToMotorInputs, clubRowToMotorContext
+- `client/src/pages/coach/ReportSlidesV1.tsx` — 3 slides (swipe + pips), coachMode kebabs + runners-up bottom sheet
+- `client/src/pages/coach/ReportViewV4.tsx` — shell coach_review: ReportSlidesV1 + barra aprobación
 - `client/src/pages/coach/PlayerEditor.tsx` — editor inputs jugador
-- `client/src/pages/coach/Dashboard.tsx` — lista equipos/jugadores, PlayerRow
-- `client/src/lib/mock-data.ts` — usePlayer, playerInputToMotorInputs, clubRowToMotorContext
-- `client/src/lib/i18n.ts` — strings EN/ES/ZH
+- `client/src/pages/coach/Dashboard.tsx` — lista equipos/jugadores
 - `server/routes.ts` — rutas API Express
 - `server/storage.ts` — acceso Supabase
+- `scripts/calibrate-motor.ts` — 66 perfiles con expectations (100% / 551 checks)
 
 ## NUNCA tocar
 - `Profile.tsx`
@@ -36,74 +34,94 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ---
 
-## Arquitectura 4 capas (producción)
-1. `motor-v4.ts` → scores numéricos + candidatos rankeados (sin texto)
-2. `reportTextRenderer.ts` → texto EN/ES/ZH con gender
+## Arquitectura 4 capas
+1. `motor-v4.ts` → scores numéricos + candidatos rankeados
+2. `reportTextRenderer.ts` → texto EN/ES/ZH con gender (instrucciones ejecutables)
 3. `overrideEngine.ts` → overrides + discrepancias + ML
-4. `ReportSlidesV1.tsx` → UI: 3 slides swipe, coachMode kebabs · `ReportViewV4.tsx` → shell coach_review: ReportSlidesV1 + barra aprobación
+4. `ReportSlidesV1.tsx` → UI 3 slides + `ReportViewV4.tsx` → shell coach_review
 
-## Flujo de navegación (producción)
-Dashboard (coach/editor)
-└─ [tap nombre/posición jugadora]  →  ReportViewV4 (coach_review)
-└─ botón "Revisar" (✓)            →  ReportViewV4 (coach_review)
-└─ "Proponer al staff"              →  POST /approve → Dashboard
-└─ "Publicar"                       →  POST /publish
-└─ ← atrás                          →  Dashboard
-└─ botón "Edit"  →  PlayerEditor
-└─ Guardar  →  persiste en sitio (se queda en editor)
-└─ ← atrás  →  ReportViewV4 (coach_review) si jugadora existente
-→  /coach/editor si jugadora nueva
-
-## Rutas activas
-- `/coach/editor` → Dashboard modo editor
-- `/coach/scout/:id/review` → ReportViewV4 modo coach_review
-- `/coach/scout/:id/preview` → ReportSlidesV1 (vista jugador, acceso directo desde coach)
-- `/player/report/:id` → ReportSlidesV1 (vista jugador nativa)
-- `/coach/player/:id` → PlayerEditor
-
-## API aprobación (todas en routes.ts)
-- `GET  /api/players/:id/approval-status` → approvals, totalStaff, overrides, isPublished, hasDiscrepancy
-- `POST /api/players/:id/overrides` → guarda override {slide, itemKey, action}
-- `DELETE /api/players/:id/overrides/:key` → elimina override
-- `POST /api/players/:id/approve` → coach aprueba
-- `DELETE /api/players/:id/approve` → retira aprobación
-- `POST /api/players/:id/publish` → publica (requiere ≥1 aprobación)
-- `POST /api/players/:id/unpublish` → despublica
+## Flujo de navegación
+Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 
 ---
 
-## Estado actual
+## Estado actual — commit c5f7570
 
-### ✅ En producción (main) — commit 98ac07e
-- Runners-up: bottom sheet en ReportSlidesV1 — situaciones alternativas + alternativas DENY/FORCE/ALLOW
-- contactType en tab Contexto → Perfil físico (visible siempre, aplica a ISO + PnR + cualquier drive)
-- motor-v4.ts: allow fallback solo para situaciones genuinamente low-threat (<0.5) — fix allow_transition incorrecto
-- motor-v2.1.ts: force_early solo para ISO puros sin exterior/transición threat; force_direction desde asimetría PnR (pnrFinishLeft/Right); force_contact suprimido para spot-up primarias; allow_iso filtrado para PnR/post primarias; allow_post solo para interiores con presencia real
-- mock-data.ts: deepRange = true también para spotUp Secondary + catch&shoot o isoEff high
-- reportTextRenderer.ts: renderizado completo para todos los keys del motor — force_direction (EN/ES/ZH con side inference desde hand), deny_duck_in, deny_pnr_pop/roll, deny_oreb, deny_dho, deny_floater, allow_cut/catch_shoot/transition/post/iso_both, force_contact/full_court/no_push/no_ball/paint_deny, allow_distance/ball_handling
-- scripts/calibrate-motor.ts: 26 perfiles NBA/WNBA con expectations concretas. Score: **100% (228/228 checks, 26/26 perfiles)**
+### Motor (motor-v2.1.ts + motor-v4.ts)
+- **Calibración: 100% (551/551 checks, 66/66 perfiles)**
+- Script: `cd "/Users/palant/Downloads/U scout" && npx tsx scripts/calibrate-motor.ts`
+- Perfiles cubiertos: Luka, Jokic, Curry, Giannis, Klay, Embiid, Haliburton, Gobert, A'ja Wilson, Breanna Stewart, Ionescu, Clark, Plum, Micic, Mirotic, SGA, Sabonis, Booker, JB, AD, Trae Young, Middleton, Bam (x2), Taurasi, Jonquel Jones, Alyssa Thomas + 4 amateurs + 4 universitarios + Pika-style + Draymond + otros perfiles de rol (total 66)
 
-### ⚠️ Pendiente operacional (no código)
-- **Yuming + Luffy** — ejecutar en Supabase SQL Editor:
-  ```sql
-  SELECT id, email FROM auth.users
-  WHERE email ILIKE '%yuming%' OR email ILIKE '%luffy%';
-  SELECT id, name FROM clubs;
-  -- Luego:
-  INSERT INTO club_members (club_id, user_id, role, display_name, status, joined_at)
-  VALUES ('<CLUB_ID>', '<YUMING_ID>', 'coach', 'Yuming', 'active', NOW()),
-         ('<CLUB_ID>', '<LUFFY_ID>', 'coach', 'Luffy', 'active', NOW())
-  ON CONFLICT (club_id, user_id) DO UPDATE SET role='coach', status='active', joined_at=NOW();
-  ```
-- **Pika FORCE → forzar izquierda**: requiere que en el editor PnR tab estén seteados `pnrFinishBallLeft = Pull-up` y `pnrFinishBallRight = Drive to Rim`. Sin esos campos el motor no detecta asimetría.
+**Inferencias clave implementadas:**
+- `trapResponse` desde `motorPressureResponse` del editor (scout > inferencia de visión)
+- `force_direction` para tiradora PnR mid-range ambos lados (shooter context)
+- `aware_passer` suprimido cuando `trapResponse = struggle`
+- `force_weak_hand` suprimido si `isoWeakHandFinish = drive` (ambidiestro)
+- `orebThreat = medium` inferido para C/PF con phys≥4 si no seteado
+- `force_full_court` modulado por atletismo
+- `aware_instant_shot` para tiradores primarios con release inmediato
+- `pnrSnake` conectado (reduce force_direction weight + aware)
+- `allow_pnr_mid_range` para PnR handler sin deepRange (under coverage válido)
+- `spotZone` mapeado desde inputs del editor
+- Cut baseWeight 0.72 (Synergy: cuts=1.58 PPP más eficiente)
+- deny_spot_deep 0.98 (open 3PT = shot más eficiente)
+- ath modula ISO weight parcialmente
+- `aware_passer` ponderado: vision=5+escape=0.95, vision=4+pass=0.72
 
-### 🔄 Pendientes activos (priorizados)
-1. **Versiones inputs por coach** — tabla player_inputs_versions (sprint futuro, requiere migración schema)
+**Base científica:**
+- Synergy Sports: PPP por play type (Cuts=1.58, Spot-up alta, ISO/Post 0.78-0.98)
+- Frontiers/PMC: PnR weak/under coverage, mano dominante
+- Analytics: mid-range -0.16 PPP vs 3PT; open 3PT = shot más eficiente
+- Basketball Immersion scouting reports
 
-### 🗓 Backlog futuro
-- **Iconos/ilustraciones defensivas en slides** — diseño obligatorio en Figma antes de implementar. Nunca SVG generado.
+### Renderer (reportTextRenderer.ts)
+Textos EN y ES actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR QUÉ):
+- `deny_iso_space`: dirección + contexto atlético
+- `deny_pnr_downhill`: deepRange + passer context
+- `deny_post_entry`: técnica fronting + phys
+- `deny_spot_deep`: closeout mechanics (shoot vs attack)
+- `deny_trans_rim`: cue de sprint al aro
+- `deny_oreb`: timing (antes del tiro, no después)
+- `force_direction`: ISO context vs PnR context vs shooter
+- `force_early`: mecanismo de los primeros 3 segundos
+- `force_contact`: dirección + por qué
+- `allow_spot_three`: redirige a proteger pintura
+- `allow_iso`: instrucción activa (give ball, stay upright, contest)
+
+**Pendiente ZH**: el bloque `renderInstructionZH` está desactualizado — textos genéricos.
+Prompt Cursor generado en: `scripts/cursor_prompt_renderer_zh_pending.md`
+
+### Club INNER MONGOLIA
+- Club ID: `4bca3aa8-9062-4709-9d29-9e2313308f1a`
+- Miembros: Pablo (owner) + Luffy + Yuming + Javier (coaches)
+- SQL completado en Supabase
+
+---
+
+## Pendientes activos (priorizados)
+
+1. **Renderer ZH** — actualizar bloque `renderInstructionZH` con calidad EN/ES
+   → Prompt Cursor: `scripts/cursor_prompt_renderer_zh_pending.md`
+
+2. **Rediseño slides 2–3** — slide 2 descriptivo + threat scores rankeados, slide 3 instrucción ejecutable, runners-up por tap
+   → Requiere diseño en Figma antes de tocar código
+
+3. **PlayerEditor input redesign** — ~48 campos finales (audit pendiente sección screener)
+   → Prompt Cursor: `cursor_prompt_inputs_redesign.md`
+
+4. **`motorOutputToRichText`** — texto descriptivo por jugadora usando enrichedInputs en slide 1
+   → Ya en main, revisar calidad
+
+5. **Revision flow** — al guardar → pantalla revisión (ReportViewV4)
+
+6. **Versiones inputs por coach** — tabla `player_inputs_versions` (requiere migración schema)
+
+---
+
+## Backlog futuro
+- Iconos defensivos en slides: diseño Figma OBLIGATORIO antes de implementar. Nunca SVG generado.
 - Favicon U Scout
-- Logo club con imagen real
+- Logo club con imagen real (reemplaza emoji picker)
 - Branding: SVG Figma → animación Rive
 - Modo Simple vs Pro
 - Offline queue + sincronización
@@ -111,41 +129,43 @@ Dashboard (coach/editor)
 ---
 
 ## Decisiones de producto (bloqueadas)
-- Scope: solo matchup 1-on-1. Sin situaciones colectivas.
+- Scope: solo matchup 1-on-1. Sin situaciones colectivas. Sin cobertura PnR de equipo.
 - Report: 3 SLIDES — Slide 1: ¿Quién es?, Slide 2: ¿Qué hará? (top 3 situaciones), Slide 3: ¿Qué hago yo? (DENY/FORCE/ALLOW + max 2 AWARE)
-- Mismo informe jugadora y entrenador
+- Mismo informe jugadora y entrenador (coachMode controla runners-up y edición)
 - ClubContext a nivel club, no por jugadora
-- Iconos: diseño Figma obligatorio antes de implementar. Nunca SVG generado.
+- Iconos: diseño Figma obligatorio. Nunca SVG generado desde código.
 
 ---
 
 ## Reglas entrega código (no negociables)
 - NUNCA "añade estas líneas aquí"
-- Siempre: archivo completo, comando terminal con cd, o prompt Cursor
+- Siempre: archivo completo para copy-paste, O comando terminal con `cd`, O prompt Cursor completo
 - Ejecutar `npm run check` después de cada cambio
-- Cursor agent para ejecución multi-archivo
+- Cursor agent (Claude Sonnet) para ejecución multi-archivo
 - Claude para arquitectura, motor, generación de prompts
+- Destructive migrations: raw SQL en Supabase SQL Editor, nunca `drizzle-kit push`
 
 ## Calibración motor
-```
+```bash
 cd "/Users/palant/Downloads/U scout"
 npx tsx scripts/calibrate-motor.ts
 ```
-Escribe: `scripts/calibration-results.json`
-Score actual: **100% (228/228 checks, 26/26 perfiles)**
-Perfiles: Luka, Jokic, Curry, Giannis, Klay, Embiid, Haliburton, Gobert, A'ja Wilson, Breanna Stewart, Ionescu, Clark, Plum, 3-and-D wing, Pika-style, Pop screener, Pressure vuln, Interior role, ISO europeo, DHO, Cutter, Slip screener, Ball liability, Oreb specialist, PnR asimetría, Floater guard
+Score actual: **100% (551/551 checks, 66/66 perfiles)**
 
 ## Audit rápido
-```
+```bash
 cd "/Users/palant/Downloads/U scout" && bash scripts/audit.sh > scripts/audit-output.txt
 ```
 
 ---
 
 ## Terminología
-- SCOUT: zona trabajo entrenador — editar inputs, revisar report, proponer al staff, aprobar
-- REPORTS: zona entrenador para reports ya publicados
+- SCOUT: zona trabajo entrenador — editar inputs, revisar report, proponer al staff
+- DENY/FORCE/ALLOW: las 3 instrucciones defensivas del slide 3
+- AWARE: alertas situacionales (max 2 en el informe)
 - Runners-up: alternativas rankeadas por el motor por línea del informe
 - Override: decisión entrenador que sobreescribe output del motor
 - Discrepancia: dos entrenadores eligieron opciones distintas para el mismo ítem
 - Archetype: perfil ofensivo primario de la jugadora
+- trapResponse: reacción a blitz/hedge colectivo en PnR (escape/pass/struggle)
+- pressureResponse: reacción a presión individual (escapes/struggles)
