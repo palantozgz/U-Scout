@@ -20,7 +20,7 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/lib/overrideEngine.ts` — overrides + discrepancias + ML patterns
 - `client/src/lib/approval-api.ts` — useApprovalStatus + helpers invalidación
 - `client/src/pages/coach/ReportViewV4.tsx` — shell mínimo: renderiza ReportSlidesV1 con coachMode + barra fija de aprobación (proponer/publicar). Solo activo en coach_review.
-- `client/src/pages/coach/ReportSlidesV1.tsx` — 3 slides (swipe táctil + pips). Prop coachMode: muestra kebab ⋮ por ítem (runners-up próximo sprint). Usado por ReportViewV4 (coach_review) y directo en /player/report/:id
+- `client/src/pages/coach/ReportSlidesV1.tsx` — 3 slides (swipe táctil + pips). Prop coachMode: kebab ⋮ por ítem + bottom sheet runners-up. Usado por ReportViewV4 (coach_review) y directo en /player/report/:id
 - `client/src/pages/coach/PlayerEditor.tsx` — editor inputs jugador
 - `client/src/pages/coach/Dashboard.tsx` — lista equipos/jugadores, PlayerRow
 - `client/src/lib/mock-data.ts` — usePlayer, playerInputToMotorInputs, clubRowToMotorContext
@@ -76,28 +76,24 @@ Dashboard (coach/editor)
 
 ### ✅ En producción (main)
 - Campos nuevos PlayerInput: isoFinishLeft/Right, pnrSnake, contactType, ftRating — tipo + motor + editor
-- Migración isoStrongHandFinish/isoWeakHandFinish → isoFinishLeft/Right con fallback hacia atrás
-- contactType afecta contactFinish en motor; ftRating afecta isoDanger; pnrSnake afecta pnrDanger
+- contactType movido a tab Contexto → Perfil físico (visible siempre, aplica a ISO + PnR + cualquier drive). ftRating condicional si seeks.
 - Motor v4 calibrado y activo
+- Runners-up: bottom sheet en ReportSlidesV1 — situaciones alternativas del motor + alternativas DENY/FORCE/ALLOW
 - Flujo aprobación conectado: handlePropose → POST /approve, handlePublish → POST /publish
-- Barra inferior coach_review: X/Y propuesto, banner discrepancias, botón Publicar
-- renderSituationDescription exportada en reportTextRenderer.ts
-- Dashboard: botón preview (📄) eliminado; tap en card jugadora → review; botón "Revisar" único entry point
-- i18n: editor_review_report, report_preview_as_player, report_back_to_review, report_staff_proposed, report_discrepancy_banner
-- ReportSlidesV1 activo: 3 slides (Quién es / Qué hará / Qué hago yo), swipe táctil + pips clickeables, header fijo con club-emoji. coachMode=true añade kebab ⋮ por ítem. Iconos DENY/FORCE/ALLOW: SVG placeholder. Temas heredados por CSS.
-- i18n: slides_who_is, slides_what_will_do, slides_what_do_i añadidos en EN/ES/ZH
-- PlayerEditor: Guardar ya no navega (se queda en editor). Flecha atrás → review. i18n: editor_save_inputs, editor_back_to_report.
-- ReportViewV4: eliminados previewMode, toggle "Ver como jugadora", scroll vertical propio, overrides, sheet. Ahora es shell: ReportSlidesV1 + barra aprobación fixed bottom.
-- ReportSlidesV1: dorsal en badge sobre avatar, posición bajo nombre, ThreatLevel barra segmentada, score oculto en modo jugadora, AWARE con divisor visual, instrucción defensa text-[15px], flechas con showArrows() on interaction + fade 1.8s, drag mouse, bottomBar prop sticky dentro del contenedor (respeta max-w-md).
-- PlayerEditor: contactFinish eliminado de tab Contexto (duplicado con contactType en ISO). isoOppositeFinish renombrado a "Finishes on opposite side?" con opciones correctas (eurostep/swing/spin vs se queda en el lado de ataque). putbackQuality: "Reliable finisher" / "Occasional". transFinishing: "Rim finishing in transition".
-- motor-v4.ts: getMechanismType ampliada — aware_pressure_vuln ahora tipo "pressure_defense", no se descarta por colisión con otros alerts "general".
+- Barra inferior coach_review compacta: X/Y propuesto inline + botones h-7, sticky dentro del contenedor max-w-md (no fixed)
+- ReportSlidesV1: dorsal en badge sobre avatar, posición bajo nombre, ThreatLevel barra segmentada, score oculto en modo jugadora, AWARE con divisor visual, instrucción defensa text-[15px], flechas con showArrows() on interaction + fade 1.8s, drag mouse, bottomBar prop sticky
+- PlayerEditor: Guardar persiste en sitio (no navega). Flecha atrás → review. isoOppositeFinish = "Finishes on opposite side?" (eurostep/swing/spin). putbackQuality: "Reliable finisher" / "Occasional". transFinishing: "Rim finishing in transition". contactFinish duplicado eliminado de Contexto.
+- motor-v4.ts: getMechanismType ampliada — pressure_defense, clutch, contact como tipos propios
+- motor-v2.1.ts fixes: force_early reducido con exterior/transición threat; allow_iso suprimido para PnR/post primarias; force_contact suprimido para spot-up primarias; allow_post solo para interiores con presencia; allow_iso filtrado correctamente
+- mock-data.ts: deepRange = true también para spotUp Secondary + catch&shoot o isoEff high
+- reportTextRenderer.ts: renderizado completo para force_contact, force_full_court, force_no_push, force_paint_deny, force_no_ball, allow_distance, allow_ball_handling en EN/ES/ZH
 
 ### 🔄 Pendientes activos (priorizados)
-1. **Runners-up** — tap en cada línea del report → bottom sheet con alternativas rankeadas
+1. **Calibración motor con perfiles reales** — iterar motor v2.1 con jugadoras NBA/WNBA conocidas para validar calidad de outputs. Script: `npx tsx scripts/test-motor-v4.ts`
 2. **Versiones inputs por coach** — tabla player_inputs_versions (sprint futuro, requiere migración schema)
 
 ### 🗓 Backlog futuro
-- **Iconos/ilustraciones/animaciones en slides del report** — cada instrucción defensiva (DENY/FORCE/ALLOW/AWARE) tiene un icono SVG placeholder. Pendiente: ilustraciones reales de acción de baloncesto en Figma, y animaciones (ej. "force early" = contacto temprano animado). Ancla mental: repetición del mismo icono = memoria muscular visual. Referencia: Duolingo, Nike Training Club. Diseño obligatorio en Figma antes de implementar.
+- **Iconos/ilustraciones/animaciones en slides del report** — cada instrucción defensiva (DENY/FORCE/ALLOW/AWARE) tiene un icono SVG placeholder. Pendiente: ilustraciones reales de acción de baloncesto en Figma, y animaciones. Diseño obligatorio en Figma antes de implementar.
 - Favicon U Scout
 - Logo club con imagen real
 - Branding: SVG Figma → animación Rive

@@ -646,7 +646,7 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
     case "deny_trans_rim":
       return "Sprint back. No basket cuts in transition — get between them and the rim.";
     case "deny_floater":
-      return "Deny the catch in the floater zone. Contest high if they get the ball in the lane.";
+      return "Deny the catch in the floater zone. Contest high — do not give them the lane.";
     case "deny_pnr_slip":
       return "Anticipate the slip. They read your hedge — stay connected through the screen.";
     case "force_early":
@@ -658,13 +658,13 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
     case "force_paint_deny":
       return "Keep her off the paint. Force catches on the perimeter, not inside.";
     case "allow_catch_shoot":
-      return "Allow the catch & shoot in low-threat positions. Contesting from distance is acceptable.";
+      return "Allow catch-and-shoot attempts. Contest from distance — no free drives from closeout.";
     case "allow_iso":
       return "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock.";
     case "allow_spot_three":
       return "Allow spot-up threes. No deep range — the shot is below average.";
     case "allow_cut":
-      return "Allow baseline cuts. No scoring threat off the cut — concentrate on primary actions.";
+      return "Allow baseline cuts. No scoring threat off the cut — focus on primary actions.";
     case "force_contact":
       return "Force into contact — be physical on every drive. Do not give easy layups.";
     case "force_full_court":
@@ -679,6 +679,24 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
       return "Give distance. No exterior range — sag off and protect the paint.";
     case "allow_ball_handling":
       return "Allow ball handling. Limited threat with the ball — let her dribble, not drive.";
+    case "deny_pnr_pop":
+      return "Contest the pop immediately. They shoot off the screen — no space to set.";
+    case "deny_pnr_roll":
+      return "Stay attached to the roller. Do not lose contact — they roll hard to the rim.";
+    case "deny_oreb":
+      return "Box out on every shot. Elite offensive rebounder — physical block-out required.";
+    case "deny_dho":
+      return "Jump the handoff. Attack the ball at the moment of exchange — deny the catch.";
+    case "deny_ball_advance":
+      return "Pressure the ball advance. Limited handling under pressure — attack early in the halfcourt.";
+    case "allow_transition":
+      return "Allow transition attempts. Not a primary transition threat — stay organized defensively.";
+    case "allow_post_right":
+    case "allow_post_left":
+    case "allow_post":
+      return "Allow post-up attempts. Minimal post threat — sag off and help inside.";
+    case "allow_iso_both":
+      return "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock.";
     case "none":
       return "No specific instruction — follow standard defensive principles.";
     default:
@@ -707,7 +725,7 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
     case "deny_trans_rim":
       return "Corre de vuelta. Sin cortes al aro en transición — ponte entre él/ella y el aro.";
     case "deny_floater":
-      return "Niega el catch en la zona del floater. Contesta alto si recibe dentro de la zona.";
+      return "Niega el catch en la zona del floater. Contesta alto — no le des la línea.";
     case "deny_pnr_slip":
       return "Anticipa el slip. Lee el hedge — mantente conectado/a durante todo el bloqueo.";
     case "force_early":
@@ -719,13 +737,13 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
     case "force_paint_deny":
       return "Mantenla fuera de la pintura. Que reciba en el perímetro, no dentro.";
     case "allow_catch_shoot":
-      return "Permite el catch & shoot en posiciones de baja amenaza. El cierre desde lejos es aceptable.";
+      return "Permite el catch & shoot. Cierre desde lejos — sin penetraciones desde el cierre.";
     case "allow_iso":
       return "Permite el ISO en situaciones no primarias. Baja eficiencia — que consuma posesión.";
     case "allow_spot_three":
       return "Permite el tres en estático. Sin rango largo — el tiro está por debajo de la media.";
     case "allow_cut":
-      return "Permite el corte de base. Sin amenaza en el corte — concéntrate en las acciones primarias.";
+      return "Permite el corte. Sin amenaza en el corte — foco en las acciones primarias.";
     case "force_contact":
       return "Fuerza el contacto — sé físico/a en cada penetración. No regalar mates fáciles.";
     case "force_full_court":
@@ -740,6 +758,24 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
       return "Concede distancia. Sin rango exterior — sagear y proteger la pintura.";
     case "allow_ball_handling":
       return "Permite el bote. Poca amenaza con balón — déjala botar, no penetrar.";
+    case "deny_pnr_pop":
+      return "Contesta el pop de inmediato. Lanza tras el bloqueo — no darle espacio para prepararse.";
+    case "deny_pnr_roll":
+      return "Mantente pegado/a al bloqueador. Sin perder contacto — corta fuerte al aro.";
+    case "deny_oreb":
+      return "Bloquear en cada tiro. Reboteador/a ofensivo/a élite — bloqueo físico obligatorio.";
+    case "deny_dho":
+      return "Salta el DHO. Ataca el balón en el momento del intercambio — niega el catch.";
+    case "deny_ball_advance":
+      return "Presión al avance del balón. Manejo limitado bajo presión — atacar pronto en el medio campo.";
+    case "allow_transition":
+      return "Permite la transición. Sin amenaza primaria en el contraataque — mantén la organización defensiva.";
+    case "allow_post_right":
+    case "allow_post_left":
+    case "allow_post":
+      return "Permite el poste. Sin amenaza real en el poste — sagea y ayuda dentro.";
+    case "allow_iso_both":
+      return "Permite el ISO desde cualquier lado. Baja eficiencia en aislamiento — que use el reloj.";
     case "none":
       return "Sin instrucción específica — aplica principios defensivos estándar.";
     default:
@@ -768,7 +804,7 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
     case "force_trap":
       return "在挡拆中逼迫其陷入夹击，大力补防。";
     case "allow_catch_shoot":
-      return "在低威胁位置允许接球跳投，远距离补防即可。";
+      return "允许接球跳投，远距离补防即可——不给从防守中突破的机会。";
     case "allow_iso":
       return "在非主要进攻位置允许单打，效率低，让其消耗进攻时间。";
     case "allow_spot_three":
@@ -787,6 +823,24 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
       return "给予外线空间，无射程威胁——协防保护禁区。";
     case "allow_ball_handling":
       return "允许持球运球，控球威胁有限——让其运球，但不让其突破。";
+    case "deny_pnr_pop":
+      return "立即补防外拆投篮，挡拆后直接出手——不给空间站稳。";
+    case "deny_pnr_roll":
+      return "紧跟掩护者下顺，不脱离接触——强力切向篮下。";
+    case "deny_oreb":
+      return "每次出手都要卡位，顶级进攻篮板手——必须物理阻挡。";
+    case "deny_dho":
+      return "封堵手递手，在交接瞬间抢断——封死接球。";
+    case "allow_cut":
+      return "允许底线切入，无切入得分威胁——专注主要进攻动作。";
+    case "allow_transition":
+      return "允许快攻，非主要快攻威胁——保持防守组织。";
+    case "allow_post":
+    case "allow_post_right":
+    case "allow_post_left":
+      return "允许低位进攻，低位威胁有限——协防保护禁区。";
+    case "allow_iso_both":
+      return "允许单打，单打效率低——让其消耗进攻时间。";
     case "none":
       return "无特定指令，遵循标准防守原则。";
     default:

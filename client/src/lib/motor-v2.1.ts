@@ -1978,9 +1978,6 @@ export class UScoutMotor {
     // force_early only for ball handlers — not for PnR screeners
     // A player with pnrFreq=P who has screenerAction defined is a screener, not a handler
     const isPnrHandler = inputs.pnrFreq === 'P' && !inputs.screenerAction;
-    // Suppress force_early when the player is a serious perimeter threat:
-    // Pressing early exposes you to transition threes and open spot-up catches,
-    // making force_early counterproductive for PnR handlers with deep range + exterior threat.
     const hasExteriorThreat =
       inputs.deepRange === true &&
       inputs.spotUpFreq != null &&
@@ -1989,19 +1986,36 @@ export class UScoutMotor {
       inputs.transFreq != null &&
       inputs.transFreq !== 'N' &&
       inputs.transRole != null;
+    // force_early: only valid for ISO-primary handlers, not PnR-primary handlers.
+    // For PnR handlers, the key defense instruction is on the screen action (deny_pnr_downhill),
+    // not on shot clock pressure — pressing early on a PnR handler with exterior threat
+    // creates open catch-and-shoot opportunities for their shooters.
+    // Additionally suppress if player has exterior/transition threat regardless of play type.
+    const shouldSuppressEarly = isPnrHandler || hasExteriorThreat || isTransitionThreat;
     if (
       inputs.selfCreation === 'high' &&
       inputs.usage === 'primary' &&
-      (inputs.isoFreq === 'P' || isPnrHandler)
+      inputs.isoFreq === 'P' &&
+      !shouldSuppressEarly
     ) {
-      // Reduce weight significantly if perimeter/transition threat — force_early becomes risky
-      const earlyWeight = hasExteriorThreat || isTransitionThreat
-        ? Math.max(w.forceRules.earlyShot.baseWeight - 0.35, 0.15)
-        : w.forceRules.earlyShot.baseWeight + w.forceRules.earlyShot.selfCreationHighBonus;
       outputs.push({
         key: 'force_early',
         category: 'force',
-        weight: earlyWeight,
+        weight: w.forceRules.earlyShot.baseWeight + w.forceRules.earlyShot.selfCreationHighBonus,
+        source: 'self_creation',
+      });
+    } else if (
+      inputs.selfCreation === 'high' &&
+      inputs.usage === 'primary' &&
+      inputs.isoFreq === 'P' &&
+      !isPnrHandler &&
+      (hasExteriorThreat || isTransitionThreat)
+    ) {
+      // ISO primary but with exterior threat: emit at reduced weight as runner-up option
+      outputs.push({
+        key: 'force_early',
+        category: 'force',
+        weight: 0.2,
         source: 'self_creation',
       });
     }
