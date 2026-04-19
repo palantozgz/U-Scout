@@ -5,7 +5,6 @@ import {
   renderReport,
   renderSituationDescription,
   type RenderContext,
-  type RenderedReport,
 } from "@/lib/reportTextRenderer";
 import {
   usePlayer,
@@ -125,6 +124,23 @@ export default function ReportSlidesV1({
       title: labels[type][locale],
       current,
       alternatives: alternatives.map((a) => ({ text: a.instruction, score: a.score })),
+    });
+  }
+
+  function openArchetypeSheet(current: string) {
+    if (!report) return;
+    setActiveSheet({
+      title:
+        locale === "es"
+          ? "Alternativas de arquetipo"
+          : locale === "zh"
+            ? "原型备选"
+            : "Archetype alternatives",
+      current,
+      alternatives: report.identity.archetypeAlternatives.map((a) => ({
+        text: a.label,
+        score: a.score,
+      })),
     });
   }
 
@@ -298,7 +314,17 @@ export default function ReportSlidesV1({
                 )}
               </div>
 
-              <div className="mb-3 w-full rounded-2xl border border-primary/15 bg-primary/6 px-5 py-3.5 text-center">
+              <div className="relative mb-3 w-full rounded-2xl border border-primary/15 bg-primary/6 px-5 py-3.5 text-center">
+                {coachMode && (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-2 rounded p-2.5 -m-1.5 text-muted-foreground/40 hover:text-muted-foreground"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => openArchetypeSheet(report.identity.archetypeLabel)}
+                  >
+                    <MoreVertical className="h-3 w-3" />
+                  </button>
+                )}
                 <p className="mb-1 text-[8px] font-black uppercase tracking-[0.2em] text-primary/60">
                   {t("archetype")}
                 </p>
@@ -447,7 +473,7 @@ export default function ReportSlidesV1({
       <Sheet open={activeSheet !== null} onOpenChange={(open) => !open && setActiveSheet(null)}>
         <SheetContent
           side="bottom"
-          className="max-h-[70vh] overflow-y-auto rounded-t-2xl px-4 pb-8"
+          className="max-h-[85dvh] overflow-y-auto rounded-t-2xl px-4 pb-[calc(2rem+env(safe-area-inset-bottom))]"
         >
           <div className="mx-auto mb-4 mt-1 h-1 w-10 rounded-full bg-muted" />
           <SheetHeader className="pb-3 text-left">
@@ -558,7 +584,8 @@ function SituationCard({
         {coachMode && (
           <button
             type="button"
-            className="shrink-0 rounded p-0.5 text-muted-foreground/40 hover:text-muted-foreground"
+            className="shrink-0 rounded p-2.5 -m-1.5 text-muted-foreground/40 hover:text-muted-foreground"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={onKebab}
           >
             <MoreVertical className="h-3 w-3" />
@@ -640,7 +667,8 @@ function DefenseCard({
         {coachMode && (
           <button
             type="button"
-            className="shrink-0 rounded p-0.5 text-muted-foreground/40 hover:text-muted-foreground"
+            className="shrink-0 rounded p-2.5 -m-1.5 text-muted-foreground/40 hover:text-muted-foreground"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={onKebab}
           >
             <MoreVertical className="h-3 w-3" />

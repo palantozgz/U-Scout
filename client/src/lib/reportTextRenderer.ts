@@ -1146,6 +1146,8 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
       return "Offensive rebounding — stays alive on every missed shot.";
     if (key.includes("screen_hold"))
       return "Holds the screen longer than expected — slip comes late.";
+    if (key.includes("pressure_vuln"))
+      return "Struggles under pressure — attack the ball handler early, force mistakes.";
     if (key.includes("deep") || key.includes("range"))
       return "Deep range — shoots from well beyond the arc.";
     if (key.includes("physical"))
@@ -1169,6 +1171,8 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
       return "Rebote ofensivo — sigue vivo/a en cada fallo.";
     if (key.includes("screen_hold"))
       return "Mantiene el bloqueo más de lo esperado — el slip llega tarde.";
+    if (key.includes("pressure_vuln"))
+      return "Le cuesta bajo presión — ataca pronto con el balón, fuerza el error.";
     if (key.includes("deep") || key.includes("range"))
       return "Rango largo — lanza desde muy por detrás de la línea.";
     if (key.includes("physical"))

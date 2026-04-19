@@ -81,7 +81,7 @@ async function userCanManageClub(req: Request, clubId: string): Promise<boolean>
   if (club.ownerId === uid) return true;
   const m = await storage.getClubMemberByClubAndUser(clubId, uid);
   if (!m || m.status !== "active") return false;
-  return m.role === "head_coach" || m.role === "coach";
+  return m.role === "head_coach";
 }
 
 function isHeadCoachOrMaster(req: Request): boolean {
