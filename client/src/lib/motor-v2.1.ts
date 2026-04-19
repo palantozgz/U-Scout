@@ -429,7 +429,8 @@ export const WEIGHTS = {
     transition: { baseWeight: 0.8, athBonus: true },
     spotUp: { baseWeight: 0.75, deepRangeBonus: 0.15, zoneBonus: { corner: 0.15, wing: 0.05, top: 0 } },
     dho: { baseWeight: 0.85, roleBonus: { giver: 0.15, receiver: 0.05, both: 0.20 } },
-    cut: { baseWeight: 0.6, typeBonus: { basket: 0.1, backdoor: 0.15, flash: 0.05, curl: 0.1 } },
+    // Cut baseWeight increased from 0.6 to 0.72 — cuts are the most efficient action (1.58 PPP per Synergy data)
+    cut: { baseWeight: 0.72, typeBonus: { basket: 0.1, backdoor: 0.15, flash: 0.05, curl: 0.1 } },
     oreb: { baseWeight: 0.7, threatMultiplier: { high: 1.3, medium: 1.0, low: 0.6 } },
     floater: { baseWeight: 0.7 },
     screener: { rollWeight: 0.8, popWeight: 0.7, slipWeight: 0.65 },
@@ -964,7 +965,10 @@ export class UScoutMotor {
     // =========================================================================
     if (inputs.isoFreq && inputs.isoFreq !== 'N') {
       const baseWeight = freqW[inputs.isoFreq] * w.outputWeights.iso.baseWeight;
-      let weight = baseWeight * effectiveUsageM;
+      // ath partially modulates ISO weight — explosive athletes create faster and harder
+      // SCIENTIFIC BASIS: athleticism is a key discriminator in isolation scoring ability
+      const athIsoBonus = (w.athMultiplier[inputs.ath] - 1.0) * 0.4; // partial, not full
+      let weight = baseWeight * effectiveUsageM * (1 + athIsoBonus);
 
       if (inputs.isoEff) weight *= effM[inputs.isoEff];
 
@@ -1355,6 +1359,8 @@ export class UScoutMotor {
     } else if (!inputs.postFreq || inputs.postFreq === 'N') {
       // allow_post only when the player has some interior presence but doesn't post up —
       // skip entirely for guards with no interior game (it's obvious noise)
+      // SCIENTIFIC BASIS: Post-up is one of least efficient play types (0.78-0.98 PPP per research)
+      // → allowing post-ups from average bigs is a valid defensive concession
       const hasInteriorPresence = inputs.pos === 'PF' || inputs.pos === 'C' ||
         inputs.phys >= 4 || inputs.orebThreat === 'high' || inputs.orebThreat === 'medium';
       if (hasInteriorPresence && inputs.usage !== 'primary') {
@@ -1693,8 +1699,10 @@ export class UScoutMotor {
     }
     
     // Deep range threat — only if player actually uses spot-up (not just has range)
+    // SCIENTIFIC BASIS: Open 3PT is highest-PPP shot in basketball analytics
+    // Primary spot-up with deep range = top defensive priority
     if (inputs.deepRange && inputs.spotUpFreq && inputs.spotUpFreq !== 'N') {
-      const spotWeight = inputs.spotUpFreq === 'P' ? 0.95 : inputs.spotUpFreq === 'S' ? 0.80 : 0.60;
+      const spotWeight = inputs.spotUpFreq === 'P' ? 0.98 : inputs.spotUpFreq === 'S' ? 0.82 : 0.62;
       outputs.push({
         key: 'deny_spot_deep',
         category: 'deny',
@@ -1743,10 +1751,15 @@ export class UScoutMotor {
       inputs.orebThreat !== 'high' &&
       !isPnrOrPostPrimary
     ) {
+      // SCIENTIFIC BASIS: ISO is statistically one of the least efficient play types
+      // Secondary/role players with low ISO eff = very safe to allow — save defensive energy
+      const allowIsoWeight = w.allowRules.iso.lowEffWeight +
+        (inputs.isoFreq === 'N' ? 0.2 : 0) +
+        (inputs.usage === 'role' || inputs.usage === 'secondary' ? 0.1 : 0);
       outputs.push({
         key: 'allow_iso',
         category: 'allow',
-        weight: w.allowRules.iso.lowEffWeight + (inputs.isoFreq === 'N' ? 0.2 : 0),
+        weight: Math.min(allowIsoWeight, 0.92),
         source: 'weak_iso'
       });
     }
@@ -2141,14 +2154,21 @@ export class UScoutMotor {
     // =========================================================================
     // Aware outputs
     // =========================================================================
-    // aware_passer only when vision is high AND player doesn't struggle under trap pressure.
-    // A player with vision=4 but trapResponse=struggle reads collective situations well in open court,
-    // but is NOT an elite passer under defensive pressure — don't warn the defender to rotate.
+    // aware_passer: vision >= 4 AND not struggling under trap pressure.
+    // SCIENTIFIC BASIS: NBA research shows elite passers read double-teams and find shooters
+    // even under pressure. But vision=4 with trapResponse=struggle is a contradiction —
+    // good reader but not good handler under pressure. Only warn if actually dangerous.
+    // vision=5 + trapResponse=escape/pass = true elite passer
+    // vision=4 + trapResponse=pass = above-average reader, weight slightly lower
     if (inputs.vision >= 4 && inputs.trapResponse !== 'struggle') {
+      // Weight by vision level: 5=elite passer, 4=above average
+      const passerWeight = inputs.vision === 5
+        ? (0.8 + (inputs.trapResponse === 'escape' ? 0.15 : 0.05))
+        : 0.72; // vision=4 is good but not elite
       outputs.push({
         key: 'aware_passer',
         category: 'aware',
-        weight: 0.8 + (inputs.vision === 5 ? 0.15 : 0),
+        weight: passerWeight,
         source: 'vision'
       });
     }

@@ -711,6 +711,8 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
     case "allow_post_left":
     case "allow_post":
       return "Allow post-up attempts. Minimal post threat — sag off and help inside.";
+    case "allow_pnr_mid_range":
+      return "Allow mid-range pull-ups off the PnR. No deep range — the mid-range is the least efficient shot. Stay tight on transition and cutters instead.";
     case "allow_iso_both":
       return "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock.";
     case "none":
@@ -803,6 +805,8 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
     case "allow_post_left":
     case "allow_post":
       return "Permite el poste. Sin amenaza real en el poste — sagea y ayuda dentro.";
+    case "allow_pnr_mid_range":
+      return "Permite el pull-up de media distancia en el PnR. Sin rango largo — el mid-range es el tiro menos eficiente. Concéntrate en transición y cortadores.";
     case "allow_iso_both":
       return "Permite el ISO desde cualquier lado. Baja eficiencia en aislamiento — que use el reloj.";
     case "none":
@@ -881,6 +885,8 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
     case "allow_post_right":
     case "allow_post_left":
       return "允许低位进攻，低位威胁有限——协防保护禁区。";
+    case "allow_pnr_mid_range":
+      return "允许挡拆后中距离跳投，无远射程——中距离是效率最低的投篮，专注于快攻和切入防守。";
     case "allow_iso_both":
       return "允许单打，单打效率低——让其消耗进攻时间。";
     case "none":

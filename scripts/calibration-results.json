@@ -1,5 +1,5 @@
 {
-  "date": "2026-04-19T07:54:18.402Z",
+  "date": "2026-04-19T07:58:45.724Z",
   "globalScore": 100,
   "totalPassed": 26,
   "totalFailed": 0,
@@ -97,8 +97,8 @@
         "force_alts": [],
         "allow": "none",
         "alerts": [
-          "aware_passer",
-          "aware_deep"
+          "aware_deep",
+          "aware_passer"
         ],
         "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
@@ -153,13 +153,13 @@
         "top_situations": [
           "catch_shoot",
           "transition",
-          "off_ball"
+          "cut"
         ],
         "deny": "deny_spot_deep",
         "deny_alts": [
           "deny_trans_trail",
           "deny_spot_corner",
-          "deny_screen_pop"
+          "deny_cut_curl"
         ],
         "force": "none",
         "force_alts": [],
@@ -320,20 +320,20 @@
         "top_situations": [
           "iso_right",
           "pnr_ball",
-          "post_right"
+          "catch_shoot"
         ],
         "deny": "deny_iso_space",
         "deny_alts": [
           "deny_pnr_downhill",
-          "deny_post_entry",
-          "deny_spot_deep"
+          "deny_spot_deep",
+          "deny_post_entry"
         ],
         "force": "force_early",
         "force_alts": [],
         "allow": "none",
         "alerts": [
-          "aware_passer",
-          "aware_deep"
+          "aware_deep",
+          "aware_passer"
         ],
         "deny_text": "Deny the right wing catch. Force them left before they set up.",
         "force_text": "Force early clock shots. Apply ball pressure — do not let them settle.",
@@ -365,8 +365,8 @@
         "force_alts": [],
         "allow": "none",
         "alerts": [
-          "aware_passer",
-          "aware_deep"
+          "aware_deep",
+          "aware_passer"
         ],
         "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
         "force_text": "Force left. Weaker finishing side in the PnR — shade left, make her go the hard way.",
@@ -494,8 +494,8 @@
         "force_alts": [],
         "allow": "none",
         "alerts": [
-          "aware_passer",
-          "aware_deep"
+          "aware_deep",
+          "aware_passer"
         ],
         "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
         "force_text": "No specific instruction — follow standard defensive principles.",
@@ -624,8 +624,8 @@
         ],
         "force": "force_weak_hand",
         "force_alts": [
-          "force_direction",
-          "force_early"
+          "force_early",
+          "force_direction"
         ],
         "allow": "allow_transition",
         "alerts": [],
@@ -686,13 +686,13 @@
         ],
         "force": "none",
         "force_alts": [],
-        "allow": "allow_spot_three",
+        "allow": "allow_iso",
         "alerts": [
           "aware_off_ball_role"
         ],
         "deny_text": "cut backdoor",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
       }
     },
     {
@@ -848,8 +848,8 @@
         "force_alts": [],
         "allow": "none",
         "alerts": [
-          "aware_passer",
-          "aware_deep"
+          "aware_deep",
+          "aware_passer"
         ],
         "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
         "force_text": "Force left — deny the mid-range pull-up. She avoids driving to the rim; push her left and make her attack the paint.",
