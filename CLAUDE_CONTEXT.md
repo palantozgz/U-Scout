@@ -86,11 +86,13 @@ Dashboard (coach/editor)
 - motor-v4.ts: getMechanismType ampliada — pressure_defense, clutch, contact como tipos propios
 - motor-v2.1.ts fixes: force_early reducido con exterior/transición threat; allow_iso suprimido para PnR/post primarias; force_contact suprimido para spot-up primarias; allow_post solo para interiores con presencia; allow_iso filtrado correctamente
 - mock-data.ts: deepRange = true también para spotUp Secondary + catch&shoot o isoEff high
-- reportTextRenderer.ts: renderizado completo para force_contact, force_full_court, force_no_push, force_paint_deny, force_no_ball, allow_distance, allow_ball_handling en EN/ES/ZH
+- reportTextRenderer.ts: renderizado completo para force_contact, force_full_court, force_no_push, force_no_ball, allow_distance, allow_ball_handling, deny_pnr_pop, deny_pnr_roll, deny_oreb, deny_dho, deny_floater, allow_cut, allow_catch_shoot, allow_transition, allow_post, allow_iso_both en EN/ES/ZH
+- motor-v4.ts: allow fallback solo para situaciones genuinamente low-threat (<0.5) — fix bug Pika (allow_transition incorrecto)
+- motor-v2.1.ts: force_early solo para ISO puros; suprimido para PnR handlers, deepRange, y transicion threat
+- scripts/calibrate-motor.ts: 18 perfiles NBA/WNBA con expectations. Score: 96% (164/171). Ejecutar: npx tsx scripts/calibrate-motor.ts
 
 ### 🔄 Pendientes activos (priorizados)
-1. **Calibración motor con perfiles reales** — iterar motor v2.1 con jugadoras NBA/WNBA conocidas para validar calidad de outputs. Script: `npx tsx scripts/test-motor-v4.ts`
-2. **Versiones inputs por coach** — tabla player_inputs_versions (sprint futuro, requiere migración schema)
+1. **Versiones inputs por coach** — tabla player_inputs_versions (sprint futuro, requiere migración schema)
 
 ### 🗓 Backlog futuro
 - **Iconos/ilustraciones/animaciones en slides del report** — cada instrucción defensiva (DENY/FORCE/ALLOW/AWARE) tiene un icono SVG placeholder. Pendiente: ilustraciones reales de acción de baloncesto en Figma, y animaciones. Diseño obligatorio en Figma antes de implementar.
@@ -130,9 +132,9 @@ Dashboard (coach/editor)
 
 ## Calibración motor
 cd "/Users/palant/Downloads/U scout"
-npx tsx scripts/test-motor-v4.ts
-Lee: scripts/test-profiles.json
-Escribe: scripts/test-results-v4.json
+npx tsx scripts/calibrate-motor.ts
+Escribe: scripts/calibration-results.json
+Score actual: 96% (164/171 checks, 12/18 perfiles perfectos)
 
 ## Audit rápido
 cd "/Users/palant/Downloads/U scout" && bash scripts/audit.sh > scripts/audit-output.txt
