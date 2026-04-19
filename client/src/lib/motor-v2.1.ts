@@ -1963,15 +1963,30 @@ export class UScoutMotor {
     // force_early only for ball handlers — not for PnR screeners
     // A player with pnrFreq=P who has screenerAction defined is a screener, not a handler
     const isPnrHandler = inputs.pnrFreq === 'P' && !inputs.screenerAction;
+    // Suppress force_early when the player is a serious perimeter threat:
+    // Pressing early exposes you to transition threes and open spot-up catches,
+    // making force_early counterproductive for PnR handlers with deep range + exterior threat.
+    const hasExteriorThreat =
+      inputs.deepRange === true &&
+      inputs.spotUpFreq != null &&
+      inputs.spotUpFreq !== 'N';
+    const isTransitionThreat =
+      inputs.transFreq != null &&
+      inputs.transFreq !== 'N' &&
+      inputs.transRole != null;
     if (
       inputs.selfCreation === 'high' &&
       inputs.usage === 'primary' &&
       (inputs.isoFreq === 'P' || isPnrHandler)
     ) {
+      // Reduce weight significantly if perimeter/transition threat — force_early becomes risky
+      const earlyWeight = hasExteriorThreat || isTransitionThreat
+        ? Math.max(w.forceRules.earlyShot.baseWeight - 0.35, 0.15)
+        : w.forceRules.earlyShot.baseWeight + w.forceRules.earlyShot.selfCreationHighBonus;
       outputs.push({
         key: 'force_early',
         category: 'force',
-        weight: w.forceRules.earlyShot.baseWeight + w.forceRules.earlyShot.selfCreationHighBonus,
+        weight: earlyWeight,
         source: 'self_creation',
       });
     }
