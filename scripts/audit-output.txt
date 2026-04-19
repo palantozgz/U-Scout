@@ -1,4 +1,4 @@
-===== AUDIT U SCOUT — Sat Apr 18 22:03:42 CST 2026 =====
+===== AUDIT U SCOUT — Sun Apr 19 16:10:23 CST 2026 =====
 
 --- RUTAS API ---
 110:  app.get("/api/club/invitations/:token", async (req, res) => {
@@ -44,42 +44,26 @@
 48:export interface DefenseInstruction {
 53:export interface AlertCandidate {
 60:export interface MotorV4Output {
-390:export function generateMotorV4(
+396:export function generateMotorV4(
 
 --- REPORTVIEWV4 imports+hooks ---
-1:import { useEffect, useMemo, useRef, useState } from "react";
+1:import { useState } from "react";
 2:import { useQueryClient } from "@tanstack/react-query";
-3:import { ArrowLeft, MoreVertical, Eye, EyeOff, RotateCcw, AlertTriangle } from "lucide-react";
-4:import { generateMotorV4, type MotorV4Output } from "@/lib/motor-v4";
-5:import {
-11:import {
-16:import {
-21:import { useLocale } from "@/lib/i18n";
-22:import { useAuth } from "@/lib/useAuth";
-23:import { useClub } from "@/lib/club-api";
-24:import {
-29:import { supabase } from "@/lib/supabase";
-30:import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-31:import { Button } from "@/components/ui/button";
-32:import { cn, isRealPhoto } from "@/lib/utils";
-33:import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
-67:  return useMemo(() => {
-96:  const queryClient = useQueryClient();
-99:  const clubMotorCtx = useMemo(
-107:  const [localOverrides, setLocalOverrides] = useState<ReportOverride[]>([]);
-108:  const [activeSheet, setActiveSheet] = useState<{
-114:  const [isApproving, setIsApproving] = useState(false);
-115:  const [isPublishing, setIsPublishing] = useState(false);
-116:  const [previewMode, setPreviewMode] = useState(false);
-127:  useEffect(() => {
-132:  useEffect(() => {
-136:  useEffect(() => {
-145:  const motorOutput = useMemo(() => {
-156:  const renderedBase = useMemo(() => {
-161:  const renderedFinal = useMemo(() => {
+3:import { useLocale } from "@/lib/i18n";
+4:import {
+8:import { supabase } from "@/lib/supabase";
+9:import { Button } from "@/components/ui/button";
+10:import ReportSlidesV1 from "@/pages/coach/ReportSlidesV1";
+11:import { usePlayer } from "@/lib/mock-data";
+46:  const queryClient = useQueryClient();
+48:  const [isApproving, setIsApproving] = useState(false);
+49:  const [isPublishing, setIsPublishing] = useState(false);
 
 --- console.log en producción ---
 
 --- npm run check ---
-scripts/audit.sh: line 19: npm: command not found
+
+> rest-express@1.0.0 check
+> tsc
+
 ===== FIN =====

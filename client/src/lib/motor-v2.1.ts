@@ -2135,21 +2135,9 @@ export class UScoutMotor {
         weight: w.forceRules.earlyShot.baseWeight + w.forceRules.earlyShot.selfCreationHighBonus,
         source: 'self_creation',
       });
-    } else if (
-      inputs.selfCreation === 'high' &&
-      inputs.usage === 'primary' &&
-      inputs.isoFreq === 'P' &&
-      !isPnrHandler &&
-      (hasExteriorThreat || isTransitionThreat)
-    ) {
-      // ISO primary but with exterior threat: emit at reduced weight as runner-up option
-      outputs.push({
-        key: 'force_early',
-        category: 'force',
-        weight: 0.2,
-        source: 'self_creation',
-      });
     }
+    // NOTE: force_early is NEVER emitted for players with deepRange exterior threat.
+    // Pressing early on a shooter creates open catch-and-shoot opportunities — strictly wrong.
     
     // =========================================================================
     // Aware outputs
