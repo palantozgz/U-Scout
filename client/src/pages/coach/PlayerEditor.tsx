@@ -777,6 +777,53 @@ export default function PlayerEditor() {
               <PowerBar label={t("athleticism")} value={inputs.athleticism} onChange={v => ui("athleticism", v)} tooltip={t("hint_athleticism")} />
               <PowerBar label={t("physical_strength")} value={inputs.physicalStrength} onChange={v => ui("physicalStrength", v)} tooltip={t("hint_physical_strength")} />
               <PowerBar label={t("court_vision")} value={inputs.courtVision ?? 3} onChange={v => ui("courtVision", v)} tooltip={t("hint_court_vision")} />
+
+              {/* Contacto en penetración — aplica a ISO, PnR y cualquier drive */}
+              <div className="space-y-2">
+                <FieldLabel label={t("editor.contact_type_heading")} tooltip={t("hint_contact_type")} />
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      { v: "seeks" as const, labelKey: "editor.contact_seeks", emoji: "💥" },
+                      { v: "absorbs" as const, labelKey: "editor.contact_absorbs", emoji: "🛡️" },
+                      { v: "avoids" as const, labelKey: "editor.contact_avoids", emoji: "💨" },
+                    ] as const
+                  ).map(({ v, labelKey, emoji }) => (
+                    <Button
+                      key={v}
+                      type="button"
+                      variant={inputs.contactType === v ? "default" : "outline"}
+                      style={{ minHeight: 44 }}
+                      className={`h-auto min-h-11 gap-2 rounded-full px-4 text-sm font-semibold ${inputs.contactType === v ? pillActiveClasses("neutral") : "border-slate-200 bg-transparent dark:border-slate-700"}`}
+                      onClick={() => ui("contactType", inputs.contactType === v ? null : v)}
+                    >
+                      <span aria-hidden>{emoji}</span>
+                      {t(labelKey as never)}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant={inputs.contactType == null ? "secondary" : "outline"}
+                    style={{ minHeight: 44 }}
+                    className="h-auto min-h-11 rounded-full px-4 text-sm font-semibold"
+                    onClick={() => ui("contactType", null)}
+                  >
+                    {t("not_observed")}
+                  </Button>
+                </div>
+              </div>
+              {/* FT rating — solo si busca contacto */}
+              {inputs.contactType === "seeks" && (
+                <PowerBar
+                  label={t("editor.ft_rating")}
+                  value={(inputs.ftRating ?? 0) as PhysicalLevel}
+                  onChange={(v) => {
+                    if (v === 0) ui("ftRating", null);
+                    else ui("ftRating", v as PlayerInput["ftRating"]);
+                  }}
+                  tooltip={t("hint_ft_rating")}
+                />
+              )}
             </div>
 
             {/* Manejo de balón */}
@@ -1027,53 +1074,6 @@ export default function PlayerEditor() {
                       </Button>
                     </div>
                   </div>
-
-                  {/* Contact on drives + FT when seeking contact */}
-                  <div className="space-y-2">
-                    <FieldLabel label={t("editor.contact_type_heading")} tooltip={t("hint_contact_type")} />
-                    <div className="flex flex-wrap gap-2">
-                      {(
-                        [
-                          { v: "seeks" as const, labelKey: "editor.contact_seeks", emoji: "💥" },
-                          { v: "absorbs" as const, labelKey: "editor.contact_absorbs", emoji: "🛡️" },
-                          { v: "avoids" as const, labelKey: "editor.contact_avoids", emoji: "💨" },
-                        ] as const
-                      ).map(({ v, labelKey, emoji }) => (
-                        <Button
-                          key={v}
-                          type="button"
-                          variant={inputs.contactType === v ? "default" : "outline"}
-                          style={{ minHeight: 44 }}
-                          className={`h-auto min-h-11 gap-2 rounded-full px-4 text-sm font-semibold ${inputs.contactType === v ? pillActiveClasses("neutral") : "border-slate-200 bg-transparent dark:border-slate-700"}`}
-                          onClick={() => ui("contactType", inputs.contactType === v ? null : v)}
-                        >
-                          <span aria-hidden>{emoji}</span>
-                          {t(labelKey as never)}
-                        </Button>
-                      ))}
-                      <Button
-                        type="button"
-                        variant={inputs.contactType == null ? "secondary" : "outline"}
-                        style={{ minHeight: 44 }}
-                        className="h-auto min-h-11 rounded-full px-4 text-sm font-semibold"
-                        onClick={() => ui("contactType", null)}
-                      >
-                        {t("not_observed")}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {inputs.contactType === "seeks" && (
-                    <PowerBar
-                      label={t("editor.ft_rating")}
-                      value={(inputs.ftRating ?? 0) as PhysicalLevel}
-                      onChange={(v) => {
-                        if (v === 0) ui("ftRating", null);
-                        else ui("ftRating", v as PlayerInput["ftRating"]);
-                      }}
-                      tooltip={t("hint_ft_rating")}
-                    />
-                  )}
 
                   {/* Finalización por lado */}
                   <div className="space-y-2">

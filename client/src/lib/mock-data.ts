@@ -822,7 +822,14 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
           ? "low"
           : "low";
 
-  const deepRange = isPrimary(perimeterThreat);
+  // deepRange = true si el jugador tiene amenaza exterior real
+  // Primary → siempre. Secondary → activa si tiene rango confirmado (spotUp secondary
+  // implica que puede tirar de lejos cuando está abierta, aunque no sea su acción principal).
+  const deepRange =
+    isPrimary(perimeterThreat) ||
+    (perimeterThreat === "Secondary" &&
+      (inputs.closeoutReaction === "Catch & Shoot" ||
+        inputs.motorIsoEff === "high"));
 
   const rimG = cutIntensityRank(inputs.motorTransRimIntensity ?? "Never");
   const tr3G = cutIntensityRank(inputs.motorTransTrail3Intensity ?? "Never");

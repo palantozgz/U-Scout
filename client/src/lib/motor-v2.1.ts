@@ -1273,8 +1273,11 @@ export class UScoutMotor {
         }
       }
     } else if (!inputs.postFreq || inputs.postFreq === 'N') {
-      // Don't generate allow_post for primary creators — it's noise
-      if (inputs.usage !== 'primary') {
+      // allow_post only when the player has some interior presence but doesn't post up —
+      // skip entirely for guards with no interior game (it's obvious noise)
+      const hasInteriorPresence = inputs.pos === 'PF' || inputs.pos === 'C' ||
+        inputs.phys >= 4 || inputs.orebThreat === 'high' || inputs.orebThreat === 'medium';
+      if (hasInteriorPresence && inputs.usage !== 'primary') {
         outputs.push({
           key: 'allow_post',
           category: 'allow',
@@ -1625,10 +1628,17 @@ export class UScoutMotor {
       });
     }
     
-    // ALLOW isolation when low efficiency or low frequency
-    // Skip if orebThreat=high — the player is dangerous even without ISO
-    if ((inputs.isoFreq === 'R' || inputs.isoFreq === 'N' || inputs.isoEff === 'low')
-        && inputs.orebThreat !== 'high') {
+    // ALLOW isolation only when it's a relevant threat to dismiss
+    // Skip if: orebThreat=high, or the player is primarily a PnR handler/post scorer
+    // (allow_iso is noise for players who never ISO by design)
+    const isPnrOrPostPrimary =
+      (inputs.pnrFreq === 'P' || inputs.pnrFreq === 'S') ||
+      (inputs.postFreq === 'P' || inputs.postFreq === 'S');
+    if (
+      (inputs.isoFreq === 'R' || inputs.isoFreq === 'N' || inputs.isoEff === 'low') &&
+      inputs.orebThreat !== 'high' &&
+      !isPnrOrPostPrimary
+    ) {
       outputs.push({
         key: 'allow_iso',
         category: 'allow',
@@ -1948,7 +1958,12 @@ export class UScoutMotor {
     // =========================================================================
     // Force contact
     // =========================================================================
-    if (inputs.contactFinish === 'avoids' && inputs.offHandFinish !== 'weak') {
+    // Don't force contact against primary spot-up shooters:
+    // contesting a closeout physically risks easy fouls, and the threat is exterior.
+    const isSpotUpPrimary =
+      inputs.spotUpFreq === 'P' ||
+      (inputs.spotUpFreq === 'S' && inputs.deepRange);
+    if (inputs.contactFinish === 'avoids' && inputs.offHandFinish !== 'weak' && !isSpotUpPrimary) {
       outputs.push({
         key: 'force_contact',
         category: 'force',

@@ -656,7 +656,7 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
     case "force_trap":
       return "Force into traps on the PnR. Hedge hard — they struggle to escape.";
     case "force_paint_deny":
-      return "Force away from the paint. Make them catch on the perimeter, not in the lane.";
+      return "Keep her off the paint. Force catches on the perimeter, not inside.";
     case "allow_catch_shoot":
       return "Allow the catch & shoot in low-threat positions. Contesting from distance is acceptable.";
     case "allow_iso":
@@ -665,6 +665,20 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
       return "Allow spot-up threes. No deep range — the shot is below average.";
     case "allow_cut":
       return "Allow baseline cuts. No scoring threat off the cut — concentrate on primary actions.";
+    case "force_contact":
+      return "Force into contact — be physical on every drive. Do not give easy layups.";
+    case "force_full_court":
+      return inputs.pressureResponse === "struggles"
+        ? "Full-court pressure. Attacks the ball in transition — she struggles under pressure."
+        : "Active pressure — make the ball advance difficult.";
+    case "force_no_push":
+      return "Contain the dribble push. No free coast-to-coast — get in front early.";
+    case "force_no_ball":
+      return "Deny ball touches. Ball handling liability — attack the ball every time she has it.";
+    case "allow_distance":
+      return "Give distance. No exterior range — sag off and protect the paint.";
+    case "allow_ball_handling":
+      return "Allow ball handling. Limited threat with the ball — let her dribble, not drive.";
     case "none":
       return "No specific instruction — follow standard defensive principles.";
     default:
@@ -703,7 +717,7 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
     case "force_trap":
       return "Fuerza la trampa en el PnR. Hedge duro — tiene problemas para escapar.";
     case "force_paint_deny":
-      return "Fuerza lejos de la zona. Que reciba en el perímetro, no dentro.";
+      return "Mantenla fuera de la pintura. Que reciba en el perímetro, no dentro.";
     case "allow_catch_shoot":
       return "Permite el catch & shoot en posiciones de baja amenaza. El cierre desde lejos es aceptable.";
     case "allow_iso":
@@ -712,6 +726,20 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
       return "Permite el tres en estático. Sin rango largo — el tiro está por debajo de la media.";
     case "allow_cut":
       return "Permite el corte de base. Sin amenaza en el corte — concéntrate en las acciones primarias.";
+    case "force_contact":
+      return "Fuerza el contacto — sé físico/a en cada penetración. No regalar mates fáciles.";
+    case "force_full_court":
+      return inputs.pressureResponse === "struggles"
+        ? "Presión toda cancha. Ataca el balón en transición — tiene problemas bajo presión."
+        : "Presión activa — dificultar el avance del balón.";
+    case "force_no_push":
+      return "Contén el empuje de dribble. Sin avance libre de cancha a cancha — ponerse por delante pronto.";
+    case "force_no_ball":
+      return "Niega el balón. Manejo de balón deficiente — ataca el balón cada vez que lo tenga.";
+    case "allow_distance":
+      return "Concede distancia. Sin rango exterior — sagear y proteger la pintura.";
+    case "allow_ball_handling":
+      return "Permite el bote. Poca amenaza con balón — déjala botar, no penetrar.";
     case "none":
       return "Sin instrucción específica — aplica principios defensivos estándar.";
     default:
@@ -745,6 +773,20 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
       return "在非主要进攻位置允许单打，效率低，让其消耗进攻时间。";
     case "allow_spot_three":
       return "允许定点三分，射程有限，命中率偏低。";
+    case "force_contact":
+      return "逼迫对抗——每次突破都要身体对抗，不给轻松上篮机会。";
+    case "force_full_court":
+      return "全场紧逼，持续施压让传球推进困难。";
+    case "force_no_push":
+      return "限制持球推进，提前卡位，不让其全场突破。";
+    case "force_paint_deny":
+      return "将其逼离禁区，迫使其在外线接球。";
+    case "force_no_ball":
+      return "封堵接球。运球能力差——每次持球都要上抢。";
+    case "allow_distance":
+      return "给予外线空间，无射程威胁——协防保护禁区。";
+    case "allow_ball_handling":
+      return "允许持球运球，控球威胁有限——让其运球，但不让其突破。";
     case "none":
       return "无特定指令，遵循标准防守原则。";
     default:
