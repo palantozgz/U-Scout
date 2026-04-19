@@ -651,6 +651,14 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
       return "Anticipate the slip. They read your hedge — stay connected through the screen.";
     case "force_direction": {
       const weakSide = inputs.hand === "R" ? "left" : "right";
+      // Distinguish between directional force from PnR asymmetry vs mid-range shooter
+      const isShooterForce = inputs.deepRange &&
+        inputs.spotUpFreq != null && inputs.spotUpFreq !== "N" &&
+        inputs.pnrFinishLeft != null && inputs.pnrFinishRight != null &&
+        inputs.pnrFinishLeft !== "Drive to Rim" && inputs.pnrFinishRight !== "Drive to Rim";
+      if (isShooterForce) {
+        return `Force ${weakSide} — deny the mid-range pull-up. She avoids driving to the rim; push her ${weakSide} and make her attack the paint.`;
+      }
       return `Force ${weakSide}. Weaker finishing side in the PnR — shade ${weakSide}, make her go the hard way.`;
     }
     case "force_early":
@@ -736,6 +744,13 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
       return "Anticipa el slip. Lee el hedge — mantente conectado/a durante todo el bloqueo.";
     case "force_direction": {
       const weakSide = inputs.hand === "R" ? "izquierda" : "derecha";
+      const isShooterForce = inputs.deepRange &&
+        inputs.spotUpFreq != null && inputs.spotUpFreq !== "N" &&
+        inputs.pnrFinishLeft != null && inputs.pnrFinishRight != null &&
+        inputs.pnrFinishLeft !== "Drive to Rim" && inputs.pnrFinishRight !== "Drive to Rim";
+      if (isShooterForce) {
+        return `Fuerza a la ${weakSide} — niega el pull-up de media distancia. Evita penetrar al aro; empújala a la ${weakSide} y oblígala a atacar la pintura.`;
+      }
       return `Fuerzala a la ${weakSide}. Finaliza peor en el PnR por ese lado — cárgate a la ${weakSide}, que tome el camino difícil.`;
     }
     case "force_early":
@@ -811,6 +826,13 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
       return "全速回防，不让其快攻上篮。";
     case "force_direction": {
       const weakSide = inputs.hand === "R" ? "左侧" : "右侧";
+      const isShooterForce = inputs.deepRange &&
+        inputs.spotUpFreq != null && inputs.spotUpFreq !== "N" &&
+        inputs.pnrFinishLeft != null && inputs.pnrFinishRight != null &&
+        inputs.pnrFinishLeft !== "Drive to Rim" && inputs.pnrFinishRight !== "Drive to Rim";
+      if (isShooterForce) {
+        return `逢迫其向${weakSide}突破——封堵中距离接球机会。她逃避突破筐下，靠向${weakSide}，迫其进攻禁区。`;
+      }
       return `逢迫其向${weakSide}进攻，PnR中该侧终结能力较弱——靠向${weakSide}，迫其走难路。`;
     }
     case "force_early":

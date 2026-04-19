@@ -1,5 +1,5 @@
 {
-  "date": "2026-04-19T07:10:12.904Z",
+  "date": "2026-04-19T07:33:13.404Z",
   "globalScore": 100,
   "totalPassed": 26,
   "totalFailed": 0,
@@ -844,7 +844,7 @@
           "deny_iso_space",
           "deny_trans_run"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "none",
         "alerts": [
@@ -852,7 +852,7 @@
           "aware_deep"
         ],
         "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left — deny the mid-range pull-up. She avoids driving to the rim; push her left and make her attack the paint.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     }

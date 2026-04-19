@@ -276,6 +276,7 @@ const SOURCE_TO_SITUATION: Record<string, string> = {
   selfish: 'iso',
   pnr: 'pnr',
   pnr_finish_asymmetry: 'pnr',
+  pnr_shooter_weak_side: 'pnr',
   trap_response: 'pnr',
   escape_pass_first: 'pnr',
   screener_roll: 'screener',
@@ -1110,11 +1111,41 @@ export class UScoutMotor {
         }
       }
 
+      // force_no_mid: when PnR handler prefers mid-range finishes on both sides
+      // AND is a shooter (deepRange + spotUpFreq), the tactical instruction is:
+      // deny the mid-range catch — force penetration to weak side instead.
+      // This captures: shooter who uses PnR to create mid-range pull-ups (not rim attacks).
+      const finishDangerCheck: Record<string, number> = {
+        'Drive to Rim': 4, 'Pull-up': 3, 'Floater': 2, 'Mid-range': 1,
+      };
+      const leftDanger = finishDangerCheck[inputs.pnrFinishLeft ?? ''] ?? 0;
+      const rightDanger = finishDangerCheck[inputs.pnrFinishRight ?? ''] ?? 0;
+      const bothMidOrLower = leftDanger > 0 && rightDanger > 0 &&
+        leftDanger <= 3 && rightDanger <= 3 && Math.abs(leftDanger - rightDanger) <= 1;
+      const isShooter = inputs.deepRange && inputs.spotUpFreq != null && inputs.spotUpFreq !== 'N';
+      if (bothMidOrLower && isShooter) {
+        // Force toward weak hand — for R-handed players, force left
+        const weakSide = inputs.hand === 'R' ? 'L' : 'R';
+        outputs.push({
+          key: 'force_direction',
+          category: 'force',
+          weight: Math.min(weight * 1.05, 1.10),  // must beat force_trap in 1-on-1 context
+          params: { direction: weakSide, context: 'no_mid_range' },
+          source: 'pnr_shooter_weak_side',
+        });
+      }
+
       if (inputs.trapResponse === 'struggle') {
+        // force_trap is a team action — in 1-on-1 context, reduce weight if player is
+        // primarily a shooter (the defender's job is individual positioning, not trap coordination)
+        const shooterContext = inputs.deepRange && inputs.spotUpFreq != null && inputs.spotUpFreq !== 'N';
+        // For shooters: reduce trap weight — 1-on-1 directional instruction is more relevant than team trap
+        // For non-shooters (drivers like Giannis): keep full weight, trap is the right call
+        const trapWeight = shooterContext ? Math.min(weight * 0.60, 0.72) : weight * 0.85;
         outputs.push({
           key: 'force_trap',
           category: 'force',
-          weight: weight * 0.85,
+          weight: trapWeight,
           source: 'trap_response',
         });
       } else if (inputs.trapResponse === 'escape' && inputs.pnrPri === 'PF') {
@@ -2052,7 +2083,10 @@ export class UScoutMotor {
     // =========================================================================
     // Aware outputs
     // =========================================================================
-    if (inputs.vision >= 4) {
+    // aware_passer only when vision is high AND player doesn't struggle under trap pressure.
+    // A player with vision=4 but trapResponse=struggle reads collective situations well in open court,
+    // but is NOT an elite passer under defensive pressure — don't warn the defender to rotate.
+    if (inputs.vision >= 4 && inputs.trapResponse !== 'struggle') {
       outputs.push({
         key: 'aware_passer',
         category: 'aware',
