@@ -213,6 +213,7 @@ export interface PlayerInputs {
   // Screener details
   screenerAction: ScreenerAction;
   pnrScreenTiming?: 'holds_long' | 'quick_release' | 'ghost_touch' | 'slip' | null;
+  pnrSnake?: boolean | null;  // Handler reverses direction off the screen
   popRange: PopRange;
   /** Off-ball screens (after setting pick) — bridged from PlayerInput.screenerAction */
   offBallScreenerAction?: OffBallScreenerAction;
@@ -1135,6 +1136,25 @@ export class UScoutMotor {
         });
       }
 
+      // pnrSnake: if the handler reverses direction off the screen (snake dribble),
+      // the side-based force_direction is less reliable — they can escape to either side.
+      if (inputs.pnrSnake) {
+        const dirIdx = outputs.findIndex(o => o.key === 'force_direction' &&
+          (o.source === 'pnr_finish_asymmetry' || o.source === 'pnr_shooter_weak_side'));
+        if (dirIdx >= 0) {
+          // Reduce weight — snake partially neutralizes directional forcing
+          outputs[dirIdx].weight = Math.max(outputs[dirIdx].weight * 0.70, 0.5);
+          outputs[dirIdx].params = { ...(outputs[dirIdx].params ?? {}), note: 'snake_reduces_certainty' };
+        }
+        outputs.push({
+          key: 'aware_screen_hold',  // closest existing aware for screen complexity
+          category: 'aware',
+          weight: 0.68,
+          source: 'screen_timing',
+          params: { note: 'snake_dribble_possible' },
+        });
+      }
+
       if (inputs.trapResponse === 'struggle') {
         // force_trap is a team action — in 1-on-1 context, reduce weight if player is
         // primarily a shooter (the defender's job is individual positioning, not trap coordination)
@@ -1594,19 +1614,28 @@ export class UScoutMotor {
     // =========================================================================
     if (inputs.pressureResponse === 'struggles') {
       if (inputs.ballHandling !== 'elite') {
+        // Athletic players who struggle with pressure are harder to trap — reduce weight
+        // Low athleticism + struggles = very easy to pressure full court
+        const athPenalty = inputs.ath >= 4 ? 0.15 : inputs.ath <= 2 ? 0 : 0.08;
         outputs.push({
           key: 'force_full_court',
           category: 'force',
-          weight: w.forceRules.fullCourt.baseWeight,
+          weight: Math.max(w.forceRules.fullCourt.baseWeight - athPenalty, 0.5),
           source: 'pressure_struggles',
         });
       }
 
+      // Distinguish: trap context (trapResponse=struggle) vs individual pressure (pressureResponse=struggles)
+      const trapCtx = inputs.trapResponse === 'struggle';
+      const pressCtx = inputs.pressureResponse === 'struggles';
       outputs.push({
         key: 'aware_pressure_vuln',
         category: 'aware',
         weight: 0.8,
-        source: 'pressure_struggles'
+        source: 'pressure_struggles',
+        params: {
+          context: trapCtx && !pressCtx ? 'trap_only' : pressCtx && !trapCtx ? 'individual' : 'both',
+        },
       });
     }
     
@@ -1674,6 +1703,21 @@ export class UScoutMotor {
       });
     }
     
+    // aware_instant_shot: shooter who fires immediately on closeout — no hesitation, no drive
+    // This is the most actionable closeout instruction: arrive high and fast at the catch.
+    if (
+      inputs.deepRange &&
+      inputs.spotUpFreq === 'P' &&
+      inputs.spotUpAction === 'shoot'
+    ) {
+      outputs.push({
+        key: 'aware_instant_shot',
+        category: 'aware',
+        weight: 0.75,
+        source: 'deep_range',
+      });
+    }
+
     // ALLOW spot-up threes when poor shooter
     if (
       !inputs.deepRange &&
@@ -1954,7 +1998,21 @@ export class UScoutMotor {
     // =========================================================================
     if (inputs.offHandFinish === 'weak') {
       const weakHand = inputs.hand === 'R' ? 'L' : 'R';
-      if (inputs.contactFinish === 'avoids') {
+      // Suppress force_weak_hand if scout observed the player drives with weak hand too —
+      // isoWeakHandFinish=drive means they CAN finish on the off-hand despite low efficiency.
+      // In that case, generate aware_hands instead (ambidextrous finisher, just less efficient).
+      const canFinishWeakHand = inputs.isoWeakHandFinish === 'drive';
+      if (canFinishWeakHand) {
+        // Ambidextrous but less efficient on weak side — warn but don't force
+        if (!outputs.some(o => o.key === 'aware_hands')) {
+          outputs.push({
+            key: 'aware_hands',
+            category: 'aware',
+            weight: 0.65,
+            source: 'both_hands',
+          });
+        }
+      } else if (inputs.contactFinish === 'avoids') {
         outputs.push({
           key: 'force_contact',
           category: 'force',

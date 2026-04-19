@@ -821,14 +821,14 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     floater = mapMotorIntensity(inputs.pnrFrequency);
   }
 
-  const orebThreat: PlayerInputs["orebThreat"] =
-    inputs.offensiveReboundFrequency === "Primary"
-      ? "high"
-      : inputs.offensiveReboundFrequency === "Secondary"
-        ? "medium"
-        : inputs.offensiveReboundFrequency === "Rare"
-          ? "low"
-          : "low";
+  const orebThreat: PlayerInputs["orebThreat"] = (() => {
+    if (inputs.offensiveReboundFrequency === "Primary") return "high";
+    if (inputs.offensiveReboundFrequency === "Secondary") return "medium";
+    if (inputs.offensiveReboundFrequency === "Rare") return "low";
+    // Never / unset: infer medium for interior players with strength — they crash boards by default
+    if ((pos === "C" || pos === "PF") && phys >= 4) return "medium";
+    return "low";
+  })();
 
   // deepRange = true si el jugador tiene amenaza exterior real
   // Primary → siempre. Secondary → activa si tiene rango confirmado (spotUp secondary
@@ -917,7 +917,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     postEntry,
     spotUpAction:
       inputs.closeoutReaction === "Catch & Shoot" ? "shoot" : "either",
-    spotZone: null,
+    spotZone: (inputs as any).spotZone ?? null,
     deepRange,
     pnrPri,
     pnrEff: inputs.motorPnrEff ?? null,
@@ -928,6 +928,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     trapResponse,
     screenerAction: screenerToMotor(),
     pnrScreenTiming: inputs.pnrScreenTiming ?? null,
+    pnrSnake: inputs.pnrSnake ?? null,
     popRange: deepRange ? "three" : "midrange",
     dhoRole: null,
     dhoAction: null,

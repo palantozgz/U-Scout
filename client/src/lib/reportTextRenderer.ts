@@ -669,6 +669,8 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
       return "Force into traps on the PnR. Hedge hard — they struggle to escape.";
     case "force_paint_deny":
       return "Keep her off the paint. Force catches on the perimeter, not inside.";
+    case "aware_instant_shot":
+      return "Immediate release on closeout — no pump fake, no hesitation. Must arrive high and fast at the catch.";
     case "allow_catch_shoot":
       return "Allow catch-and-shoot attempts. Contest from distance — no free drives from closeout.";
     case "allow_iso":
@@ -903,6 +905,8 @@ function renderAlerts(
 function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext): string {
   const { locale } = ctx;
   if (locale === "en") {
+    if (key.includes("instant_shot"))
+      return "Fires immediately on closeout — no look, no hesitation.";
     if (key.includes("passer") || key.includes("vision"))
       return "High-level passer — reads the double team instantly.";
     if (key.includes("post_fade"))
@@ -924,6 +928,8 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
     return key.replace(/_/g, " ");
   }
   if (locale === "es") {
+    if (key.includes("instant_shot"))
+      return "Lanza de inmediato en el cierre — sin finta, sin dudar.";
     if (key.includes("passer") || key.includes("vision"))
       return "Pasador/a de alto nivel — lee el doble de inmediato.";
     if (key.includes("post_fade"))
@@ -945,6 +951,8 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
     return key.replace(/_/g, " ");
   }
   if (locale === "zh") {
+    if (key.includes("instant_shot"))
+      return "补防时立即出手——无假动作，无犹豫。";
     if (key.includes("passer") || key.includes("vision"))
       return "传球视野极佳，夹击时能立刻找到出球点。";
     if (key.includes("post_fade"))

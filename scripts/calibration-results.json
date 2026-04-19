@@ -1,5 +1,5 @@
 {
-  "date": "2026-04-19T07:41:23.516Z",
+  "date": "2026-04-19T07:54:18.402Z",
   "globalScore": 100,
   "totalPassed": 26,
   "totalFailed": 0,
@@ -558,8 +558,8 @@
         ],
         "force": "force_trap",
         "force_alts": [
-          "force_full_court",
-          "force_no_space"
+          "force_no_space",
+          "force_full_court"
         ],
         "allow": "allow_ball_handling",
         "alerts": [
@@ -747,8 +747,8 @@
         ],
         "force": "force_no_ball",
         "force_alts": [
-          "force_full_court",
-          "force_no_space"
+          "force_no_space",
+          "force_full_court"
         ],
         "allow": "allow_iso",
         "alerts": [
