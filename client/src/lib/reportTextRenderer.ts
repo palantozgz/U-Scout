@@ -629,40 +629,72 @@ function renderInstructionText(
 
 function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
   switch (key) {
-    case "deny_iso_space":
-      return inputs.isoDir === "R"
-        ? "Deny the right wing catch. Force them left before they set up."
+    case "deny_iso_space": {
+      const dirEN = inputs.isoDir === "R"
+        ? "right wing"
         : inputs.isoDir === "L"
-          ? "Deny the left wing catch. Force them right — their weaker side."
-          : "Deny ISO catches on both wings. Make them work for every touch.";
-    case "deny_pnr_downhill":
-      return "Deny the downhill PnR attack. Get over the screen — do not go under.";
-    case "deny_post_entry":
-      return inputs.postShoulder === "R"
-        ? "Front the right block entry. Three-quarter position on the right shoulder."
-        : "Front the left block entry. Three-quarter position on the left shoulder.";
-    case "deny_spot_deep":
-      return "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.";
+          ? "left wing"
+          : "both wings";
+      const forceEN = inputs.isoDir === "R"
+        ? "Force left — contest every touch before they gather."
+        : inputs.isoDir === "L"
+          ? "Force right — do not let them set up going their way."
+          : "Stay between ball and body — no free catches in space.";
+      const athNote = (inputs.ath ?? 3) >= 4
+        ? " Do not reach — they create off contact."
+        : "";
+      return `Deny the ${dirEN} catch. ${forceEN}${athNote}`;
+    }
+    case "deny_pnr_downhill": {
+      const deepEN = inputs.deepRange
+        ? "Get over the screen — do not go under. She shoots immediately if you give her the pull-up."
+        : "Stay attached over the screen. No space for a mid-range pull-up.";
+      const passerNote = inputs.pnrPri === "PF"
+        ? " She will look to pass first — stay connected to the roll man."
+        : "";
+      return `Deny the downhill PnR catch. ${deepEN}${passerNote}`;
+    }
+    case "deny_post_entry": {
+      const sideEN = inputs.postShoulder === "R" ? "right" : inputs.postShoulder === "L" ? "left" : "preferred";
+      const techEN = inputs.phys && inputs.phys >= 4
+        ? `Front the ${sideEN} block. Three-quarter on the ${sideEN} shoulder — push high, do not let her establish deep position.`
+        : `Deny the ${sideEN} block entry. Three-quarter position — get in front before she seals.`;
+      const physNote = inputs.phys && inputs.phys >= 4 ? " She is physical — beat her to the spot before the ball arrives." : "";
+      return techEN + physNote;
+    }
+    case "deny_spot_deep": {
+      const instantEN = inputs.spotUpAction === "shoot"
+        ? "Sprint to close out — no pump fake, no hesitation. She fires immediately on the catch."
+        : "Close out under control — she may attack off the dribble on a soft closeout.";
+      return `No open catch on the perimeter. ${instantEN} Contest every touch.`;
+    }
     case "deny_trans_rim":
-      return "Sprint back. No basket cuts in transition — get between them and the rim.";
+      return "Sprint directly to the rim. She runs hard on every miss — get between her and the basket before the ball arrives.";
     case "deny_floater":
       return "Deny the catch in the floater zone. Contest high — do not give them the lane.";
     case "deny_pnr_slip":
       return "Anticipate the slip. They read your hedge — stay connected through the screen.";
     case "force_direction": {
       const weakSide = inputs.hand === "R" ? "left" : "right";
-      // Distinguish between directional force from PnR asymmetry vs mid-range shooter
       const isShooterForce = inputs.deepRange &&
         inputs.spotUpFreq != null && inputs.spotUpFreq !== "N" &&
         inputs.pnrFinishLeft != null && inputs.pnrFinishRight != null &&
         inputs.pnrFinishLeft !== "Drive to Rim" && inputs.pnrFinishRight !== "Drive to Rim";
+      const isIsoForce = (inputs.isoFreq === "P" || inputs.isoFreq === "S") &&
+        inputs.isoDir !== "B";
       if (isShooterForce) {
-        return `Force ${weakSide} — deny the mid-range pull-up. She avoids driving to the rim; push her ${weakSide} and make her attack the paint.`;
+        return `Force ${weakSide} — deny the mid-range pull-up. She avoids the rim; push her ${weakSide} and make her attack the paint.`;
       }
-      return `Force ${weakSide}. Weaker finishing side in the PnR — shade ${weakSide}, make her go the hard way.`;
+      if (isIsoForce) {
+        const contactNote = inputs.contactFinish === "seeks"
+          ? ` Stay square — she looks for contact going her way.`
+          : "";
+        return `Force ${weakSide} in ISO. She goes to her right — shade your body ${weakSide} before she gathers.${contactNote}`;
+      }
+      return `Force ${weakSide} off the screen. She finishes better going right — shade ${weakSide} early, before the screen is set.`;
     }
     case "force_early":
-      return "Force early clock shots. Apply ball pressure — do not let them settle.";
+      return "Force early clock shots. Get into her in the first three seconds — do not let her survey the floor. She needs time to create.";
     case "force_no_space":
       return "Force them into no-space catches. Tight on the catch, no room to set up.";
     case "force_trap":
@@ -674,13 +706,15 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
     case "allow_catch_shoot":
       return "Allow catch-and-shoot attempts. Contest from distance — no free drives from closeout.";
     case "allow_iso":
-      return "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock.";
+      return "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot.";
     case "allow_spot_three":
-      return "Allow spot-up threes. No deep range — the shot is below average.";
+      return "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead.";
     case "allow_cut":
       return "Allow baseline cuts. No scoring threat off the cut — focus on primary actions.";
-    case "force_contact":
-      return "Force into contact — be physical on every drive. Do not give easy layups.";
+    case "force_contact": {
+      const handEN = inputs.hand === "R" ? "left" : "right";
+      return `Be physical on drives — she avoids contact and looks for space to finish. Push her ${handEN} and make every layup contested.`;
+    }
     case "force_full_court":
       return inputs.pressureResponse === "struggles"
         ? "Full-court pressure. Attacks the ball in transition — she struggles under pressure."
@@ -690,7 +724,7 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
     case "force_no_ball":
       return "Deny ball touches. Ball handling liability — attack the ball every time she has it.";
     case "allow_distance":
-      return "Give distance. No exterior range — sag off and protect the paint.";
+      return "Sag off. No perimeter range — give her the catch and focus on protecting the paint and box-out.";
     case "allow_ball_handling":
       return "Allow ball handling. Limited threat with the ball — let her dribble, not drive.";
     case "deny_pnr_pop":
@@ -700,7 +734,7 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
     case "deny_duck_in":
       return "Deny the duck-in. Get in front early — they seal deep for the easy catch and finish.";
     case "deny_oreb":
-      return "Box out on every shot. Elite offensive rebounder — physical block-out required.";
+      return "Find her before the shot goes up — not after. Box out early and physically. She crashes every possession.";
     case "deny_dho":
       return "Jump the handoff. Attack the ball at the moment of exchange — deny the catch.";
     case "deny_ball_advance":
@@ -726,22 +760,35 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
 
 function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender): string {
   switch (key) {
-    case "deny_iso_space":
-      return inputs.isoDir === "R"
-        ? "Niégale el catch en el ala derecha. Fórzale a la izquierda antes de que se sitúe."
+    case "deny_iso_space": {
+      const dirES = inputs.isoDir === "R" ? "ala derecha" : inputs.isoDir === "L" ? "ala izquierda" : "ambas alas";
+      const forceES = inputs.isoDir === "R"
+        ? "Fuérzale a la izquierda — contesta cada toque antes de que se coloque."
         : inputs.isoDir === "L"
-          ? "Niégale el catch en el ala izquierda. Fórzale a la derecha — su lado débil."
-          : "Niégale el catch en ambas alas. Que trabaje cada balón.";
-    case "deny_pnr_downhill":
-      return "Niega el ataque directo en el PnR. Por encima del bloqueo — nunca por debajo.";
+          ? "Fuérzale a la derecha — no le dejes atacar por su lado."
+          : "Cuerpo entre balón y cuerpo — que trabaje para recibir.";
+      const athES2 = (inputs.ath ?? 3) >= 4 ? " No estires — crea desde el contacto." : "";
+      return `Niega el catch en ${dirES}. ${forceES}${athES2}`;
+    }
+    case "deny_pnr_downhill": {
+      const deepES2 = inputs.deepRange
+        ? "Por encima del bloqueo — nunca por debajo. Tira de inmediato si le das el pull-up."
+        : "Pégale por encima. No le des espacio para el medio largo.";
+      const passerES2 = inputs.pnrPri === "PF" ? " Prioriza el pase — mantente conectado al bloqueador." : "";
+      return `Niega el catch en el bloqueo directo. ${deepES2}${passerES2}`;
+    }
     case "deny_post_entry":
       return inputs.postShoulder === "R"
         ? "Fronta la entrada al bloque derecho. Tres cuartos por el lado del hombro derecho."
         : "Fronta la entrada al bloque izquierdo. Tres cuartos por el lado del hombro izquierdo.";
-    case "deny_spot_deep":
-      return "Niega el catch largo. Cierre anticipado — lanza de inmediato tras recibir.";
+    case "deny_spot_deep": {
+      const instES = inputs.spotUpAction === "shoot"
+        ? "Cierre a máxima velocidad — sin finta, sin dudar. Lanza al recibir."
+        : "Cierra controlado — puede atacar si llegas en exceso.";
+      return `No dejar catch limpio. ${instES} Contesta cada toque.`;
+    }
     case "deny_trans_rim":
-      return "Corre de vuelta. Sin cortes al aro en transición — ponte entre él/ella y el aro.";
+      return "Corre directo al aro. Va en carrera en cada pérdida — ponte entre ella y el aro antes de que llegue el balón.";
     case "deny_floater":
       return "Niega el catch en la zona del floater. Contesta alto — no le des la línea.";
     case "deny_pnr_slip":
@@ -755,10 +802,15 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
       if (isShooterForce) {
         return `Fuerza a la ${weakSide} — niega el pull-up de media distancia. Evita penetrar al aro; empújala a la ${weakSide} y oblígala a atacar la pintura.`;
       }
-      return `Fuerzala a la ${weakSide}. Finaliza peor en el PnR por ese lado — cárgate a la ${weakSide}, que tome el camino difícil.`;
+      const isIsoES = (inputs.isoFreq === "P" || inputs.isoFreq === "S") && inputs.isoDir !== "B";
+      if (isIsoES) {
+        const cES = inputs.contactFinish === "seeks" ? ` Mantente cuadrado/a — busca el contacto por su lado.` : "";
+        return `Fuerza a la ${weakSide} en el ISO. Va hacia su derecha — coloca el cuerpo a la ${weakSide} antes de que recoja.${cES}`;
+      }
+      return `Fuerza a la ${weakSide} por la pantalla. Finaliza peor por ese lado — cárgaste antes de que la pantalla esté puesta.`;
     }
     case "force_early":
-      return "Fuerza tiros de inicio de posesión. Presión sobre el balón — no le dejes asentarse.";
+      return "Fuerza el tiro en los primeros tres segundos. Métele encima desde el inicio — necesita tiempo para crear.";
     case "force_no_space":
       return "Fuerza el catch sin espacio. Pegado/a en la recepción — sin margen para prepararse.";
     case "force_trap":
@@ -768,13 +820,15 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
     case "allow_catch_shoot":
       return "Permite el catch & shoot. Cierre desde lejos — sin penetraciones desde el cierre.";
     case "allow_iso":
-      return "Permite el ISO en situaciones no primarias. Baja eficiencia — que consuma posesión.";
+      return "Permite el ISO. Baja eficiencia creando — dale el balón, mantente erguido/a y contesta el tiro.";
     case "allow_spot_three":
-      return "Permite el tres en estático. Sin rango largo — el tiro está por debajo de la media.";
+      return "Permite el catch en el perímetro. Sin rango largo — el dos largo es su mejor tiro exterior. Protege la pintura.";
     case "allow_cut":
       return "Permite el corte. Sin amenaza en el corte — foco en las acciones primarias.";
-    case "force_contact":
-      return "Fuerza el contacto — sé físico/a en cada penetración. No regalar mates fáciles.";
+    case "force_contact": {
+      const handES3 = inputs.hand === "R" ? "izquierda" : "derecha";
+      return `Sé físico/a en cada penetración — evita el contacto y busca espacio para finalizar. Empújala a la ${handES3} y contesta cada bandeja.`;
+    }
     case "force_full_court":
       return inputs.pressureResponse === "struggles"
         ? "Presión toda cancha. Ataca el balón en transición — tiene problemas bajo presión."
@@ -914,7 +968,7 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
     if (key.includes("instant_shot"))
       return "Fires immediately on closeout — no look, no hesitation.";
     if (key.includes("passer") || key.includes("vision"))
-      return "High-level passer — reads the double team instantly.";
+      return "Elite passer — head up before the trap closes. Stay connected to the roll man.";
     if (key.includes("post_fade"))
       return "Fadeaway from the post — hard to contest cleanly.";
     if (key.includes("post_hook"))

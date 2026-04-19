@@ -1,10 +1,10 @@
 {
-  "date": "2026-04-19T18:22:29.463Z",
+  "date": "2026-04-19T18:31:25.228Z",
   "globalScore": 100,
   "totalPassed": 66,
   "totalFailed": 0,
-  "passedChecks": 552,
-  "totalChecks": 552,
+  "passedChecks": 551,
+  "totalChecks": 551,
   "results": [
     {
       "id": "cal001",
@@ -34,7 +34,7 @@
           "aware_passer",
           "aware_deep"
         ],
-        "deny_text": "Deny the left wing catch. Force them right — their weaker side.",
+        "deny_text": "Deny the left wing catch. Force right — do not let them set up going their way. Do not reach — they create off contact.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
@@ -67,9 +67,9 @@
           "aware_passer",
           "aware_post_fade"
         ],
-        "deny_text": "Front the right block entry. Three-quarter position on the right shoulder.",
+        "deny_text": "Front the right block. Three-quarter on the right shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -100,7 +100,7 @@
           "aware_deep",
           "aware_passer"
         ],
-        "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
+        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
@@ -135,9 +135,9 @@
         "alerts": [
           "aware_physical"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
+        "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
         "force_text": "Force into traps on the PnR. Hedge hard — they struggle to escape.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -168,9 +168,9 @@
           "aware_trans_trail_graded",
           "aware_deep"
         ],
-        "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
+        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -201,9 +201,9 @@
           "aware_post_hook",
           "aware_physical"
         ],
-        "deny_text": "Front the right block entry. Three-quarter position on the right shoulder.",
+        "deny_text": "Front the right block. Three-quarter on the right shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -234,7 +234,7 @@
           "aware_passer",
           "aware_deep"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
+        "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up. She will look to pass first — stay connected to the roll man.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock."
       }
@@ -267,9 +267,9 @@
           "aware_oreb",
           "aware_screen_hold"
         ],
-        "deny_text": "Sprint back. No basket cuts in transition — get between them and the rim.",
+        "deny_text": "Sprint directly to the rim. She runs hard on every miss — get between her and the basket before the ball arrives.",
         "force_text": "Keep her off the paint. Force catches on the perimeter, not inside.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -302,9 +302,9 @@
           "aware_post_fade",
           "aware_physical"
         ],
-        "deny_text": "Front the left block entry. Three-quarter position on the left shoulder.",
+        "deny_text": "Front the left block. Three-quarter on the left shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -335,7 +335,7 @@
           "aware_deep",
           "aware_passer"
         ],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
@@ -368,8 +368,8 @@
           "aware_deep",
           "aware_passer"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
-        "force_text": "Force left. Weaker finishing side in the PnR — shade left, make her go the hard way.",
+        "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
@@ -401,7 +401,7 @@
           "aware_passer",
           "aware_deep"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
+        "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
@@ -433,7 +433,7 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
@@ -465,9 +465,9 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
+        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -497,7 +497,7 @@
           "aware_deep",
           "aware_passer"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
+        "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
@@ -565,7 +565,7 @@
         "alerts": [
           "aware_pressure_vuln"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
+        "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
         "force_text": "Force into traps on the PnR. Hedge hard — they struggle to escape.",
         "allow_text": "Allow ball handling. Limited threat with the ball — let her dribble, not drive."
       }
@@ -597,9 +597,9 @@
         "alerts": [
           "aware_oreb"
         ],
-        "deny_text": "Box out on every shot. Elite offensive rebounder — physical block-out required.",
+        "deny_text": "Find her before the shot goes up — not after. Box out early and physically. She crashes every possession.",
         "force_text": "Keep her off the paint. Force catches on the perimeter, not inside.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -629,7 +629,7 @@
         ],
         "allow": "allow_transition",
         "alerts": [],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "weak hand",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
@@ -663,7 +663,7 @@
         ],
         "deny_text": "Jump the handoff. Attack the ball at the moment of exchange — deny the catch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -692,7 +692,7 @@
         ],
         "deny_text": "cut backdoor",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -724,7 +724,7 @@
         ],
         "deny_text": "Anticipate the slip. They read your hedge — stay connected through the screen.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -754,9 +754,9 @@
         "alerts": [
           "aware_pressure_vuln"
         ],
-        "deny_text": "Deny ISO catches on both wings. Make them work for every touch.",
+        "deny_text": "Deny the both wings catch. Stay between ball and body — no free catches in space.",
         "force_text": "Deny ball touches. Ball handling liability — attack the ball every time she has it.",
-        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -788,7 +788,7 @@
         ],
         "deny_text": "Deny the duck-in. Get in front early — they seal deep for the easy catch and finish.",
         "force_text": "Keep her off the paint. Force catches on the perimeter, not inside.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -818,8 +818,8 @@
           "aware_passer",
           "aware_deep"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
-        "force_text": "Force left. Weaker finishing side in the PnR — shade left, make her go the hard way.",
+        "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up.",
+        "force_text": "Force left off the screen. She finishes better going right — shade left early, before the screen is set.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
@@ -851,8 +851,8 @@
           "aware_deep",
           "aware_passer"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
-        "force_text": "Force left — deny the mid-range pull-up. She avoids driving to the rim; push her left and make her attack the paint.",
+        "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up.",
+        "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
@@ -886,8 +886,8 @@
           "aware_deep",
           "aware_passer"
         ],
-        "deny_text": "Deny the left wing catch. Force them right — their weaker side.",
-        "force_text": "Force left. Weaker finishing side in the PnR — shade left, make her go the hard way.",
+        "deny_text": "Deny the left wing catch. Force right — do not let them set up going their way. Do not reach — they create off contact.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
         "allow_text": "floater"
       }
     },
@@ -919,7 +919,7 @@
           "aware_deep",
           "aware_passer"
         ],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
@@ -952,9 +952,9 @@
           "aware_oreb",
           "aware_post_hook"
         ],
-        "deny_text": "Box out on every shot. Elite offensive rebounder — physical block-out required.",
+        "deny_text": "Find her before the shot goes up — not after. Box out early and physically. She crashes every possession.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -986,9 +986,9 @@
         "alerts": [
           "aware_trap"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
+        "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
         "force_text": "weak hand",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -1019,7 +1019,7 @@
           "aware_passer",
           "aware_deep"
         ],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
@@ -1053,7 +1053,7 @@
         ],
         "deny_text": "Anticipate the slip. They read your hedge — stay connected through the screen.",
         "force_text": "Keep her off the paint. Force catches on the perimeter, not inside.",
-        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -1084,7 +1084,7 @@
           "aware_deep",
           "aware_trap"
         ],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
@@ -1117,7 +1117,7 @@
           "aware_post_fade",
           "aware_oreb"
         ],
-        "deny_text": "Front the right block entry. Three-quarter position on the right shoulder.",
+        "deny_text": "Front the right block. Three-quarter on the right shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
         "allow_text": "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock."
       }
@@ -1149,8 +1149,8 @@
           "aware_passer",
           "aware_trap"
         ],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
-        "force_text": "Force early clock shots. Apply ball pressure — do not let them settle.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
+        "force_text": "Force early clock shots. Get into her in the first three seconds — do not let her survey the floor. She needs time to create.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1182,8 +1182,8 @@
           "aware_passer",
           "aware_deep"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
-        "force_text": "Force left — deny the mid-range pull-up. She avoids driving to the rim; push her left and make her attack the paint.",
+        "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up. She will look to pass first — stay connected to the roll man.",
+        "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1215,9 +1215,9 @@
           "aware_deep",
           "aware_oreb"
         ],
-        "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
+        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -1247,7 +1247,7 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
@@ -1281,9 +1281,9 @@
         "alerts": [
           "aware_pnr_direction"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
-        "force_text": "Force left. Weaker finishing side in the PnR — shade left, make her go the hard way.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
+        "force_text": "Force left off the screen. She finishes better going right — shade left early, before the screen is set.",
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -1315,9 +1315,9 @@
         "alerts": [
           "aware_oreb"
         ],
-        "deny_text": "Box out on every shot. Elite offensive rebounder — physical block-out required.",
+        "deny_text": "Find her before the shot goes up — not after. Box out early and physically. She crashes every possession.",
         "force_text": "Deny ball touches. Ball handling liability — attack the ball every time she has it.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -1380,9 +1380,9 @@
           "aware_post_hook",
           "aware_physical"
         ],
-        "deny_text": "Front the left block entry. Three-quarter position on the left shoulder.",
+        "deny_text": "Front the left block. Three-quarter on the left shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -1412,7 +1412,7 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
+        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow post-up attempts. Minimal post threat — sag off and help inside."
       }
@@ -1444,9 +1444,9 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
+        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -1473,9 +1473,9 @@
         "alerts": [
           "aware_selfish_pattern"
         ],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -1506,7 +1506,7 @@
         ],
         "deny_text": "Jump the handoff. Attack the ball at the moment of exchange — deny the catch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -1539,8 +1539,8 @@
           "aware_passer",
           "aware_deep"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
-        "force_text": "Force left — deny the mid-range pull-up. She avoids driving to the rim; push her left and make her attack the paint.",
+        "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up. She will look to pass first — stay connected to the roll man.",
+        "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
@@ -1572,7 +1572,7 @@
           "aware_deep",
           "aware_oreb"
         ],
-        "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
+        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
@@ -1607,8 +1607,8 @@
           "aware_pnr_direction",
           "aware_passer"
         ],
-        "deny_text": "Deny the left wing catch. Force them right — their weaker side.",
-        "force_text": "Force left. Weaker finishing side in the PnR — shade left, make her go the hard way.",
+        "deny_text": "Deny the left wing catch. Force right — do not let them set up going their way. Do not reach — they create off contact.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
@@ -1640,9 +1640,9 @@
           "aware_passer",
           "aware_post_turnaround"
         ],
-        "deny_text": "Front the right block entry. Three-quarter position on the right shoulder.",
+        "deny_text": "Front the right block. Three-quarter on the right shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -1672,8 +1672,8 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
-        "force_text": "Force left — deny the mid-range pull-up. She avoids driving to the rim; push her left and make her attack the paint.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
+        "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1704,8 +1704,8 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "Deny the left wing catch. Force them right — their weaker side.",
-        "force_text": "Force left. Weaker finishing side in the PnR — shade left, make her go the hard way.",
+        "deny_text": "Deny the left wing catch. Force right — do not let them set up going their way. Do not reach — they create off contact.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
         "allow_text": "pnr ball"
       }
     },
@@ -1737,9 +1737,9 @@
           "aware_post_fade",
           "aware_physical"
         ],
-        "deny_text": "Front the left block entry. Three-quarter position on the left shoulder.",
+        "deny_text": "Front the left block. Three-quarter on the left shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -1772,8 +1772,8 @@
           "aware_passer",
           "aware_deep"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
-        "force_text": "Force left — deny the mid-range pull-up. She avoids driving to the rim; push her left and make her attack the paint.",
+        "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up. She will look to pass first — stay connected to the roll man.",
+        "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1802,8 +1802,8 @@
         "force_alts": [],
         "allow": "allow_transition",
         "alerts": [],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
-        "force_text": "Force early clock shots. Apply ball pressure — do not let them settle.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
+        "force_text": "Force early clock shots. Get into her in the first three seconds — do not let her survey the floor. She needs time to create.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1835,9 +1835,9 @@
           "aware_oreb",
           "aware_physical"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
+        "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up. She will look to pass first — stay connected to the roll man.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -1868,8 +1868,8 @@
           "aware_deep",
           "aware_passer"
         ],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
-        "force_text": "Force left — deny the mid-range pull-up. She avoids driving to the rim; push her left and make her attack the paint.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
+        "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1901,7 +1901,7 @@
           "aware_deep",
           "aware_connector"
         ],
-        "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
+        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
@@ -1936,7 +1936,7 @@
         ],
         "deny_text": "Jump the handoff. Attack the ball at the moment of exchange — deny the catch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -1966,8 +1966,8 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
-        "force_text": "Force left — deny the mid-range pull-up. She avoids driving to the rim; push her left and make her attack the paint.",
+        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1995,7 +1995,7 @@
         ],
         "allow": "allow_transition",
         "alerts": [],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
         "force_text": "weak hand",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
@@ -2027,9 +2027,9 @@
         "alerts": [
           "aware_oreb"
         ],
-        "deny_text": "Box out on every shot. Elite offensive rebounder — physical block-out required.",
+        "deny_text": "Find her before the shot goes up — not after. Box out early and physically. She crashes every possession.",
         "force_text": "Keep her off the paint. Force catches on the perimeter, not inside.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -2053,7 +2053,7 @@
         ],
         "allow": "allow_iso_right",
         "alerts": [],
-        "deny_text": "Deny the right wing catch. Force them left before they set up.",
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
         "allow_text": "iso right"
       }
@@ -2086,9 +2086,9 @@
           "aware_deep",
           "aware_trans_trail_shoot"
         ],
-        "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
+        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow ISO attempts in non-primary situations. Low efficiency — make them use clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -2118,9 +2118,9 @@
           "aware_post_hook",
           "aware_physical"
         ],
-        "deny_text": "Front the right block entry. Three-quarter position on the right shoulder.",
+        "deny_text": "Front the right block. Three-quarter on the right shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow spot-up threes. No deep range — the shot is below average."
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
     {
@@ -2151,8 +2151,8 @@
           "aware_deep",
           "aware_passer"
         ],
-        "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
-        "force_text": "Force left. Weaker finishing side in the PnR — shade left, make her go the hard way.",
+        "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     }

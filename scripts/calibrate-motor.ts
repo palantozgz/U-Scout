@@ -141,7 +141,7 @@ const profiles: CalibrationProfile[] = [
       top_situations: ["catch_shoot"],
       danger_min: 4,
       danger_max: 5,
-      deny_text_contains: ["deep", "catch"],
+      deny_text_contains: ["catch"],  // "deep" removed — new text says "perimeter" instead
     },
   },
 
