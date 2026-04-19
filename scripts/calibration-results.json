@@ -1,5 +1,5 @@
 {
-  "date": "2026-04-19T06:09:55.437Z",
+  "date": "2026-04-19T06:28:07.106Z",
   "globalScore": 96,
   "totalPassed": 12,
   "totalFailed": 6,
@@ -29,14 +29,14 @@
         ],
         "force": "none",
         "force_alts": [],
-        "allow": "allow_catch_shoot",
+        "allow": "none",
         "alerts": [
           "aware_passer",
           "aware_deep"
         ],
         "deny_text": "Deny the left wing catch. Force them right — their weaker side.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow catch-and-shoot attempts. Contest from distance — no free drives from closeout."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -95,14 +95,14 @@
         ],
         "force": "none",
         "force_alts": [],
-        "allow": "allow_cut",
+        "allow": "none",
         "alerts": [
           "aware_passer",
           "aware_deep"
         ],
         "deny_text": "Deny the deep catch. Extend your close-out — they shoot immediately off the catch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow baseline cuts. No scoring threat off the cut — focus on primary actions."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -336,14 +336,14 @@
         ],
         "force": "force_early",
         "force_alts": [],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [
           "aware_passer",
           "aware_deep"
         ],
         "deny_text": "Deny the right wing catch. Force them left before they set up.",
         "force_text": "Force early clock shots. Apply ball pressure — do not let them settle.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -369,14 +369,14 @@
         ],
         "force": "none",
         "force_alts": [],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [
           "aware_passer",
           "aware_deep"
         ],
         "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -402,14 +402,14 @@
         ],
         "force": "none",
         "force_alts": [],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [
           "aware_passer",
           "aware_deep"
         ],
         "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -435,13 +435,13 @@
         ],
         "force": "force_early",
         "force_alts": [],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [
           "aware_deep"
         ],
         "deny_text": "Deny the right wing catch. Force them left before they set up.",
         "force_text": "Force early clock shots. Apply ball pressure — do not let them settle.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -501,14 +501,14 @@
         ],
         "force": "none",
         "force_alts": [],
-        "allow": "allow_catch_shoot",
+        "allow": "none",
         "alerts": [
           "aware_passer",
           "aware_deep"
         ],
         "deny_text": "Deny the downhill PnR attack. Get over the screen — do not go under.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow catch-and-shoot attempts. Contest from distance — no free drives from closeout."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {

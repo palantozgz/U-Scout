@@ -254,23 +254,26 @@ function buildDefenseInstruction(
 
   if (sorted.length === 0) {
     // No outputs for this category from v2.1.
-    // For 'allow': derive from least-threatening situation in rawOutputs.
+    // For 'allow': derive only from GENUINELY low-threat situations (weight < 0.5).
+    // High-weight deny situations must never become "allow" recommendations.
     if (category === 'allow') {
       const denySorted = rawOutputs
         .filter((o) => o.category === 'deny' && o.weight > 0)
         .sort((a, b) => a.weight - b.weight); // ASC — least threatening first
-      if (denySorted.length > 0) {
-        const least = denySorted[0];
+      const genuinelyLow = denySorted.filter(o => o.weight < 0.5);
+      if (genuinelyLow.length > 0) {
+        const least = genuinelyLow[0];
         const sitId = toSituationId(SOURCE_TO_SITUATION[least.source] ?? 'misc', inputs);
         const allowKey = `allow_${sitId}`;
         return {
           winner: { key: allowKey, score: Math.max(1 - least.weight, 0.3), situationRef: sitId, source: least.source },
-          alternatives: denySorted.slice(1, 4).map(o => {
+          alternatives: genuinelyLow.slice(1, 4).map(o => {
             const s = toSituationId(SOURCE_TO_SITUATION[o.source] ?? 'misc', inputs);
             return { key: `allow_${s}`, score: Math.max(1 - o.weight, 0.3), situationRef: s, source: o.source };
           }),
         };
       }
+      // All deny situations high-threat: no allow recommendation needed.
     }
     return { winner: EMPTY_CANDIDATE, alternatives: [] };
   }
