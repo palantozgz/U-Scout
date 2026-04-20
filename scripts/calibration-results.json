@@ -1,5 +1,5 @@
 {
-  "date": "2026-04-20T18:47:29.817Z",
+  "date": "2026-04-20T18:52:28.329Z",
   "globalScore": 99,
   "totalPassed": 70,
   "totalFailed": 4,
@@ -2095,7 +2095,7 @@
         "alerts": [],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
-        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
+        "allow_text": "Allow ISO into contact — she avoids physical finishes. Be physical, stay upright, and make her earn every shot at the rim. No free catch-and-shoot look."
       }
     },
     {
@@ -2378,7 +2378,7 @@
         "alerts": [],
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
         "force_text": "Force traps over every screen — no soft coverage. She struggles under hard hedge pressure. Stay over the screen — no space for the pull-up. Funnel left toward the paint or force the pass.",
-        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
+        "allow_text": "Allow ISO into contact — she avoids physical finishes. Be physical, stay upright, and make her earn every shot at the rim. No free catch-and-shoot look."
       }
     },
     {

@@ -886,6 +886,12 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
     case "force_weak_hand": {
       const weakHandEN = inputs.hand === "R" ? "left" : "right";
       const strongHandEN = inputs.hand === "R" ? "right" : "left";
+      const isPnrShooter = inputs.pnrFreq === "P" &&
+        (inputs.pnrFinishLeft === "Mid-range" || inputs.pnrFinishRight === "Mid-range") &&
+        !inputs.deepRange;
+      if (isPnrShooter) {
+        return `Force ${weakHandEN} off every screen — deny the mid-range pull-up going ${strongHandEN}. Push her toward the paint: help is there, pull-up is not. No free space at the arc.`;
+      }
       return `Force ${weakHandEN} — she finishes much better going ${strongHandEN}. Channel every drive to her weak side and contest at the rim.`;
     }
     case "force_paint_deny":
@@ -895,7 +901,23 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
     case "allow_catch_shoot":
       return "Allow catch-and-shoot attempts. Contest from distance — no free drives from closeout.";
     case "allow_iso":
-      return "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot.";
+      return (() => {
+        const weakSide = inputs.hand === "R" ? "left" : "right";
+        const avoidsContact = inputs.contactFinish === "avoids";
+        const weakHandWeak = inputs.offHandFinish === "weak";
+        const hasPnrMidRange = inputs.pnrFreq === "P" &&
+          (inputs.pnrFinishLeft === "Mid-range" || inputs.pnrFinishRight === "Mid-range");
+        if (avoidsContact && weakHandWeak && hasPnrMidRange) {
+          return `Force drives ${weakSide} into contact — she avoids it and her ${weakSide}-hand finish is weak. A contested drive left is better than a free mid-range pull-up or an open three. Make her choose between the worst shot and the hardest one.`;
+        }
+        if (avoidsContact) {
+          return `Allow ISO into contact — she avoids physical finishes. Be physical, stay upright, and make her earn every shot at the rim. No free catch-and-shoot look.`;
+        }
+        if (hasPnrMidRange) {
+          return `Allow ISO attempts. Low efficiency creating off the dribble — give her the ball in ISO, stay upright, and contest. A forced ISO is better than a PnR mid-range pull-up.`;
+        }
+        return `Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot.`;
+      })();
     case "allow_spot_three": {
       const isRareShoother = inputs.spotUpFreq === "R";
       const hasMidRangeThreat = inputs.highPostZones &&
@@ -1055,6 +1077,12 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
     case "force_weak_hand": {
       const weakHandES = inputs.hand === "R" ? "izquierda" : "derecha";
       const strongHandES = inputs.hand === "R" ? "derecha" : "izquierda";
+      const isPnrShooterES = inputs.pnrFreq === "P" &&
+        (inputs.pnrFinishLeft === "Mid-range" || inputs.pnrFinishRight === "Mid-range") &&
+        !inputs.deepRange;
+      if (isPnrShooterES) {
+        return `Fuerza a la ${weakHandES} en cada bloqueo — niega el pull-up de media distancia por la ${strongHandES}. Empújala a la pintura: la ayuda está ahí, el pull-up no. Sin espacio libre en el arco.`;
+      }
       return `Fuerza a la ${weakHandES} — finaliza mucho mejor por la ${strongHandES}. Canaliza cada penetración a su lado débil y contesta en el aro.`;
     }
     case "force_paint_deny":
@@ -1062,7 +1090,23 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
     case "allow_catch_shoot":
       return "Permite el catch & shoot. Cierre desde lejos — sin penetraciones desde el cierre.";
     case "allow_iso":
-      return "Permite el ISO. Baja eficiencia creando — dale el balón, mantente erguido/a y contesta el tiro.";
+      return (() => {
+        const weakSideES = inputs.hand === "R" ? "izquierda" : "derecha";
+        const avoidsContactES = inputs.contactFinish === "avoids";
+        const weakHandWeakES = inputs.offHandFinish === "weak";
+        const hasPnrMidRangeES = inputs.pnrFreq === "P" &&
+          (inputs.pnrFinishLeft === "Mid-range" || inputs.pnrFinishRight === "Mid-range");
+        if (avoidsContactES && weakHandWeakES && hasPnrMidRangeES) {
+          return `Fuerza penetraciones a la ${weakSideES} con contacto — lo evita y su mano ${weakSideES} es débil. Una penetración forzada a la izquierda es mejor que un pull-up de media distancia libre o un triple abierto. Que elija entre el peor tiro y el más difícil.`;
+        }
+        if (avoidsContactES) {
+          return `Permite el ISO con contacto — evita los finales físicos. Sé físico/a, mantente erguido/a y haz que se lo gane en el aro. Sin catch-and-shoot limpio.`;
+        }
+        if (hasPnrMidRangeES) {
+          return `Permite el ISO. Baja eficiencia creando — dale el balón en ISO, mantente erguido/a y contesta. Un ISO forzado es mejor que un pull-up de media distancia en el bloqueo.`;
+        }
+        return `Permite el ISO. Baja eficiencia creando — dale el balón, mantente erguido/a y contesta el tiro.`;
+      })();
     case "allow_spot_three": {
       const isRareShooterES = inputs.spotUpFreq === "R";
       const hasMidRangeThreatES = inputs.highPostZones &&
@@ -1244,8 +1288,18 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
       return "封堵接球。运球是弱项——每次持球都要上抢。";
     case "allow_catch_shoot":
       return "允许接球跳投，远距离补防即可——不给从防守中突破的机会。";
-    case "allow_iso":
-      return "允许单打。她持球创造的效率偏低——给球，保持直立姿势，封堵出手。";
+    case "allow_iso": {
+      const avoidsContactZH = inputs.contactFinish === "avoids";
+      const weakHandWeakZH = inputs.offHandFinish === "weak";
+      const weakSideZH = inputs.hand === "R" ? "左侧" : "右侧";
+      if (avoidsContactZH && weakHandWeakZH) {
+        return `引导其向${weakSideZH}突破并施加身体对抗——她回避对抗且弱手终结能力差。被迫向弱手突破好过给她空位三分或中距离。`;
+      }
+      if (avoidsContactZH) {
+        return `允许单打，但施加身体对抗——她回避身体接触。保持直立，让每次上篮都有争抢。`;
+      }
+      return `允许单打。持球创造效率偏低——给球，保持直立姿势，封堵出手。`;
+    }
     case "allow_spot_three": {
       const isRareShooterZH = inputs.spotUpFreq === "R";
       const hasMidRangeThreatZH = inputs.highPostZones &&
@@ -1332,6 +1386,8 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
       return "Long-range threat — shoots from well beyond the standard arc. Guard from distance.";
     if (key.includes("physical"))
       return "Uses body to create space — physical mismatch risk.";
+    if (key === "aware_off_ball_role")
+      return "Active off the ball — cuts and screens without the ball. Do not lose sight off-ball.";
     return key.replace(/_/g, " ");
   }
   if (locale === "es") {
@@ -1357,6 +1413,8 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
       return "Rango extra-largo — lanza desde más allá del arco estándar. Salir a defender desde lejos.";
     if (key.includes("physical"))
       return "Usa el cuerpo para crear espacio — riesgo de desajuste físico.";
+    if (key === "aware_off_ball_role")
+      return "Activa sin balón — cortes y bloqueos sin el balón. No perder el contacto visual fuera del balón.";
     return key.replace(/_/g, " ");
   }
   if (locale === "zh") {
@@ -1372,6 +1430,8 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
       return "低位勾手投篮，两侧均可出手，难以预判。";
     if (key.includes("stepback"))
       return "后撤步跳投，两次运球即可创造空间。";
+    if (key === "aware_off_ball_role")
+      return "无球积极跑动——无球切入和掩护。不要在无球时失去视线。";
     if (key.includes("trans"))
       return "快攻威胁，能迅速找到空位射手。";
     if (key.includes("oreb"))
