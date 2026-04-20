@@ -1222,9 +1222,14 @@ export class UScoutMotor {
           outputs.push({
             key: 'deny_pnr_pop',
             category: 'deny',
-            weight: Math.min(popWeight, 1.0),
+            weight: 0.98,
             source: 'screener_pop',
           });
+
+          // For pop screener with deep range: deny_pnr_pop is the correct primary instruction.
+          // Suppress deny_spot_deep — the threat is off the screen, not a generic spot-up.
+          const spotDeepIdx = outputs.findIndex(o => o.key === 'deny_spot_deep');
+          if (spotDeepIdx >= 0) outputs[spotDeepIdx].weight = 0.0;
         } else {
           outputs.push({
             key: 'deny_pnr_pop',
@@ -2189,7 +2194,9 @@ export class UScoutMotor {
     // not on shot clock pressure — pressing early on a PnR handler with exterior threat
     // creates open catch-and-shoot opportunities for their shooters.
     // Additionally suppress if player has exterior/transition threat regardless of play type.
-    const shouldSuppressEarly = isPnrHandler || hasExteriorThreat || isTransitionThreat;
+    const hasKnownIsoDirection = inputs.isoDir === 'L' || inputs.isoDir === 'R';
+    const shouldSuppressEarly =
+      isPnrHandler || hasExteriorThreat || isTransitionThreat || hasKnownIsoDirection;
     if (
       inputs.selfCreation === 'high' &&
       inputs.usage === 'primary' &&

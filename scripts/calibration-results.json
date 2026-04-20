@@ -1,9 +1,9 @@
 {
-  "date": "2026-04-20T09:23:54.223Z",
+  "date": "2026-04-20T16:32:53.509Z",
   "globalScore": 100,
-  "totalPassed": 72,
-  "totalFailed": 0,
-  "passedChecks": 596,
+  "totalPassed": 71,
+  "totalFailed": 1,
+  "passedChecks": 595,
   "totalChecks": 596,
   "results": [
     {
@@ -67,7 +67,7 @@
           "aware_passer",
           "aware_post_fade"
         ],
-        "deny_text": "Front the right block. Three-quarter on the right shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
+        "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
@@ -201,7 +201,7 @@
           "aware_post_hook",
           "aware_physical"
         ],
-        "deny_text": "Front the right block. Three-quarter on the right shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
+        "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
@@ -302,7 +302,7 @@
           "aware_post_fade",
           "aware_physical"
         ],
-        "deny_text": "Front the left block. Three-quarter on the left shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
+        "deny_text": "Deny the left block entry. Front the post — three-quarter on the left shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
@@ -505,12 +505,14 @@
     {
       "id": "cal016",
       "name": "Post Screener — Pop con rango",
-      "passed": true,
-      "score": 100,
-      "failures": [],
+      "passed": false,
+      "score": 90,
+      "failures": [
+        "danger_max(4) — got: 5"
+      ],
       "output": {
         "archetype": "archetype_versatile",
-        "danger": 4,
+        "danger": 5,
         "difficulty": 3,
         "top_situations": [
           "pnr_screener",
@@ -530,7 +532,7 @@
           "aware_deep",
           "aware_oreb"
         ],
-        "deny_text": "Contest the pop immediately. They shoot off the screen — no space to set.",
+        "deny_text": "Contest the pop immediately. No space to catch — they shoot off the screen without hesitation.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow post-up attempts. Minimal post threat — sag off and help inside."
       }
@@ -624,7 +626,6 @@
         ],
         "force": "force_weak_hand",
         "force_alts": [
-          "force_early",
           "force_direction"
         ],
         "allow": "allow_transition",
@@ -690,7 +691,7 @@
         "alerts": [
           "aware_off_ball_role"
         ],
-        "deny_text": "cut backdoor",
+        "deny_text": "Stay ball-side on cuts. Anticipate the backdoor — she reads when her defender turns their head. Keep vision on ball and body.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
@@ -1116,7 +1117,7 @@
           "aware_post_fade",
           "aware_oreb"
         ],
-        "deny_text": "Front the right block. Three-quarter on the right shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
+        "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
         "allow_text": "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock."
       }
@@ -1141,7 +1142,7 @@
           "deny_pnr_downhill",
           "deny_trans_run"
         ],
-        "force": "force_early",
+        "force": "none",
         "force_alts": [],
         "allow": "allow_transition",
         "alerts": [
@@ -1149,7 +1150,7 @@
           "aware_trap"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
-        "force_text": "Force early clock shots. Get into her in the first three seconds — do not let her survey the floor. She needs time to create.",
+        "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1327,7 +1328,7 @@
       "failures": [],
       "output": {
         "archetype": "archetype_versatile",
-        "danger": 4,
+        "danger": 5,
         "difficulty": 3,
         "top_situations": [
           "pnr_screener",
@@ -1347,7 +1348,7 @@
           "aware_post_fade",
           "aware_deep"
         ],
-        "deny_text": "Contest the pop immediately. They shoot off the screen — no space to set.",
+        "deny_text": "Contest the pop immediately. No space to catch — they shoot off the screen without hesitation.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
@@ -1379,7 +1380,7 @@
           "aware_post_hook",
           "aware_physical"
         ],
-        "deny_text": "Front the left block. Three-quarter on the left shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
+        "deny_text": "Deny the left block entry. Front the post — three-quarter on the left shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
@@ -1395,13 +1396,13 @@
         "danger": 5,
         "difficulty": 2,
         "top_situations": [
-          "catch_shoot",
           "pnr_screener",
+          "catch_shoot",
           "transition"
         ],
-        "deny": "deny_spot_deep",
+        "deny": "deny_pnr_pop",
         "deny_alts": [
-          "deny_pnr_pop",
+          "deny_spot_deep",
           "deny_trans_trail"
         ],
         "force": "none",
@@ -1410,7 +1411,7 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "No open catch at the top of the key. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "Contest the pop immediately. No space to catch — they shoot off the screen without hesitation.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow post-up attempts. Minimal post threat — sag off and help inside."
       }
@@ -1553,13 +1554,13 @@
         "danger": 5,
         "difficulty": 3,
         "top_situations": [
-          "catch_shoot",
           "pnr_screener",
+          "catch_shoot",
           "iso_both"
         ],
-        "deny": "deny_spot_deep",
+        "deny": "deny_pnr_pop",
         "deny_alts": [
-          "deny_pnr_pop",
+          "deny_spot_deep",
           "deny_iso_space",
           "deny_post_entry"
         ],
@@ -1570,7 +1571,7 @@
           "aware_deep",
           "aware_oreb"
         ],
-        "deny_text": "No open catch at the top of the key. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "Contest the pop immediately. No space to catch — they shoot off the screen without hesitation.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
@@ -1597,9 +1598,7 @@
           "deny_floater"
         ],
         "force": "force_direction",
-        "force_alts": [
-          "force_early"
-        ],
+        "force_alts": [],
         "allow": "none",
         "alerts": [
           "aware_pnr_direction",
@@ -1638,7 +1637,7 @@
           "aware_passer",
           "aware_post_turnaround"
         ],
-        "deny_text": "Front the right block. Three-quarter on the right shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
+        "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
@@ -1735,7 +1734,7 @@
           "aware_post_fade",
           "aware_physical"
         ],
-        "deny_text": "Front the left block. Three-quarter on the left shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
+        "deny_text": "Deny the left block entry. Front the post — three-quarter on the left shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
@@ -1796,12 +1795,12 @@
           "deny_post_entry",
           "deny_trans_run"
         ],
-        "force": "force_early",
+        "force": "none",
         "force_alts": [],
         "allow": "allow_transition",
         "alerts": [],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
-        "force_text": "Force early clock shots. Get into her in the first three seconds — do not let her survey the floor. She needs time to create.",
+        "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1882,13 +1881,13 @@
         "danger": 5,
         "difficulty": 3,
         "top_situations": [
-          "catch_shoot",
           "pnr_screener",
+          "catch_shoot",
           "post_right"
         ],
-        "deny": "deny_spot_deep",
+        "deny": "deny_pnr_pop",
         "deny_alts": [
-          "deny_pnr_pop",
+          "deny_spot_deep",
           "deny_post_entry",
           "deny_trans_run"
         ],
@@ -1899,7 +1898,7 @@
           "aware_deep",
           "aware_connector"
         ],
-        "deny_text": "No open catch at the wings. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "Contest the pop immediately. No space to catch — they shoot off the screen without hesitation.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
@@ -2116,7 +2115,7 @@
           "aware_post_hook",
           "aware_physical"
         ],
-        "deny_text": "Front the right block. Three-quarter on the right shoulder — push high, do not let her establish deep position. She is physical — beat her to the spot before the ball arrives.",
+        "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
@@ -2322,8 +2321,7 @@
         ],
         "force": "force_direction",
         "force_alts": [
-          "force_contact",
-          "force_early"
+          "force_contact"
         ],
         "allow": "allow_transition",
         "alerts": [],

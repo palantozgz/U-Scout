@@ -806,11 +806,19 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
     case "deny_post_entry": {
       const sideEN = inputs.postShoulder === "R" ? "right" : inputs.postShoulder === "L" ? "left" : "preferred";
       const techEN = inputs.phys && inputs.phys >= 4
-        ? `Front the ${sideEN} block. Three-quarter on the ${sideEN} shoulder — push high, do not let her establish deep position.`
+        ? `Deny the ${sideEN} block entry. Front the post — three-quarter on the ${sideEN} shoulder, push high before she seals.`
         : `Deny the ${sideEN} block entry. Three-quarter position — get in front before she seals.`;
       const physNote = inputs.phys && inputs.phys >= 4 ? " She is physical — beat her to the spot before the ball arrives." : "";
       return techEN + physNote;
     }
+    case "deny_cut_backdoor":
+      return "Stay ball-side on cuts. Anticipate the backdoor — she reads when her defender turns their head. Keep vision on ball and body.";
+    case "deny_cut_basket":
+      return "Stay ball-side. She cuts hard to the rim — do not let her get in front of you. No free catches in the paint.";
+    case "deny_cut_flash":
+      return "Deny the flash to the elbow. Get in the passing lane early — she catches high and reads cutters.";
+    case "deny_cut_curl":
+      return "Chase over the screen on curl cuts. No rhythm catch — she curls to shoot or drive immediately off the catch.";
     case "deny_spot_deep": {
       const where = spotZonesPhraseEN(inputs);
       const instantEN = inputs.spotUpAction === "shoot"
@@ -885,7 +893,7 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
     case "allow_ball_handling":
       return "Allow ball handling. Limited threat with the ball — let her dribble, not drive.";
     case "deny_pnr_pop":
-      return "Contest the pop immediately. They shoot off the screen — no space to set.";
+      return "Contest the pop immediately. No space to catch — they shoot off the screen without hesitation.";
     case "deny_pnr_roll":
       return "Stay attached to the roller. Do not lose contact — they roll hard to the rim.";
     case "deny_duck_in":
@@ -938,6 +946,14 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
       return inputs.postShoulder === "R"
         ? "Fronta la entrada al bloque derecho. Tres cuartos por el lado del hombro derecho."
         : "Fronta la entrada al bloque izquierdo. Tres cuartos por el lado del hombro izquierdo.";
+    case "deny_cut_backdoor":
+      return "Mantente por el lado del balón. Anticipa el corte a puerta trasera — lee cuándo pierdes el contacto visual. Visión en balón y cuerpo.";
+    case "deny_cut_basket":
+      return "Quédate por el lado del balón. Corta fuerte al aro — no le dejes ponerse por delante. Sin catches libres en la pintura.";
+    case "deny_cut_flash":
+      return "Niega el corte al codo. Ponte en la línea de pase pronto — recibe en alto y lee cortadores.";
+    case "deny_cut_curl":
+      return "Persigue por encima del bloqueo en el curl. Sin catch a ritmo — ataca de inmediato al recibir.";
     case "deny_spot_deep": {
       const donde = spotZonesPhraseES(inputs);
       const instES = inputs.spotUpAction === "shoot"
@@ -1053,18 +1069,26 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
         ? "绕过掩护，不要走底线——给她急停跳投机会就是失误。"
         : "紧贴绕过掩护，不让其舒适接球后中距离出手。";
       const passerZH = inputs.pnrPri === "PF" ? " 她以传球为优先——保持与滚篮者的联系。" : "";
-      return `封堵挡拆接球。${deepZH}${passerZH}`;
+      return `封堵挡拆顺下接球。${deepZH}${passerZH}`;
     }
     case "deny_post_entry": {
       const sideZH =
         inputs.postShoulder === "R" ? "右侧" : inputs.postShoulder === "L" ? "左侧" : "惯用侧";
       const techZH =
         inputs.phys && inputs.phys >= 4
-          ? `前防${sideZH}低位，从${sideZH}肩膀四分之三位置封堵——将其推高，不让其建立深位。`
-          : `封堵${sideZH}低位接球，四分之三位置——在其完成密封前抢占位置。`;
+          ? `封堵${sideZH}低位接球。前防低位——从${sideZH}肩膀四分之三位置，在其完成密封前推高卡位。`
+          : `封堵${sideZH}低位接球。四分之三站位——在其完成密封前抢占位置。`;
       const physZH = inputs.phys && inputs.phys >= 4 ? " 她身体对抗强——在球到达前抢到位置。" : "";
       return techZH + physZH;
     }
+    case "deny_cut_backdoor":
+      return "保持在球的一侧。预判背刺切入——当防守者转头时读出切入时机。同时关注球和身体。";
+    case "deny_cut_basket":
+      return "保持球侧站位，强力切向篮下——不让其在你前面接球。禁区内无轻松接球。";
+    case "deny_cut_flash":
+      return "封堵闪切至肘区，提前卡在传球线上——接球后读切入者并攻击。";
+    case "deny_cut_curl":
+      return "绕掩护追赶弧线切入。不给节奏型接球——接球后立即突破或投篮。";
     case "deny_spot_deep": {
       const dondeZH = spotZonesPhraseZH(inputs);
       const instantZH =
@@ -1122,7 +1146,9 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
       return `每次突破都要身体对抗——她躲避对抗寻找空位终结。靠向${handZH}，让每次上篮都有争抢。`;
     }
     case "force_full_court":
-      return "全场紧逼，持续施压让传球推进困难。";
+      return inputs.pressureResponse === "struggles"
+        ? "全场紧逼。在过渡防守中压迫持球——她在压力下容易出错。"
+        : "主动施压——让球的推进变得困难。";
     case "force_no_push":
       return "限制持球推进，提前卡位，不让其全场突破。";
     case "force_no_ball":
@@ -1243,12 +1269,20 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
       return "压力下易出错。接球时主动施压——在其站稳前干扰。";
     if (key.includes("post_fade"))
       return "低位后仰跳投，难以有效封盖。";
+    if (key.includes("post_hook"))
+      return "低位勾手投篮，两侧均可出手，难以预判。";
     if (key.includes("stepback"))
       return "后撤步跳投，两次运球即可创造空间。";
     if (key.includes("trans"))
       return "快攻威胁，能迅速找到空位射手。";
     if (key.includes("oreb"))
       return "积极抢进攻篮板，把握每次补篮机会。";
+    if (key.includes("screen_hold"))
+      return "掩护时间比预期长——滑出来得晚，保持警觉。";
+    if (key.includes("physical"))
+      return "用身体创造空间——存在身体错位风险。";
+    if (key === "aware_deep")
+      return "超远射程威胁——在标准弧线外很远处即可出手。保持防守距离。";
     return key.replace(/_/g, " ");
   }
   return key;
@@ -1299,10 +1333,16 @@ function renderTriggerCue(
   if (locale === "zh") {
     if (base.includes("passer"))
       return "夹击时对方已经抬头找传球点。";
+    if (base.includes("post_fade"))
+      return "低位接球后感觉到防守者在右肩——后仰跳投即将出手。";
+    if (base.includes("post_hook"))
+      return "低位接球并转身——勾手可从任意一侧出手。";
     if (base.includes("stepback"))
       return "两次运球向强手方向——已在蓄力后撤步。";
     if (base.includes("trans"))
       return "任何失误球——对方已在读出球传球。";
+    if (base.includes("oreb"))
+      return "每次出手——她在球到达前就已经开始卡位。";
     if (base.includes("deep"))
       return "7米以外任何空间——射程已到。";
     return "每次进攻都需注意。";
