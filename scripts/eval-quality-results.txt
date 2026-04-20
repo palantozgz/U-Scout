@@ -23,7 +23,7 @@
    Expected:  DENY: Deny the PnR downhill catch, stay over screen. FORCE: Force left (weaker finish side). ALLOW: ISO low-efficiency. AWARE: Elite passer.
    DENY:  Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up.
    FORCE: Force left off the screen. She finishes better going right — shade left early, before the screen is set.
-   ALLOW: Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock.
+   ALLOW: No specific instruction — follow standard defensive principles.
    ALERTS: aware_passer, aware_deep
 
   ✓  Top situation is PnR
@@ -37,7 +37,7 @@
    Expected:  DENY: Deny left wing catch. FORCE: Force right (weak side). Expect contact. ALLOW: Transition.
    DENY:  Deny the left wing catch. Force right — do not let them set up going their way. Do not reach — they create off contact.
    FORCE: Force right in ISO. She goes to her left — shade your body right before she gathers. Stay square — she looks for contact going her way.
-   ALLOW: Allow transition attempts. Not a primary transition threat — stay organized defensively.
+   ALLOW: No specific instruction — follow standard defensive principles.
 
   ✓  Top situation is ISO left
   ✓  DENY mentions left
@@ -47,7 +47,7 @@
   ✓  Archetype is ISO scorer
 
 ✅ [██████████] 100% — [q004] PF pop screener with deep range. Shoots immediately off the screen. No ISO, no post.
-   Archetype: archetype_versatile | Danger: 5 | Situations: pnr_screener, catch_shoot, transition
+   Archetype: archetype_stretch_big | Danger: 5 | Situations: pnr_screener, catch_shoot, transition
    Expected:  DENY: Contest the pop — deny the catch at the arc. ALLOW: Post-up. No ISO threat.
    DENY:  Contest the pop immediately. No space to catch — they shoot off the screen without hesitation.
    FORCE: No specific instruction — follow standard defensive principles.
@@ -73,7 +73,7 @@
   ✓  DENY does not mention post entry
 
 ✅ [██████████] 100% — [q006] Guard with ball-handling liability. Full-court pressure approach. Loses ball under pressure.
-   Archetype: archetype_versatile | Danger: 1 | Situations: iso_both, transition
+   Archetype: archetype_iso_scorer | Danger: 1 | Situations: iso_both, transition
    Expected:  FORCE: Attack the ball — deny touches. ALLOW: Ball handling (let her dribble, not drive). AWARE: Pressure vulnerability.
    DENY:  Deny the both wings catch. Stay between ball and body — no free catches in space.
    FORCE: Deny ball touches. Ball handling liability — attack the ball every time she has it.
@@ -100,7 +100,7 @@
   ✓  FORCE does not mention early shot (role player)
 
 ✅ [██████████] 100% — [q008] C rim runner in transition, rolls hard, duck-in, high oreb. No exterior.
-   Archetype: archetype_role_player | Danger: 5 | Situations: transition, pnr_screener, cut
+   Archetype: archetype_transition_threat | Danger: 5 | Situations: transition, pnr_screener, cut
    Expected:  DENY: Sprint to rim — no transition layups. Box out. ALLOW: Spot-up threes.
    DENY:  Sprint directly to the rim. She runs hard on every miss — get between her and the basket before the ball arrives.
    FORCE: Keep her off the paint. Force catches on the perimeter, not inside.

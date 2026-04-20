@@ -1,5 +1,5 @@
 {
-  "date": "2026-04-20T18:52:28.329Z",
+  "date": "2026-04-20T19:04:57.700Z",
   "globalScore": 99,
   "totalPassed": 70,
   "totalFailed": 4,
@@ -79,7 +79,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_playmaker",
+        "archetype": "archetype_spot_up_shooter",
         "danger": 5,
         "difficulty": 5,
         "top_situations": [
@@ -545,7 +545,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_versatile",
+        "archetype": "archetype_stretch_big",
         "danger": 5,
         "difficulty": 3,
         "top_situations": [
@@ -737,7 +737,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_versatile",
+        "archetype": "archetype_role_player",
         "danger": 5,
         "difficulty": 3,
         "top_situations": [
@@ -768,7 +768,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_versatile",
+        "archetype": "archetype_iso_scorer",
         "danger": 1,
         "difficulty": 3,
         "top_situations": [
@@ -965,7 +965,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_versatile",
+        "archetype": "archetype_role_player",
         "danger": 5,
         "difficulty": 3,
         "top_situations": [
@@ -1361,7 +1361,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_versatile",
+        "archetype": "archetype_stretch_big",
         "danger": 5,
         "difficulty": 3,
         "top_situations": [
@@ -1457,7 +1457,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_versatile",
+        "archetype": "archetype_spot_up_shooter",
         "danger": 4,
         "difficulty": 2,
         "top_situations": [
@@ -1491,7 +1491,7 @@
         "allow_must[allow_iso] — got: none"
       ],
       "output": {
-        "archetype": "archetype_versatile",
+        "archetype": "archetype_iso_scorer",
         "danger": 1,
         "difficulty": 3,
         "top_situations": [
@@ -1950,7 +1950,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_playmaker",
+        "archetype": "archetype_versatile",
         "danger": 5,
         "difficulty": 5,
         "top_situations": [
@@ -1983,7 +1983,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_versatile",
+        "archetype": "archetype_spot_up_shooter",
         "danger": 5,
         "difficulty": 3,
         "top_situations": [
@@ -2017,7 +2017,7 @@
         "force_text contains \"hand\" — got: \"Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.\""
       ],
       "output": {
-        "archetype": "archetype_versatile",
+        "archetype": "archetype_iso_scorer",
         "danger": 3,
         "difficulty": 3,
         "top_situations": [
@@ -2078,7 +2078,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_versatile",
+        "archetype": "archetype_iso_scorer",
         "danger": 1,
         "difficulty": 3,
         "top_situations": [
@@ -2170,7 +2170,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_playmaker",
+        "archetype": "archetype_pnr_orchestrator",
         "danger": 5,
         "difficulty": 5,
         "top_situations": [
@@ -2240,7 +2240,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_spot_up_shooter",
+        "archetype": "archetype_role_player",
         "danger": 2,
         "difficulty": 2,
         "top_situations": [
@@ -2264,7 +2264,7 @@
       "score": 100,
       "failures": [],
       "output": {
-        "archetype": "archetype_versatile",
+        "archetype": "archetype_spot_up_shooter",
         "danger": 2,
         "difficulty": 3,
         "top_situations": [
