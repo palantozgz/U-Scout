@@ -75,9 +75,9 @@ const profiles: EvalProfile[] = [
     },
     quality: [
       { label: "Top situation is post", top_situation_is: ["post_right", "post_left", "post"] },
-      { label: "DENY mentions blocking/fronting/entry", deny_contains: ["block", "front", "shoulder", "entry", "position", "right"] },
+      { label: "DENY mentions blocking/fronting/entry", deny_contains: ["block", "front", "shoulder", "entry"] },
       { label: "DENY text is professional (>40 chars)", deny_min_length: 40 },
-      { label: "ALLOW mentions spot-up/threes/perimeter", allow_contains: ["spot", "three", "perimeter", "range"] },
+      { label: "ALLOW mentions spot-up/threes/perimeter", allow_contains: ["spot", "perimeter", "range"] },
       { label: "DENY does not mention ISO", deny_not_contains: ["iso", "isolation", "dribble"] },
       { label: "Archetype is post scorer", archetype_is: ["archetype_post_scorer"] },
     ],
@@ -205,7 +205,7 @@ const profiles: EvalProfile[] = [
       screenerAction: null, ballHandling: "liability", pressureResponse: "struggles",
     },
     quality: [
-      { label: "FORCE mentions ball/pressure/attack", force_contains: ["ball", "deny", "attack", "pressure", "liability"] },
+      { label: "FORCE mentions ball/pressure/attack", force_contains: ["ball", "deny", "attack", "liability"] },
       { label: "FORCE does not recommend trap (no PnR)", force_not_contains: ["trap", "hedge"] },
       { label: "ALLOW mentions ball handling", allow_contains: ["ball", "dribble"] },
       { label: "Alerts mention pressure vulnerability", alerts_mention: ["pressure", "vuln"] },

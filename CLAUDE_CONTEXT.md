@@ -55,20 +55,22 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 - Script quality: `cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-motor-quality.ts`
 - Perfiles cubiertos: Luka, Jokic, Curry, Giannis, Klay, Embiid, Haliburton, Gobert, A'ja Wilson, Breanna Stewart, Ionescu, Clark, Plum, Micic, Mirotic, SGA, Sabonis, Booker, JB, AD, Trae Young, Middleton, Bam (x2), Taurasi, Jonquel Jones, Alyssa Thomas + 4 amateurs + 4 universitarios + Pika-style + Draymond + otros perfiles de rol (total 66)
 
-**Inferencias clave implementadas:**
+**Inferencias clave implementadas (motor + bridge):**
 - `trapResponse` desde `motorPressureResponse` del editor (scout > inferencia de visión)
 - `force_direction` para tiradora PnR mid-range ambos lados (shooter context)
 - `force_early` suprimido cuando `isoDir` está definido (L/R) — `force_direction` siempre gana con dirección conocida
 - `aware_passer` suprimido cuando `trapResponse = struggle`
 - `force_weak_hand` suprimido si `isoWeakHandFinish = drive` (ambidiestro)
 - `orebThreat = medium` inferido para C/PF con phys≥4 si no seteado
-- `force_full_court` modulado por atletismo
+- `force_full_court` suprimido para C/PF sin transición activa (bug Kalani corregido)
 - `aware_instant_shot` para tiradores primarios con release inmediato
 - `pnrSnake` conectado (reduce force_direction weight + aware)
 - `allow_pnr_mid_range` para PnR handler sin deepRange (under coverage válido)
-- `spotZone` mapeado desde inputs del editor
-- Cut baseWeight 0.72 (Synergy: cuts=1.58 PPP más eficiente)
-- `deny_pnr_pop` sube a 0.98 y suprime `deny_spot_deep` para pop screener + deepRange
+- `deny_pnr_pop` suprime `deny_spot_deep` para pop screener (con/sin deepRange)
+- `deny_spot_deep` ahora se emite para `spotUpFreq=P` sin deepRange (peso 0.80) — tiradora primaria merece closeout agresivo aunque no tenga rango extra-largo
+- `force_trap` reformulado como instrucción 1-on-1 (over screen + canal débil) — elimina lenguaje colectivo
+- `offHandFinish` derivado de `isoFinishLeft/Right` en bridge (era incorrecto via `closeoutReaction`)
+- `force_post_channel`: infiere canal dominante cruzando `hand` + `postMoves` (up_and_under/hook)
 - ath modula ISO weight parcialmente
 - `aware_passer` ponderado: vision=5+escape=0.95, vision=4+pass=0.72
 
@@ -90,8 +92,10 @@ Textos EN/ES/ZH actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR 
 - `deny_pnr_pop`: menciona "catch" — "No space to catch — they shoot off the screen"
 - `force_direction`: ISO context vs PnR context vs shooter
 - `force_contact`: dirección + por qué
+- `force_trap`: reformulado 1-on-1 — over screen + canal débil + no lenguaje colectivo
 - `allow_spot_three`: redirige a proteger pintura
 - `allow_iso`: instrucción activa (give ball, stay upright, contest)
+- `force_post_channel`: canal dominante en poste (up_and_under/hook cruzado con `hand`)
 
 **ZH**: paridad con EN/ES conseguida — `renderInstructionZH` dinámico, `renderAlertText` y `renderTriggerCue` ZH completos. ✅
 
@@ -113,6 +117,7 @@ Textos EN/ES/ZH actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR 
 
 3. **PlayerEditor input redesign** — ~48 campos finales (audit pendiente sección screener)
    → Prompt Cursor: `cursor_prompt_inputs_redesign.md`
+   → Diagrama media pista ✅ implementado (`HalfCourtZoneSelector`, 5 zonas clicables, retrocompatible)
 
 4. **`motorOutputToRichText`** — texto descriptivo por jugadora usando enrichedInputs en slide 1
    → Ya en main, revisar calidad

@@ -99,6 +99,135 @@ function legacyScreenerToScreenPattern(a: PlayerInput["screenerAction"]): Player
   }
 }
 
+// ─── Half-court zone selector ─────────────────────────────────────────────────
+interface SpotZonesValue {
+  cornerLeft: boolean;
+  wing45Left: boolean;
+  top: boolean;
+  wing45Right: boolean;
+  cornerRight: boolean;
+}
+
+function HalfCourtZoneSelector({
+  value,
+  legacyZone,
+  onChange,
+}: {
+  value: SpotZonesValue | null;
+  legacyZone: "corner" | "wing" | "top" | null;
+  onChange: (zones: SpotZonesValue | null) => void;
+}) {
+  // Hydrate from legacy single zone if spotZones not set
+  const zones: SpotZonesValue = value ?? (() => {
+    const z: SpotZonesValue = { cornerLeft: false, wing45Left: false, top: false, wing45Right: false, cornerRight: false };
+    if (legacyZone === "corner") { z.cornerLeft = true; z.cornerRight = true; }
+    if (legacyZone === "wing") { z.wing45Left = true; z.wing45Right = true; }
+    if (legacyZone === "top") { z.top = true; }
+    return z;
+  })();
+
+  const toggle = (key: keyof SpotZonesValue) => {
+    const next = { ...zones, [key]: !zones[key] };
+    const anyActive = Object.values(next).some(Boolean);
+    onChange(anyActive ? next : null);
+  };
+
+  // Zone color: active = amber/orange gradient by threat level
+  const zoneClass = (active: boolean) =>
+    active
+      ? "fill-amber-400 stroke-amber-500 opacity-90 cursor-pointer transition-all"
+      : "fill-slate-200 dark:fill-slate-700 stroke-slate-300 dark:stroke-slate-600 opacity-60 cursor-pointer hover:opacity-80 transition-all";
+
+  const labelClass = (active: boolean) =>
+    active ? "fill-slate-900 font-bold text-[10px]" : "fill-slate-500 dark:fill-slate-400 text-[10px]";
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <svg
+        viewBox="0 0 280 170"
+        className="w-full max-w-xs rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
+        style={{ touchAction: "manipulation" }}
+      >
+        {/* Court background */}
+        <rect x="0" y="0" width="280" height="170" className="fill-slate-50 dark:fill-slate-900" />
+
+        {/* Paint / key */}
+        <rect x="100" y="90" width="80" height="80" rx="2" className="fill-slate-200 dark:fill-slate-700 stroke-slate-300 dark:stroke-slate-600" strokeWidth="1.5" />
+
+        {/* Free throw line */}
+        <line x1="100" y1="90" x2="180" y2="90" className="stroke-slate-300 dark:stroke-slate-600" strokeWidth="1.5" />
+
+        {/* Three-point arc — approximate */}
+        <path d="M 40,170 A 105,105 0 0,1 240,170" className="fill-none stroke-slate-300 dark:stroke-slate-600" strokeWidth="1.5" />
+        {/* Corner straight lines */}
+        <line x1="40" y1="140" x2="40" y2="170" className="stroke-slate-300 dark:stroke-slate-600" strokeWidth="1.5" />
+        <line x1="240" y1="140" x2="240" y2="170" className="stroke-slate-300 dark:stroke-slate-600" strokeWidth="1.5" />
+
+        {/* Basket */}
+        <circle cx="140" cy="155" r="6" className="fill-none stroke-slate-400 dark:stroke-slate-500" strokeWidth="1.5" />
+        <line x1="134" y1="163" x2="146" y2="163" className="stroke-slate-400 dark:stroke-slate-500" strokeWidth="1.5" />
+
+        {/* ── ZONE: Corner Left ── */}
+        <polygon
+          points="0,170 40,170 40,140 0,140"
+          className={zoneClass(zones.cornerLeft)}
+          strokeWidth="1.5"
+          onClick={() => toggle("cornerLeft")}
+        />
+        <text x="20" y="158" textAnchor="middle" className={labelClass(zones.cornerLeft)}>CL</text>
+
+        {/* ── ZONE: Corner Right ── */}
+        <polygon
+          points="240,170 280,170 280,140 240,140"
+          className={zoneClass(zones.cornerRight)}
+          strokeWidth="1.5"
+          onClick={() => toggle("cornerRight")}
+        />
+        <text x="260" y="158" textAnchor="middle" className={labelClass(zones.cornerRight)}>CR</text>
+
+        {/* ── ZONE: Wing 45 Left ── */}
+        <path
+          d="M 0,140 L 40,140 A 105,105 0 0,1 90,60 L 60,30 L 0,30 Z"
+          className={zoneClass(zones.wing45Left)}
+          strokeWidth="1.5"
+          onClick={() => toggle("wing45Left")}
+        />
+        <text x="32" y="100" textAnchor="middle" className={labelClass(zones.wing45Left)}>WL</text>
+
+        {/* ── ZONE: Wing 45 Right ── */}
+        <path
+          d="M 240,140 L 280,140 L 280,30 L 220,30 L 190,60 A 105,105 0 0,1 240,140 Z"
+          className={zoneClass(zones.wing45Right)}
+          strokeWidth="1.5"
+          onClick={() => toggle("wing45Right")}
+        />
+        <text x="248" y="100" textAnchor="middle" className={labelClass(zones.wing45Right)}>WR</text>
+
+        {/* ── ZONE: Top of key ── */}
+        <path
+          d="M 60,30 L 90,60 A 105,105 0 0,1 190,60 L 220,30 Z"
+          className={zoneClass(zones.top)}
+          strokeWidth="1.5"
+          onClick={() => toggle("top")}
+        />
+        <text x="140" y="52" textAnchor="middle" className={labelClass(zones.top)}>TOP</text>
+      </svg>
+
+      {/* Reset */}
+      {Object.values(zones).some(Boolean) && (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline"
+        >
+          {/* clear */}
+          ✕ clear
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 function Tooltip({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
@@ -1685,22 +1814,30 @@ export default function PlayerEditor() {
 
               {((inputs as any).perimeterThreats ?? "Never") !== "Never" && (
                 <>
-                  {/* Zona preferida */}
+                  {/* Zonas de tiro — diagrama media pista */}
                   <div className="space-y-2">
-                    <FieldLabel label={t("spot_zone")} tooltip={t("hint_spot_zone")} />
-                    <div className="flex flex-wrap gap-3">
-                      {([{ v: "corner" as const, lk: "opt_spot_zone_corner" }, { v: "wing" as const, lk: "opt_spot_zone_wing" }, { v: "top" as const, lk: "opt_spot_zone_top" }] as const).map(({ v, lk }) => (
-                        <Button key={v} type="button" variant={((inputs as any).spotZone ?? null) === v ? "default" : "outline"} style={{ minHeight: 44 }}
-                          className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${((inputs as any).spotZone ?? null) === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
-                          onClick={() => ui("spotZone" as any, ((inputs as any).spotZone ?? null) === v ? null : v)}>
-                          {t(lk as never)}
-                        </Button>
-                      ))}
-                      <Button type="button" variant={((inputs as any).spotZone ?? null) == null ? "secondary" : "outline"} style={{ minHeight: 44 }}
-                        className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold" onClick={() => ui("spotZone" as any, null)}>
-                        {t("not_observed")}
-                      </Button>
-                    </div>
+                    <FieldLabel
+                      label={locale === "es" ? "Zonas de tiro" : "Shooting zones"}
+                      tooltip={locale === "es"
+                        ? "Marca las zonas donde es más peligrosa. Toca para activar/desactivar."
+                        : "Tap zones to mark where she is most dangerous."}
+                    />
+                    <HalfCourtZoneSelector
+                      value={(inputs as any).spotZones ?? null}
+                      legacyZone={(inputs as any).spotZone ?? null}
+                      onChange={(zones) => {
+                        ui("spotZones" as any, zones);
+                        // Keep legacy spotZone in sync for backwards compat
+                        if (!zones) { ui("spotZone" as any, null); return; }
+                        const hasCorner = zones.cornerLeft || zones.cornerRight;
+                        const hasWing = zones.wing45Left || zones.wing45Right;
+                        const hasTop = zones.top;
+                        if (hasCorner && !hasWing && !hasTop) ui("spotZone" as any, "corner");
+                        else if (hasWing && !hasCorner && !hasTop) ui("spotZone" as any, "wing");
+                        else if (hasTop && !hasCorner && !hasWing) ui("spotZone" as any, "top");
+                        else ui("spotZone" as any, null);
+                      }}
+                    />
                   </div>
 
                   {/* Rango profundo */}

@@ -1,10 +1,10 @@
 {
-  "date": "2026-04-20T17:08:22.317Z",
+  "date": "2026-04-20T18:21:27.310Z",
   "globalScore": 100,
-  "totalPassed": 71,
+  "totalPassed": 72,
   "totalFailed": 2,
-  "passedChecks": 600,
-  "totalChecks": 602,
+  "passedChecks": 605,
+  "totalChecks": 607,
   "results": [
     {
       "id": "cal001",
@@ -27,7 +27,7 @@
           "deny_post_entry",
           "deny_floater"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "none",
         "alerts": [
@@ -35,7 +35,7 @@
           "aware_deep"
         ],
         "deny_text": "Deny the left wing catch. Force right — do not let them set up going their way. Do not reach — they create off contact.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force right in ISO. She goes to her left — shade your body right before she gathers.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
@@ -108,11 +108,9 @@
     {
       "id": "cal004",
       "name": "Giannis Antetokounmpo — Drive + Rim",
-      "passed": false,
-      "score": 92,
-      "failures": [
-        "force_text contains \"trap\" — got: \"Force over every screen — no soft coverage. She struggles under hard hedge pressure. Get over the screen aggressively and maintain contact — no mid-range pull-up.\""
-      ],
+      "passed": true,
+      "score": 100,
+      "failures": [],
       "output": {
         "archetype": "archetype_pnr_orchestrator",
         "danger": 5,
@@ -138,7 +136,7 @@
           "aware_physical"
         ],
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
-        "force_text": "Force over every screen — no soft coverage. She struggles under hard hedge pressure. Get over the screen aggressively and maintain contact — no mid-range pull-up.",
+        "force_text": "Force traps over every screen — no soft coverage. She struggles under hard hedge pressure. Get over the screen aggressively and maintain contact — no mid-range pull-up.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
@@ -207,7 +205,7 @@
         ],
         "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "Force left in the post — deny the right-hand finish. The up-and-under and hook both terminate with the left hand. Channel left before she seals.",
-        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
+        "allow_text": "Not a primary shooting threat — stay close enough to contest and tag the roll. Do not sag: she has a mid-range game from the elbow."
       }
     },
     {
@@ -340,7 +338,7 @@
         ],
         "deny_text": "Deny the left block entry. Front the post — three-quarter on the left shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
-        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
+        "allow_text": "Not a primary shooting threat from distance — give space but stay within contesting range. She can shoot, just rarely does."
       }
     },
     {
@@ -364,7 +362,7 @@
           "deny_spot_deep",
           "deny_post_entry"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "none",
         "alerts": [
@@ -372,7 +370,7 @@
           "aware_passer"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
@@ -463,14 +461,14 @@
           "deny_pnr_downhill",
           "deny_trans_run"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "none",
         "alerts": [
           "aware_deep"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
@@ -541,11 +539,9 @@
     {
       "id": "cal016",
       "name": "Post Screener — Pop con rango",
-      "passed": false,
-      "score": 90,
-      "failures": [
-        "danger_max(4) — got: 5"
-      ],
+      "passed": true,
+      "score": 100,
+      "failures": [],
       "output": {
         "archetype": "archetype_versatile",
         "danger": 5,
@@ -604,7 +600,7 @@
           "aware_pressure_vuln"
         ],
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
-        "force_text": "Force over every screen — no soft coverage. She struggles under hard hedge pressure. Get over the screen aggressively and maintain contact — no mid-range pull-up.",
+        "force_text": "Force traps over every screen — no soft coverage. She struggles under hard hedge pressure. Get over the screen aggressively and maintain contact — no mid-range pull-up.",
         "allow_text": "Allow ball handling. Limited threat with the ball — let her dribble, not drive."
       }
     },
@@ -667,7 +663,7 @@
         "allow": "allow_transition",
         "alerts": [],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
-        "force_text": "weak hand",
+        "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -948,7 +944,7 @@
           "deny_spot_deep",
           "deny_trans_run"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "none",
         "alerts": [
@@ -956,7 +952,7 @@
           "aware_passer"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
@@ -1023,7 +1019,7 @@
           "aware_trap"
         ],
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
-        "force_text": "weak hand",
+        "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
@@ -1048,7 +1044,7 @@
           "deny_pnr_downhill",
           "deny_trans_run"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "allow_transition",
         "alerts": [
@@ -1056,7 +1052,7 @@
           "aware_deep"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1113,7 +1109,7 @@
           "deny_spot_deep",
           "deny_trans_rim"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "none",
         "alerts": [
@@ -1121,7 +1117,7 @@
           "aware_trap"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
@@ -1178,7 +1174,7 @@
           "deny_pnr_downhill",
           "deny_trans_run"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "allow_transition",
         "alerts": [
@@ -1186,7 +1182,7 @@
           "aware_trap"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1277,14 +1273,14 @@
           "deny_spot_deep",
           "deny_trans_run"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "none",
         "alerts": [
           "aware_deep"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
@@ -1319,7 +1315,7 @@
         ],
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
         "force_text": "Force left off the screen. She finishes better going right — shade left early, before the screen is set.",
-        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
+        "allow_text": "Not a primary shooting threat from distance — give space but stay within contesting range. She can shoot, just rarely does."
       }
     },
     {
@@ -1502,14 +1498,14 @@
         "deny_alts": [
           "deny_trans_run"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "allow_iso",
         "alerts": [
           "aware_selfish_pattern"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
         "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
@@ -1700,7 +1696,9 @@
           "deny_trans_run"
         ],
         "force": "force_direction",
-        "force_alts": [],
+        "force_alts": [
+          "force_direction"
+        ],
         "allow": "allow_transition",
         "alerts": [
           "aware_deep"
@@ -1831,12 +1829,12 @@
           "deny_post_entry",
           "deny_trans_run"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "allow_transition",
         "alerts": [],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1895,7 +1893,9 @@
           "deny_trans_run"
         ],
         "force": "force_direction",
-        "force_alts": [],
+        "force_alts": [
+          "force_direction"
+        ],
         "allow": "allow_transition",
         "alerts": [
           "aware_deep",
@@ -2007,9 +2007,11 @@
     {
       "id": "cal041",
       "name": "Ala amateur — penetrador puro sin tiro",
-      "passed": true,
-      "score": 100,
-      "failures": [],
+      "passed": false,
+      "score": 88,
+      "failures": [
+        "force_text contains \"hand\" — got: \"Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.\""
+      ],
       "output": {
         "archetype": "archetype_versatile",
         "danger": 3,
@@ -2029,7 +2031,7 @@
         "allow": "allow_transition",
         "alerts": [],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
-        "force_text": "weak hand",
+        "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -2082,7 +2084,8 @@
         "deny_alts": [],
         "force": "force_no_space",
         "force_alts": [
-          "force_contact"
+          "force_contact",
+          "force_direction"
         ],
         "allow": "allow_iso_right",
         "alerts": [],
@@ -2178,7 +2181,9 @@
           "deny_post_entry"
         ],
         "force": "force_direction",
-        "force_alts": [],
+        "force_alts": [
+          "force_direction"
+        ],
         "allow": "none",
         "alerts": [
           "aware_deep",
@@ -2192,9 +2197,11 @@
     {
       "id": "cal_morant",
       "name": "Ja Morant — PnR + Transition élite",
-      "passed": true,
-      "score": 100,
-      "failures": [],
+      "passed": false,
+      "score": 92,
+      "failures": [
+        "force_must_not[force_direction] — got: force_direction"
+      ],
       "output": {
         "archetype": "archetype_pnr_orchestrator",
         "danger": 5,
@@ -2210,7 +2217,7 @@
           "deny_trans_rim",
           "deny_iso_space"
         ],
-        "force": "none",
+        "force": "force_direction",
         "force_alts": [],
         "allow": "allow_spot_three",
         "alerts": [
@@ -2218,7 +2225,7 @@
           "aware_trap"
         ],
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
@@ -2242,7 +2249,7 @@
         "allow": "allow_iso",
         "alerts": [],
         "deny_text": "Prioritize the corners when she spots up. Long, aggressive closeout — she is comfortable firing from there.",
-        "force_text": "weak hand",
+        "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
         "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
@@ -2273,7 +2280,7 @@
         "allow": "allow_iso",
         "alerts": [],
         "deny_text": "Prioritize the corners when she spots up. Long, aggressive closeout — she is comfortable firing from there.",
-        "force_text": "weak hand",
+        "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
         "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
@@ -2285,21 +2292,24 @@
       "failures": [],
       "output": {
         "archetype": "archetype_spot_up_shooter",
-        "danger": 1,
+        "danger": 4,
         "difficulty": 2,
         "top_situations": [
+          "catch_shoot",
           "transition"
         ],
-        "deny": "deny_trans_run",
-        "deny_alts": [],
+        "deny": "deny_spot_deep",
+        "deny_alts": [
+          "deny_trans_run"
+        ],
         "force": "force_weak_hand",
         "force_alts": [],
         "allow": "allow_iso",
         "alerts": [
           "aware_physical"
         ],
-        "deny_text": "trans run",
-        "force_text": "weak hand",
+        "deny_text": "No open catch at the wings. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
         "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
@@ -2333,7 +2343,37 @@
           "aware_trap"
         ],
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
-        "force_text": "weak hand",
+        "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
+        "allow_text": "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock."
+      }
+    },
+    {
+      "id": "cal_pika_spot_primary",
+      "name": "Pika-style — tiradora primaria sin deepRange, zona top",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_pnr_orchestrator",
+        "danger": 5,
+        "difficulty": 5,
+        "top_situations": [
+          "pnr_ball",
+          "transition",
+          "catch_shoot"
+        ],
+        "deny": "deny_pnr_downhill",
+        "deny_alts": [
+          "deny_trans_run",
+          "deny_spot_deep",
+          "deny_iso_space"
+        ],
+        "force": "force_trap",
+        "force_alts": [],
+        "allow": "allow_iso_both",
+        "alerts": [],
+        "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
+        "force_text": "Force traps over every screen — no soft coverage. She struggles under hard hedge pressure. Stay over the screen — no space for the pull-up. Funnel left toward the paint or force the pass.",
         "allow_text": "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock."
       }
     },

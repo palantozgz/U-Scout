@@ -1,9 +1,9 @@
 ╔══════════════════════════════════════════════════════════════╗
 ║          U Scout — Motor Quality Evaluation                  ║
 ╚══════════════════════════════════════════════════════════════╝
-  Profiles: 10 | ✓ 7 passed | Score: 91% (42/46 checks)
+  Profiles: 10 | ✓ 10 passed | Score: 100% (46/46 checks)
 
-❌ [██████░░░░] 67% — [q001] Dominant post scorer, right block, hook + fade, physical, no exterior range
+✅ [██████████] 100% — [q001] Dominant post scorer, right block, hook + fade, physical, no exterior range
    Archetype: archetype_post_scorer | Danger: 5 | Situations: post_right, oreb
    Expected:  DENY: Front the right block — deny post entry. FORCE: No space in the paint. ALLOW: Spot-up threes. AWARE: Hook shot threat.
    DENY:  Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.
@@ -12,11 +12,9 @@
    ALERTS: aware_post_fade, aware_physical
 
   ✓  Top situation is post
-  ✗  DENY mentions blocking/fronting/entry
-      → Missing words in DENY: position — got: "Deny the right block entry. Front the post — three-quarter on the right shoulder"
+  ✓  DENY mentions blocking/fronting/entry
   ✓  DENY text is professional (>40 chars)
-  ✗  ALLOW mentions spot-up/threes/perimeter
-      → Missing words in ALLOW: three — got: "Allow spot-up catches. No deep range — the long two is her best perimeter shot. "
+  ✓  ALLOW mentions spot-up/threes/perimeter
   ✓  DENY does not mention ISO
   ✓  Archetype is post scorer
 
@@ -34,18 +32,17 @@
   ✓  FORCE mentions direction (left/right)
   ✓  Archetype is PnR orchestrator
 
-❌ [████████░░] 83% — [q003] ISO scorer, goes left (dominant), seeks contact, pull-up specialist, no PnR
+✅ [██████████] 100% — [q003] ISO scorer, goes left (dominant), seeks contact, pull-up specialist, no PnR
    Archetype: archetype_iso_scorer | Danger: 5 | Situations: iso_left, transition
    Expected:  DENY: Deny left wing catch. FORCE: Force right (weak side). Expect contact. ALLOW: Transition.
    DENY:  Deny the left wing catch. Force right — do not let them set up going their way. Do not reach — they create off contact.
-   FORCE: No specific instruction — follow standard defensive principles.
+   FORCE: Force right in ISO. She goes to her left — shade your body right before she gathers. Stay square — she looks for contact going her way.
    ALLOW: Allow transition attempts. Not a primary transition threat — stay organized defensively.
 
   ✓  Top situation is ISO left
   ✓  DENY mentions left
   ✓  DENY text is professional (>40 chars)
-  ✗  FORCE mentions right (push to weak side)
-      → Missing words in FORCE: right — got: "No specific instruction — follow standard defensive principles."
+  ✓  FORCE mentions right (push to weak side)
   ✓  FORCE does not mention trap (no PnR)
   ✓  Archetype is ISO scorer
 
@@ -75,7 +72,7 @@
   ✓  DENY does not mention PnR handler
   ✓  DENY does not mention post entry
 
-❌ [███████░░░] 75% — [q006] Guard with ball-handling liability. Full-court pressure approach. Loses ball under pressure.
+✅ [██████████] 100% — [q006] Guard with ball-handling liability. Full-court pressure approach. Loses ball under pressure.
    Archetype: archetype_versatile | Danger: 1 | Situations: iso_both, transition
    Expected:  FORCE: Attack the ball — deny touches. ALLOW: Ball handling (let her dribble, not drive). AWARE: Pressure vulnerability.
    DENY:  Deny the both wings catch. Stay between ball and body — no free catches in space.
@@ -83,8 +80,7 @@
    ALLOW: Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot.
    ALERTS: aware_pressure_vuln
 
-  ✗  FORCE mentions ball/pressure/attack
-      → Missing words in FORCE: pressure — got: "Deny ball touches. Ball handling liability — attack the ball every time she has "
+  ✓  FORCE mentions ball/pressure/attack
   ✓  FORCE does not recommend trap (no PnR)
   ✓  ALLOW mentions ball handling
   ✓  Alerts mention pressure vulnerability
@@ -120,7 +116,7 @@
    Archetype: archetype_pnr_orchestrator | Danger: 5 | Situations: pnr_ball, transition, iso_both
    Expected:  DENY: PnR downhill. FORCE: Trap/hedge — they struggle to escape. ALLOW: Ball handling.
    DENY:  Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.
-   FORCE: Force into traps on the PnR. Hedge hard — they struggle to escape.
+   FORCE: Force traps over every screen — no soft coverage. She struggles under hard hedge pressure. Get over the screen aggressively and maintain contact — no mid-range pull-up.
    ALLOW: Allow ball handling. Limited threat with the ball — let her dribble, not drive.
    ALERTS: aware_pressure_vuln
 
@@ -143,5 +139,5 @@
   ✓  DENY does not confuse with ISO
 
 ══════════════════════════════════════════════════════════════
-  OVERALL: 91% (42/46 checks | 7/10 profiles)
+  OVERALL: 100% (46/46 checks | 10/10 profiles)
 ══════════════════════════════════════════════════════════════

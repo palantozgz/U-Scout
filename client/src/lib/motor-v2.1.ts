@@ -995,15 +995,19 @@ export class UScoutMotor {
 
       if (inputs.isoDir) {
         const handWeakDir = inputs.hand === 'R' ? 'L' : 'R';
+        const handStrongDir = inputs.hand === 'R' ? 'R' : 'L';
         const offHandWeak = inputs.offHandFinish === 'weak';
+        // allAgree: isoDir matches weak hand direction OR off-hand is explicitly weak
+        // = scout and hand data both point to the same forced direction
         const allAgree =
           inputs.isoDir !== 'B' && (inputs.isoDir === handWeakDir || offHandWeak);
-        const contradiction =
-          inputs.isoDir !== 'B' && inputs.isoDir !== handWeakDir && !offHandWeak;
+        // strongSideConfirmed: player attacks via their STRONG hand side
+        // = we should force them to the opposite (weak) side — equally actionable
+        const strongSideConfirmed =
+          inputs.isoDir !== 'B' && inputs.isoDir === handStrongDir && !offHandWeak;
         if (allAgree) {
-          const dirParams: Record<string, string> = {
-            direction: inputs.isoDir === handWeakDir ? inputs.isoDir : handWeakDir,
-          };
+          const forceDir = inputs.isoDir === handWeakDir ? inputs.isoDir : handWeakDir;
+          const dirParams: Record<string, string> = { direction: forceDir };
           if (inputs.isoStartZone) dirParams.zone = inputs.isoStartZone;
           outputs.push({
             key: 'force_direction',
@@ -1012,19 +1016,30 @@ export class UScoutMotor {
             params: dirParams,
             source: 'iso_dir_confirmed',
           });
-        } else if (!contradiction) {
-          const weakDir = inputs.isoDir === 'L' ? 'R' : inputs.isoDir === 'R' ? 'L' : null;
-          if (weakDir) {
-            const dirParams: Record<string, string> = { direction: weakDir };
-            if (inputs.isoStartZone) dirParams.zone = inputs.isoStartZone;
-            outputs.push({
-              key: 'force_direction',
-              category: 'force',
-              weight: Math.min(weight * 0.9, 1.0),
-              params: dirParams,
-              source: 'iso_dir',
-            });
-          }
+        } else if (strongSideConfirmed) {
+          // Player attacks via dominant hand — force to weak side (opposite of isoDir)
+          const forceDir = handWeakDir;
+          const dirParams: Record<string, string> = { direction: forceDir };
+          if (inputs.isoStartZone) dirParams.zone = inputs.isoStartZone;
+          outputs.push({
+            key: 'force_direction',
+            category: 'force',
+            weight: Math.min(weight * 0.88, 1.0),
+            params: dirParams,
+            source: 'iso_dir_confirmed',
+          });
+        } else if (inputs.isoDir !== 'B') {
+          // isoDir is defined but ambiguous (B=both or null already handled)
+          const weakDir = inputs.isoDir === 'L' ? 'R' : 'L';
+          const dirParams: Record<string, string> = { direction: weakDir };
+          if (inputs.isoStartZone) dirParams.zone = inputs.isoStartZone;
+          outputs.push({
+            key: 'force_direction',
+            category: 'force',
+            weight: Math.min(weight * 0.9, 1.0),
+            params: dirParams,
+            source: 'iso_dir',
+          });
         }
       }
 
@@ -1227,25 +1242,18 @@ export class UScoutMotor {
             weight: 0.98,
             source: 'screener_pop',
           });
-
-          // For pop screener with deep range: deny_pnr_pop is the correct primary instruction.
-          // Suppress deny_spot_deep — the threat is off the screen, not a generic spot-up.
-          const spotDeepIdx = outputs.findIndex(o => o.key === 'deny_spot_deep');
-          if (spotDeepIdx >= 0) outputs[spotDeepIdx].weight = 0.0;
         } else {
           outputs.push({
             key: 'deny_pnr_pop',
             category: 'deny',
-            weight: 0.45,
-            source: 'screener_pop_no_range',
-          });
-          outputs.push({
-            key: 'aware_screen_short_roll',
-            category: 'aware',
-            weight: 0.55,
-            source: 'screener_pop_no_range',
+            weight: 0.80,
+            source: 'screener_pop',
           });
         }
+        // For pop screener: deny_pnr_pop is always the correct primary instruction.
+        // Suppress deny_spot_deep regardless of deepRange — the threat is off the screen.
+        const spotDeepIdx = outputs.findIndex(o => o.key === 'deny_spot_deep');
+        if (spotDeepIdx >= 0) outputs[spotDeepIdx].weight = 0.0;
       } else if (action === 'slip') {
         const slipWeight =
           inputs.pnrScreenTiming === 'ghost_touch' ? 0.9 : w.outputWeights.screener.slipWeight;
@@ -1812,17 +1820,31 @@ export class UScoutMotor {
       // Wing sin corner ya no genera deny_spot_corner — se cubre por deny_spot_deep si deepRange=true
     }
     
-    // Deep range threat — only if player actually uses spot-up (not just has range)
-    // SCIENTIFIC BASIS: Open 3PT is highest-PPP shot in basketball analytics
-    // Primary spot-up with deep range = top defensive priority
-    if (inputs.deepRange && inputs.spotUpFreq && inputs.spotUpFreq !== 'N') {
-      const spotWeight = inputs.spotUpFreq === 'P' ? 0.98 : inputs.spotUpFreq === 'S' ? 0.82 : 0.62;
-      outputs.push({
-        key: 'deny_spot_deep',
-        category: 'deny',
-        weight: spotWeight,
-        source: 'deep_range'
-      });
+    // deny_spot_deep: primary spot-up shooters ALWAYS deserve an explicit closeout instruction,
+    // even without deepRange. A primary spot-up threat at the top/wing is a high-value shot.
+    // deepRange adds weight but is not required for Primary frequency.
+    if (inputs.spotUpFreq && inputs.spotUpFreq !== 'N') {
+      const cornerActive = inputs.spotZones
+        ? inputs.spotZones.cornerLeft || inputs.spotZones.cornerRight
+        : inputs.spotZone === 'corner';
+      if (inputs.deepRange) {
+        const spotWeight = inputs.spotUpFreq === 'P' ? 0.98 : inputs.spotUpFreq === 'S' ? 0.82 : 0.62;
+        outputs.push({
+          key: 'deny_spot_deep',
+          category: 'deny',
+          weight: spotWeight,
+          source: 'deep_range'
+        });
+      } else if (inputs.spotUpFreq === 'P' && !cornerActive) {
+        // Primary spot-up without deepRange: still a major threat — aggressive closeout required.
+        // Weight capped at 0.80 (below deepRange 0.98 — she can't shoot from 7m+ but still dangerous)
+        outputs.push({
+          key: 'deny_spot_deep',
+          category: 'deny',
+          weight: 0.80,
+          source: 'deep_range'
+        });
+      }
     }
     
     // aware_instant_shot: shooter who fires immediately on closeout — no hesitation, no drive
