@@ -247,10 +247,38 @@ function buildDefenseInstruction(
   rawOutputs: MotorOutput[],
   category: "deny" | "force" | "allow",
   inputs: EnrichedInputs,
+  forceWinnerKey?: string,
 ): DefenseInstruction {
   const sorted = rawOutputs
     .filter((o) => o.category === category && o.weight > 0)
     .sort((a, b) => b.weight - a.weight);
+
+  // ALLOW suppression: return "none" when allow would be redundant with force
+  // or when the key is invalid (situationId concatenated with allow_)
+  if (category === 'allow' && forceWinnerKey) {
+    const INVALID_ALLOW_KEYS = new Set([
+      'allow_iso_right', 'allow_iso_left', 'allow_iso_both',
+      'allow_pnr_ball', 'allow_catch_shoot', 'allow_transition',
+      'allow_off_ball', 'allow_cut', 'allow_floater', 'allow_oreb', 'allow_misc',
+    ]);
+    const FORCE_DIRECTION_KEYS = new Set([
+      'force_direction', 'force_weak_hand',
+    ]);
+    const winner = sorted[0];
+    if (winner) {
+      // Suppress if key is invalid (situationId-based)
+      if (INVALID_ALLOW_KEYS.has(winner.key)) {
+        return { winner: EMPTY_CANDIDATE, alternatives: [] };
+      }
+      // Suppress allow_iso when force already covers direction
+      if (
+        (winner.key === 'allow_iso' || winner.key === 'allow_iso_both') &&
+        FORCE_DIRECTION_KEYS.has(forceWinnerKey)
+      ) {
+        return { winner: EMPTY_CANDIDATE, alternatives: [] };
+      }
+    }
+  }
 
   const toCandidate = (o: MotorOutput): Candidate => ({
     key: o.key,
@@ -267,6 +295,11 @@ function buildDefenseInstruction(
     // For 'allow': derive only from GENUINELY low-threat situations (weight < 0.5).
     // High-weight deny situations must never become "allow" recommendations.
     if (category === 'allow') {
+      // If force already covers direction, no allow fallback needed
+      const FORCE_DIRECTION_KEYS = new Set(['force_direction', 'force_weak_hand']);
+      if (forceWinnerKey && FORCE_DIRECTION_KEYS.has(forceWinnerKey)) {
+        return { winner: EMPTY_CANDIDATE, alternatives: [] };
+      }
       const denySorted = rawOutputs
         .filter((o) => o.category === 'deny' && o.weight > 0)
         .sort((a, b) => a.weight - b.weight); // ASC — least threatening first
@@ -274,13 +307,34 @@ function buildDefenseInstruction(
       if (genuinelyLow.length > 0) {
         const least = genuinelyLow[0];
         const sitId = toSituationId(SOURCE_TO_SITUATION[least.source] ?? 'misc', inputs);
-        const allowKey = `allow_${sitId}`;
+        // Map bucket → valid renderer key (never concatenate allow_ + situationId)
+        const bucketToAllowKey = (src: string): string => {
+          const b = SOURCE_TO_SITUATION[src] ?? 'misc';
+          switch (b) {
+            case 'iso': return 'allow_iso';
+            case 'pnr': return 'allow_pnr_mid_range';
+            case 'screener': return 'allow_post';
+            case 'post': return 'allow_post';
+            case 'spot': return 'allow_spot_three';
+            case 'transition': return 'allow_transition';
+            case 'cut': return 'allow_cut';
+            default: return 'none';
+          }
+        };
+        const allowKey = bucketToAllowKey(least.source);
+        // If mapped to 'none', suppress entirely
+        if (allowKey === 'none') return { winner: EMPTY_CANDIDATE, alternatives: [] };
         return {
           winner: { key: allowKey, score: Math.max(1 - least.weight, 0.3), situationRef: sitId, source: least.source },
           alternatives: genuinelyLow.slice(1, 4).map(o => {
             const s = toSituationId(SOURCE_TO_SITUATION[o.source] ?? 'misc', inputs);
-            return { key: `allow_${s}`, score: Math.max(1 - o.weight, 0.3), situationRef: s, source: o.source };
-          }),
+            return {
+              key: bucketToAllowKey(o.source),
+              score: Math.max(1 - o.weight, 0.3),
+              situationRef: s,
+              source: o.source,
+            };
+          }).filter(c => c.key !== 'none'),
         };
       }
       // All deny situations high-threat: no allow recommendation needed.
@@ -417,10 +471,18 @@ export function generateMotorV4(
   const rawOutputs = v21Report.rawOutputs;
 
   const situations = buildSituations(rawOutputs, enrichedInputs);
+  const denyInstruction = buildDefenseInstruction(rawOutputs, "deny", enrichedInputs);
+  const forceInstruction = buildDefenseInstruction(rawOutputs, "force", enrichedInputs);
+  const allowInstruction = buildDefenseInstruction(
+    rawOutputs,
+    "allow",
+    enrichedInputs,
+    forceInstruction.winner.key,
+  );
   const defense = {
-    deny: buildDefenseInstruction(rawOutputs, "deny", enrichedInputs),
-    force: buildDefenseInstruction(rawOutputs, "force", enrichedInputs),
-    allow: buildDefenseInstruction(rawOutputs, "allow", enrichedInputs),
+    deny: denyInstruction,
+    force: forceInstruction,
+    allow: allowInstruction,
   };
   const alerts = buildAlerts(rawOutputs);
   const identity = buildIdentity(enrichedInputs, situations, rawOutputs);

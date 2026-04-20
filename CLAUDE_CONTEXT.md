@@ -124,7 +124,11 @@ Textos EN/ES/ZH actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR 
 
 5. **Revision flow** — al guardar → pantalla revisión (ReportViewV4)
 
-6. **Versiones inputs por coach** — tabla `player_inputs_versions` (requiere migración schema)
+6. **ALLOW Tier 1: `allow_drive_weak_side`** — complementa FORCE dirección con "si te supera yendo a X, deja que llegue al aro"
+   → Motor v2.1 + renderer EN/ES/ZH + perfil calibración
+   → Diseño documentado en `scripts/allow_slot_design.md`
+
+7. **Versiones inputs por coach** — tabla `player_inputs_versions` (requiere migración schema)
 
 ---
 
@@ -163,7 +167,7 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/calibrate-motor.ts
 
 # Quality eval
 cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-motor-quality.ts
-# Score actual: 91% (42/46 checks, 7/10 perfiles)
+# Score actual: 100% (46/46 checks, 10/10 perfiles)
 ```
 
 ## Audit rápido

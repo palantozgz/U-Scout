@@ -381,7 +381,7 @@ export default function ReportSlidesV1({
               <SlideLabel label={t("slides_what_do_i")} />
 
               <div className="mt-4 space-y-3">
-                {(["deny", "force", "allow"] as const).map((type) => {
+                {(["deny", "force"] as const).map((type) => {
                   const instr = report.defense[type];
                   if (!instr) return null;
                   return (
@@ -397,6 +397,17 @@ export default function ReportSlidesV1({
                     />
                   );
                 })}
+                {motorOutput.defense.allow.winner.key !== "none" && (
+                  <DefenseCard
+                    type="allow"
+                    label={report.defense.allow.label}
+                    instruction={report.defense.allow.instruction}
+                    coachMode={coachMode}
+                    onKebab={() =>
+                      openDefenseSheet("allow", report.defense.allow.instruction, report.defense.allow.alternatives)
+                    }
+                  />
+                )}
               </div>
 
               {topAlerts.length > 0 && (

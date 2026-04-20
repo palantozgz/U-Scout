@@ -1,9 +1,9 @@
 {
-  "date": "2026-04-20T18:21:27.310Z",
-  "globalScore": 100,
-  "totalPassed": 72,
-  "totalFailed": 2,
-  "passedChecks": 605,
+  "date": "2026-04-20T18:47:29.817Z",
+  "globalScore": 99,
+  "totalPassed": 70,
+  "totalFailed": 4,
+  "passedChecks": 603,
   "totalChecks": 607,
   "results": [
     {
@@ -211,9 +211,11 @@
     {
       "id": "cal007",
       "name": "Tyrese Haliburton — PnR Distributor",
-      "passed": true,
-      "score": 100,
-      "failures": [],
+      "passed": false,
+      "score": 89,
+      "failures": [
+        "allow_must[allow_iso_both] — got: allow_iso"
+      ],
       "output": {
         "archetype": "archetype_pnr_orchestrator",
         "danger": 5,
@@ -231,14 +233,14 @@
         ],
         "force": "none",
         "force_alts": [],
-        "allow": "allow_iso_both",
+        "allow": "allow_iso",
         "alerts": [
           "aware_passer",
           "aware_deep"
         ],
         "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up. She will look to pass first — stay connected to the roll man.",
         "force_text": "No specific instruction — follow standard defensive principles.",
-        "allow_text": "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -559,7 +561,7 @@
         ],
         "force": "none",
         "force_alts": [],
-        "allow": "allow_post_right",
+        "allow": "allow_post",
         "alerts": [
           "aware_deep",
           "aware_oreb"
@@ -660,11 +662,11 @@
         "force_alts": [
           "force_direction"
         ],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -913,14 +915,14 @@
         "force_alts": [
           "force_direction"
         ],
-        "allow": "allow_floater",
+        "allow": "none",
         "alerts": [
           "aware_deep",
           "aware_passer"
         ],
         "deny_text": "Deny the left wing catch. Force right — do not let them set up going their way. Do not reach — they create off contact.",
         "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
-        "allow_text": "floater"
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -1046,14 +1048,14 @@
         ],
         "force": "force_direction",
         "force_alts": [],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [
           "aware_passer",
           "aware_deep"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -1144,14 +1146,14 @@
         ],
         "force": "force_no_space",
         "force_alts": [],
-        "allow": "allow_iso_both",
+        "allow": "allow_iso",
         "alerts": [
           "aware_post_fade",
           "aware_oreb"
         ],
         "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
         "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
-        "allow_text": "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -1176,14 +1178,14 @@
         ],
         "force": "force_direction",
         "force_alts": [],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [
           "aware_passer",
           "aware_trap"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -1209,14 +1211,14 @@
         ],
         "force": "force_direction",
         "force_alts": [],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [
           "aware_passer",
           "aware_deep"
         ],
         "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up. She will look to pass first — stay connected to the roll man.",
         "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -1483,9 +1485,11 @@
     {
       "id": "cal045",
       "name": "Selfish ISO — baja eficiencia pero no para",
-      "passed": true,
-      "score": 100,
-      "failures": [],
+      "passed": false,
+      "score": 83,
+      "failures": [
+        "allow_must[allow_iso] — got: none"
+      ],
       "output": {
         "archetype": "archetype_versatile",
         "danger": 1,
@@ -1500,13 +1504,13 @@
         ],
         "force": "force_direction",
         "force_alts": [],
-        "allow": "allow_iso",
+        "allow": "none",
         "alerts": [
           "aware_selfish_pattern"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
-        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -1699,13 +1703,13 @@
         "force_alts": [
           "force_direction"
         ],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [
           "aware_deep"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
         "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -1731,13 +1735,13 @@
         ],
         "force": "force_direction",
         "force_alts": [],
-        "allow": "allow_pnr_ball",
+        "allow": "none",
         "alerts": [
           "aware_deep"
         ],
         "deny_text": "Deny the left wing catch. Force right — do not let them set up going their way. Do not reach — they create off contact.",
         "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
-        "allow_text": "pnr ball"
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -1798,14 +1802,14 @@
         "force_alts": [
           "force_direction"
         ],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [
           "aware_passer",
           "aware_deep"
         ],
         "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up. She will look to pass first — stay connected to the roll man.",
         "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -1831,11 +1835,11 @@
         ],
         "force": "force_direction",
         "force_alts": [],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -1896,14 +1900,14 @@
         "force_alts": [
           "force_direction"
         ],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [
           "aware_deep",
           "aware_passer"
         ],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -1995,13 +1999,13 @@
         ],
         "force": "force_direction",
         "force_alts": [],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [
           "aware_deep"
         ],
         "deny_text": "No open catch at the corners. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -2028,11 +2032,11 @@
         "force_alts": [
           "force_direction"
         ],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
         "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -2087,11 +2091,11 @@
           "force_contact",
           "force_direction"
         ],
-        "allow": "allow_iso_right",
+        "allow": "allow_iso",
         "alerts": [],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather.",
         "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
-        "allow_text": "iso right"
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -2246,11 +2250,11 @@
         "deny_alts": [],
         "force": "force_weak_hand",
         "force_alts": [],
-        "allow": "allow_iso",
+        "allow": "none",
         "alerts": [],
         "deny_text": "Prioritize the corners when she spots up. Long, aggressive closeout — she is comfortable firing from there.",
         "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
-        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -2277,11 +2281,11 @@
         "force_alts": [
           "force_no_space"
         ],
-        "allow": "allow_iso",
+        "allow": "none",
         "alerts": [],
         "deny_text": "Prioritize the corners when she spots up. Long, aggressive closeout — she is comfortable firing from there.",
         "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
-        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -2304,13 +2308,13 @@
         ],
         "force": "force_weak_hand",
         "force_alts": [],
-        "allow": "allow_iso",
+        "allow": "none",
         "alerts": [
           "aware_physical"
         ],
         "deny_text": "No open catch at the wings. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
-        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -2337,14 +2341,14 @@
         "force_alts": [
           "force_no_space"
         ],
-        "allow": "allow_iso_both",
+        "allow": "none",
         "alerts": [
           "aware_passer",
           "aware_trap"
         ],
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
         "force_text": "Force left — she finishes much better going right. Channel every drive to her weak side and contest at the rim.",
-        "allow_text": "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     },
     {
@@ -2370,11 +2374,11 @@
         ],
         "force": "force_trap",
         "force_alts": [],
-        "allow": "allow_iso_both",
+        "allow": "allow_iso",
         "alerts": [],
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
         "force_text": "Force traps over every screen — no soft coverage. She struggles under hard hedge pressure. Stay over the screen — no space for the pull-up. Funnel left toward the paint or force the pass.",
-        "allow_text": "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock."
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
     },
     {
@@ -2399,11 +2403,11 @@
         "force_alts": [
           "force_contact"
         ],
-        "allow": "allow_transition",
+        "allow": "none",
         "alerts": [],
         "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
         "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
-        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
+        "allow_text": "No specific instruction — follow standard defensive principles."
       }
     }
   ]
