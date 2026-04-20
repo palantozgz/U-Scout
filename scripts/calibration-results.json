@@ -1,10 +1,10 @@
 {
-  "date": "2026-04-19T18:39:56.401Z",
+  "date": "2026-04-20T02:08:10.171Z",
   "globalScore": 100,
-  "totalPassed": 66,
+  "totalPassed": 67,
   "totalFailed": 0,
-  "passedChecks": 551,
-  "totalChecks": 551,
+  "passedChecks": 564,
+  "totalChecks": 564,
   "results": [
     {
       "id": "cal001",
@@ -100,7 +100,7 @@
           "aware_deep",
           "aware_passer"
         ],
-        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "No open catch at the wings. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "No specific instruction — follow standard defensive principles."
       }
@@ -168,7 +168,7 @@
           "aware_trans_trail_graded",
           "aware_deep"
         ],
-        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "No open catch at the corners. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
@@ -465,7 +465,7 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "No open catch at the corners. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
@@ -1215,7 +1215,7 @@
           "aware_deep",
           "aware_oreb"
         ],
-        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "No open catch at the corners. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
@@ -1412,7 +1412,7 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "No open catch at the top of the key. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow post-up attempts. Minimal post threat — sag off and help inside."
       }
@@ -1444,7 +1444,7 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "No open catch at the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
@@ -1572,7 +1572,7 @@
           "aware_deep",
           "aware_oreb"
         ],
-        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "No open catch at the top of the key. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
@@ -1901,7 +1901,7 @@
           "aware_deep",
           "aware_connector"
         ],
-        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "No open catch at the wings. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
@@ -1966,7 +1966,7 @@
         "alerts": [
           "aware_deep"
         ],
-        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "No open catch at the corners. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "Force left — deny the mid-range pull-up. She avoids the rim; push her left and make her attack the paint.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
@@ -2086,7 +2086,7 @@
           "aware_deep",
           "aware_trans_trail_shoot"
         ],
-        "deny_text": "No open catch on the perimeter. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
+        "deny_text": "No open catch at the corners. Close out under control — she may attack off the dribble on a soft closeout. Contest every touch.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
       }
@@ -2154,6 +2154,39 @@
         "deny_text": "Deny the downhill PnR catch. Get over the screen — do not go under. She shoots immediately if you give her the pull-up.",
         "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers. Stay square — she looks for contact going her way.",
         "allow_text": "No specific instruction — follow standard defensive principles."
+      }
+    },
+    {
+      "id": "cal_morant",
+      "name": "Ja Morant — PnR + Transition élite",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_pnr_orchestrator",
+        "danger": 5,
+        "difficulty": 5,
+        "top_situations": [
+          "pnr_ball",
+          "floater",
+          "transition"
+        ],
+        "deny": "deny_pnr_downhill",
+        "deny_alts": [
+          "deny_floater",
+          "deny_trans_rim",
+          "deny_iso_space"
+        ],
+        "force": "none",
+        "force_alts": [],
+        "allow": "allow_spot_three",
+        "alerts": [
+          "aware_passer",
+          "aware_trap"
+        ],
+        "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
+        "force_text": "No specific instruction — follow standard defensive principles.",
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     }
   ]

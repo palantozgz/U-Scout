@@ -2214,7 +2214,7 @@ export class UScoutMotor {
       });
     }
     
-    if (inputs.deepRange === true) {
+    if (inputs.deepRange) {
       outputs.push({
         key: 'aware_deep',
         category: 'aware',

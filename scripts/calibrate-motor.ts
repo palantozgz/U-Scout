@@ -2010,6 +2010,37 @@ const profiles: CalibrationProfile[] = [
     },
   },
 
+  {
+    id: "cal_morant",
+    name: "Ja Morant — PnR + Transition élite",
+    note: "PnR handler explosivo, transición primaria, floater frecuente, ambidiestro, sin tiro exterior",
+    inputs: {
+      pos: "PG", hand: "R", ath: 5, phys: 2, usage: "primary",
+      selfCreation: "high", starPlayer: true,
+      pnrFreq: "P", pnrEff: "high", pnrPri: "SF", trapResponse: "escape",
+      pnrFinishLeft: "Drive to Rim", pnrFinishRight: "Drive to Rim",
+      isoFreq: "S", isoEff: "high", isoDir: "R", isoDec: "F",
+      floater: "P",
+      transFreq: "P", transRole: "rim_run", transRolePrimary: "rim_runner",
+      transFinishing: "high",
+      spotUpFreq: "N", deepRange: false,
+      postFreq: "N",
+      vision: 4, orebThreat: "low",
+      contactFinish: "seeks", offHandFinish: "capable",
+      cutFreq: "N", dhoFreq: "N", indirectFreq: "N",
+      screenerAction: null, ballHandling: "elite", pressureResponse: "breaks",
+    },
+    expect: {
+      deny_must: ["deny_pnr_downhill", "deny_trans_rim"],
+      deny_must_not: ["deny_spot_deep", "deny_spot_corner", "deny_post_entry"],
+      force_must_not: ["force_direction", "force_weak_hand", "force_early"],
+      allow_must: ["allow_spot_three"],
+      allow_must_not: ["allow_iso"],
+      top_situations: ["pnr_ball", "transition"],
+      danger_min: 5,
+    },
+  },
+
 
 ];
 
