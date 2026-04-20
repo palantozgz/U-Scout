@@ -865,12 +865,26 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
               ? "avoids"
               : "neutral";
 
-  const offHandFinish: PlayerInputs["offHandFinish"] =
-    inputs.closeoutReaction === "Attacks Weak Hand"
-      ? "weak"
-      : inputs.closeoutReaction === "Attacks Strong Hand"
-        ? "strong"
-        : "capable";
+  // offHandFinish: derived from per-hand ISO finish data when available.
+  // closeoutReaction alone is NOT a reliable proxy for off-hand finishing ability.
+  // "Catch & Shoot" just means they shoot off the catch — says nothing about hand dominance.
+  // Only "Attacks Weak Hand" / "Attacks Strong Hand" give explicit finishing-side signals.
+  const offHandFinish: PlayerInputs["offHandFinish"] = (() => {
+    // First priority: per-hand ISO finish data (isoFinishLeft / isoFinishRight)
+    // If the weak-hand finish is "drive", the player CAN finish with the off-hand → capable/strong
+    // If the weak-hand finish is "pass" or null, they avoid it → weak
+    const dom = inputs.postDominantHand ?? "Right";
+    const weakHandFinish = dom === "Right" ? inputs.isoFinishLeft : inputs.isoFinishRight;
+    if (weakHandFinish === "drive" || weakHandFinish === "floater") return "capable";
+    if (weakHandFinish === "pass") return "weak";
+    // Legacy / closeout signal
+    if (inputs.closeoutReaction === "Attacks Weak Hand") return "weak";
+    if (inputs.closeoutReaction === "Attacks Strong Hand") return "strong";
+    // isoWeakHandFinish legacy field
+    if (inputs.isoWeakHandFinish === "drive" || inputs.isoWeakHandFinish === "floater") return "capable";
+    if (inputs.isoWeakHandFinish === "pass") return "weak";
+    return "capable";
+  })();
 
   let floater: PlayerInputs["floater"] = "N";
   if (

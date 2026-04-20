@@ -297,6 +297,7 @@ const SOURCE_TO_SITUATION: Record<string, string> = {
   screen_timing: 'screener',
   data_inconsistency: 'screener',
   post: 'post',
+  post_channel: 'post',
   post_shoulder: 'post',
   post_entry_duck_in: 'post',
   post_entry_seal: 'post',
@@ -668,7 +669,8 @@ export const OUTPUT_CATALOG = {
     no_ball: { key: 'force_no_ball', i18nKey: 'output.force.no_ball', template: 'FORCE off ball - deny advance' },
     no_push: { key: 'force_no_push', i18nKey: 'output.force.no_push', template: 'FORCE no dribble push — contain the advance' },
     no_space: { key: 'force_no_space', i18nKey: 'output.force.no_space', template: 'FORCE no space — no dar distancia de tiro' },
-    paint_deny: { key: 'force_paint_deny', i18nKey: 'output.force.paint_deny', template: 'FORCE out of paint — mantener fuera de la pintura' }
+    paint_deny: { key: 'force_paint_deny', i18nKey: 'output.force.paint_deny', template: 'FORCE out of paint — mantener fuera de la pintura' },
+    post_channel: { key: 'force_post_channel', i18nKey: 'output.force.post_channel', template: 'FORCE post channel — deny dominant hand finish' },
   },
   allow: {
     post: { key: 'allow_post', i18nKey: 'output.allow.post', template: 'Allow post attempts - no threat' },
@@ -993,15 +995,19 @@ export class UScoutMotor {
 
       if (inputs.isoDir) {
         const handWeakDir = inputs.hand === 'R' ? 'L' : 'R';
+        const handStrongDir = inputs.hand === 'R' ? 'R' : 'L';
         const offHandWeak = inputs.offHandFinish === 'weak';
+        // allAgree: isoDir matches weak hand direction OR off-hand is explicitly weak
+        // = scout and hand data both point to the same forced direction
         const allAgree =
           inputs.isoDir !== 'B' && (inputs.isoDir === handWeakDir || offHandWeak);
-        const contradiction =
-          inputs.isoDir !== 'B' && inputs.isoDir !== handWeakDir && !offHandWeak;
+        // strongSideConfirmed: player attacks via their STRONG hand side
+        // = we should force them to the opposite (weak) side — equally actionable
+        const strongSideConfirmed =
+          inputs.isoDir !== 'B' && inputs.isoDir === handStrongDir && !offHandWeak;
         if (allAgree) {
-          const dirParams: Record<string, string> = {
-            direction: inputs.isoDir === handWeakDir ? inputs.isoDir : handWeakDir,
-          };
+          const forceDir = inputs.isoDir === handWeakDir ? inputs.isoDir : handWeakDir;
+          const dirParams: Record<string, string> = { direction: forceDir };
           if (inputs.isoStartZone) dirParams.zone = inputs.isoStartZone;
           outputs.push({
             key: 'force_direction',
@@ -1010,19 +1016,30 @@ export class UScoutMotor {
             params: dirParams,
             source: 'iso_dir_confirmed',
           });
-        } else if (!contradiction) {
-          const weakDir = inputs.isoDir === 'L' ? 'R' : inputs.isoDir === 'R' ? 'L' : null;
-          if (weakDir) {
-            const dirParams: Record<string, string> = { direction: weakDir };
-            if (inputs.isoStartZone) dirParams.zone = inputs.isoStartZone;
-            outputs.push({
-              key: 'force_direction',
-              category: 'force',
-              weight: Math.min(weight * 0.9, 1.0),
-              params: dirParams,
-              source: 'iso_dir',
-            });
-          }
+        } else if (strongSideConfirmed) {
+          // Player attacks via dominant hand — force to weak side (opposite of isoDir)
+          const forceDir = handWeakDir;
+          const dirParams: Record<string, string> = { direction: forceDir };
+          if (inputs.isoStartZone) dirParams.zone = inputs.isoStartZone;
+          outputs.push({
+            key: 'force_direction',
+            category: 'force',
+            weight: Math.min(weight * 0.88, 1.0),
+            params: dirParams,
+            source: 'iso_dir_confirmed',
+          });
+        } else if (inputs.isoDir !== 'B') {
+          // isoDir is defined but ambiguous (B=both or null already handled)
+          const weakDir = inputs.isoDir === 'L' ? 'R' : 'L';
+          const dirParams: Record<string, string> = { direction: weakDir };
+          if (inputs.isoStartZone) dirParams.zone = inputs.isoStartZone;
+          outputs.push({
+            key: 'force_direction',
+            category: 'force',
+            weight: Math.min(weight * 0.9, 1.0),
+            params: dirParams,
+            source: 'iso_dir',
+          });
         }
       }
 
@@ -1222,23 +1239,21 @@ export class UScoutMotor {
           outputs.push({
             key: 'deny_pnr_pop',
             category: 'deny',
-            weight: Math.min(popWeight, 1.0),
+            weight: 0.98,
             source: 'screener_pop',
           });
         } else {
           outputs.push({
             key: 'deny_pnr_pop',
             category: 'deny',
-            weight: 0.45,
-            source: 'screener_pop_no_range',
-          });
-          outputs.push({
-            key: 'aware_screen_short_roll',
-            category: 'aware',
-            weight: 0.55,
-            source: 'screener_pop_no_range',
+            weight: 0.80,
+            source: 'screener_pop',
           });
         }
+        // For pop screener: deny_pnr_pop is always the correct primary instruction.
+        // Suppress deny_spot_deep regardless of deepRange — the threat is off the screen.
+        const spotDeepIdx = outputs.findIndex(o => o.key === 'deny_spot_deep');
+        if (spotDeepIdx >= 0) outputs[spotDeepIdx].weight = 0.0;
       } else if (action === 'slip') {
         const slipWeight =
           inputs.pnrScreenTiming === 'ghost_touch' ? 0.9 : w.outputWeights.screener.slipWeight;
@@ -1294,6 +1309,71 @@ export class UScoutMotor {
           weight: Math.min(weight * w.physMultiplier[inputs.phys] * effMultiplier, 1.0),
           source: 'post'
         });
+      }
+
+      // =========================================================================
+      // Post channel inference — cross hand + postShoulder + postMoves
+      //
+      // Goal: determine if the player's attacks converge on their dominant hand,
+      // and if so, emit force_post_channel with the correct direction.
+      //
+      // Rules:
+      // 1. up_and_under always terminates with the dominant hand (the move exists
+      //    to pivot back to it). Regardless of block or shoulder.
+      // 2. hook from the SAME shoulder as dominant hand → dominant hand finish.
+      //    hook from the OPPOSITE shoulder → can go either way (skip or reduce confidence).
+      // 3. turnaround/fade from any shoulder → ambiguous (skip).
+      // 4. If offHandFinish === 'strong' → ambidextrous finisher → skip entirely.
+      //
+      // Channel direction: always AWAY from dominant hand.
+      //   hand=L → force right (deny left finish)
+      //   hand=R → force left (deny right finish)
+      //
+      // Confidence scoring:
+      // - up_and_under present → high confidence (+0.15 weight bonus)
+      // - hook on dominant shoulder → medium confidence (base weight)
+      // - both present → max confidence (0.90)
+      // - Ambidextrous (offHandFinish=strong) → skip
+      // =========================================================================
+      if (inputs.offHandFinish !== 'strong' && inputs.hand) {
+        const dominantHand = inputs.hand; // 'L' or 'R'
+        const dominantShoulder = dominantHand; // same direction
+        const channelDir = dominantHand === 'L' ? 'R' : 'L'; // force AWAY from dominant
+
+        let channelEvidence = 0;
+
+        // up_and_under always returns to dominant hand
+        if (inputs.postMoves?.includes('up_and_under')) {
+          channelEvidence += 2;
+        }
+
+        // hook: only count if on dominant shoulder (same side = same hand finish)
+        if (inputs.postMoves?.includes('hook') && inputs.postShoulder === dominantShoulder) {
+          channelEvidence += 1;
+        }
+
+        // drop_step to dominant side (postShoulder === dominant) → dominant hand finish
+        if (inputs.postMoves?.includes('drop_step') && inputs.postShoulder === dominantShoulder) {
+          channelEvidence += 1;
+        }
+
+        // Only emit if there's clear evidence (at least 1 strong signal)
+        if (channelEvidence >= 1) {
+          const channelWeight = channelEvidence >= 3 ? 0.90
+            : channelEvidence === 2 ? 0.82
+            : 0.72;
+          outputs.push({
+            key: 'force_post_channel',
+            category: 'force',
+            weight: channelWeight,
+            source: 'post_channel',
+            params: {
+              channelDir,
+              dominantHand,
+              evidence: String(channelEvidence),
+            },
+          });
+        }
       }
       
       if (inputs.postShoulder) {
@@ -1635,7 +1715,13 @@ export class UScoutMotor {
     // v2.1: Ball handling & pressure outputs
     // =========================================================================
     if (inputs.pressureResponse === 'struggles') {
-      if (inputs.ballHandling !== 'elite') {
+      // Suppress force_full_court for interior players (PF/C) without active transition role.
+      // Full-court pressure makes no sense for a post player — the relevant pressure
+      // is on the catch in the post, not on the ball advance.
+      const isInteriorNoTrans =
+        (inputs.pos === 'PF' || inputs.pos === 'C') &&
+        (inputs.transFreq === 'N' || inputs.transFreq === 'R' || !inputs.transFreq);
+      if (inputs.ballHandling !== 'elite' && !isInteriorNoTrans) {
         // Athletic players who struggle with pressure are harder to trap — reduce weight
         // Low athleticism + struggles = very easy to pressure full court
         const athPenalty = inputs.ath >= 4 ? 0.15 : inputs.ath <= 2 ? 0 : 0.08;
@@ -1734,17 +1820,31 @@ export class UScoutMotor {
       // Wing sin corner ya no genera deny_spot_corner — se cubre por deny_spot_deep si deepRange=true
     }
     
-    // Deep range threat — only if player actually uses spot-up (not just has range)
-    // SCIENTIFIC BASIS: Open 3PT is highest-PPP shot in basketball analytics
-    // Primary spot-up with deep range = top defensive priority
-    if (inputs.deepRange && inputs.spotUpFreq && inputs.spotUpFreq !== 'N') {
-      const spotWeight = inputs.spotUpFreq === 'P' ? 0.98 : inputs.spotUpFreq === 'S' ? 0.82 : 0.62;
-      outputs.push({
-        key: 'deny_spot_deep',
-        category: 'deny',
-        weight: spotWeight,
-        source: 'deep_range'
-      });
+    // deny_spot_deep: primary spot-up shooters ALWAYS deserve an explicit closeout instruction,
+    // even without deepRange. A primary spot-up threat at the top/wing is a high-value shot.
+    // deepRange adds weight but is not required for Primary frequency.
+    if (inputs.spotUpFreq && inputs.spotUpFreq !== 'N') {
+      const cornerActive = inputs.spotZones
+        ? inputs.spotZones.cornerLeft || inputs.spotZones.cornerRight
+        : inputs.spotZone === 'corner';
+      if (inputs.deepRange) {
+        const spotWeight = inputs.spotUpFreq === 'P' ? 0.98 : inputs.spotUpFreq === 'S' ? 0.82 : 0.62;
+        outputs.push({
+          key: 'deny_spot_deep',
+          category: 'deny',
+          weight: spotWeight,
+          source: 'deep_range'
+        });
+      } else if (inputs.spotUpFreq === 'P' && !cornerActive) {
+        // Primary spot-up without deepRange: still a major threat — aggressive closeout required.
+        // Weight capped at 0.80 (below deepRange 0.98 — she can't shoot from 7m+ but still dangerous)
+        outputs.push({
+          key: 'deny_spot_deep',
+          category: 'deny',
+          weight: 0.80,
+          source: 'deep_range'
+        });
+      }
     }
     
     // aware_instant_shot: shooter who fires immediately on closeout — no hesitation, no drive
@@ -2189,7 +2289,9 @@ export class UScoutMotor {
     // not on shot clock pressure — pressing early on a PnR handler with exterior threat
     // creates open catch-and-shoot opportunities for their shooters.
     // Additionally suppress if player has exterior/transition threat regardless of play type.
-    const shouldSuppressEarly = isPnrHandler || hasExteriorThreat || isTransitionThreat;
+    const hasKnownIsoDirection = inputs.isoDir === 'L' || inputs.isoDir === 'R';
+    const shouldSuppressEarly =
+      isPnrHandler || hasExteriorThreat || isTransitionThreat || hasKnownIsoDirection;
     if (
       inputs.selfCreation === 'high' &&
       inputs.usage === 'primary' &&

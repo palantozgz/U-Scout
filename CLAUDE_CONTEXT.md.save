@@ -1,3 +1,5 @@
+
+
 # U Scout — Contexto para Claude
 
 > Leer este archivo al inicio de cada sesión antes de proponer cualquier cambio.
@@ -25,7 +27,6 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `server/routes.ts` — rutas API Express
 - `server/storage.ts` — acceso Supabase
 - `scripts/calibrate-motor.ts` — 66 perfiles con expectations (100% / 551 checks)
-- `scripts/eval-motor-quality.ts` — 10 perfiles de calidad → scripts/eval-quality-results.txt
 
 ## NUNCA tocar
 - `Profile.tsx`
@@ -46,31 +47,26 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 
 ---
 
-## Estado actual — sesión 20 abr 2026
+## Estado actual — commit c5f7570
 
 ### Motor (motor-v2.1.ts + motor-v4.ts)
 - **Calibración: 100% (551/551 checks, 66/66 perfiles)**
-- **Quality eval: 91% (42/46 checks, 7/10 perfiles)** — baseline establecido
-- Script calibración: `cd "/Users/palant/Downloads/U scout" && npx tsx scripts/calibrate-motor.ts`
-- Script quality: `cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-motor-quality.ts`
+- Script: `cd "/Users/palant/Downloads/U scout" && npx tsx scripts/calibrate-motor.ts`
 - Perfiles cubiertos: Luka, Jokic, Curry, Giannis, Klay, Embiid, Haliburton, Gobert, A'ja Wilson, Breanna Stewart, Ionescu, Clark, Plum, Micic, Mirotic, SGA, Sabonis, Booker, JB, AD, Trae Young, Middleton, Bam (x2), Taurasi, Jonquel Jones, Alyssa Thomas + 4 amateurs + 4 universitarios + Pika-style + Draymond + otros perfiles de rol (total 66)
 
-**Inferencias clave implementadas (motor + bridge):**
+**Inferencias clave implementadas:**
 - `trapResponse` desde `motorPressureResponse` del editor (scout > inferencia de visión)
 - `force_direction` para tiradora PnR mid-range ambos lados (shooter context)
-- `force_early` suprimido cuando `isoDir` está definido (L/R) — `force_direction` siempre gana con dirección conocida
 - `aware_passer` suprimido cuando `trapResponse = struggle`
 - `force_weak_hand` suprimido si `isoWeakHandFinish = drive` (ambidiestro)
 - `orebThreat = medium` inferido para C/PF con phys≥4 si no seteado
-- `force_full_court` suprimido para C/PF sin transición activa (bug Kalani corregido)
+- `force_full_court` modulado por atletismo
 - `aware_instant_shot` para tiradores primarios con release inmediato
 - `pnrSnake` conectado (reduce force_direction weight + aware)
 - `allow_pnr_mid_range` para PnR handler sin deepRange (under coverage válido)
-- `deny_pnr_pop` suprime `deny_spot_deep` para pop screener (con/sin deepRange)
-- `deny_spot_deep` ahora se emite para `spotUpFreq=P` sin deepRange (peso 0.80) — tiradora primaria merece closeout agresivo aunque no tenga rango extra-largo
-- `force_trap` reformulado como instrucción 1-on-1 (over screen + canal débil) — elimina lenguaje colectivo
-- `offHandFinish` derivado de `isoFinishLeft/Right` en bridge (era incorrecto via `closeoutReaction`)
-- `force_post_channel`: infiere canal dominante cruzando `hand` + `postMoves` (up_and_under/hook)
+- `spotZone` mapeado desde inputs del editor
+- Cut baseWeight 0.72 (Synergy: cuts=1.58 PPP más eficiente)
+- deny_spot_deep 0.98 (open 3PT = shot más eficiente)
 - ath modula ISO weight parcialmente
 - `aware_passer` ponderado: vision=5+escape=0.95, vision=4+pass=0.72
 
@@ -81,27 +77,21 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 - Basketball Immersion scouting reports
 
 ### Renderer (reportTextRenderer.ts)
-Textos EN/ES/ZH actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR QUÉ):
+Textos EN y ES actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR QUÉ):
 - `deny_iso_space`: dirección + contexto atlético
 - `deny_pnr_downhill`: deepRange + passer context
-- `deny_post_entry`: "Deny the X block entry" explícito + técnica fronting + phys
+- `deny_post_entry`: técnica fronting + phys
 - `deny_spot_deep`: closeout mechanics (shoot vs attack)
 - `deny_trans_rim`: cue de sprint al aro
 - `deny_oreb`: timing (antes del tiro, no después)
-- `deny_cut_backdoor/basket/flash/curl`: casos explícitos EN/ES/ZH con contexto ball-side
-- `deny_pnr_pop`: menciona "catch" — "No space to catch — they shoot off the screen"
 - `force_direction`: ISO context vs PnR context vs shooter
+- `force_early`: mecanismo de los primeros 3 segundos
 - `force_contact`: dirección + por qué
-- `force_trap`: reformulado 1-on-1 — over screen + canal débil + no lenguaje colectivo
 - `allow_spot_three`: redirige a proteger pintura
 - `allow_iso`: instrucción activa (give ball, stay upright, contest)
-- `force_post_channel`: canal dominante en poste (up_and_under/hook cruzado con `hand`)
 
-**ZH**: paridad con EN/ES conseguida — `renderInstructionZH` dinámico, `renderAlertText` y `renderTriggerCue` ZH completos. ✅
-
-### Campos FT
-- `ftShooting` + `foulDrawing` conectados al motor (isoDanger, hackable, ftDangerous)
-- `ftRating`: @deprecated, ignorado por el motor, mantenido solo por retrocompat
+**Pendiente ZH**: el bloque `renderInstructionZH` está desactualizado — textos genéricos.
+Prompt Cursor generado en: `scripts/cursor_prompt_renderer_zh_pending.md`
 
 ### Club INNER MONGOLIA
 - Club ID: `4bca3aa8-9062-4709-9d29-9e2313308f1a`
@@ -112,23 +102,21 @@ Textos EN/ES/ZH actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR 
 
 ## Pendientes activos (priorizados)
 
-1. **Rediseño slides 2–3** — slide 2 descriptivo + threat scores rankeados, slide 3 instrucción ejecutable, runners-up por tap
+1. **Renderer ZH** — actualizar bloque `renderInstructionZH` con calidad EN/ES
+   → Prompt Cursor: `scripts/cursor_prompt_renderer_zh_pending.md`
+
+2. **Rediseño slides 2–3** — slide 2 descriptivo + threat scores rankeados, slide 3 instrucción ejecutable, runners-up por tap
    → Requiere diseño en Figma antes de tocar código
 
 3. **PlayerEditor input redesign** — ~48 campos finales (audit pendiente sección screener)
    → Prompt Cursor: `cursor_prompt_inputs_redesign.md`
-   → Diagrama media pista ✅ implementado (`HalfCourtZoneSelector`, 5 zonas clicables, retrocompatible)
 
 4. **`motorOutputToRichText`** — texto descriptivo por jugadora usando enrichedInputs en slide 1
    → Ya en main, revisar calidad
 
 5. **Revision flow** — al guardar → pantalla revisión (ReportViewV4)
 
-6. **ALLOW Tier 1: `allow_drive_weak_side`** — complementa FORCE dirección con "si te supera yendo a X, deja que llegue al aro"
-   → Motor v2.1 + renderer EN/ES/ZH + perfil calibración
-   → Diseño documentado en `scripts/allow_slot_design.md`
-
-7. **Versiones inputs por coach** — tabla `player_inputs_versions` (requiere migración schema)
+6. **Versiones inputs por coach** — tabla `player_inputs_versions` (requiere migración schema)
 
 ---
 
@@ -159,16 +147,12 @@ Textos EN/ES/ZH actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR 
 - Claude para arquitectura, motor, generación de prompts
 - Destructive migrations: raw SQL en Supabase SQL Editor, nunca `drizzle-kit push`
 
-## Scripts de validación
+## Calibración motor
 ```bash
-# Regression tests (bugs)
-cd "/Users/palant/Downloads/U scout" && npx tsx scripts/calibrate-motor.ts
-# Score actual: 100% (551/551 checks, 66/66 perfiles)
-
-# Quality eval
-cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-motor-quality.ts
-# Score actual: 100% (46/46 checks, 10/10 perfiles)
+cd "/Users/palant/Downloads/U scout"
+npx tsx scripts/calibrate-motor.ts
 ```
+Score actual: **100% (551/551 checks, 66/66 perfiles)**
 
 ## Audit rápido
 ```bash

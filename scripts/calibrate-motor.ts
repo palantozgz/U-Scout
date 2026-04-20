@@ -290,6 +290,33 @@ const profiles: CalibrationProfile[] = [
     },
   },
 
+  {
+    id: "cal_kalani",
+    name: "Kalani Brown — Post channel left hand",
+    note: "Mano izquierda dominante. Up&under + hook vuelven siempre a la izquierda. Channel right obligatorio.",
+    inputs: {
+      pos: "C", hand: "L", ath: 3, phys: 5, usage: "primary",
+      selfCreation: "high",
+      postFreq: "P", postEff: "high", postProfile: "B2B",
+      postShoulder: "R", postMoves: ["hook", "up_and_under"],
+      postEntry: "seal",
+      isoFreq: "N", pnrFreq: "N", transFreq: "N",
+      spotUpFreq: "N", deepRange: false,
+      orebThreat: "high", putbackQuality: "capable",
+      contactFinish: "seeks", offHandFinish: "capable",
+      vision: 2, floater: "N",
+      cutFreq: "N", dhoFreq: "N", indirectFreq: "N",
+      screenerAction: null, ballHandling: null, pressureResponse: null,
+    },
+    expect: {
+      deny_must: ["deny_post_entry"],
+      force_must: ["force_post_channel"],
+      force_must_not: ["force_weak_hand"],
+      top_situations: ["post_right"],
+      force_text_contains: ["right", "left"],  // "Force right — deny left-hand finish"
+    },
+  },
+
   // ─── WNBA STARS ──────────────────────────────────────────────────────────
 
   {
@@ -526,7 +553,7 @@ const profiles: CalibrationProfile[] = [
       allow_must_not: ["allow_spot_three"],
       top_situations: ["pnr_screener", "catch_shoot"],
       danger_min: 2,
-      danger_max: 4,
+      danger_max: 5,
     },
   },
 
@@ -2117,7 +2144,7 @@ const profiles: CalibrationProfile[] = [
       force_must: ["force_weak_hand"],
       force_must_not: ["force_no_space"],
       deny_must_not: ["deny_iso_space", "deny_pnr_downhill"],
-      danger_min: 1, danger_max: 3,
+      danger_min: 1, danger_max: 4,
     },
   },
 
@@ -2149,6 +2176,35 @@ const profiles: CalibrationProfile[] = [
       force_must_not: ["force_trap", "force_full_court"],
       top_situations: ["pnr_ball"],
       danger_min: 3,
+    },
+  },
+
+  {
+    id: "cal_pika_spot_primary",
+    name: "Pika-style — tiradora primaria sin deepRange, zona top",
+    note: "perimeterThreats=Primary + spotZone=top + deepRange=false → debe generar deny_spot_deep con peso reducido",
+    inputs: {
+      pos: "PG", hand: "R", ath: 5, phys: 3, usage: "primary",
+      selfCreation: "high",
+      pnrFreq: "P", pnrEff: "high", pnrPri: "SF",
+      trapResponse: "struggle",
+      spotUpFreq: "P", spotZone: "top", deepRange: false,
+      isoFreq: "R", postFreq: "N", transFreq: "P",
+      offHandFinish: "capable", contactFinish: "avoids",
+      floater: "N", isoDir: null, isoDec: null, isoEff: null,
+      postProfile: "M", postZone: null, postShoulder: null,
+      postEff: null, postMoves: null, postEntry: null,
+      pnrFinishLeft: "Mid-range", pnrFinishRight: "Mid-range",
+      screenerAction: null, popRange: "midrange",
+      dhoRole: null, dhoAction: null,
+      ballHandling: "elite", pressureResponse: "breaks",
+      cutFreq: "N", cutType: null, orebThreat: "low", vision: 4,
+    },
+    clubContext: { gender: "F" },
+    expect: {
+      deny_must: ["deny_pnr_downhill", "deny_spot_deep"],
+      top_situations: ["pnr_ball", "catch_shoot"],
+      danger_min: 4,
     },
   },
 
