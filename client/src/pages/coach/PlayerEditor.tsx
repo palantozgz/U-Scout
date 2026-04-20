@@ -1326,7 +1326,7 @@ export default function PlayerEditor() {
                       {/* Reacción al trap/blitz — campo propio, NO toca motorPressureResponse */}
                       <div className="space-y-2 pt-1 border-t border-blue-200 dark:border-blue-800/40">
                         <FieldLabel label={t("editor.pnr_trap_reaction")} tooltip={t("hint_pnr_trap_reaction")} />
-                        <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
+                        <div className="grid grid-cols-2 gap-2">
                           {([
                             { v: "escape" as const, labelKey: "opt_pnr_trap_escapes" },
                             { v: "pass" as const, labelKey: "opt_pnr_trap_pass" },
@@ -1334,13 +1334,13 @@ export default function PlayerEditor() {
                           ] as const).map(({ v, labelKey }) => (
                             <Button key={v} type="button" variant={inputs.motorTrapResponse === v ? "default" : "outline"}
                               style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.motorTrapResponse === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                              className={`h-auto min-h-11 w-full px-2 rounded-xl text-sm font-semibold ${inputs.motorTrapResponse === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
                               onClick={() => ui("motorTrapResponse", inputs.motorTrapResponse === v ? null : v)}>
                               {t(labelKey as never)}
                             </Button>
                           ))}
                           <Button type="button" variant={inputs.motorTrapResponse == null ? "secondary" : "outline"} style={{ minHeight: 44 }}
-                            className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold" onClick={() => ui("motorTrapResponse", null)}>
+                            className="h-auto min-h-11 w-full px-2 rounded-xl text-sm font-semibold" onClick={() => ui("motorTrapResponse", null)}>
                             {t("not_observed")}
                           </Button>
                         </div>
