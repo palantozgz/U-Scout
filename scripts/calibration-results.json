@@ -1,10 +1,10 @@
 {
-  "date": "2026-04-20T02:08:10.171Z",
+  "date": "2026-04-20T07:45:28.431Z",
   "globalScore": 100,
-  "totalPassed": 67,
+  "totalPassed": 72,
   "totalFailed": 0,
-  "passedChecks": 564,
-  "totalChecks": 564,
+  "passedChecks": 596,
+  "totalChecks": 596,
   "results": [
     {
       "id": "cal001",
@@ -2187,6 +2187,151 @@
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
         "force_text": "No specific instruction — follow standard defensive principles.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
+      }
+    },
+    {
+      "id": "cal_sheppard",
+      "name": "Aisha Sheppard — Spot-up primaria, mano izquierda débil",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_spot_up_shooter",
+        "danger": 2,
+        "difficulty": 2,
+        "top_situations": [
+          "catch_shoot"
+        ],
+        "deny": "deny_spot_corner",
+        "deny_alts": [],
+        "force": "force_weak_hand",
+        "force_alts": [],
+        "allow": "allow_iso",
+        "alerts": [],
+        "deny_text": "Prioritize the corners when she spots up. Long, aggressive closeout — she is comfortable firing from there.",
+        "force_text": "weak hand",
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
+      }
+    },
+    {
+      "id": "cal_spot_weak_secondary",
+      "name": "Spot-up secundaria, mano débil, evita contacto",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_versatile",
+        "danger": 2,
+        "difficulty": 3,
+        "top_situations": [
+          "catch_shoot",
+          "iso_both",
+          "transition"
+        ],
+        "deny": "deny_spot_corner",
+        "deny_alts": [
+          "deny_iso_space",
+          "deny_trans_run"
+        ],
+        "force": "force_weak_hand",
+        "force_alts": [
+          "force_no_space"
+        ],
+        "allow": "allow_iso",
+        "alerts": [],
+        "deny_text": "Prioritize the corners when she spots up. Long, aggressive closeout — she is comfortable firing from there.",
+        "force_text": "weak hand",
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
+      }
+    },
+    {
+      "id": "cal_spot_weak_seeks",
+      "name": "Spot-up primaria, mano débil, BUSCA contacto",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_spot_up_shooter",
+        "danger": 1,
+        "difficulty": 2,
+        "top_situations": [
+          "transition"
+        ],
+        "deny": "deny_trans_run",
+        "deny_alts": [],
+        "force": "force_weak_hand",
+        "force_alts": [],
+        "allow": "allow_iso",
+        "alerts": [
+          "aware_physical"
+        ],
+        "deny_text": "trans run",
+        "force_text": "weak hand",
+        "allow_text": "Allow ISO attempts. Low efficiency when she creates off the dribble — give her the ball, stay upright, and contest the shot."
+      }
+    },
+    {
+      "id": "cal_pika_pressure_break",
+      "name": "Pika-style — pressureResponse=breaks independiente de trapResponse",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_pnr_orchestrator",
+        "danger": 5,
+        "difficulty": 5,
+        "top_situations": [
+          "pnr_ball",
+          "transition",
+          "iso_both"
+        ],
+        "deny": "deny_pnr_downhill",
+        "deny_alts": [
+          "deny_trans_run",
+          "deny_iso_space"
+        ],
+        "force": "force_weak_hand",
+        "force_alts": [
+          "force_no_space"
+        ],
+        "allow": "allow_iso_both",
+        "alerts": [
+          "aware_passer",
+          "aware_trap"
+        ],
+        "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
+        "force_text": "weak hand",
+        "allow_text": "Allow ISO attempts from either side. Low efficiency in isolation — make them use the clock."
+      }
+    },
+    {
+      "id": "cal_driver_weak_avoids",
+      "name": "Guard driver puro — mano débil, evita contacto, sin spot-up",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_iso_scorer",
+        "danger": 4,
+        "difficulty": 5,
+        "top_situations": [
+          "iso_right",
+          "transition"
+        ],
+        "deny": "deny_iso_space",
+        "deny_alts": [
+          "deny_trans_run"
+        ],
+        "force": "force_direction",
+        "force_alts": [
+          "force_contact",
+          "force_early"
+        ],
+        "allow": "allow_transition",
+        "alerts": [],
+        "deny_text": "Deny the right wing catch. Force left — contest every touch before they gather. Do not reach — they create off contact.",
+        "force_text": "Force left in ISO. She goes to her right — shade your body left before she gathers.",
+        "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     }
   ]

@@ -529,9 +529,27 @@ function renderSituationDescriptionEN(id: string, inputs: EnrichedInputs): strin
     case "post_high":
       return `Operates from the high post. Reads cutters and drives when overplayed.`;
     case "catch_shoot": {
-      const zone = inputs.spotZone ?? "wing";
-      const deep = inputs.deepRange ? " Has deep range." : "";
-      return `Spots up at the ${zone}.${deep} Shoots immediately off the catch with a quick release.`;
+      const z = inputs.spotZones;
+      let zoneStr: string;
+      if (z) {
+        const parts: string[] = [];
+        if (z.cornerLeft || z.cornerRight) parts.push("the corners");
+        if (z.wing45Left || z.wing45Right) parts.push("the 45s");
+        if (z.top) parts.push("the top of the key");
+        zoneStr = parts.length > 0 ? parts.join(" and ") : "the perimeter";
+      } else {
+        zoneStr = inputs.spotZone === "corner"
+          ? "the corners"
+          : inputs.spotZone === "wing"
+            ? "the wings"
+            : inputs.spotZone === "top"
+              ? "the top of the key"
+              : "the perimeter";
+      }
+      const rangeNote = inputs.deepRange
+        ? " Range extends well beyond the arc."
+        : "";
+      return `Spots up at ${zoneStr}.${rangeNote} Shoots immediately off the catch with a quick release.`;
     }
     case "transition":
       return `Primary transition threat. Pushes the pace and attacks before the defense sets.`;
@@ -541,6 +559,14 @@ function renderSituationDescriptionEN(id: string, inputs: EnrichedInputs): strin
       return `Dangerous in DHO actions — reads the handoff defender and attacks the gap.`;
     case "floater":
       return `Uses the floater to score over rim protection. Effective in the mid-range lane area.`;
+    case "cut": {
+      const typeStr =
+        inputs.cutType === "backdoor" ? "backdoor cuts"
+        : inputs.cutType === "curl" ? "curl cuts off screens"
+        : inputs.cutType === "flash" ? "flash cuts to the elbow"
+        : "basket cuts";
+      return `Scores off ${typeStr}. Reads gaps in the defense and attacks when the defender loses visual contact.`;
+    }
     case "oreb":
       return `Active on the offensive glass. Anticipates misses and converts second chances.`;
     case "misc":
@@ -606,14 +632,27 @@ function renderSituationDescriptionES(
     case "post_high":
       return `Opera desde el poste alto. Lee los cortadores y penetra si le sobredefienden.`;
     case "catch_shoot": {
-      const zone =
-        inputs.spotZone === "corner"
+      const z = inputs.spotZones;
+      let zoneStr: string;
+      if (z) {
+        const parts: string[] = [];
+        if (z.cornerLeft || z.cornerRight) parts.push("las esquinas");
+        if (z.wing45Left || z.wing45Right) parts.push("los 45°");
+        if (z.top) parts.push("la parte alta");
+        zoneStr = parts.length > 0 ? parts.join(" y ") : "el perímetro";
+      } else {
+        zoneStr = inputs.spotZone === "corner"
           ? "la esquina"
           : inputs.spotZone === "wing"
             ? "el ala"
-            : "el top";
-      const deep = inputs.deepRange ? " Tiene rango largo." : "";
-      return `Se coloca en ${zone}.${deep} Lanza de inmediato tras el catch con mecánica rápida.`;
+            : inputs.spotZone === "top"
+              ? "la parte alta"
+              : "el perímetro";
+      }
+      const rangeNote = inputs.deepRange
+        ? " Su rango llega más allá del arco estándar."
+        : "";
+      return `Se coloca en ${zoneStr}.${rangeNote} Lanza de inmediato tras el catch.`;
     }
     case "transition":
       return `Amenaza principal en transición. Empuja el ritmo y ataca antes de que la defensa se organice.`;
@@ -623,6 +662,14 @@ function renderSituationDescriptionES(
       return `Peligroso/a en el DHO — lee al defensor del handoff y ataca el hueco.`;
     case "floater":
       return `Usa el floater para anotar sobre la protección del aro. Efectivo/a en la zona de medio poste.`;
+    case "cut": {
+      const typeStr =
+        inputs.cutType === "backdoor" ? "cortes a puerta trasera"
+        : inputs.cutType === "curl" ? "cortes en curl por bloqueos"
+        : inputs.cutType === "flash" ? "cortes al codo"
+        : "cortes al aro";
+      return `Anota con ${typeStr}. Lee los espacios y ataca cuando el defensor pierde el contacto visual.`;
+    }
     case "oreb":
       return `Activo/a en el rebote ofensivo. Anticipa los fallos y convierte segundas oportunidades.`;
     case "misc":
@@ -662,6 +709,14 @@ function renderSituationDescriptionZH(id: string, inputs: EnrichedInputs): strin
       return `在禁区附近使用高弧度抛投对抗护框球员。`;
     case "oreb":
       return `积极抢进攻篮板，把握二次进攻机会。`;
+    case "cut": {
+      const typeStr =
+        inputs.cutType === "backdoor" ? "背刺切入"
+        : inputs.cutType === "curl" ? "绕掩护弧线切入"
+        : inputs.cutType === "flash" ? "闪切至肘区"
+        : "切入篮下";
+      return `以${typeStr}得分，善于读空档，一旦防守者失去目视立即切入。`;
+    }
     case "misc":
       return `多种次要威胁并存，需保持专注。`;
     default:
@@ -1148,8 +1203,8 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
       return "Holds the screen longer than expected — slip comes late.";
     if (key.includes("pressure_vuln"))
       return "Struggles under pressure — attack the ball early, force mistakes before they settle.";
-    if (key.includes("deep") || key.includes("range"))
-      return "Deep range — shoots from well beyond the arc.";
+    if (key === "aware_deep")
+      return "Long-range threat — shoots from well beyond the standard arc. Guard from distance.";
     if (key.includes("physical"))
       return "Uses body to create space — physical mismatch risk.";
     return key.replace(/_/g, " ");
@@ -1173,8 +1228,8 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
       return "Mantiene el bloqueo más de lo esperado — el slip llega tarde.";
     if (key.includes("pressure_vuln"))
       return "Le cuesta bajo presión — ataca pronto con el balón, fuerza el error antes de que se organice.";
-    if (key.includes("deep") || key.includes("range"))
-      return "Rango largo — lanza desde muy por detrás de la línea.";
+    if (key === "aware_deep")
+      return "Rango extra-largo — lanza desde más allá del arco estándar. Salir a defender desde lejos.";
     if (key.includes("physical"))
       return "Usa el cuerpo para crear espacio — riesgo de desajuste físico.";
     return key.replace(/_/g, " ");
@@ -1220,8 +1275,8 @@ function renderTriggerCue(
       return "Any missed shot — they are already reading the outlet pass.";
     if (base.includes("oreb"))
       return "Every shot — they are boxing you out before the ball arrives.";
-    if (base.includes("deep"))
-      return "Any space beyond 7 meters — they are in range.";
+    if (base === "aware_deep_trigger" || base === "aware_deep")
+      return "Any open catch beyond the arc — they can shoot from well outside standard range.";
     return "Watch for this in every possession.";
   }
   if (locale === "es") {
@@ -1237,8 +1292,8 @@ function renderTriggerCue(
       return "Cualquier fallo — ya está leyendo el pase de salida.";
     if (base.includes("oreb"))
       return "En cada tiro — te está bloqueando antes de que llegue el balón.";
-    if (base.includes("deep"))
-      return "Cualquier espacio más allá de 7 metros — está en rango.";
+    if (base === "aware_deep_trigger" || base === "aware_deep")
+      return "Cualquier catch abierto más allá del arco — puede tirar desde fuera del rango estándar.";
     return "Atento/a en cada posesión.";
   }
   if (locale === "zh") {

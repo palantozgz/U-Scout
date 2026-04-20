@@ -2041,8 +2041,160 @@ const profiles: CalibrationProfile[] = [
     },
   },
 
+  // ─── SPOT SHOOTER CON MANO DÉBIL — perfiles críticos post-fix ───────────────
+
+  {
+    id: "cal_sheppard",
+    name: "Aisha Sheppard — Spot-up primaria, mano izquierda débil",
+    note: "SG diestra 5'9 145lb. Record triples ACC. Spot-up primaria C&S inmediato. Mano izquierda débil. Evita contacto. Sin deepRange. Channeleable a izquierda.",
+    inputs: {
+      pos: "SG", hand: "R", ath: 4, phys: 2, usage: "role",
+      selfCreation: "low",
+      spotUpFreq: "P", spotZone: "corner",
+      spotZones: { cornerLeft: true, wing45Left: true, top: false, wing45Right: true, cornerRight: true },
+      deepRange: false, spotUpAction: "shoot",
+      isoFreq: "N", pnrFreq: "N", postFreq: "N",
+      transFreq: "S", transRole: "trail",
+      offHandFinish: "weak", contactFinish: "avoids",
+      floater: "N", isoDir: null, isoDec: null, isoEff: null,
+      postProfile: "M", postZone: null, postShoulder: null,
+      postEff: null, postMoves: null, postEntry: null,
+      pnrPri: null, pnrFinishLeft: null, pnrFinishRight: null,
+      trapResponse: null, screenerAction: null, popRange: "midrange",
+      dhoRole: null, dhoAction: null,
+      ballHandling: "capable", pressureResponse: "escapes",
+      cutFreq: "N", cutType: null, orebThreat: "low", vision: 3,
+    },
+    clubContext: { gender: "F" },
+    expect: {
+      force_must: ["force_weak_hand"],
+      force_must_not: ["force_contact", "force_no_space"],
+      deny_must: ["deny_spot_corner"],
+      deny_must_not: ["deny_iso_space", "deny_pnr_downhill", "deny_spot_deep"],
+      allow_must_not: ["allow_spot_three"],
+      // role player spot-up: catch_shoot puede no llegar a top3 por usageM=0.6
+      // lo importante es que el motor genera las instrucciones correctas
+      danger_min: 1, danger_max: 4,
+    },
+  },
+
+  {
+    id: "cal_spot_weak_secondary",
+    name: "Spot-up secundaria, mano débil, evita contacto",
+    note: "SG spot-up secondary sin deepRange, mano izquierda débil. force_no_space sí puede aparecer (no es primaria), force_weak_hand también.",
+    inputs: {
+      pos: "SG", hand: "R", ath: 3, phys: 2, usage: "secondary",
+      selfCreation: "medium",
+      spotUpFreq: "S", spotZone: "corner", deepRange: false, spotUpAction: "shoot",
+      isoFreq: "R", pnrFreq: "N", postFreq: "N", transFreq: "R",
+      offHandFinish: "weak", contactFinish: "avoids",
+      floater: "N", isoDir: null, isoDec: null, isoEff: null,
+      postProfile: "M", postZone: null, postShoulder: null,
+      postEff: null, postMoves: null, postEntry: null,
+      pnrPri: null, pnrFinishLeft: null, pnrFinishRight: null,
+      trapResponse: null, screenerAction: null, popRange: "midrange",
+      dhoRole: null, dhoAction: null, ballHandling: null, pressureResponse: null,
+      cutFreq: "N", cutType: null, orebThreat: "low", vision: 3,
+    },
+    expect: {
+      force_must: ["force_weak_hand"],
+      force_must_not: ["force_contact"],
+      // isoFreq=R genera deny_iso_space con peso bajo — no pedimos que no aparezca
+      deny_must: ["deny_spot_corner"],
+      danger_min: 1, danger_max: 3,
+    },
+  },
+
+  {
+    id: "cal_spot_weak_seeks",
+    name: "Spot-up primaria, mano débil, BUSCA contacto",
+    note: "Tiradora que busca el contacto en el cierre. offHandFinish=weak + contactFinish=seeks → force_weak_hand por la rama else.",
+    inputs: {
+      pos: "SF", hand: "R", ath: 3, phys: 4, usage: "secondary",
+      selfCreation: "low",
+      spotUpFreq: "P", spotZone: "wing", deepRange: false, spotUpAction: "either",
+      isoFreq: "N", pnrFreq: "N", postFreq: "N", transFreq: "R",
+      offHandFinish: "weak", contactFinish: "seeks",
+      floater: "N", isoDir: null, isoDec: null, isoEff: null,
+      postProfile: "M", postZone: null, postShoulder: null,
+      postEff: null, postMoves: null, postEntry: null,
+      pnrPri: null, pnrFinishLeft: null, pnrFinishRight: null,
+      trapResponse: null, screenerAction: null, popRange: "midrange",
+      dhoRole: null, dhoAction: null, ballHandling: null, pressureResponse: null,
+      cutFreq: "N", cutType: null, orebThreat: "low", vision: 3,
+    },
+    expect: {
+      force_must: ["force_weak_hand"],
+      force_must_not: ["force_no_space"],
+      deny_must_not: ["deny_iso_space", "deny_pnr_downhill"],
+      danger_min: 1, danger_max: 3,
+    },
+  },
+
+  {
+    id: "cal_pika_pressure_break",
+    name: "Pika-style — pressureResponse=breaks independiente de trapResponse",
+    note: "PG spot+PnR. pressureResponse=breaks (manejo bajo presión individual). trapResponse observado como pass (reacción hedge PnR). Los dos campos deben ser completamente independientes.",
+    inputs: {
+      pos: "PG", hand: "R", ath: 4, phys: 3, usage: "primary",
+      selfCreation: "high",
+      pnrFreq: "P", pnrEff: "high", pnrPri: "SF",
+      trapResponse: "pass",
+      spotUpFreq: "S", deepRange: false,
+      isoFreq: "R", postFreq: "N", transFreq: "S",
+      offHandFinish: "weak", contactFinish: "avoids",
+      floater: "N", isoDir: null, isoDec: null, isoEff: null,
+      postProfile: "M", postZone: null, postShoulder: null,
+      postEff: null, postMoves: null, postEntry: null,
+      pnrFinishLeft: null, pnrFinishRight: null,
+      screenerAction: null, popRange: "midrange",
+      dhoRole: null, dhoAction: null,
+      ballHandling: "capable", pressureResponse: "breaks",
+      cutFreq: "N", cutType: null, orebThreat: "low", vision: 4,
+    },
+    clubContext: { gender: "F" },
+    expect: {
+      deny_must: ["deny_pnr_downhill"],
+      // pressureResponse=breaks NO debe generar force_trap ni force_full_court
+      force_must_not: ["force_trap", "force_full_court"],
+      top_situations: ["pnr_ball"],
+      danger_min: 3,
+    },
+  },
+
+  {
+    id: "cal_driver_weak_avoids",
+    name: "Guard driver puro — mano débil, evita contacto, sin spot-up",
+    note: "ISO guard sin spotUpFreq activo. offHandFinish=weak + contactFinish=avoids + NO spot-up → debe generar force_contact (rama de no-shooter), no force_weak_hand.",
+    inputs: {
+      pos: "SG", hand: "R", ath: 4, phys: 2, usage: "primary",
+      selfCreation: "high",
+      isoFreq: "P", isoEff: "medium", isoDir: "R", isoDec: "F",
+      pnrFreq: "N", postFreq: "N",
+      spotUpFreq: "N", deepRange: false,
+      transFreq: "R",
+      offHandFinish: "weak", contactFinish: "avoids",
+      floater: "N", isoDec: "F",
+      postProfile: "M", postZone: null, postShoulder: null,
+      postEff: null, postMoves: null, postEntry: null,
+      pnrPri: null, pnrFinishLeft: null, pnrFinishRight: null,
+      trapResponse: null, screenerAction: null, popRange: "midrange",
+      dhoRole: null, dhoAction: null,
+      ballHandling: "capable", pressureResponse: null,
+      cutFreq: "N", cutType: null, orebThreat: "low", vision: 3,
+    },
+    expect: {
+      deny_must: ["deny_iso_space"],
+      // ISO driver sin spot-up: force_contact por physical_to_weak_hand (rama no-shooter)
+      force_must: ["force_contact"],
+      force_must_not: ["force_weak_hand"],
+      top_situations: ["iso_right"],
+      danger_min: 2, danger_max: 4,
+    },
+  },
 
 ];
+
 
 // ─── RUN CALIBRATION ─────────────────────────────────────────────────────────
 

@@ -1713,22 +1713,17 @@ export class UScoutMotor {
       void isAllLine;
 
       if (hasCorner) {
-        if (inputs.deepRange) {
-          outputs.push({
-            key: 'deny_spot_corner',
-            category: 'deny',
-            weight: weight + w.outputWeights.spotUp.zoneBonus.corner,
-            source: 'corner_spot',
-          });
-        } else {
-          outputs.push({
-            key: 'force_no_space',
-            category: 'force',
-            weight: 0.7,
-            source: 'corner_no_range',
-            params: { zone: 'corner' },
-          });
-        }
+        // deny_spot_corner se emite siempre que haya esquinas activas,
+        // con o sin deepRange — el triple de esquina es el tiro más eficiente
+        // del baloncesto (PPP más alto) y siempre merece un DENY explícito.
+        // deepRange añade bonus de peso pero no es condición necesaria.
+        const cornerWeight = weight + w.outputWeights.spotUp.zoneBonus.corner;
+        outputs.push({
+          key: 'deny_spot_corner',
+          category: 'deny',
+          weight: inputs.deepRange ? cornerWeight : cornerWeight * 0.85,
+          source: 'corner_spot',
+        });
       }
       // Wing sin corner ya no genera deny_spot_corner — se cubre por deny_spot_deep si deepRange=true
     }
@@ -2061,13 +2056,28 @@ export class UScoutMotor {
           });
         }
       } else if (inputs.contactFinish === 'avoids') {
-        outputs.push({
-          key: 'force_contact',
-          category: 'force',
-          weight: 0.85,
-          params: { hand: weakHand, instruction: 'physical_to_weak_hand' },
-          source: 'contact_weak_hand_combined',
-        });
+        // Spot-up shooters who avoid contact: channeling to weak hand IS the 1v1 instruction.
+        // They'll try to drive strong side on the closeout — force them to the weak side.
+        // Being physical risks fouls and is wrong for perimeter shooters.
+        // For non-shooters (drivers), physical pressure to weak hand is correct.
+        const isSpotUpRole = inputs.spotUpFreq === 'P' || inputs.spotUpFreq === 'S';
+        if (isSpotUpRole) {
+          outputs.push({
+            key: 'force_weak_hand',
+            category: 'force',
+            weight: w.forceRules.weakHand.baseWeight + w.forceRules.weakHand.offHandWeakBonus,
+            params: { hand: weakHand },
+            source: 'off_hand',
+          });
+        } else {
+          outputs.push({
+            key: 'force_contact',
+            category: 'force',
+            weight: 0.85,
+            params: { hand: weakHand, instruction: 'physical_to_weak_hand' },
+            source: 'contact_weak_hand_combined',
+          });
+        }
       } else {
         outputs.push({
           key: 'force_weak_hand',
@@ -2081,10 +2091,14 @@ export class UScoutMotor {
 
     // force_perimeter ELIMINADO en v3 — reemplazado por force_no_space y force_paint_deny
     // force_no_space: perimetral sin rango pero con amenaza de drive (spotUp activo + no deepRange)
+    // force_no_space: NOT emitted for spot-up primaries — they already get force_weak_hand
+    // (channel on closeout) + deny_spot_corner. force_no_space would displace the more
+    // actionable 1v1 channeling instruction from the force slot. Emit only for secondary.
     if (
       !inputs.deepRange &&
       inputs.spotUpFreq &&
       inputs.spotUpFreq !== 'N' &&
+      inputs.spotUpFreq !== 'P' &&
       inputs.isoFreq !== 'P'
     ) {
       outputs.push({

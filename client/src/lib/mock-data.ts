@@ -140,10 +140,25 @@ export interface PlayerInput {
 
   courtVision?: PhysicalLevel;
 
+  /**
+   * True si el jugador tiene rango demostrado más allá del arco estándar (~7.5m+).
+   * Distinto de spotUpFreq (triples normales). Requiere confirmación explícita del scout.
+   * Ejemplos: Curry, Lillard, Trae Young. Un buen tirador de triple SIN este flag = false.
+   */
+  motorLongRange?: boolean | null;
+
   /** Override motor transition role; usually leave unset and use rim/trail intensities below. */
   motorTransRole?: "rim_run" | "trail" | "leak" | "fill" | null;
   motorBallHandling?: "elite" | "capable" | "limited" | "liability" | null;
   motorPressureResponse?: "breaks" | "escapes" | "struggles" | null;
+  /**
+   * Reacción específica ante hedge/blitz en PnR (trap del handler).
+   * Campo DISTINTO de motorPressureResponse (presión individual en toda la pista).
+   * - escape: sale limpio del trap, pasa o crea ventaja
+   * - pass: pasa con tiempo pero no crea ventaja
+   * - struggle: pierde el balón o fuerza lanzamiento malo
+   */
+  motorTrapResponse?: "escape" | "pass" | "struggle" | null;
   motorPostEff?: "high" | "medium" | "low" | null;
   /** @deprecated Prefer post quadrant moves — motor derives package from diagram. */
   motorPostMoves?: ("fade" | "turnaround" | "hook" | "drop_step" | "up_and_under")[] | null;
@@ -534,6 +549,7 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     freeCutsFrequency: "Never", freeCutsType: null,
     offensiveReboundFrequency: "Never", putbackQuality: null,
     courtVision: 3,
+    motorLongRange: null,
     transRolePrimary: null,
     transRoleSecondary: null,
     transSubPrimary: null,
@@ -814,13 +830,13 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
 
   let trapResponse: PlayerInputs["trapResponse"] = null;
   if (isActive(inputs.pnrFrequency) && pnrIsHandler) {
-    // Scout's direct observation has priority over vision inference
-    if (inputs.motorPressureResponse === "struggles") {
-      trapResponse = "struggle";
-    } else if (inputs.motorPressureResponse === "escapes") {
-      trapResponse = "escape";
+    if ((inputs as any).motorTrapResponse != null) {
+      // Direct scout observation of hedge/blitz reaction — no cross-contamination with pressureResponse
+      // Normalize legacy values from old editor (escapes→escape, struggles→struggle)
+      const raw = (inputs as any).motorTrapResponse as string;
+      trapResponse = raw === "escapes" ? "escape" : raw === "struggles" ? "struggle" : raw as PlayerInputs["trapResponse"];
     } else {
-      // Infer from vision when not observed directly
+      // Not observed: infer from vision only, NOT from motorPressureResponse
       if (vision >= 5) trapResponse = "escape";
       else if (vision >= 3) trapResponse = "pass";
       else trapResponse = "struggle";
@@ -864,14 +880,17 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     return "low";
   })();
 
-  // deepRange = true si el jugador tiene amenaza exterior real
-  // Primary → siempre. Secondary → activa si tiene rango confirmado (spotUp secondary
-  // implica que puede tirar de lejos cuando está abierta, aunque no sea su acción principal).
+  // deepRange = true SOLO si el jugador tiene rango más allá del arco estándar (~7.5m+).
+  // Un spot-up shooter normal de triple NO tiene deepRange.
+  // Requiere confirmación explícita del scout mediante motorLongRange.
+  // Fallback de compatibilidad: si motorLongRange no está seteado, solo se activa
+  // cuando perimeterThreat es Primary Y el scout ha confirmado rango extra
+  // (motorIsoEff === "high" como proxy de nivel de amenaza élite).
   const deepRange =
-    isPrimary(perimeterThreat) ||
-    (perimeterThreat === "Secondary" &&
-      (inputs.closeoutReaction === "Catch & Shoot" ||
-        inputs.motorIsoEff === "high"));
+    inputs.motorLongRange === true ||
+    (isPrimary(perimeterThreat) &&
+      inputs.motorIsoEff === "high" &&
+      inputs.motorLongRange !== false);
 
   const rimG = cutIntensityRank(inputs.motorTransRimIntensity ?? "Never");
   const tr3G = cutIntensityRank(inputs.motorTransTrail3Intensity ?? "Never");

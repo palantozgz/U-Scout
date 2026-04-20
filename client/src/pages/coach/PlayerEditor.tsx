@@ -446,7 +446,7 @@ function ScreenerActionSelector({ primaryValue, secondaryValue, onPrimaryChange,
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function PlayerEditor() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [, params] = useRoute("/coach/player/:id");
   const [, setLocation] = useLocation();
   const search = useSearch();
@@ -1323,23 +1323,24 @@ export default function PlayerEditor() {
                         </div>
                       </div>
 
-                      {/* Reacción al trap/blitz — específico del PnR */}
+                      {/* Reacción al trap/blitz — campo propio, NO toca motorPressureResponse */}
                       <div className="space-y-2 pt-1 border-t border-blue-200 dark:border-blue-800/40">
                         <FieldLabel label={t("editor.pnr_trap_reaction")} tooltip={t("hint_pnr_trap_reaction")} />
                         <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                           {([
-                            { v: "escapes" as const, labelKey: "opt_pnr_trap_escapes" },
-                            { v: "struggles" as const, labelKey: "opt_pnr_trap_struggles" },
+                            { v: "escape" as const, labelKey: "opt_pnr_trap_escapes" },
+                            { v: "pass" as const, labelKey: "opt_pnr_trap_pass" },
+                            { v: "struggle" as const, labelKey: "opt_pnr_trap_struggles" },
                           ] as const).map(({ v, labelKey }) => (
-                            <Button key={v} type="button" variant={inputs.motorPressureResponse === v ? "default" : "outline"}
+                            <Button key={v} type="button" variant={inputs.motorTrapResponse === v ? "default" : "outline"}
                               style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.motorPressureResponse === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
-                              onClick={() => ui("motorPressureResponse", inputs.motorPressureResponse === v ? null : v)}>
+                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.motorTrapResponse === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                              onClick={() => ui("motorTrapResponse", inputs.motorTrapResponse === v ? null : v)}>
                               {t(labelKey as never)}
                             </Button>
                           ))}
-                          <Button type="button" variant={inputs.motorPressureResponse == null ? "secondary" : "outline"} style={{ minHeight: 44 }}
-                            className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold" onClick={() => ui("motorPressureResponse", null)}>
+                          <Button type="button" variant={inputs.motorTrapResponse == null ? "secondary" : "outline"} style={{ minHeight: 44 }}
+                            className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold" onClick={() => ui("motorTrapResponse", null)}>
                             {t("not_observed")}
                           </Button>
                         </div>
@@ -1724,6 +1725,40 @@ export default function PlayerEditor() {
                       ))}
                       <Button type="button" variant={((inputs as any).deepRange ?? null) == null ? "secondary" : "outline"} style={{ minHeight: 44 }}
                         className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold" onClick={() => ui("deepRange" as any, null)}>
+                        {t("not_observed")}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Rango extra-largo (scout-confirmed) */}
+                  <div className="space-y-2">
+                    <FieldLabel
+                      label={
+                        locale === "es"
+                          ? "Rango extra-largo (más allá del arco estándar)"
+                          : "Long range (beyond standard arc)"
+                      }
+                    />
+                    <div className="flex flex-wrap gap-3">
+                      {([{ v: true as const, lk: "yes" }, { v: false as const, lk: "no" }] as const).map(({ v, lk }) => (
+                        <Button
+                          key={String(v)}
+                          type="button"
+                          variant={(inputs.motorLongRange ?? null) === v ? "default" : "outline"}
+                          style={{ minHeight: 44 }}
+                          className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${(inputs.motorLongRange ?? null) === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                          onClick={() => ui("motorLongRange" as any, (inputs.motorLongRange ?? null) === v ? null : v)}
+                        >
+                          {t(lk as never)}
+                        </Button>
+                      ))}
+                      <Button
+                        type="button"
+                        variant={(inputs.motorLongRange ?? null) == null ? "secondary" : "outline"}
+                        style={{ minHeight: 44 }}
+                        className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold"
+                        onClick={() => ui("motorLongRange" as any, null)}
+                      >
                         {t("not_observed")}
                       </Button>
                     </div>
