@@ -7,7 +7,7 @@
    Archetype: archetype_post_scorer | Danger: 5 | Situations: post_right, oreb
    Expected:  DENY: Front the right block — deny post entry. FORCE: No space in the paint. ALLOW: Spot-up threes. AWARE: Hook shot threat.
    DENY:  Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.
-   FORCE: No specific instruction — follow standard defensive principles.
+   FORCE: Force left in the post — deny the right-hand finish. Hook on the dominant shoulder finishes with the dominant hand. Channel left before she seals.
    ALLOW: Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead.
    ALERTS: aware_post_fade, aware_physical
 

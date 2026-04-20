@@ -862,8 +862,26 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
       return "Force early clock shots. Get into her in the first three seconds — do not let her survey the floor. She needs time to create.";
     case "force_no_space":
       return "Force them into no-space catches. Tight on the catch, no room to set up.";
-    case "force_trap":
-      return "Force into traps on the PnR. Hedge hard — they struggle to escape.";
+    case "force_trap": {
+      const weakSideTrap = inputs.hand === "R" ? "left" : "right";
+      const hasPnrDir = inputs.pnrFinishLeft != null || inputs.pnrFinishRight != null;
+      const dirNote = hasPnrDir
+        ? ` Stay over the screen — no space for the pull-up. Funnel ${weakSideTrap} toward the paint or force the pass.`
+        : ` Get over the screen aggressively and maintain contact — no mid-range pull-up.`;
+      return `Force over every screen — no soft coverage. She struggles under hard hedge pressure.${dirNote}`;
+    }
+    case "force_post_channel": {
+      const channelDir = inputs.hand === "L" ? "right" : "left";
+      const dominantHand = inputs.hand === "L" ? "left" : "right";
+      const hasUpUnder = inputs.postMoves?.includes("up_and_under");
+      const hasHook = inputs.postMoves?.includes("hook");
+      const movesNote = hasUpUnder && hasHook
+        ? "The up-and-under and hook both terminate with the left hand."
+        : hasUpUnder
+          ? "The up-and-under always pivots back to the dominant hand."
+          : "Hook on the dominant shoulder finishes with the dominant hand.";
+      return `Force ${channelDir} in the post — deny the ${dominantHand}-hand finish. ${movesNote} Channel ${channelDir} before she seals.`;
+    }
     case "force_paint_deny":
       return "Keep her off the paint. Force catches on the perimeter, not inside.";
     case "aware_instant_shot":
@@ -994,8 +1012,26 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
       return "Fuerza el tiro en los primeros tres segundos. Métele encima desde el inicio — necesita tiempo para crear.";
     case "force_no_space":
       return "Fuerza el catch sin espacio. Pegado/a en la recepción — sin margen para prepararse.";
-    case "force_trap":
-      return "Fuerza la trampa en el PnR. Hedge duro — tiene problemas para escapar.";
+    case "force_trap": {
+      const weakSideTrapES = inputs.hand === "R" ? "izquierda" : "derecha";
+      const hasPnrDirES = inputs.pnrFinishLeft != null || inputs.pnrFinishRight != null;
+      const dirNoteES = hasPnrDirES
+        ? ` Pasa por arriba del bloqueo — sin espacio para el pull-up. Canaliza a la ${weakSideTrapES} hacia la pintura o fuerza el pase.`
+        : ` Pasa por arriba del bloqueo con agresividad y mantén el contacto — sin pull-up de media distancia.`;
+      return `Pasa por arriba de todos los bloqueos — sin cobertura blanda. Tiene problemas cuando se le presiona duro.${dirNoteES}`;
+    }
+    case "force_post_channel": {
+      const channelDir = inputs.hand === "L" ? "derecha" : "izquierda";
+      const dominantHand = inputs.hand === "L" ? "izquierda" : "derecha";
+      const hasUpUnder = inputs.postMoves?.includes("up_and_under");
+      const hasHook = inputs.postMoves?.includes("hook");
+      const movesNote = hasUpUnder && hasHook
+        ? "El up-and-under y el gancho terminan con la mano izquierda."
+        : hasUpUnder
+          ? "El up-and-under siempre pivota hacia la mano dominante."
+          : "El gancho por el hombro dominante termina con la mano dominante.";
+      return `Canaliza a la ${channelDir} en el poste — niega el remate con la mano ${dominantHand}. ${movesNote} Cárgala a la ${channelDir} antes de que selle.`;
+    }
     case "force_paint_deny":
       return "Mantenla fuera de la pintura. Que reciba en el perímetro, no dentro.";
     case "allow_catch_shoot":
@@ -1137,8 +1173,26 @@ function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
       return "逼迫其在前三秒出手。从一开始就紧逼——她需要时间来创造机会。";
     case "force_no_space":
       return "逼迫其在无空间处接球，紧贴防守。";
-    case "force_trap":
-      return "在挡拆中逼迫其陷入夹击，大力补防。";
+    case "force_trap": {
+      const weakSideTrapZH = inputs.hand === "R" ? "左侧" : "右侧";
+      const hasPnrDirZH = inputs.pnrFinishLeft != null || inputs.pnrFinishRight != null;
+      const dirNoteZH = hasPnrDirZH
+        ? `绕过掩护上方——不给急停跳投空间。引导其向${weakSideTrapZH}进攻禁区或迫其传球。`
+        : `强行绕过掩护并保持身体接触——不给中距离出手机会。`;
+      return `所有掩护都从上方绕过，不给软防空间。她在强硬逼抢下容易出错。${dirNoteZH}`;
+    }
+    case "force_post_channel": {
+      const channelDir = inputs.hand === "L" ? "右侧" : "左侧";
+      const dominantHand = inputs.hand === "L" ? "左手" : "右手";
+      const hasUpUnder = inputs.postMoves?.includes("up_and_under");
+      const hasHook = inputs.postMoves?.includes("hook");
+      const movesNote = hasUpUnder && hasHook
+        ? "上步转身和勾手都以左手终结。"
+        : hasUpUnder
+          ? "上步转身动作总会转回主导手方向。"
+          : "主导肩侧的勾手以惯用手终结。";
+      return `在低位向${channelDir}引导——封堵${dominantHand}终结。${movesNote} 在其建立密封前向${channelDir}卡位。`;
+    }
     case "force_paint_deny":
       return "将其逼离禁区——迫使在外线接球，不在内线。";
     case "force_contact": {

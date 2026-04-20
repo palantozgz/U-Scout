@@ -290,6 +290,33 @@ const profiles: CalibrationProfile[] = [
     },
   },
 
+  {
+    id: "cal_kalani",
+    name: "Kalani Brown — Post channel left hand",
+    note: "Mano izquierda dominante. Up&under + hook vuelven siempre a la izquierda. Channel right obligatorio.",
+    inputs: {
+      pos: "C", hand: "L", ath: 3, phys: 5, usage: "primary",
+      selfCreation: "high",
+      postFreq: "P", postEff: "high", postProfile: "B2B",
+      postShoulder: "R", postMoves: ["hook", "up_and_under"],
+      postEntry: "seal",
+      isoFreq: "N", pnrFreq: "N", transFreq: "N",
+      spotUpFreq: "N", deepRange: false,
+      orebThreat: "high", putbackQuality: "capable",
+      contactFinish: "seeks", offHandFinish: "capable",
+      vision: 2, floater: "N",
+      cutFreq: "N", dhoFreq: "N", indirectFreq: "N",
+      screenerAction: null, ballHandling: null, pressureResponse: null,
+    },
+    expect: {
+      deny_must: ["deny_post_entry"],
+      force_must: ["force_post_channel"],
+      force_must_not: ["force_weak_hand"],
+      top_situations: ["post_right"],
+      force_text_contains: ["right", "left"],  // "Force right — deny left-hand finish"
+    },
+  },
+
   // ─── WNBA STARS ──────────────────────────────────────────────────────────
 
   {

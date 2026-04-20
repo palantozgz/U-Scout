@@ -1,10 +1,10 @@
 {
-  "date": "2026-04-20T16:32:53.509Z",
+  "date": "2026-04-20T17:08:22.317Z",
   "globalScore": 100,
   "totalPassed": 71,
-  "totalFailed": 1,
-  "passedChecks": 595,
-  "totalChecks": 596,
+  "totalFailed": 2,
+  "passedChecks": 600,
+  "totalChecks": 602,
   "results": [
     {
       "id": "cal001",
@@ -60,7 +60,7 @@
           "deny_pnr_downhill",
           "deny_high_post_catch"
         ],
-        "force": "none",
+        "force": "force_post_channel",
         "force_alts": [],
         "allow": "allow_spot_three",
         "alerts": [
@@ -68,7 +68,7 @@
           "aware_post_fade"
         ],
         "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in the post — deny the right-hand finish. Hook on the dominant shoulder finishes with the dominant hand. Channel left before she seals.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
@@ -108,9 +108,11 @@
     {
       "id": "cal004",
       "name": "Giannis Antetokounmpo — Drive + Rim",
-      "passed": true,
-      "score": 100,
-      "failures": [],
+      "passed": false,
+      "score": 92,
+      "failures": [
+        "force_text contains \"trap\" — got: \"Force over every screen — no soft coverage. She struggles under hard hedge pressure. Get over the screen aggressively and maintain contact — no mid-range pull-up.\""
+      ],
       "output": {
         "archetype": "archetype_pnr_orchestrator",
         "danger": 5,
@@ -136,7 +138,7 @@
           "aware_physical"
         ],
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
-        "force_text": "Force into traps on the PnR. Hedge hard — they struggle to escape.",
+        "force_text": "Force over every screen — no soft coverage. She struggles under hard hedge pressure. Get over the screen aggressively and maintain contact — no mid-range pull-up.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
@@ -194,15 +196,17 @@
           "deny_post_seal",
           "deny_high_post_catch"
         ],
-        "force": "force_no_space",
-        "force_alts": [],
+        "force": "force_post_channel",
+        "force_alts": [
+          "force_no_space"
+        ],
         "allow": "allow_spot_three",
         "alerts": [
           "aware_post_hook",
           "aware_physical"
         ],
         "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
-        "force_text": "Force them into no-space catches. Tight on the catch, no room to set up.",
+        "force_text": "Force left in the post — deny the right-hand finish. The up-and-under and hook both terminate with the left hand. Channel left before she seals.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
@@ -269,6 +273,38 @@
         ],
         "deny_text": "Sprint directly to the rim. She runs hard on every miss — get between her and the basket before the ball arrives.",
         "force_text": "Keep her off the paint. Force catches on the perimeter, not inside.",
+        "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
+      }
+    },
+    {
+      "id": "cal_kalani",
+      "name": "Kalani Brown — Post channel left hand",
+      "passed": true,
+      "score": 100,
+      "failures": [],
+      "output": {
+        "archetype": "archetype_post_scorer",
+        "danger": 5,
+        "difficulty": 4,
+        "top_situations": [
+          "post_right",
+          "oreb"
+        ],
+        "deny": "deny_post_entry",
+        "deny_alts": [
+          "deny_oreb",
+          "deny_post_seal",
+          "deny_post_shoulder"
+        ],
+        "force": "force_post_channel",
+        "force_alts": [],
+        "allow": "allow_spot_three",
+        "alerts": [
+          "aware_post_hook",
+          "aware_oreb"
+        ],
+        "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
+        "force_text": "Force right in the post — deny the left-hand finish. The up-and-under and hook both terminate with the left hand. Channel right before she seals.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
@@ -568,7 +604,7 @@
           "aware_pressure_vuln"
         ],
         "deny_text": "Deny the downhill PnR catch. Stay attached over the screen. No space for a mid-range pull-up.",
-        "force_text": "Force into traps on the PnR. Hedge hard — they struggle to escape.",
+        "force_text": "Force over every screen — no soft coverage. She struggles under hard hedge pressure. Get over the screen aggressively and maintain contact — no mid-range pull-up.",
         "allow_text": "Allow ball handling. Limited threat with the ball — let her dribble, not drive."
       }
     },
@@ -945,7 +981,7 @@
           "deny_pnr_roll",
           "deny_cut_basket"
         ],
-        "force": "none",
+        "force": "force_post_channel",
         "force_alts": [],
         "allow": "allow_spot_three",
         "alerts": [
@@ -953,7 +989,7 @@
           "aware_post_hook"
         ],
         "deny_text": "Find her before the shot goes up — not after. Box out early and physically. She crashes every possession.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in the post — deny the right-hand finish. Hook on the dominant shoulder finishes with the dominant hand. Channel left before she seals.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
@@ -1341,7 +1377,7 @@
           "deny_post_entry",
           "deny_post_shoulder"
         ],
-        "force": "none",
+        "force": "force_post_channel",
         "force_alts": [],
         "allow": "allow_transition",
         "alerts": [
@@ -1349,7 +1385,7 @@
           "aware_deep"
         ],
         "deny_text": "Contest the pop immediately. No space to catch — they shoot off the screen without hesitation.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in the post — deny the right-hand finish. Hook on the dominant shoulder finishes with the dominant hand. Channel left before she seals.",
         "allow_text": "Allow transition attempts. Not a primary transition threat — stay organized defensively."
       }
     },
@@ -1373,7 +1409,7 @@
           "deny_post_seal",
           "deny_post_shoulder"
         ],
-        "force": "none",
+        "force": "force_post_channel",
         "force_alts": [],
         "allow": "allow_spot_three",
         "alerts": [
@@ -1381,7 +1417,7 @@
           "aware_physical"
         ],
         "deny_text": "Deny the left block entry. Front the post — three-quarter on the left shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in the post — deny the right-hand finish. The up-and-under and hook both terminate with the left hand. Channel left before she seals.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
@@ -1630,7 +1666,7 @@
           "deny_oreb",
           "deny_pnr_downhill"
         ],
-        "force": "none",
+        "force": "force_post_channel",
         "force_alts": [],
         "allow": "allow_spot_three",
         "alerts": [
@@ -1638,7 +1674,7 @@
           "aware_post_turnaround"
         ],
         "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in the post — deny the right-hand finish. Hook on the dominant shoulder finishes with the dominant hand. Channel left before she seals.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },
@@ -2108,7 +2144,7 @@
           "deny_post_seal",
           "deny_post_shoulder"
         ],
-        "force": "none",
+        "force": "force_post_channel",
         "force_alts": [],
         "allow": "allow_spot_three",
         "alerts": [
@@ -2116,7 +2152,7 @@
           "aware_physical"
         ],
         "deny_text": "Deny the right block entry. Front the post — three-quarter on the right shoulder, push high before she seals. She is physical — beat her to the spot before the ball arrives.",
-        "force_text": "No specific instruction — follow standard defensive principles.",
+        "force_text": "Force left in the post — deny the right-hand finish. Hook on the dominant shoulder finishes with the dominant hand. Channel left before she seals.",
         "allow_text": "Allow spot-up catches. No deep range — the long two is her best perimeter shot. Protect the paint instead."
       }
     },

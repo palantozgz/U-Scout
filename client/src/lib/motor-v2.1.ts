@@ -297,6 +297,7 @@ const SOURCE_TO_SITUATION: Record<string, string> = {
   screen_timing: 'screener',
   data_inconsistency: 'screener',
   post: 'post',
+  post_channel: 'post',
   post_shoulder: 'post',
   post_entry_duck_in: 'post',
   post_entry_seal: 'post',
@@ -668,7 +669,8 @@ export const OUTPUT_CATALOG = {
     no_ball: { key: 'force_no_ball', i18nKey: 'output.force.no_ball', template: 'FORCE off ball - deny advance' },
     no_push: { key: 'force_no_push', i18nKey: 'output.force.no_push', template: 'FORCE no dribble push — contain the advance' },
     no_space: { key: 'force_no_space', i18nKey: 'output.force.no_space', template: 'FORCE no space — no dar distancia de tiro' },
-    paint_deny: { key: 'force_paint_deny', i18nKey: 'output.force.paint_deny', template: 'FORCE out of paint — mantener fuera de la pintura' }
+    paint_deny: { key: 'force_paint_deny', i18nKey: 'output.force.paint_deny', template: 'FORCE out of paint — mantener fuera de la pintura' },
+    post_channel: { key: 'force_post_channel', i18nKey: 'output.force.post_channel', template: 'FORCE post channel — deny dominant hand finish' },
   },
   allow: {
     post: { key: 'allow_post', i18nKey: 'output.allow.post', template: 'Allow post attempts - no threat' },
@@ -1300,6 +1302,71 @@ export class UScoutMotor {
           source: 'post'
         });
       }
+
+      // =========================================================================
+      // Post channel inference — cross hand + postShoulder + postMoves
+      //
+      // Goal: determine if the player's attacks converge on their dominant hand,
+      // and if so, emit force_post_channel with the correct direction.
+      //
+      // Rules:
+      // 1. up_and_under always terminates with the dominant hand (the move exists
+      //    to pivot back to it). Regardless of block or shoulder.
+      // 2. hook from the SAME shoulder as dominant hand → dominant hand finish.
+      //    hook from the OPPOSITE shoulder → can go either way (skip or reduce confidence).
+      // 3. turnaround/fade from any shoulder → ambiguous (skip).
+      // 4. If offHandFinish === 'strong' → ambidextrous finisher → skip entirely.
+      //
+      // Channel direction: always AWAY from dominant hand.
+      //   hand=L → force right (deny left finish)
+      //   hand=R → force left (deny right finish)
+      //
+      // Confidence scoring:
+      // - up_and_under present → high confidence (+0.15 weight bonus)
+      // - hook on dominant shoulder → medium confidence (base weight)
+      // - both present → max confidence (0.90)
+      // - Ambidextrous (offHandFinish=strong) → skip
+      // =========================================================================
+      if (inputs.offHandFinish !== 'strong' && inputs.hand) {
+        const dominantHand = inputs.hand; // 'L' or 'R'
+        const dominantShoulder = dominantHand; // same direction
+        const channelDir = dominantHand === 'L' ? 'R' : 'L'; // force AWAY from dominant
+
+        let channelEvidence = 0;
+
+        // up_and_under always returns to dominant hand
+        if (inputs.postMoves?.includes('up_and_under')) {
+          channelEvidence += 2;
+        }
+
+        // hook: only count if on dominant shoulder (same side = same hand finish)
+        if (inputs.postMoves?.includes('hook') && inputs.postShoulder === dominantShoulder) {
+          channelEvidence += 1;
+        }
+
+        // drop_step to dominant side (postShoulder === dominant) → dominant hand finish
+        if (inputs.postMoves?.includes('drop_step') && inputs.postShoulder === dominantShoulder) {
+          channelEvidence += 1;
+        }
+
+        // Only emit if there's clear evidence (at least 1 strong signal)
+        if (channelEvidence >= 1) {
+          const channelWeight = channelEvidence >= 3 ? 0.90
+            : channelEvidence === 2 ? 0.82
+            : 0.72;
+          outputs.push({
+            key: 'force_post_channel',
+            category: 'force',
+            weight: channelWeight,
+            source: 'post_channel',
+            params: {
+              channelDir,
+              dominantHand,
+              evidence: String(channelEvidence),
+            },
+          });
+        }
+      }
       
       if (inputs.postShoulder) {
         outputs.push({
@@ -1640,7 +1707,13 @@ export class UScoutMotor {
     // v2.1: Ball handling & pressure outputs
     // =========================================================================
     if (inputs.pressureResponse === 'struggles') {
-      if (inputs.ballHandling !== 'elite') {
+      // Suppress force_full_court for interior players (PF/C) without active transition role.
+      // Full-court pressure makes no sense for a post player — the relevant pressure
+      // is on the catch in the post, not on the ball advance.
+      const isInteriorNoTrans =
+        (inputs.pos === 'PF' || inputs.pos === 'C') &&
+        (inputs.transFreq === 'N' || inputs.transFreq === 'R' || !inputs.transFreq);
+      if (inputs.ballHandling !== 'elite' && !isInteriorNoTrans) {
         // Athletic players who struggle with pressure are harder to trap — reduce weight
         // Low athleticism + struggles = very easy to pressure full court
         const athPenalty = inputs.ath >= 4 ? 0.15 : inputs.ath <= 2 ? 0 : 0.08;
