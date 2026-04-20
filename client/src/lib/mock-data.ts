@@ -218,7 +218,10 @@ export interface PlayerInput {
   pnrSnake?: boolean | null;
   /** How the player handles contact on drives (ISO / paint). */
   contactType?: "seeks" | "absorbs" | "avoids" | null;
-  /** Free throws 1–5; meaningful when seeking contact. */
+  /**
+   * @deprecated Duplicado de ftShooting. Mantenido solo para compatibilidad con perfiles
+   * guardados antes de la v2. El motor ya no lo lee — usar ftShooting + foulDrawing.
+   */
   ftRating?: 1 | 2 | 3 | 4 | 5 | null;
 
   transFinishing?: "high" | "medium" | "low" | "not_observed" | null;
@@ -569,7 +572,6 @@ export function createDefaultPlayer(teamId: string): Omit<PlayerProfile, "id"> {
     isoWeakHandFinish: null,
     pnrSnake: null,
     contactType: null,
-    ftRating: null,
     transFinishing: null,
     screenerAction: null,
     offBallCutAction: null,
@@ -821,8 +823,15 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
   if (cutFreq !== "N") {
     if (bd >= ind && bd >= sl && bd > 0) cutType = "backdoor";
     else if (sl >= bd && sl >= ind && sl > 0) cutType = "flash";
-    else if (ind > 0) cutType = "curl";
-    else cutType = "basket";
+    else if (ind > 0) {
+      // indirects active: cutType = curl ONLY if the off-ball action is a cut (curl/drive)
+      // NOT if the player exits the screen to shoot (catch_and_shoot / flare)
+      // Those are handled separately via offBallCutAction → deny_screen_pop / aware_off_ball_flare
+      const oblCut = inputs.offBallCutAction;
+      if (oblCut === "curl") cutType = "curl";
+      else if (oblCut === "catch_and_drive") cutType = "basket";
+      else cutType = null; // catch_and_shoot / flare / null: not a cut, don't emit deny_cut_*
+    } else cutType = "basket";
   }
 
   const pnrPri: PlayerInputs["pnrPri"] =
@@ -1461,13 +1470,15 @@ export function generateProfile(
   if (inputs.contactType === "seeks") isoDanger += 2;
   else if (inputs.contactType === "avoids") isoDanger -= 1;
 
-  if (inputs.contactType === "seeks" && inputs.ftRating != null) {
-    const ftR = inputs.ftRating;
-    if (ftR >= 4 && (inputs.isoFrequency === "Primary" || inputs.isoFrequency === "Secondary")) {
-      isoDanger += 1;
-    }
-    if (ftR <= 2) isoDanger -= 1;
+  // ftShooting + foulDrawing amplify ISO danger when seeking contact:
+  // — High FT% + seeks contact = dangerous fouling threat → +1
+  // — Low FT% = contact is recoverable → -1 (even if seeks)
+  // — High foulDrawing alone (draws fouls systematically) → +1 on any active ISO
+  if (inputs.contactType === "seeks") {
+    if (ftPct >= 4 && isActive(inputs.isoFrequency)) isoDanger += 1;
+    if (ftPct <= 2) isoDanger -= 1;
   }
+  if (foulRate >= 4 && isActive(inputs.isoFrequency)) isoDanger += 1;
 
   // PnR: base + handler punishes under + screener slip threat + vision multiplier
   let pnrDanger = danger(inputs.pnrFrequency, 10)

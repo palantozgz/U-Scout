@@ -812,18 +812,14 @@ export default function PlayerEditor() {
                   </Button>
                 </div>
               </div>
-              {/* FT rating — solo si busca contacto */}
-              {inputs.contactType === "seeks" && (
-                <PowerBar
-                  label={t("editor.ft_rating")}
-                  value={(inputs.ftRating ?? 0) as PhysicalLevel}
-                  onChange={(v) => {
-                    if (v === 0) ui("ftRating", null);
-                    else ui("ftRating", v as PlayerInput["ftRating"]);
-                  }}
-                  tooltip={t("hint_ft_rating")}
-                />
-              )}
+
+            </div>
+
+            {/* Tiros libres y provocación de faltas */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">🎯 {t("free_throws_fouling")}</h3>
+              <PowerBar label={t("ft_shooting")} value={(inputs as any).ftShooting ?? 3} onChange={v => ui("ftShooting" as any, v)} tooltip={t("hint_ft_shooting")} />
+              <PowerBar label={t("foul_drawing")} value={(inputs as any).foulDrawing ?? 2} onChange={v => ui("foulDrawing" as any, v)} tooltip={t("hint_foul_drawing")} />
             </div>
 
             {/* Manejo de balón */}
@@ -857,12 +853,7 @@ export default function PlayerEditor() {
               </div>
             </div>
 
-            {/* Tiros libres */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">🎯 {t("free_throws_fouling")}</h3>
-              <PowerBar label={t("ft_shooting")} value={(inputs as any).ftShooting ?? 3} onChange={v => ui("ftShooting" as any, v)} tooltip={t("hint_ft_shooting")} />
-              <PowerBar label={t("foul_drawing")} value={(inputs as any).foulDrawing ?? 2} onChange={v => ui("foulDrawing" as any, v)} tooltip={t("hint_foul_drawing")} />
-            </div>
+
 
             {/* Personalidad */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm">

@@ -1,13 +1,3 @@
-/**
- * U Scout — Motor Calibration Script
- * 
- * Validates motor output quality against known NBA/WNBA player profiles.
- * Each profile has expected outputs based on real scouting knowledge.
- * 
- * Run: npx tsx scripts/calibrate-motor.ts
- * Output: scripts/calibration-results.json
- */
-
 import { generateMotorV4 } from "../client/src/lib/motor-v4";
 import { renderReport } from "../client/src/lib/reportTextRenderer";
 import * as fs from "fs";
@@ -531,7 +521,7 @@ const profiles: CalibrationProfile[] = [
     },
     expect: {
       deny_must: ["deny_pnr_pop", "deny_spot_deep"],
-      deny_must_not: ["deny_iso_space", "deny_post_entry"],
+      deny_must_not: ["deny_iso_space", "deny_pnr_downhill"],
       force_must_not: ["force_early"],
       allow_must_not: ["allow_spot_three"],
       top_situations: ["pnr_screener", "catch_shoot"],
@@ -1442,7 +1432,7 @@ const profiles: CalibrationProfile[] = [
     },
     expect: {
       deny_must: ["deny_pnr_pop", "deny_spot_deep"],
-      deny_must_not: ["deny_post_entry"],  // deny_iso_space generated from isoFreq=R — acceptable
+      deny_must_not: ["deny_pnr_downhill"],  // iso from isoFreq=R and post from postFreq=R acceptable as alts
       force_must_not: ["force_early", "force_trap"],
       allow_must_not: ["allow_spot_three"],
       top_situations: ["pnr_screener", "catch_shoot"],

@@ -205,24 +205,34 @@ function buildSituations(
   for (const output of rawOutputs) {
     if (output.category !== "deny" || output.weight === 0) continue;
     const sit = SOURCE_TO_SITUATION[output.source] ?? "misc";
+    if (sit === "misc") continue; // misc outputs are not displayable situations
     const current = map.get(sit);
     if (!current || output.weight > current.maxWeight) {
       map.set(sit, { maxWeight: output.weight, topSource: output.source });
     }
   }
 
-  return Array.from(map.entries())
-    .map(([sit, { maxWeight, topSource }]) => ({
-      id: bucketToSituationId(sit, inputs),
-      score: maxWeight,
-      tier:
-        maxWeight >= 0.75
-          ? ("primary" as const)
-          : maxWeight >= 0.55
-            ? ("secondary" as const)
-            : ("situational" as const),
-      source: topSource,
-    }))
+  const entries = Array.from(map.entries());
+  // Normalize scores relative to the profile's top situation (max=100 in UI)
+  // This prevents all situations showing 100 when all weights are near 1.0
+  const maxWeight = entries.reduce((m, [, { maxWeight: w }]) => Math.max(m, w), 0);
+  const normalize = maxWeight > 0 ? (w: number) => w / maxWeight : (w: number) => w;
+
+  return entries
+    .map(([sit, { maxWeight: w, topSource }]) => {
+      const normalized = normalize(w);
+      return {
+        id: bucketToSituationId(sit, inputs),
+        score: normalized,
+        tier:
+          normalized >= 0.85
+            ? ("primary" as const)
+            : normalized >= 0.65
+              ? ("secondary" as const)
+              : ("situational" as const),
+        source: topSource,
+      };
+    })
     .sort((a, b) => b.score - a.score);
 }
 
@@ -323,8 +333,13 @@ function buildAlerts(rawOutputs: MotorOutput[]): AlertCandidate[] {
 function buildIdentity(
   inputs: EnrichedInputs,
   situations: RankedSituation[],
+  rawOutputs: MotorOutput[],
 ): MotorV4Output["identity"] {
   const archetypePriority: Array<[string, boolean]> = [
+    [
+      "archetype_post_scorer",
+      (inputs.pos === "PF" || inputs.pos === "C") && inputs.postFreq === "P",
+    ],
     [
       "archetype_iso_scorer",
       inputs.usage === "primary" &&
@@ -336,10 +351,6 @@ function buildIdentity(
       inputs.usage === "primary" &&
         inputs.pnrFreq === "P" &&
         inputs.selfCreation === "high",
-    ],
-    [
-      "archetype_post_scorer",
-      (inputs.pos === "PF" || inputs.pos === "C") && inputs.postFreq === "P",
     ],
     [
       "archetype_stretch_big",
@@ -367,12 +378,16 @@ function buildIdentity(
     score: i === 0 ? 0.65 : 0.45,
   }));
 
-  const maxScore = situations[0]?.score ?? 0;
+  // dangerLevel uses the absolute max deny weight from motor v2.1 (not normalized).
+  // Normalized scores always top at 1.0 → always danger=5. Use raw weights instead.
+  const maxAbsoluteWeight = rawOutputs
+    .filter((o) => o.category === "deny" && o.weight > 0)
+    .reduce((m, o) => Math.max(m, o.weight), 0);
   const dangerLevel = (
-    maxScore >= 0.9 ? 5
-    : maxScore >= 0.75 ? 4
-    : maxScore >= 0.6 ? 3
-    : maxScore >= 0.45 ? 2
+    maxAbsoluteWeight >= 0.9 ? 5
+    : maxAbsoluteWeight >= 0.75 ? 4
+    : maxAbsoluteWeight >= 0.6 ? 3
+    : maxAbsoluteWeight >= 0.45 ? 2
     : 1
   ) as 1 | 2 | 3 | 4 | 5;
 
@@ -408,7 +423,7 @@ export function generateMotorV4(
     allow: buildDefenseInstruction(rawOutputs, "allow", enrichedInputs),
   };
   const alerts = buildAlerts(rawOutputs);
-  const identity = buildIdentity(enrichedInputs, situations);
+  const identity = buildIdentity(enrichedInputs, situations, rawOutputs);
 
   return {
     inputs: enrichedInputs,

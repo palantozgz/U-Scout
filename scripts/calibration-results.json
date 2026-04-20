@@ -1,5 +1,5 @@
 {
-  "date": "2026-04-20T07:45:28.431Z",
+  "date": "2026-04-20T09:23:54.223Z",
   "globalScore": 100,
   "totalPassed": 72,
   "totalFailed": 0,
@@ -84,14 +84,14 @@
         "difficulty": 5,
         "top_situations": [
           "catch_shoot",
-          "pnr_ball",
-          "iso_both"
+          "off_ball",
+          "pnr_ball"
         ],
         "deny": "deny_spot_deep",
         "deny_alts": [
+          "deny_spot_deep",
           "deny_pnr_downhill",
-          "deny_iso_space",
-          "deny_screen_pop"
+          "deny_iso_space"
         ],
         "force": "none",
         "force_alts": [],
@@ -391,7 +391,7 @@
         "deny": "deny_pnr_downhill",
         "deny_alts": [
           "deny_spot_deep",
-          "deny_screen_pop",
+          "deny_spot_deep",
           "deny_iso_space"
         ],
         "force": "none",
@@ -515,13 +515,13 @@
         "top_situations": [
           "pnr_screener",
           "catch_shoot",
-          "pnr_ball"
+          "transition"
         ],
         "deny": "deny_pnr_pop",
         "deny_alts": [
           "deny_spot_deep",
-          "deny_pnr_downhill",
-          "deny_trans_run"
+          "deny_trans_run",
+          "deny_post_entry"
         ],
         "force": "none",
         "force_alts": [],
@@ -547,8 +547,8 @@
         "difficulty": 4,
         "top_situations": [
           "pnr_ball",
-          "misc",
-          "transition"
+          "transition",
+          "iso_both"
         ],
         "deny": "deny_pnr_downhill",
         "deny_alts": [
@@ -708,12 +708,11 @@
         "top_situations": [
           "pnr_screener",
           "transition",
-          "pnr_ball"
+          "cut"
         ],
         "deny": "deny_pnr_slip",
         "deny_alts": [
           "deny_trans_rim",
-          "deny_pnr_downhill",
           "deny_cut_basket"
         ],
         "force": "none",
@@ -943,7 +942,7 @@
         "deny_alts": [
           "deny_post_entry",
           "deny_pnr_roll",
-          "deny_pnr_downhill"
+          "deny_cut_basket"
         ],
         "force": "none",
         "force_alts": [],
@@ -1339,7 +1338,7 @@
         "deny_alts": [
           "deny_spot_deep",
           "deny_post_entry",
-          "deny_pnr_downhill"
+          "deny_post_shoulder"
         ],
         "force": "none",
         "force_alts": [],
@@ -1403,8 +1402,7 @@
         "deny": "deny_spot_deep",
         "deny_alts": [
           "deny_pnr_pop",
-          "deny_trans_trail",
-          "deny_pnr_downhill"
+          "deny_trans_trail"
         ],
         "force": "none",
         "force_alts": [],
@@ -1557,13 +1555,13 @@
         "top_situations": [
           "catch_shoot",
           "pnr_screener",
-          "pnr_ball"
+          "iso_both"
         ],
         "deny": "deny_spot_deep",
         "deny_alts": [
           "deny_pnr_pop",
-          "deny_pnr_downhill",
-          "deny_iso_space"
+          "deny_iso_space",
+          "deny_post_entry"
         ],
         "force": "none",
         "force_alts": [],
@@ -1892,7 +1890,7 @@
         "deny_alts": [
           "deny_pnr_pop",
           "deny_post_entry",
-          "deny_pnr_downhill"
+          "deny_trans_run"
         ],
         "force": "none",
         "force_alts": [],
@@ -2075,8 +2073,8 @@
         ],
         "deny": "deny_spot_deep",
         "deny_alts": [
+          "deny_spot_deep",
           "deny_spot_corner",
-          "deny_screen_pop",
           "deny_trans_trail"
         ],
         "force": "none",

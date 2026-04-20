@@ -251,7 +251,7 @@ const en = {
   offball_role_cutter: "Receives screen",
   offball_cut_action: "Action off the screen",
   opt_cut_catch_shoot: "Catch & shoot",
-  opt_cut_curl: "Curl (riza)",
+  opt_cut_curl: "Curl",
   opt_cut_flare: "Flare",
   opt_cut_backdoor: "Backdoor",
   opt_cut_drive: "Drive",
@@ -780,8 +780,8 @@ const en = {
   opt_spot_zone_corner: "Corner",
   opt_spot_zone_wing: "Wing",
   opt_spot_zone_top: "Top",
-  spot_deep_range: "Deep range",
-  hint_spot_deep_range: "Can they extend beyond the line as a spot-up shooter?",
+  spot_deep_range: "Confirmed 3-point range",
+  hint_spot_deep_range: "Does this player consistently shoot the 3-pointer? (Not logo shots — just standard arc)",
   left_wing: "Left Wing",
   right_wing: "Right Wing",
   center_court: "center court",
@@ -1189,7 +1189,7 @@ const en = {
   "editor.contact_avoids": "Avoids contact",
   hint_contact_type:
     "How the player reacts to defensive contact on drives",
-  "editor.ft_rating": "FT rating",
+  "editor.ft_rating": "FT quality (when seeking fouls)",
   hint_ft_rating:
     "Free throw shooting quality (1=poor, 5=elite). Affects defensive strategy when player seeks contact.",
 
@@ -1882,8 +1882,8 @@ const es: I18nStrings = {
   opt_spot_zone_corner: "Esquina",
   opt_spot_zone_wing: "Ala",
   opt_spot_zone_top: "Top",
-  spot_deep_range: "Rango profundo",
-  hint_spot_deep_range: "¿Puede extenderse más allá de la línea como tirador spot-up?",
+  spot_deep_range: "Triple confirmado",
+  hint_spot_deep_range: "¿Lanza el triple con regularidad? (No logo shots — solo arco estándar)",
   left_wing: "Ala Izquierda",
   right_wing: "Ala Derecha",
   center_court: "centro del campo",
@@ -2291,7 +2291,7 @@ const es: I18nStrings = {
   "editor.contact_avoids": "Evita contacto",
   hint_contact_type:
     "Cómo reacciona al contacto defensivo en drives",
-  "editor.ft_rating": "Acierto en tiros libres",
+  "editor.ft_rating": "Calidad de TL (cuando busca falta)",
   hint_ft_rating:
     "Calidad en tiros libres (1=malo, 5=élite). Afecta la estrategia defensiva cuando busca contacto.",
 

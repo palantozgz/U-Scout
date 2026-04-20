@@ -567,11 +567,13 @@ const INFERENCE_RULES = {
     },
     screenerAction: {
       conditions: [
-        { when: { phys: 5, spotUpFreq: 'N', deepRange: false }, then: 'roll', confidence: 'high' as const },
-        { when: { phys: [4, 5], deepRange: false }, then: 'roll', confidence: 'medium' as const },
-        { when: { deepRange: true, spotUpFreq: ['P', 'S'] }, then: 'pop', confidence: 'high' as const },
-        { when: { deepRange: true }, then: 'pop', confidence: 'medium' as const },
-        { when: { ath: 5, phys: [1, 2, 3] }, then: 'slip', confidence: 'medium' as const }
+        // Only infer screenerAction when pnrFreq is active AND no handler finish data present
+        // (handler finish data = player is a handler, not a screener)
+        { when: { phys: 5, spotUpFreq: 'N', deepRange: false, pnrFreq: ['P', 'S'] }, then: 'roll', confidence: 'high' as const },
+        { when: { phys: [4, 5], deepRange: false, pnrFreq: ['P', 'S'] }, then: 'roll', confidence: 'medium' as const },
+        { when: { deepRange: true, spotUpFreq: ['P', 'S'], pnrFreq: ['P', 'S'] }, then: 'pop', confidence: 'high' as const },
+        { when: { deepRange: true, pnrFreq: ['P', 'S'] }, then: 'pop', confidence: 'medium' as const },
+        { when: { ath: 5, phys: [1, 2, 3], pnrFreq: ['P', 'S'] }, then: 'slip', confidence: 'medium' as const }
       ]
     },
     selfCreation: {
@@ -1062,8 +1064,12 @@ export class UScoutMotor {
 
     // =========================================================================
     // PnR Handler outputs
+    // Only when player is a handler (not a pure screener).
+    // Pure screener = screenerAction set AND no handler finish data (no pnrFinishLeft/Right).
+    // "Both" role = screenerAction set but also has handler finish data — emit handler outputs.
     // =========================================================================
-    if (inputs.pnrFreq && inputs.pnrFreq !== 'N') {
+    const isPureScreener = !!inputs.screenerAction && !inputs.pnrFinishLeft && !inputs.pnrFinishRight;
+    if (inputs.pnrFreq && inputs.pnrFreq !== 'N' && !isPureScreener) {
       let weight = freqW[inputs.pnrFreq] * w.outputWeights.pnr.baseWeight * effectiveUsageM;
       
       if (inputs.pnrPri) {
@@ -1908,13 +1914,25 @@ export class UScoutMotor {
           source: 'off_ball_cut',
         });
       }
-      if (obl === 'catch_and_shoot' && inputs.deepRange) {
-        outputs.push({
-          key: 'deny_screen_pop',
-          category: 'deny',
-          weight: 0.65,
-          source: 'off_ball_cut',
-        });
+      if (obl === 'catch_and_shoot') {
+        // Receiver exits screen to shoot — deny depends on range
+        if (inputs.deepRange) {
+          // Has confirmed range: deny the open catch strongly
+          outputs.push({
+            key: 'deny_spot_deep',
+            category: 'deny',
+            weight: Math.min(freqI * 0.95, 0.92),
+            source: 'off_ball_cut',
+          });
+        } else {
+          // No deep range: deny the screen catch / closeout
+          outputs.push({
+            key: 'deny_screen_pop',
+            category: 'deny',
+            weight: Math.min(freqI * 0.8, 0.78),
+            source: 'off_ball_cut',
+          });
+        }
       }
       if (obl === 'flare') {
         outputs.push({
@@ -2528,7 +2546,15 @@ export class UScoutMotor {
     
     const playTypeMapping: Record<string, { name: string; details: string | null }> = {
       isoFreq: { name: 'ISO', details: inputs.isoDir ? `Prefers ${inputs.isoDir === 'L' ? 'left' : 'right'}` : null },
-      pnrFreq: { name: 'PnR Handler', details: inputs.pnrPri ? `Looks for ${inputs.pnrPri === 'SF' ? 'scoring' : 'passing'} first` : null },
+      pnrFreq: {
+        // Name depends on role: handler, screener, or both
+        name: inputs.screenerAction && !inputs.pnrFinishLeft && !inputs.pnrFinishRight
+          ? 'PnR Screener'
+          : inputs.screenerAction
+            ? 'PnR (Handler + Screener)'
+            : 'PnR Handler',
+        details: inputs.pnrPri ? `Looks for ${inputs.pnrPri === 'SF' ? 'scoring' : 'passing'} first` : null
+      },
       postFreq: { name: 'Post-up', details: inputs.postProfile ? this.getPostProfileText(inputs.postProfile) : null },
       transFreq: { name: 'Transition', details: inputs.transRole ? this.getTransRoleText(inputs.transRole) : null },
       spotUpFreq: { name: 'Spot-up', details: this.spotUpPreferenceDetails(inputs) },
