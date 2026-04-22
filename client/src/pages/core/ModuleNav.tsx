@@ -13,8 +13,8 @@ type NavItem = {
 };
 
 function useModuleNavItems() {
-  const { effectiveRole } = useAuth();
-  const isPlayer = effectiveRole === "player";
+  const { profile } = useAuth();
+  const isPlayer = profile?.role === "player";
   const { t } = useLocale();
   return useMemo<NavItem[]>(() => {
     const home = { key: "home", label: t("ucore_nav_home"), href: "/home", icon: <Home className="w-4 h-4" /> };

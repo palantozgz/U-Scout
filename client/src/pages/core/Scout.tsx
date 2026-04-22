@@ -8,15 +8,15 @@ import { useAuth } from "@/lib/useAuth";
  * (Legacy pages render their own UI; we add bottom nav directly on those pages.)
  */
 export default function Scout() {
-  const { profile, effectiveRole, loading } = useAuth();
+  const { profile, loading } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
     if (loading) return;
     if (!profile) setLocation("/login");
-    if (effectiveRole === "player") setLocation("/player");
+    if (profile?.role === "player") setLocation("/player");
     else setLocation("/coach");
-  }, [effectiveRole, loading, profile, setLocation]);
+  }, [loading, profile, setLocation]);
 
   if (loading) {
     return (

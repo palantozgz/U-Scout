@@ -319,29 +319,33 @@ export default function ClubManagement() {
     if (pendingInvites > 0) {
       alerts.push({
         key: "invites",
-        title: "Pending invites",
-        body: `${pendingInvites} invitation${pendingInvites === 1 ? "" : "s"} waiting to be accepted.`,
+        title: t("club_overview_alert_pending_invites_title"),
+        body: t("club_overview_alert_pending_invites_body")
+          .replace("{count}", String(pendingInvites))
+          .replace("{plural}", pendingInvites === 1 ? "" : "s"),
       });
     }
     if (missingContext.length > 0) {
       alerts.push({
         key: "context",
-        title: "Club context incomplete",
-        body: `Missing: ${missingContext.join(", ")}.`,
+        title: t("club_overview_alert_context_incomplete_title"),
+        body: t("club_overview_alert_context_incomplete_body").replace("{fields}", missingContext.join(", ")),
       });
     }
     if (banned > 0) {
       alerts.push({
         key: "banned",
-        title: "Attention needed",
-        body: `${banned} member${banned === 1 ? "" : "s"} currently banned.`,
+        title: t("club_overview_alert_banned_title"),
+        body: t("club_overview_alert_banned_body")
+          .replace("{count}", String(banned))
+          .replace("{plural}", banned === 1 ? "" : "s"),
       });
     }
     if (alerts.length === 0) {
       alerts.push({
         key: "ok",
-        title: "All clear",
-        body: "No urgent club items right now.",
+        title: t("club_overview_alert_all_clear_title"),
+        body: t("club_overview_alert_all_clear_body"),
       });
     }
 
@@ -704,7 +708,7 @@ export default function ClubManagement() {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1 p-1 mb-4">
                 <TabsTrigger value="overview" className="text-xs font-bold">
-                  Overview
+                      {t("club_tab_overview")}
                 </TabsTrigger>
                 <TabsTrigger value="staff" className="text-xs font-bold">
                   {t("club_tab_staff")}
@@ -726,8 +730,8 @@ export default function ClubManagement() {
                     <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Important alerts</p>
-                          <p className="text-xs text-muted-foreground mt-1">Executive overview of your club status.</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_overview_important_alerts")}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{t("club_overview_subtitle")}</p>
                         </div>
                         <AlertTriangle className="w-4 h-4 text-muted-foreground shrink-0" />
                       </div>
@@ -743,33 +747,36 @@ export default function ClubManagement() {
 
                     <section className="grid grid-cols-2 gap-3">
                       <div className="rounded-2xl border border-border bg-card p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Staff active</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_overview_staff_active")}</p>
                         <p className="mt-2 text-2xl font-black text-foreground">{overview.staffCount}</p>
                       </div>
                       <div className="rounded-2xl border border-border bg-card p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Roster active</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_overview_roster_active")}</p>
                         <p className="mt-2 text-2xl font-black text-foreground">{overview.rosterCount}</p>
                       </div>
                       <div className="rounded-2xl border border-border bg-card p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Pending invites</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_overview_pending_invites")}</p>
                         <p className="mt-2 text-2xl font-black text-foreground">{overview.pendingInvites}</p>
                       </div>
                       <div className="rounded-2xl border border-border bg-card p-4">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Compliance</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_overview_compliance")}</p>
                           <ShieldCheck className="w-4 h-4 text-muted-foreground" />
                         </div>
                         <p className="mt-2 text-2xl font-black text-foreground">
                           {overview.complianceScore}/{overview.complianceTotal}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {overview.missingContext.length === 0 ? "Configured" : `${overview.missingContext.length} missing`}
+                          {overview.missingContext.length === 0
+                            ? t("club_overview_compliance_configured")
+                            : t("club_overview_compliance_missing")
+                                .replace("{count}", String(overview.missingContext.length))}
                         </p>
                       </div>
                     </section>
 
                     <section className="rounded-2xl border border-border bg-card p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Quick actions</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t("club_overview_quick_actions")}</p>
                       <div className="flex flex-wrap gap-2">
                         {canManage ? (
                           <>

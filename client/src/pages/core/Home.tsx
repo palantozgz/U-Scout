@@ -12,8 +12,8 @@ import { UCoreLogoSvgLockup } from "@/components/branding/UScoutBrand";
 type HomeMode = "staff" | "player";
 
 function useHomeMode(): HomeMode {
-  const { effectiveRole } = useAuth();
-  return effectiveRole === "player" ? "player" : "staff";
+  const { profile } = useAuth();
+  return profile?.role === "player" ? "player" : "staff";
 }
 
 const ROLE_LABEL_KEY: Record<AppUserRole, "role_master" | "role_head_coach" | "role_coach" | "role_player"> = {
