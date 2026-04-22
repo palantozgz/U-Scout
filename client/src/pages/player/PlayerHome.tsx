@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/useAuth";
 import { usePlayerHome } from "@/lib/player-home";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
+import { ModuleNav } from "@/pages/core/ModuleNav";
 
 export default function PlayerHome() {
   const { t } = useLocale();
@@ -24,7 +25,7 @@ export default function PlayerHome() {
   const real = isRealPhoto(avatarUrl);
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background">
+    <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
       <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-3 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1 min-w-0">
           <Button
@@ -133,6 +134,7 @@ export default function PlayerHome() {
           </div>
         )}
       </main>
+      <ModuleNav />
     </div>
   );
 }

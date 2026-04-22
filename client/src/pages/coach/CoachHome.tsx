@@ -1,14 +1,10 @@
-import { useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { Pencil, FileText, Settings, LogOut, ChevronRight, Users } from "lucide-react";
+import { Pencil, FileText, Settings, ChevronRight } from "lucide-react";
 import { UScoutLogo } from "@/components/UScoutLogo";
 import type { AppUserRole } from "@/lib/useAuth";
-import { useClub } from "@/lib/club-api";
-import { getStoredRosterSignature, rosterSignature, setStoredRosterSignature } from "@/lib/clubRosterSeen";
+import { ModuleNav } from "@/pages/core/ModuleNav";
 
 const ROLE_LABEL_KEY: Record<AppUserRole, "role_master" | "role_head_coach" | "role_coach" | "role_player"> = {
   master: "role_master",
@@ -20,35 +16,13 @@ const ROLE_LABEL_KEY: Record<AppUserRole, "role_master" | "role_head_coach" | "r
 export default function CoachHome() {
   const { t } = useLocale();
   const [, setLocation] = useLocation();
-  const { signOut, profile } = useAuth();
+  const { profile } = useAuth();
 
   const displayName = profile?.username?.trim() || profile?.email || t("coach_home_name_fallback");
   const roleLabel = profile?.role ? t(ROLE_LABEL_KEY[profile.role]) : "";
-  const hideClubButton = profile?.role === "player";
-  const watchesClubActivity = !hideClubButton && profile?.role === "head_coach";
-  const clubQuery = useClub({ enabled: watchesClubActivity });
-  const clubData = clubQuery.data;
-
-  useEffect(() => {
-    if (!clubData || clubQuery.isError || !profile?.id) return;
-    const clubId = clubData.club.id;
-    const sig = rosterSignature(clubData.members);
-    const prev = getStoredRosterSignature(profile.id, clubId);
-    if (prev === null) {
-      setStoredRosterSignature(profile.id, clubId, sig);
-    }
-  }, [clubData, clubQuery.isError, profile?.id]);
-
-  const showClubActivityDot = useMemo(() => {
-    if (!clubData || clubQuery.isError || !profile?.id) return false;
-    if (profile.role !== "head_coach") return false;
-    const prev = getStoredRosterSignature(profile.id, clubData.club.id);
-    if (prev === null) return false;
-    return prev !== rosterSignature(clubData.members);
-  }, [clubData, clubQuery.isError, profile?.id, profile?.role]);
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden pb-16">
       <button
         type="button"
         onClick={() => setLocation("/settings")}
@@ -124,65 +98,18 @@ export default function CoachHome() {
               <ChevronRight className="w-6 h-6" />
             </div>
           </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (!hideClubButton) setLocation("/coach/club");
-            }}
-            className={cn(
-              "group w-full text-left rounded-lg border border-border bg-card p-4 flex items-stretch gap-4 transition-all duration-200 hover:border-primary hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.35)]",
-              hideClubButton && "opacity-0 pointer-events-none select-none",
-            )}
-            tabIndex={hideClubButton ? -1 : undefined}
-            aria-hidden={hideClubButton || undefined}
-            data-testid="coach-home-team"
-            title={showClubActivityDot ? t("menu_team_activity_aria") : undefined}
-            aria-label={
-              showClubActivityDot
-                ? `${t("menu_team")}. ${t("menu_team_activity_aria")}`
-                : `${t("menu_team")}. ${t("menu_team_sub")}`
-            }
-          >
-            <div className="relative flex items-center justify-center w-14 shrink-0 text-primary">
-              <Users className="w-9 h-9" strokeWidth={2} />
-              {showClubActivityDot ? (
-                <span
-                  className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-card"
-                  aria-hidden
-                />
-              ) : null}
-            </div>
-            <div className="flex-1 min-w-0 py-0.5">
-              <p className="text-lg font-black text-foreground tracking-tight">{t("menu_team")}</p>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">{t("menu_team_sub")}</p>
-            </div>
-            <div className="flex items-center pr-1 text-muted-foreground group-hover:text-primary transition-transform duration-200 group-hover:translate-x-1">
-              <ChevronRight className="w-6 h-6" />
-            </div>
-          </button>
         </div>
 
-        <div className="mt-auto pt-8 flex flex-col items-center gap-3 border-t border-border/80">
+        <div className="mt-auto pt-7 pb-1 flex flex-col items-center border-t border-border/80">
           <div className="text-center">
             <p className="text-sm font-semibold text-foreground">{displayName}</p>
             {roleLabel && (
               <p className="text-[11px] text-muted-foreground mt-0.5 tracking-wide">{roleLabel}</p>
             )}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => void signOut()}
-            className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg h-9 px-4 text-xs font-semibold"
-            data-testid="coach-home-logout"
-          >
-            <LogOut className="w-3.5 h-3.5 mr-2" />
-            {t("settings_sign_out")}
-          </Button>
         </div>
       </main>
+      <ModuleNav />
     </div>
   );
 }

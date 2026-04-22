@@ -25,16 +25,48 @@ export interface UserProfile {
 export interface AuthState {
   user: User | null;
   profile: UserProfile | null;
+  /** UI-only role used for previewing player shell. Never sent to backend. */
+  effectiveRole: AppUserRole | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  /** DEV-only: visible only for the admin account. */
+  canUseRolePreview: boolean;
+  /** DEV-only: current preview mode ("staff" = disabled). */
+  rolePreviewMode: "staff" | "player";
+  /** DEV-only: set preview mode (localStorage). */
+  setRolePreviewMode: (mode: "staff" | "player") => void;
 }
 
 const VALID_ROLES: AppUserRole[] = ["master", "head_coach", "coach", "player"];
+const DEV_ROLE_PREVIEW_KEY = "ucore_dev_role_preview";
+// IMPORTANT: DEV-only allowlist. This must never include non-admin users.
+const DEV_ROLE_PREVIEW_EMAIL_ALLOWLIST = new Set<string>(["pablomgz@hotmail.com"]);
 
 function normalizeRole(raw: unknown): AppUserRole {
-  if (typeof raw === "string" && (VALID_ROLES as string[]).includes(raw))
-    return raw as AppUserRole;
+  if (typeof raw === "string" && (VALID_ROLES as string[]).includes(raw)) return raw as AppUserRole;
   return "coach";
+}
+
+function readRolePreviewMode(): "staff" | "player" {
+  try {
+    const v = localStorage.getItem(DEV_ROLE_PREVIEW_KEY);
+    return v === "player" ? "player" : "staff";
+  } catch {
+    return "staff";
+  }
+}
+
+function writeRolePreviewMode(mode: "staff" | "player") {
+  try {
+    localStorage.setItem(DEV_ROLE_PREVIEW_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+}
+
+function canUseRolePreview(profile: UserProfile | null): boolean {
+  if (!profile?.email) return false;
+  return DEV_ROLE_PREVIEW_EMAIL_ALLOWLIST.has(profile.email);
 }
 
 function profileFromUser(user: User): UserProfile {
@@ -55,6 +87,7 @@ export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rolePreviewMode, setRolePreviewModeState] = useState<"staff" | "player">(() => readRolePreviewMode());
 
   useEffect(() => {
     let cancelled = false;
@@ -100,5 +133,32 @@ export function useAuth(): AuthState {
     setProfile(null);
   }, []);
 
-  return { user, profile, loading, signOut: handleSignOut };
+  const canPreview = canUseRolePreview(profile);
+  const effectiveRole: AppUserRole | null =
+    profile ? (canPreview && rolePreviewMode === "player" ? "player" : profile.role) : null;
+
+  const setRolePreviewMode = useCallback((mode: "staff" | "player") => {
+    writeRolePreviewMode(mode);
+    setRolePreviewModeState(mode);
+  }, []);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== DEV_ROLE_PREVIEW_KEY) return;
+      setRolePreviewModeState(readRolePreviewMode());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  return {
+    user,
+    profile,
+    effectiveRole,
+    loading,
+    signOut: handleSignOut,
+    canUseRolePreview: canPreview,
+    rolePreviewMode,
+    setRolePreviewMode,
+  };
 }

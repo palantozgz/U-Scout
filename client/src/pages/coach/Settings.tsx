@@ -41,7 +41,7 @@ const THEMES: { id: Theme; emoji: string; labelKey: string; previewBg: string; d
 export default function Settings() {
   const [, setLocation] = useLocation();
   const { locale, changeLocale, t } = useLocale();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, canUseRolePreview, rolePreviewMode, setRolePreviewMode } = useAuth();
   const { theme, setTheme } = useTheme();
 
   const handleSignOut = async () => {
@@ -175,6 +175,50 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground capitalize">{profile.role}</p>
             </div>
           )}
+          {canUseRolePreview ? (
+            <div className="px-5 py-3 border-b border-border">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-muted-foreground tracking-wide">DEV ROLE PREVIEW</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Internal QA only</p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRolePreviewMode("staff");
+                      setLocation("/home");
+                    }}
+                    className={[
+                      "h-8 px-2.5 rounded-lg text-[11px] font-bold border transition-colors",
+                      rolePreviewMode === "staff"
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                    ].join(" ")}
+                    aria-pressed={rolePreviewMode === "staff"}
+                  >
+                    Normal Staff Mode
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRolePreviewMode("player");
+                      setLocation("/home");
+                    }}
+                    className={[
+                      "h-8 px-2.5 rounded-lg text-[11px] font-bold border transition-colors",
+                      rolePreviewMode === "player"
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                    ].join(" ")}
+                    aria-pressed={rolePreviewMode === "player"}
+                  >
+                    Preview Player Mode
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <button
             type="button"
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-destructive/10 transition-colors text-left"

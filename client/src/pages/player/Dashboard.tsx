@@ -6,6 +6,7 @@ import { useLocale } from "@/lib/i18n";
 import { usePlayerTeamDetail } from "@/lib/player-home";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
+import { ModuleNav } from "@/pages/core/ModuleNav";
 
 export function PlayerTeamView() {
   const { t } = useLocale();
@@ -36,7 +37,7 @@ export function PlayerTeamView() {
   const { team, players } = data;
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground">
+    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-16">
       <header className="sticky top-0 z-10 bg-card/90 backdrop-blur-md border-b border-border px-3 py-3 flex items-center gap-3">
         <Button
           variant="ghost"
@@ -105,6 +106,7 @@ export function PlayerTeamView() {
           ))}
         </div>
       </main>
+      <ModuleNav />
     </div>
   );
 }

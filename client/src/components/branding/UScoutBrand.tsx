@@ -1,23 +1,45 @@
 /**
- * U Scout — splash animada (rAF) + logo estático + marca de agua.
- * Paleta: #060a14 fondo, trazos #e2e8f0.
+ * U Scout — splash + logo estático + marca de agua.
+ * U Core lockup: mismo símbolo aprobado (`UScoutLogo`) + CORE (misma jerarquía que SCOUT en lockup estático).
  */
-import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { UScoutLogo } from "@/components/UScoutLogo";
+import { cn } from "@/lib/utils";
 
-const BG = "#060a14";
-const STROKE = "#e2e8f0";
-const MUTED_TEXT = "#475569";
-const CYCLE_MS = 5500;
+// Approved U mark path (viewBox 0 0 1024 1024) copied from `client/src/components/UScoutLogo.tsx`.
+const U_MARK_PATH_D =
+  "M288.289 318.118C289.221 325.07 294.736 334.799 301.552 341.515C312.636 352.436 329.068 359.222 352.865 362.704C362.461 364.109 373.085 364.43 413.5 364.539C444.206 364.622 463.62 365.057 465.5 365.703C482.094 371.409 490.715 381.404 492.955 397.534C494.205 406.54 494.432 450.968 493.234 452.166C492.735 452.665 487.64 452.945 481.913 452.787L471.5 452.5L470.904 426.5C470.134 392.886 469.331 390.594 457.072 387.048C451.513 385.44 445.875 385.061 420.5 384.59C373.973 383.726 353.073 381.434 332.5 374.939C318.536 370.53 309.727 365.665 301.395 357.761C292.764 349.574 288.302 341.702 286.54 331.552C285.287 324.336 285.555 314 286.996 314C287.403 314 287.985 315.853 288.289 318.118ZM737.81 324.852C737.4 334.804 737.059 336.344 733.697 343.424C726.882 357.773 713.38 367.822 691.201 375.051C669.87 382.003 641.478 384.995 596.799 384.998C582.904 384.999 570.906 385.47 567.799 386.135C561.366 387.513 555.764 392.584 554.115 398.523C553.448 400.928 553.009 412.273 553.006 427.231L553 451.962L550.75 452.524C549.513 452.833 544.225 452.954 539 452.793L529.5 452.5L529.208 430C528.703 391.074 531.565 381.065 545.923 371.549C556.38 364.619 556.785 364.576 611.5 364.498C664.99 364.423 671.76 363.934 689.908 358.842C703.728 354.963 714.681 349.113 722.513 341.427C729.264 334.801 734.78 325.059 735.711 318.118C736.015 315.853 736.712 314 737.26 314C737.889 314 738.092 318.008 737.81 324.852ZM551.8 467.2C552.65 468.05 553 473.999 553 487.595C553 504.029 552.709 507.73 550.98 513.331C548.003 522.966 542.739 529.088 533.685 533.443C510.841 544.431 483.42 536.926 474.148 517.148C471.571 511.651 471.491 510.904 471.181 489.217L470.862 466.933L482.181 467.217L493.5 467.5L494 486.5C494.459 503.939 494.683 505.795 496.733 509.09C502.665 518.63 519.466 518.964 526.395 509.681C528.321 507.101 528.542 505.189 529 487.181L529.5 467.5L539.5 466.944C545 466.638 549.748 466.3 550.05 466.194C550.352 466.087 551.14 466.54 551.8 467.2ZM369.51 577.086C372.742 577.684 377.769 579.064 380.68 580.153L385.973 582.133L384.065 585.817C380.2 593.277 380.429 593.192 372 590.314C365.72 588.17 362.542 587.733 352.457 587.627C342.468 587.522 339.953 587.802 337.707 589.273C331.722 593.193 336.653 597.978 346.718 598.02C349.348 598.03 356.37 598.687 362.323 599.479C374.422 601.09 382.855 604.323 385.505 608.368C390.122 615.414 387.483 624.874 379.615 629.485C367.558 636.551 338.69 636.822 320.764 630.038L315.027 627.867L316.935 624.183C320.78 616.762 320.623 616.825 328.5 619.5C338.364 622.85 350.702 624.245 358.916 622.938C365.335 621.917 370 619.863 370 618.059C370 613.778 366.655 612.558 350.851 611.072C328.923 609.009 320.659 605.556 317.941 597.322C314.842 587.93 323.391 579.136 338 576.691C343.345 575.796 363.928 576.055 369.51 577.086ZM460.852 578.512C463.796 579.534 466.43 580.956 466.705 581.673C467.129 582.778 462.556 592 461.584 592C461.401 592 459.336 591.324 456.995 590.498C444.986 586.261 431.766 586.668 423.392 591.532C418.192 594.552 416.044 597.836 415.331 603.856C414.626 609.806 417.424 615.876 422.219 618.798C429.89 623.473 445.237 624.043 456.532 620.073L461.943 618.172L464.885 623.605L467.828 629.038L464.964 630.519C456.533 634.879 436.293 636.336 424.098 633.461C405.613 629.104 396.174 618.766 397.231 604.038C398.263 589.668 407.01 581.189 425.5 576.635C426.6 576.364 433.8 576.257 441.5 576.398C452.037 576.59 456.824 577.113 460.852 578.512ZM532.381 578.97C544.499 583.651 550.973 592.927 550.99 605.636C551.014 622.772 538.349 633.399 516.316 634.731C505.29 635.397 496.744 633.916 489.04 630.003C478.733 624.768 473.839 616.787 473.766 605.095C473.695 593.763 479.348 584.877 489.735 579.995C496.621 576.758 501.32 576.076 514.5 576.402C524.087 576.639 527.682 577.156 532.381 578.97ZM580 594.599C580 614.776 580.754 617.653 586.827 620.669C592.174 623.324 605.243 623.202 610.001 620.453C616.313 616.807 617.081 613.836 616.772 594.249L616.5 576.998L624.75 576.999L633 577L633.133 585.75C633.455 606.913 632.815 617.426 630.986 621C625.88 630.977 612.916 635.81 594.189 634.72C579.483 633.864 569.89 629.439 565.678 621.57C563.684 617.844 563.473 615.789 563.176 597.25L562.853 577H571.426H580V594.599ZM710 583V589H697.5H685V611.5V634H676.5H668V611.53V589.06L655.25 588.78L642.5 588.5L642.2 582.75L641.9 577H675.95H710V583ZM510 587.512C509.175 587.707 506.786 588.147 504.69 588.49C492.848 590.427 487.353 606.551 495.155 616.47C502.219 625.451 523.569 625.117 530.259 615.92C536.518 607.317 532.985 593.39 523.547 589.459C520.221 588.074 512.388 586.948 510 587.512Z";
 
-function easeInOutCubic(x: number): number {
-  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-}
-
-function smoothstep(edge0: number, edge1: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
+export function UCoreLogoSvgLockup({
+  size = 220,
+  className,
+}: {
+  size?: number;
+  className?: string;
+}) {
+  // Official temporary U CORE logo: use the approved raster asset exactly.
+  // We serve preprocessed transparent variants (light/dark) from `client/public/`.
+  return (
+    <span className={cn("inline-block", className)} aria-label="U Core" role="img">
+      <img
+        src="/ucore-logo-transparent.png"
+        alt=""
+        width={size}
+        height={size}
+        className="block h-auto select-none dark:hidden"
+        style={{ imageRendering: "auto" }}
+        draggable={false}
+      />
+      <img
+        src="/ucore-logo-transparent-dark.png"
+        alt=""
+        width={size}
+        height={size}
+        className="hidden h-auto select-none dark:block"
+        style={{ imageRendering: "auto" }}
+        draggable={false}
+      />
+    </span>
+  );
 }
 
 type NbaAuthSplashProps = {
@@ -48,7 +70,14 @@ export function NbaAuthSplash({ fadeOut }: NbaAuthSplashProps) {
         `}
       </style>
       <div className="uscout-splash-fadein text-foreground">
-        <UScoutLogo size={276} animated={false} />
+        <svg
+          viewBox="0 0 1024 1024"
+          className="block"
+          style={{ height: 276, width: 276, color: "currentColor" }}
+          aria-hidden
+        >
+          <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={U_MARK_PATH_D} />
+        </svg>
       </div>
     </div>
   );
@@ -58,7 +87,7 @@ export function NbaAuthSplash({ fadeOut }: NbaAuthSplashProps) {
 export function UScoutLogoStatic({ className = "" }: { className?: string }) {
   return (
     <div className={`flex flex-col items-center ${className}`}>
-      <svg viewBox="0 0 200 120" className="w-36 h-auto sm:w-40 text-[#e2e8f0]" aria-hidden>
+      <svg viewBox="0 0 200 120" className="w-36 h-auto sm:w-40 text-current" aria-hidden>
         <g
           fill="none"
           stroke="currentColor"
@@ -72,10 +101,123 @@ export function UScoutLogoStatic({ className = "" }: { className?: string }) {
         </g>
       </svg>
       <span
-        className="font-black text-xs sm:text-sm tracking-[0.42em] text-[#e2e8f9] mt-1 pl-[0.42em] italic"
+        className="font-black text-xs sm:text-sm tracking-[0.42em] text-current mt-1 pl-[0.42em] italic"
       >
         SCOUT
       </span>
+    </div>
+  );
+}
+
+/** Stroke U + CORE (legacy); prefer `UCoreLogoLockup` for product shell. */
+export function UCoreLogoStatic({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex flex-col items-center ${className}`}>
+      <svg viewBox="0 0 200 120" className="w-36 h-auto sm:w-40 text-current" aria-hidden>
+        <g
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          transform="translate(100 56) skewX(-11) translate(-100 -56)"
+        >
+          <path d="M 78 24 L 78 102 A 22 22 0 0 0 122 102 L 122 24" />
+          <path d="M 84 84 L 116 84" />
+        </g>
+      </svg>
+      <span className="font-black text-xs sm:text-sm tracking-[0.42em] text-current mt-1 pl-[0.42em] italic">
+        CORE
+      </span>
+    </div>
+  );
+}
+
+export type UCoreLogoLockupVariant = "splash" | "header";
+
+/** Theme for mark + wordmark (`currentColor` on `UScoutLogo`). */
+export type UCoreLogoLockupTheme = "inherit" | "on-dark" | "on-light";
+
+/**
+ * U + CORE lockup unificado (columna): mismo símbolo que splash aprobado, CORE con estilo SCOUT del lockup estático.
+ * - `splash`: misma escala de marca que `NbaAuthSplash` (276), centrado.
+ * - `header`: marca compacta + tipografía proporcional.
+ */
+export function UCoreLogoLockup({
+  variant,
+  theme = "inherit",
+  className,
+  markSize: markSizeProp,
+}: {
+  variant: UCoreLogoLockupVariant;
+  theme?: UCoreLogoLockupTheme;
+  className?: string;
+  /** Solo `header`; si se omite usa escala compacta preset. */
+  markSize?: number;
+}) {
+  const themeClass =
+    theme === "on-dark"
+      ? "text-zinc-50"
+      : theme === "on-light"
+        ? "text-zinc-950"
+        : "text-foreground";
+
+  const lockupSize = markSizeProp ?? (variant === "splash" ? 276 : 58);
+  return (
+    <div className={cn(themeClass, className)}>
+      <UCoreLogoSvgLockup size={lockupSize} />
+    </div>
+  );
+}
+
+/**
+ * CORE — misma familia que SCOUT en `UScoutLogoStatic` (font-black, italic, tracking amplio);
+ * kerning manual letra a letra (4 glifos vs 5 en SCOUT).
+ */
+// NOTE: CoreWordmark removed; CORE is integrated in the single SVG lockup above.
+
+/**
+ * @deprecated Usar `UCoreLogoLockup` (`variant="header"`). Se mantiene para imports antiguos.
+ */
+export function UCoreLogoModern({
+  className = "",
+  markSize = 34,
+}: {
+  className?: string;
+  markSize?: number;
+}) {
+  return <UCoreLogoLockup variant="header" theme="inherit" className={className} markSize={markSize} />;
+}
+
+type UCoreBootSplashProps = {
+  fadeOut?: boolean;
+};
+
+/** Loading/boot splash only (compact + fast). */
+export function UCoreBootSplash({ fadeOut = false }: UCoreBootSplashProps) {
+  return (
+    <div
+      className={cn(
+        "fixed inset-0 z-[100] flex items-center justify-center bg-background",
+        "transition-opacity duration-[160ms] ease-out",
+        "pointer-events-none",
+      )}
+      style={{ opacity: fadeOut ? 0 : 1 }}
+      role="status"
+      aria-label="Loading"
+    >
+      <style>
+        {`
+          @keyframes ucore-boot-fadein {
+            from { opacity: 0; transform: translateY(2px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+          }
+          .ucore-boot-fadein { animation: ucore-boot-fadein 180ms ease-out both; }
+        `}
+      </style>
+      <div className="ucore-boot-fadein text-foreground flex items-center justify-center">
+        <UCoreLogoSvgLockup size={260} className="scale-[1.0]" />
+      </div>
     </div>
   );
 }

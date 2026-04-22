@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Copy, Check, Users } from "lucide-react";
+import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +41,7 @@ import { toast } from "@/hooks/use-toast";
 import { isShortUserIdFallback, userDisplayLabel } from "@/lib/userDisplayLabel";
 import { cn } from "@/lib/utils";
 import { rosterSignature, setStoredRosterSignature } from "@/lib/clubRosterSeen";
+import { ModuleNav } from "@/pages/core/ModuleNav";
 import type {
   ClubAgeCategory,
   ClubGender,
@@ -228,7 +229,7 @@ export default function ClubManagement() {
   const { profile } = useAuth();
   const [clubNameDraft, setClubNameDraft] = useState("");
   const [nameDirty, setNameDirty] = useState(false);
-  const [activeTab, setActiveTab] = useState("staff");
+  const [activeTab, setActiveTab] = useState("overview");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteRole, setInviteRole] = useState<"coach" | "player">("coach");
@@ -299,6 +300,62 @@ export default function ClubManagement() {
     }
     return map;
   }, [q.data?.members]);
+
+  const overview = useMemo(() => {
+    if (!q.data) return null;
+    const members = q.data.members;
+    const staff = members.filter((m) => m.role === "coach" || m.role === "head_coach").filter((m) => m.status === "active");
+    const roster = members.filter((m) => m.role === "player").filter((m) => m.status === "active");
+    const pendingInvites = q.data.pendingInvitations.length;
+    const banned = members.filter((m) => m.status === "banned").length;
+
+    const missingContext: string[] = [];
+    if (!q.data.club.leagueType) missingContext.push(t("club_ctx_league"));
+    if (!q.data.club.gender) missingContext.push(t("club_ctx_gender"));
+    if (!q.data.club.level) missingContext.push(t("club_ctx_level"));
+    if (!q.data.club.ageCategory) missingContext.push(t("club_ctx_age"));
+
+    const alerts: Array<{ key: string; title: string; body: string }> = [];
+    if (pendingInvites > 0) {
+      alerts.push({
+        key: "invites",
+        title: "Pending invites",
+        body: `${pendingInvites} invitation${pendingInvites === 1 ? "" : "s"} waiting to be accepted.`,
+      });
+    }
+    if (missingContext.length > 0) {
+      alerts.push({
+        key: "context",
+        title: "Club context incomplete",
+        body: `Missing: ${missingContext.join(", ")}.`,
+      });
+    }
+    if (banned > 0) {
+      alerts.push({
+        key: "banned",
+        title: "Attention needed",
+        body: `${banned} member${banned === 1 ? "" : "s"} currently banned.`,
+      });
+    }
+    if (alerts.length === 0) {
+      alerts.push({
+        key: "ok",
+        title: "All clear",
+        body: "No urgent club items right now.",
+      });
+    }
+
+    const complianceScore = Math.max(0, 4 - missingContext.length);
+    return {
+      staffCount: staff.length,
+      rosterCount: roster.length,
+      pendingInvites,
+      missingContext,
+      complianceScore,
+      complianceTotal: 4,
+      alerts,
+    };
+  }, [q.data, t]);
 
   const copyLink = async (link: string, id: string) => {
     try {
@@ -386,7 +443,7 @@ export default function ClubManagement() {
   }
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background">
+    <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
       <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => setLocation("/coach")} className="-ml-2 shrink-0">
           <ArrowLeft className="w-5 h-5 text-foreground" />
@@ -646,6 +703,9 @@ export default function ClubManagement() {
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1 p-1 mb-4">
+                <TabsTrigger value="overview" className="text-xs font-bold">
+                  Overview
+                </TabsTrigger>
                 <TabsTrigger value="staff" className="text-xs font-bold">
                   {t("club_tab_staff")}
                 </TabsTrigger>
@@ -659,6 +719,84 @@ export default function ClubManagement() {
                   {t("club_tab_stats")}
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="overview" className="space-y-4 mt-0">
+                {!overview ? null : (
+                  <>
+                    <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Important alerts</p>
+                          <p className="text-xs text-muted-foreground mt-1">Executive overview of your club status.</p>
+                        </div>
+                        <AlertTriangle className="w-4 h-4 text-muted-foreground shrink-0" />
+                      </div>
+                      <ul className="space-y-2">
+                        {overview.alerts.slice(0, 3).map((a) => (
+                          <li key={a.key} className="rounded-xl border border-border bg-background/40 p-3">
+                            <p className="text-sm font-semibold text-foreground">{a.title}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{a.body}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+
+                    <section className="grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Staff active</p>
+                        <p className="mt-2 text-2xl font-black text-foreground">{overview.staffCount}</p>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Roster active</p>
+                        <p className="mt-2 text-2xl font-black text-foreground">{overview.rosterCount}</p>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Pending invites</p>
+                        <p className="mt-2 text-2xl font-black text-foreground">{overview.pendingInvites}</p>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-card p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Compliance</p>
+                          <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <p className="mt-2 text-2xl font-black text-foreground">
+                          {overview.complianceScore}/{overview.complianceTotal}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {overview.missingContext.length === 0 ? "Configured" : `${overview.missingContext.length} missing`}
+                        </p>
+                      </div>
+                    </section>
+
+                    <section className="rounded-2xl border border-border bg-card p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Quick actions</p>
+                      <div className="flex flex-wrap gap-2">
+                        {canManage ? (
+                          <>
+                            <Button size="sm" variant="secondary" className="font-bold gap-2" onClick={() => openInvite("coach")}>
+                              <UserPlus className="w-4 h-4" />
+                              {t("club_invite_staff")}
+                            </Button>
+                            <Button size="sm" variant="secondary" className="font-bold gap-2" onClick={() => openInvite("player")}>
+                              <UserPlus className="w-4 h-4" />
+                              {t("club_invite_player")}
+                            </Button>
+                          </>
+                        ) : null}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="font-bold gap-2"
+                          onClick={() => setActiveTab("invites")}
+                        >
+                          <ClipboardList className="w-4 h-4" />
+                          {t("club_tab_invitations")}
+                        </Button>
+                      </div>
+                    </section>
+                  </>
+                )}
+              </TabsContent>
 
               <TabsContent value="staff" className="space-y-3 mt-0">
                 {canManage && (
@@ -874,6 +1012,7 @@ export default function ClubManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ModuleNav />
     </div>
   );
 }
@@ -928,27 +1067,56 @@ function MemberRow({
         </div>
       </div>
       {canManage && (
-        <div className="flex flex-wrap gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive border-destructive/30 hover:bg-destructive/10"
-            disabled={delMember.isPending || isOwner}
-            onClick={() => delMember.mutate(m.id)}
-          >
-            {t("club_remove")}
-          </Button>
-          {!isOwner && !isSelf && (
+        variant === "staff" ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 w-9 p-0" aria-label="More actions">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[10rem]">
+              <DropdownMenuItem
+                className={cn("font-medium", isOwner && "opacity-50 pointer-events-none")}
+                onSelect={() => {
+                  if (isOwner) return;
+                  delMember.mutate(m.id);
+                }}
+              >
+                <span className="text-destructive">{t("club_remove")}</span>
+              </DropdownMenuItem>
+              {!isOwner && !isSelf ? (
+                <DropdownMenuItem
+                  className="font-medium"
+                  onSelect={() => banMut.mutate({ id: m.id, ban: !banned })}
+                >
+                  {banned ? t("club_unban") : t("club_ban")}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <div className="flex flex-wrap gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
-              disabled={banMut.isPending}
-              onClick={() => banMut.mutate({ id: m.id, ban: !banned })}
+              className="text-destructive border-destructive/30 hover:bg-destructive/10"
+              disabled={delMember.isPending || isOwner}
+              onClick={() => delMember.mutate(m.id)}
             >
-              {banned ? t("club_unban") : t("club_ban")}
+              {t("club_remove")}
             </Button>
-          )}
-        </div>
+            {!isOwner && !isSelf && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={banMut.isPending}
+                onClick={() => banMut.mutate({ id: m.id, ban: !banned })}
+              >
+                {banned ? t("club_unban") : t("club_ban")}
+              </Button>
+            )}
+          </div>
+        )
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import { useLocale } from "@/lib/i18n";
 import { usePlayerTeams } from "@/lib/player-home";
 import { UScoutLogo } from "@/components/UScoutLogo";
 import { cn } from "@/lib/utils";
+import { ModuleNav } from "@/pages/core/ModuleNav";
 
 export default function PlayerTeamList() {
   const { t } = useLocale();
@@ -12,7 +13,7 @@ export default function PlayerTeamList() {
   const { data, isLoading, isError } = usePlayerTeams();
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground">
+    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-16">
       <div
         style={{
           display: "flex",
@@ -118,6 +119,7 @@ export default function PlayerTeamList() {
           </ul>
         )}
       </main>
+      <ModuleNav />
     </div>
   );
 }

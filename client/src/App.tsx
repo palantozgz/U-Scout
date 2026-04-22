@@ -11,7 +11,7 @@ import NotFound from "@/pages/not-found";
 import { useAuth } from "@/lib/useAuth";
 import Login from "@/pages/Login";
 
-import { NbaAuthSplash } from "@/components/branding/UScoutBrand";
+import { UCoreBootSplash } from "@/components/branding/UScoutBrand";
 import CoachHome from "@/pages/coach/CoachHome";
 import ClubManagement from "@/pages/coach/ClubManagement";
 import JoinClub from "@/pages/JoinClub";
@@ -27,18 +27,10 @@ import PlayerTeamList from "@/pages/player/PlayerTeamList";
 import { PlayerTeamView } from "@/pages/player/Dashboard";
 import PlayerProfileViewer from "@/pages/player/Profile";
 import JoinPage from "@/pages/Join";
-
-const SPLASH_SHOWN_KEY = "splashShown";
-/** Duración máxima de la transición fade → off (ms). */
-const SPLASH_FADE_MS = 600;
-
-function readSplashAlreadyShown(): boolean {
-  try {
-    return sessionStorage.getItem(SPLASH_SHOWN_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
+import UCoreHome from "@/pages/core/Home";
+import UCoreScout from "@/pages/core/Scout";
+import UCoreSchedule from "@/pages/core/Schedule";
+import UCoreStats from "@/pages/core/Stats";
 
 function RootRedirect({ to }: { to: string }) {
   const [, setLocation] = useLocation();
@@ -93,6 +85,15 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
         <RootRedirect to={defaultPath} />
       </Route>
 
+      {/* U Core shell routes */}
+      <Route path="/home" component={UCoreHome} />
+      <Route path="/scout" component={UCoreScout} />
+      <Route path="/schedule" component={UCoreSchedule} />
+      <Route path="/stats" component={UCoreStats} />
+      <Route path="/more">
+        <RootRedirect to="/home" />
+      </Route>
+
       {/* Coach Mode — specific paths before /coach */}
       <Route path="/coach/player/:id/profile" component={PlayerProfileViewer} />
       <Route path="/coach/player/:id" component={PlayerEditor} />
@@ -130,7 +131,7 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
 }
 
 function AuthGate() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const [onboardingReady, setOnboardingReady] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
@@ -144,6 +145,13 @@ function AuthGate() {
     setOnboardingReady(true);
   }, [user?.id, user?.created_at, profile?.id]);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
   if (!user || !profile) return <Login />;
   if (!onboardingReady) {
     return (
@@ -155,7 +163,7 @@ function AuthGate() {
   if (needsOnboarding) {
     return <OnboardingFlow userId={user.id} onDone={() => setNeedsOnboarding(false)} />;
   }
-  const defaultPath = profile.role === "player" ? "/player" : "/coach";
+  const defaultPath = "/home";
   return <AuthenticatedRoutes defaultPath={defaultPath} />;
 }
 
@@ -163,70 +171,54 @@ function App() {
   const { loading, user, profile } = useAuth();
   const [loc] = useLocation();
   const isJoinRoute = loc.startsWith("/join/") || loc.startsWith("/join-club/");
-  const [skipSplash, setSkipSplash] = useState(readSplashAlreadyShown);
-  const [splashDone, setSplashDone] = useState(skipSplash);
-  const [splashPhase, setSplashPhase] = useState<"on" | "fade" | "off">(
-    skipSplash ? "off" : "on",
-  );
-  const wasAuthedRef = useRef<boolean>(false);
   const isAuthed = !!user && !!profile;
+  const [showSplash, setShowSplash] = useState(false);
+  const [splashFadeOut, setSplashFadeOut] = useState(false);
+  const splashTimersRef = useRef<{ fade?: number; hard?: number } | null>(null);
 
-  // Show splash after login (unauthenticated -> authenticated).
   useEffect(() => {
-    const wasAuthed = wasAuthedRef.current;
-    wasAuthedRef.current = isAuthed;
-    if (wasAuthed || !isAuthed) return;
-
-    try {
-      sessionStorage.removeItem(SPLASH_SHOWN_KEY);
-    } catch {
-      /* ignore */
+    // Join routes should never show the boot splash.
+    if (isJoinRoute) {
+      setShowSplash(false);
+      setSplashFadeOut(false);
+      if (splashTimersRef.current?.fade) window.clearTimeout(splashTimersRef.current.fade);
+      if (splashTimersRef.current?.hard) window.clearTimeout(splashTimersRef.current.hard);
+      splashTimersRef.current = null;
+      return;
     }
-    setSkipSplash(false);
-    setSplashDone(false);
-    setSplashPhase("on");
-  }, [isAuthed]);
 
-  useEffect(() => {
-    if (skipSplash) return;
-    const id = window.setTimeout(() => setSplashDone(true), 2000);
-    return () => window.clearTimeout(id);
-  }, [skipSplash]);
+    // Auth ready -> exit instantly.
+    if (!loading) {
+      setShowSplash(false);
+      setSplashFadeOut(false);
+      if (splashTimersRef.current?.fade) window.clearTimeout(splashTimersRef.current.fade);
+      if (splashTimersRef.current?.hard) window.clearTimeout(splashTimersRef.current.hard);
+      splashTimersRef.current = null;
+      return;
+    }
 
-  const showSplash = !skipSplash && !splashDone;
+    // Auth still loading: show splash, but never block the app.
+    setShowSplash(true);
+    setSplashFadeOut(false);
 
-  useEffect(() => {
-    if (skipSplash) return;
-    if (showSplash || splashPhase !== "on") return;
-    setSplashPhase("fade");
-  }, [skipSplash, showSplash, splashPhase]);
+    if (splashTimersRef.current?.fade) window.clearTimeout(splashTimersRef.current.fade);
+    if (splashTimersRef.current?.hard) window.clearTimeout(splashTimersRef.current.hard);
 
-  useEffect(() => {
-    if (skipSplash) return;
-    // Safety timeout: si después de 2 segundos la splash sigue activa, forzar el cierre
-    const timeout = window.setTimeout(() => {
-      setSplashPhase((prev) => (prev === "on" ? "fade" : prev));
-    }, 2000);
-    return () => window.clearTimeout(timeout);
-  }, [skipSplash]);
+    // Max visible time: 800ms (then fade fast).
+    const fade = window.setTimeout(() => setSplashFadeOut(true), 800);
+    // Hard timeout: remove splash at 1200ms even if auth still loading.
+    const hard = window.setTimeout(() => {
+      setShowSplash(false);
+      setSplashFadeOut(false);
+    }, 1200);
 
-  useEffect(() => {
-    if (skipSplash) return;
-    if (splashPhase !== "fade") return;
-    const id = window.setTimeout(() => {
-      try {
-        sessionStorage.setItem(SPLASH_SHOWN_KEY, "true");
-      } catch {
-        /* ignore quota / private mode */
-      }
-      setSplashPhase("off");
-    }, SPLASH_FADE_MS);
-    return () => window.clearTimeout(id);
-  }, [skipSplash, splashPhase]);
+    splashTimersRef.current = { fade, hard };
 
-  if (!skipSplash && splashPhase !== "off") {
-    return <NbaAuthSplash fadeOut={splashPhase === "fade"} />;
-  }
+    return () => {
+      if (fade) window.clearTimeout(fade);
+      if (hard) window.clearTimeout(hard);
+    };
+  }, [isJoinRoute, loading]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -234,17 +226,12 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <div className="min-h-[100dvh] bg-background max-w-md mx-auto relative shadow-2xl overflow-hidden overflow-y-auto border-x border-border">
-          {loading && !isJoinRoute ? (
-            <div className="flex items-center justify-center min-h-[100dvh] bg-background">
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : (
-            <Switch>
-              <Route path="/join/:token" component={JoinPage} />
-              <Route path="/join-club/:token" component={JoinClub} />
-              <Route component={AuthGate} />
-            </Switch>
-          )}
+          {showSplash ? <UCoreBootSplash fadeOut={splashFadeOut} /> : null}
+          <Switch>
+            <Route path="/join/:token" component={JoinPage} />
+            <Route path="/join-club/:token" component={JoinClub} />
+            <Route component={AuthGate} />
+          </Switch>
         </div>
       </TooltipProvider>
       </ClubGenderProvider>

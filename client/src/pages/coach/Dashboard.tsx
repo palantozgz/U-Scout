@@ -12,6 +12,7 @@ import { isRealPhoto } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useApprovalStatus, useUnpublishReport } from "@/lib/approval-api";
 import { toast } from "@/hooks/use-toast";
+import { ModuleNav } from "@/pages/core/ModuleNav";
 
 export type CoachDashboardMode = "editor" | "reports";
 
@@ -135,7 +136,7 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
   }
 
   return (
-    <div className="relative flex flex-col min-h-[100dvh] bg-background overflow-hidden">
+    <div className="relative flex flex-col min-h-[100dvh] bg-background overflow-hidden pb-16">
       <UScoutWatermark position="bottom-right" />
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -306,6 +307,7 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
           );
         })}
       </main>
+      <ModuleNav />
     </div>
   );
 }
