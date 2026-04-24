@@ -431,7 +431,16 @@ export default function ClubManagement() {
     inviteMut.mutate(
       { role: inviteRole, email: inviteEmail.trim() || undefined },
       {
-        onSuccess: (data) => setDialogLink(data.link),
+        onSuccess: (data) => {
+          setDialogLink(data.link);
+          toast({ description: t("invite_link_label") });
+        },
+        onError: (err) => {
+          toast({
+            variant: "destructive" as any,
+            description: typeof (err as any)?.message === "string" ? (err as any).message : t("invite_create_error"),
+          });
+        },
       },
     );
   };
@@ -1098,7 +1107,11 @@ export default function ClubManagement() {
                 className="bg-background"
               />
             </div>
-            {inviteMut.isError && <p className="text-sm text-destructive">{t("invite_create_error")}</p>}
+            {inviteMut.isError ? (
+              <p className="text-sm text-destructive">
+                {typeof (inviteMut.error as any)?.message === "string" ? (inviteMut.error as any).message : t("invite_create_error")}
+              </p>
+            ) : null}
             {dialogLink && (
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
                 <p className="text-xs font-bold text-foreground">{t("invite_link_label")}</p>

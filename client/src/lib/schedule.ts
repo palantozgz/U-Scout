@@ -25,6 +25,25 @@ export type ScheduleParticipant = {
   responded_at: string;
 };
 
+export type ScheduleRegistration = {
+  id: string;
+  club_id: string;
+  event_id: string;
+  user_id: string;
+  mode: "signup" | "group_auto" | "group_coach_assign" | "selected_players";
+  state: "joined" | "left" | "waitlisted";
+  group_label: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export function computeWaitlistState(params: { cap: number | null; joinedCount: number }): "joined" | "waitlisted" {
+  const cap = typeof params.cap === "number" && Number.isFinite(params.cap) ? Math.max(0, Math.floor(params.cap)) : 0;
+  const joined = Math.max(0, Math.floor(params.joinedCount));
+  if (!cap) return "joined";
+  return joined >= cap ? "waitlisted" : "joined";
+}
+
 export function startOfTodayLocal(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -390,6 +409,153 @@ export function useUpsertScheduleParticipant() {
     },
     onSettled: (_d, _e, vars) => {
       void qc.invalidateQueries({ queryKey: ["schedule", "participants", "byEvents", vars.club_id], exact: false });
+    },
+  });
+}
+
+export function useScheduleRegistrationsForUser(params: {
+  clubId?: string;
+  userId?: string;
+  eventIds?: string[];
+}) {
+  const eventIds = params.eventIds ?? [];
+  return useQuery({
+    queryKey: ["schedule", "registrations", "byUser", params.clubId ?? null, params.userId ?? null, eventIds],
+    enabled: Boolean(params.clubId) && Boolean(params.userId) && eventIds.length > 0,
+    networkMode: "offlineFirst",
+    queryFn: async (): Promise<ScheduleRegistration[]> => {
+      const { data, error } = await supabase
+        .from("schedule_registrations")
+        .select("id, club_id, event_id, user_id, mode, state, group_label, created_at, updated_at")
+        .eq("club_id", params.clubId!)
+        .eq("user_id", params.userId!)
+        .in("event_id", eventIds);
+      if (error) throw error;
+      return (data as ScheduleRegistration[]) ?? [];
+    },
+  });
+}
+
+export function useScheduleRegistrationsForEvents(params: { clubId?: string; eventIds?: string[] }) {
+  const eventIds = params.eventIds ?? [];
+  return useQuery({
+    queryKey: ["schedule", "registrations", "byEvents", params.clubId ?? null, eventIds],
+    enabled: Boolean(params.clubId) && eventIds.length > 0,
+    networkMode: "offlineFirst",
+    queryFn: async (): Promise<ScheduleRegistration[]> => {
+      const { data, error } = await supabase
+        .from("schedule_registrations")
+        .select("id, club_id, event_id, user_id, mode, state, group_label, created_at, updated_at")
+        .eq("club_id", params.clubId!)
+        .in("event_id", eventIds);
+      if (error) throw error;
+      return (data as ScheduleRegistration[]) ?? [];
+    },
+  });
+}
+
+export function useUpsertScheduleRegistration() {
+  const qc = useQueryClient();
+  return useMutation({
+    onMutate: async (vars) => {
+      const prefix: readonly unknown[] = ["schedule", "registrations", "byUser", vars.club_id, vars.user_id];
+      const previous = qc.getQueriesData<ScheduleRegistration[]>({ queryKey: prefix, exact: false });
+      const byEventsPrefix: readonly unknown[] = ["schedule", "registrations", "byEvents", vars.club_id];
+      const previousByEvents = qc.getQueriesData<ScheduleRegistration[]>({ queryKey: byEventsPrefix, exact: false });
+
+      qc.setQueriesData<ScheduleRegistration[]>({ queryKey: prefix, exact: false }, (cur) => {
+        const existing = (cur ?? []).find((r) => r.event_id === vars.event_id);
+        const nextRow: ScheduleRegistration = existing
+          ? {
+              ...existing,
+              mode: vars.mode,
+              state: vars.state,
+              group_label: typeof vars.group_label === "string" ? vars.group_label : null,
+              updated_at: new Date().toISOString(),
+            }
+          : {
+              id: `optimistic-${Math.random().toString(16).slice(2)}`,
+              club_id: vars.club_id,
+              event_id: vars.event_id,
+              user_id: vars.user_id,
+              mode: vars.mode,
+              state: vars.state,
+              group_label: typeof vars.group_label === "string" ? vars.group_label : null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+        const without = (cur ?? []).filter((r) => r.event_id !== vars.event_id);
+        return [...without, nextRow];
+      });
+
+      qc.setQueriesData<ScheduleRegistration[]>({ queryKey: byEventsPrefix, exact: false }, (cur) => {
+        const existing = (cur ?? []).find((r) => r.event_id === vars.event_id && r.user_id === vars.user_id);
+        const nextRow: ScheduleRegistration = existing
+          ? {
+              ...existing,
+              mode: vars.mode,
+              state: vars.state,
+              group_label: typeof vars.group_label === "string" ? vars.group_label : null,
+              updated_at: new Date().toISOString(),
+            }
+          : {
+              id: `optimistic-${Math.random().toString(16).slice(2)}`,
+              club_id: vars.club_id,
+              event_id: vars.event_id,
+              user_id: vars.user_id,
+              mode: vars.mode,
+              state: vars.state,
+              group_label: typeof vars.group_label === "string" ? vars.group_label : null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+        const without = (cur ?? []).filter((r) => !(r.event_id === vars.event_id && r.user_id === vars.user_id));
+        return [...without, nextRow];
+      });
+
+      return { prefix, previous, byEventsPrefix, previousByEvents };
+    },
+    mutationFn: async (body: {
+      club_id: string;
+      event_id: string;
+      user_id: string;
+      mode: ScheduleRegistration["mode"];
+      state: ScheduleRegistration["state"];
+      group_label?: string | null;
+    }) => {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("schedule_registrations")
+        .upsert(
+          {
+            club_id: body.club_id,
+            event_id: body.event_id,
+            user_id: body.user_id,
+            mode: body.mode,
+            state: body.state,
+            group_label: body.group_label ?? null,
+            updated_at: nowIso,
+          },
+          { onConflict: "event_id,user_id" },
+        )
+        .select("id, club_id, event_id, user_id, mode, state, group_label, created_at, updated_at")
+        .single();
+      if (error) throw error;
+      return data as ScheduleRegistration;
+    },
+    onError: (_err, _vars, ctx) => {
+      if (!ctx) return;
+      for (const [key, data] of ctx.previous) qc.setQueryData(key, data);
+      for (const [key, data] of ctx.previousByEvents) qc.setQueryData(key, data);
+    },
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: ["schedule", "registrations", "byUser", vars.club_id, vars.user_id],
+        exact: false,
+      });
+    },
+    onSettled: (_d, _e, vars) => {
+      void qc.invalidateQueries({ queryKey: ["schedule", "registrations", "byEvents", vars.club_id], exact: false });
     },
   });
 }

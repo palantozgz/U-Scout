@@ -49,6 +49,9 @@ import {
   useDeleteScheduleEvent,
   useScheduleParticipantsForEvents,
   useScheduleParticipantsForUser,
+  useScheduleRegistrationsForEvents,
+  useScheduleRegistrationsForUser,
+  useUpsertScheduleRegistration,
   useScheduleEventsRange,
   useThisWeekScheduleEvents,
   useTodayScheduleEvents,
@@ -58,6 +61,7 @@ import {
   useUpsertScheduleParticipant,
   startOfTomorrowLocal,
   type ScheduleEvent,
+  computeWaitlistState,
 } from "@/lib/schedule";
 
 type AttendanceMode = "all_team" | "groups" | "signup" | "selected_players";
@@ -179,6 +183,7 @@ export default function Schedule() {
   const updateEventMut = useUpdateScheduleEvent();
   const deleteEventMut = useDeleteScheduleEvent();
   const upsertParticipant = useUpsertScheduleParticipant();
+  const upsertRegistration = useUpsertScheduleRegistration();
   const weekRestSessions = useMemo(() => {
     const start = startOfTomorrowLocal();
     start.setDate(start.getDate() + 1);
@@ -202,6 +207,16 @@ export default function Schedule() {
   const todayParticipantsQ = useScheduleParticipantsForEvents({
     clubId,
     eventIds: todayEventsQ.data?.map((e) => e.id) ?? [],
+  });
+
+  const myRegistrationsQ = useScheduleRegistrationsForUser({
+    clubId,
+    userId,
+    eventIds: isPlayer ? participantEventIds : [],
+  });
+  const todayRegistrationsQ = useScheduleRegistrationsForEvents({
+    clubId,
+    eventIds: isPlayer ? (todayEventsQ.data?.map((e) => e.id) ?? []) : [],
   });
   const wellnessPctQ = useTodayWellnessSubmissionPct({ clubId, playerUserIds: rosterPlayerUserIds });
 
@@ -279,7 +294,6 @@ export default function Schedule() {
   const [customDurationMins, setCustomDurationMins] = useState<string>("");
   const [groupAssignOpen, setGroupAssignOpen] = useState(false);
   const [choosePlayersOpen, setChoosePlayersOpen] = useState(false);
-  const [playerActionsTick, setPlayerActionsTick] = useState(0);
   const [trainingTags, setTrainingTags] = useState<Set<string>>(() => new Set());
   const [subgroupCount, setSubgroupCount] = useState("");
   const [subgroupMinutes, setSubgroupMinutes] = useState("");
@@ -567,6 +581,12 @@ export default function Schedule() {
     fromIso: selectedWeekStart.toISOString(),
     toIso: selectedWeekEnd.toISOString(),
     key: "plannerWeek",
+  });
+
+  const plannerEventIds = useMemo(() => (plannerWeekQ.data ?? []).map((e) => e.id), [plannerWeekQ.data]);
+  const plannerRegistrationsQ = useScheduleRegistrationsForEvents({
+    clubId,
+    eventIds: !isPlayer ? plannerEventIds : [],
   });
 
   const prevWeekQ = useScheduleEventsRange({
@@ -1429,9 +1449,6 @@ export default function Schedule() {
     }
   }, [localKey, showLocalWellness]);
 
-  const playerSignupKey = (club: string, eventId: string, user: string) => `uscout-schedule:signup:${club}:${eventId}:${user}`;
-  const playerGroupKey = (club: string, eventId: string, user: string) => `uscout-schedule:group:${club}:${eventId}:${user}`;
-
   return (
     <ModulePageShell title={t("ucore_card_schedule_title")}>
       <div className="p-4 pb-10 max-w-md mx-auto w-full">
@@ -1521,6 +1538,8 @@ export default function Schedule() {
                     ) : (
                       (todayEventsQ.data ?? []).map((ev) => {
                         const my = (myParticipantsQ.data ?? []).find((p) => p.event_id === ev.id);
+                        const myReg = (myRegistrationsQ.data ?? []).find((r) => r.event_id === ev.id) ?? null;
+                        const regsForEvent = (todayRegistrationsQ.data ?? []).filter((r) => r.event_id === ev.id);
                         const rowPending = pendingSessionIds.has(ev.id);
                         const attendanceRequired = ev.attendance_required !== false;
                         const parsed = readConstraintsFromNotes(ev.notes ?? null);
@@ -1530,18 +1549,35 @@ export default function Schedule() {
                           mode === "selected_players" && Array.isArray(att?.selected_player_ids) && userId
                             ? att.selected_player_ids.map(String).includes(String(userId))
                             : false;
-                        // Ensure localStorage-backed actions re-render immediately after changes.
-                        void playerActionsTick;
-                        const isSignedUp =
-                          mode === "signup" && clubId && userId
-                            ? Boolean(window.localStorage.getItem(playerSignupKey(clubId, ev.id, userId)))
-                            : false;
+                        const isSignedUp = mode === "signup" && myReg?.mode === "signup" && myReg.state !== "left";
                         const chosenGroup =
-                          mode === "groups" && att?.group_signup_mode === "auto_signup" && clubId && userId
-                            ? window.localStorage.getItem(playerGroupKey(clubId, ev.id, userId))
+                          mode === "groups" &&
+                          att?.group_signup_mode === "auto_signup" &&
+                          myReg?.mode === "group_auto" &&
+                          myReg.state !== "left"
+                            ? (myReg.group_label ?? null)
                             : null;
                         const groupsN = Math.max(2, Math.min(6, Number(att?.groups_count) || 2));
                         const groupCap = Number(att?.group_capacity) || null;
+                        const signupCap = Number(att?.signup_max_spots) || null;
+                        const myWaitlisted = Boolean(myReg && myReg.state === "waitlisted");
+                        const myWaitlistPos = (() => {
+                          if (!myWaitlisted || !myReg?.created_at) return null;
+                          const relevant =
+                            mode === "signup"
+                              ? regsForEvent.filter((r) => r.mode === "signup" && r.state === "waitlisted")
+                              : mode === "groups" && att?.group_signup_mode === "auto_signup" && chosenGroup
+                                ? regsForEvent.filter(
+                                    (r) =>
+                                      r.mode === "group_auto" &&
+                                      r.group_label === chosenGroup &&
+                                      r.state === "waitlisted",
+                                  )
+                                : [];
+                          relevant.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                          const idx = relevant.findIndex((r) => r.user_id === myReg.user_id);
+                          return idx >= 0 ? idx + 1 : null;
+                        })();
                         const assignedGroupIdx =
                           mode === "groups" && att?.group_signup_mode === "coach_assign" && userId
                             ? (typeof att?.coach_assignments?.[String(userId)] === "number"
@@ -1586,20 +1622,49 @@ export default function Schedule() {
                                         });
                                     };
 
+                                    const setRegistration = async (patch: {
+                                      mode: "signup" | "group_auto";
+                                      state: "joined" | "left" | "waitlisted";
+                                      group_label?: string | null;
+                                    }) => {
+                                      if (!clubId || !userId) return;
+                                      await upsertRegistration.mutateAsync({
+                                        club_id: clubId,
+                                        event_id: ev.id,
+                                        user_id: userId,
+                                        mode: patch.mode,
+                                        state: patch.state,
+                                        group_label: patch.group_label ?? null,
+                                      });
+                                    };
+
                                     const disabledCore =
-                                      !clubId || !userId || myParticipantsQ.isLoading || rowPending || upsertParticipant.isPending;
+                                      !clubId ||
+                                      !userId ||
+                                      myParticipantsQ.isLoading ||
+                                      myRegistrationsQ.isLoading ||
+                                      todayRegistrationsQ.isLoading ||
+                                      rowPending ||
+                                      upsertParticipant.isPending ||
+                                      upsertRegistration.isPending;
 
                                     if (mode === "selected_players" && !selectedMandatory) {
                                       return null;
                                     }
 
                                     if (mode === "signup") {
+                                      const joinedCount = regsForEvent.filter((r) => r.mode === "signup" && r.state === "joined").length;
+                                      const isFull = Boolean(signupCap) && joinedCount >= (signupCap ?? 0);
                                       return (
                                         <div className="flex items-center gap-2">
                                           {isSignedUp ? (
                                             <>
                                               <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-[11px] font-bold text-foreground">
-                                                {t("schedule_player_joined")}
+                                                {myWaitlisted
+                                                  ? myWaitlistPos
+                                                    ? t("schedule_player_waitlisted_pos" as any).replace("{pos}", String(myWaitlistPos))
+                                                    : t("schedule_player_waitlisted" as any)
+                                                  : t("schedule_player_joined")}
                                               </span>
                                               <Button
                                                 size="sm"
@@ -1608,13 +1673,11 @@ export default function Schedule() {
                                                 disabled={disabledCore}
                                                 onClick={() => {
                                                   if (!clubId || !userId) return;
-                                                  try {
-                                                    window.localStorage.removeItem(playerSignupKey(clubId, ev.id, userId));
-                                                  } catch {
-                                                    // ignore
-                                                  }
-                                                  setParticipantStatus("declined");
-                                                  setPlayerActionsTick((x) => x + 1);
+                                                  void setRegistration({ mode: "signup", state: "left", group_label: null })
+                                                    .catch(() =>
+                                                      toast({ variant: "destructive", description: t("schedule_attendance_error") }),
+                                                    )
+                                                    .finally(() => setParticipantStatus("declined"));
                                                 }}
                                               >
                                                 {t("schedule_player_leave")}
@@ -1628,16 +1691,15 @@ export default function Schedule() {
                                               disabled={disabledCore}
                                               onClick={() => {
                                                 if (!clubId || !userId) return;
-                                                try {
-                                                  window.localStorage.setItem(playerSignupKey(clubId, ev.id, userId), "1");
-                                                } catch {
-                                                  // ignore
-                                                }
-                                                setParticipantStatus("confirmed");
-                                                setPlayerActionsTick((x) => x + 1);
+                                                const nextState = computeWaitlistState({ cap: signupCap, joinedCount });
+                                                void setRegistration({ mode: "signup", state: nextState, group_label: null })
+                                                  .then(() => setParticipantStatus("confirmed"))
+                                                  .catch(() =>
+                                                    toast({ variant: "destructive", description: t("schedule_attendance_error") }),
+                                                  );
                                               }}
                                             >
-                                              {t("schedule_player_join_session")}
+                                              {isFull ? t("schedule_player_join_waitlist" as any) : t("schedule_player_join_session")}
                                             </Button>
                                           )}
                                         </div>
@@ -1645,6 +1707,13 @@ export default function Schedule() {
                                     }
 
                                     if (mode === "groups" && att?.group_signup_mode === "auto_signup") {
+                                      const isFullGroup = (label: string) => {
+                                        if (!groupCap) return false;
+                                        const joinedCount = regsForEvent.filter(
+                                          (r) => r.mode === "group_auto" && r.group_label === label && r.state === "joined",
+                                        ).length;
+                                        return joinedCount >= groupCap;
+                                      };
                                       return (
                                         <div className="flex items-center gap-2">
                                           <DropdownMenu>
@@ -1658,22 +1727,29 @@ export default function Schedule() {
                                             <DropdownMenuContent align="end">
                                               {Array.from({ length: groupsN }).map((_, idx) => {
                                                 const label = String.fromCharCode(65 + idx);
+                                                const full = isFullGroup(label);
                                                 return (
                                                   <DropdownMenuItem
                                                     key={label}
                                                     onClick={() => {
                                                       if (!clubId || !userId) return;
-                                                      try {
-                                                        window.localStorage.setItem(playerGroupKey(clubId, ev.id, userId), label);
-                                                      } catch {
-                                                        // ignore
-                                                      }
-                                                      setParticipantStatus("confirmed");
-                                                      setPlayerActionsTick((x) => x + 1);
+                                                      const joinedCount = regsForEvent.filter(
+                                                        (r) => r.mode === "group_auto" && r.group_label === label && r.state === "joined",
+                                                      ).length;
+                                                      const nextState = computeWaitlistState({ cap: groupCap, joinedCount });
+                                                      void setRegistration({ mode: "group_auto", state: nextState, group_label: label })
+                                                        .then(() => setParticipantStatus("confirmed"))
+                                                        .catch(() =>
+                                                          toast({
+                                                            variant: "destructive",
+                                                            description: t("schedule_attendance_error"),
+                                                          }),
+                                                        );
                                                     }}
                                                   >
                                                     {t("schedule_player_group_pick").replace("{group}", label)}
                                                     {groupCap ? ` · ${t("schedule_player_group_cap").replace("{cap}", String(groupCap))}` : ""}
+                                                    {full ? ` · ${t("schedule_player_full" as any)}` : ""}
                                                   </DropdownMenuItem>
                                                 );
                                               })}
@@ -1684,6 +1760,7 @@ export default function Schedule() {
                                             <>
                                               <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-[11px] font-bold text-foreground">
                                                 {t("schedule_player_group").replace("{group}", chosenGroup)}
+                                                {myWaitlisted ? ` · ${t("schedule_player_waitlisted_badge" as any)}` : ""}
                                               </span>
                                               <Button
                                                 size="sm"
@@ -1692,13 +1769,11 @@ export default function Schedule() {
                                                 disabled={disabledCore}
                                                 onClick={() => {
                                                   if (!clubId || !userId) return;
-                                                  try {
-                                                    window.localStorage.removeItem(playerGroupKey(clubId, ev.id, userId));
-                                                  } catch {
-                                                    // ignore
-                                                  }
-                                                  setParticipantStatus("declined");
-                                                  setPlayerActionsTick((x) => x + 1);
+                                                  void setRegistration({ mode: "group_auto", state: "left", group_label: null })
+                                                    .catch(() =>
+                                                      toast({ variant: "destructive", description: t("schedule_attendance_error") }),
+                                                    )
+                                                    .finally(() => setParticipantStatus("declined"));
                                                 }}
                                               >
                                                 {t("schedule_player_leave_group")}
@@ -1826,45 +1901,53 @@ export default function Schedule() {
                 </div>
 
                 {staffView === "planner" ? (
-                  <div className="mt-2 grid grid-cols-3 items-center gap-2">
+                  <div className="mt-1 grid grid-cols-3 items-center gap-2">
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="h-11 w-11 px-0 justify-self-start"
+                      variant="secondary"
+                      className="h-10 px-3 justify-self-start bg-background/40 hover:bg-muted/40"
                       onClick={() => setSelectedWeekStart((p) => new Date(p.getTime() - 7 * 86400000))}
                       aria-label={t("schedule_week_prev" as any)}
                     >
-                      ←
+                      <span className="text-xs font-extrabold tracking-tight">← Week</span>
                     </Button>
+
+                    {isCurrentWeek ? (
+                      <div className="h-10 w-full max-w-[220px] justify-self-center inline-flex flex-col items-center justify-center">
+                        <span className="text-xs font-black tracking-tight text-muted-foreground">{t("schedule_this_week" as any)}</span>
+                        <span className="text-[10px] font-semibold text-muted-foreground/80">{fmtWeekRange(selectedWeekStart)}</span>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-10 px-3 justify-self-center w-full max-w-[220px] border border-border bg-transparent hover:bg-muted/30"
+                        onClick={() => scrollToToday()}
+                      >
+                        <span className="flex flex-col items-center leading-tight">
+                          <span className="truncate whitespace-nowrap text-xs font-extrabold tracking-tight">
+                            {t("schedule_go_current_week" as any)}
+                          </span>
+                          <span className="text-[10px] font-semibold text-muted-foreground/80">{fmtWeekRange(selectedWeekStart)}</span>
+                        </span>
+                      </Button>
+                    )}
 
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="h-11 px-3 justify-self-center w-full max-w-[220px]"
-                      onClick={() => {
-                        if (!isCurrentWeek) scrollToToday();
-                      }}
-                    >
-                      <span className="truncate whitespace-nowrap">
-                        {isCurrentWeek ? t("schedule_this_week" as any) : t("schedule_go_current_week" as any)}
-                      </span>
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-11 w-11 px-0 justify-self-end"
+                      variant="secondary"
+                      className="h-10 px-3 justify-self-end bg-background/40 hover:bg-muted/40"
                       onClick={() => setSelectedWeekStart((p) => new Date(p.getTime() + 7 * 86400000))}
                       aria-label={t("schedule_week_next" as any)}
                     >
-                      →
+                      <span className="text-xs font-extrabold tracking-tight">Week →</span>
                     </Button>
                   </div>
                 ) : null}
 
                 {staffView === "planner" ? (
                   <>
-                    <div className="mt-3 rounded-2xl border border-border bg-card p-4">
+                    <div className="mt-2 rounded-2xl border border-border bg-card p-3">
                       <p className="text-[11px] font-semibold text-muted-foreground">{t("schedule_planner_hint")}</p>
 
                     {!isLandscape ? (
@@ -2089,6 +2172,37 @@ export default function Schedule() {
                                                 {formatTime(ev.starts_at)}
                                                 {ev.location ? ` · ${ev.location}` : ""}
                                               </p>
+                                              {(() => {
+                                                const parsed = readConstraintsFromNotes(ev.notes ?? null);
+                                                const att = parsed.constraints?.attendance as any;
+                                                const mode: AttendanceMode = (att?.mode as AttendanceMode) || "all_team";
+                                                const regs = (plannerRegistrationsQ.data ?? []).filter((r) => r.event_id === ev.id);
+                                                const joined =
+                                                  mode === "signup"
+                                                    ? regs.filter((r) => r.mode === "signup" && r.state === "joined").length
+                                                    : mode === "groups" && att?.group_signup_mode === "auto_signup"
+                                                      ? regs.filter((r) => r.mode === "group_auto" && r.state === "joined").length
+                                                      : 0;
+                                                const waitlisted =
+                                                  mode === "signup"
+                                                    ? regs.filter((r) => r.mode === "signup" && r.state === "waitlisted").length
+                                                    : mode === "groups" && att?.group_signup_mode === "auto_signup"
+                                                      ? regs.filter((r) => r.mode === "group_auto" && r.state === "waitlisted").length
+                                                      : 0;
+                                                if (joined + waitlisted === 0) return null;
+                                                return (
+                                                  <div className="mt-1 flex flex-wrap gap-1">
+                                                    <span className="px-1.5 py-0.5 rounded-full border border-border bg-muted/30 text-[9px] font-semibold text-muted-foreground">
+                                                      {t("schedule_player_joined")} {joined}
+                                                    </span>
+                                                    {waitlisted > 0 ? (
+                                                      <span className="px-1.5 py-0.5 rounded-full border border-border bg-muted/30 text-[9px] font-semibold text-muted-foreground">
+                                                        {t("schedule_player_waitlisted" as any)} {waitlisted}
+                                                      </span>
+                                                    ) : null}
+                                                  </div>
+                                                );
+                                              })()}
                                             </div>
                                             <DropdownMenu>
                                               <DropdownMenuTrigger asChild>
