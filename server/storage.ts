@@ -104,8 +104,11 @@ export interface IStorage {
   listClubMembers(clubId: string): Promise<ClubMember[]>;
   getClubMemberById(id: string): Promise<ClubMember | undefined>;
   getClubMemberByClubAndUser(clubId: string, userId: string): Promise<ClubMember | undefined>;
+  /** Most-recent club member row for this user (any status). */
+  getLatestClubMemberByUser(userId: string): Promise<ClubMember | undefined>;
   deleteClubMember(id: string): Promise<void>;
   updateClubMemberStatus(id: string, status: "active" | "banned"): Promise<ClubMember | undefined>;
+  updateClubMemberOperationsAccess(id: string, operationsAccess: boolean): Promise<ClubMember | undefined>;
 
   createClubInvitation(row: InsertClubInvitation): Promise<ClubInvitation>;
   getClubInvitationByToken(token: string): Promise<ClubInvitation | undefined>;
@@ -386,7 +389,7 @@ export class DatabaseStorage implements IStorage {
       .select({ c: clubs })
       .from(clubMembers)
       .innerJoin(clubs, eq(clubMembers.clubId, clubs.id))
-      .where(eq(clubMembers.userId, userId))
+      .where(and(eq(clubMembers.userId, userId), eq(clubMembers.status, "active")))
       .limit(1);
     return row?.c;
   }
@@ -396,7 +399,7 @@ export class DatabaseStorage implements IStorage {
       .select({ c: clubs })
       .from(clubMembers)
       .innerJoin(clubs, eq(clubMembers.clubId, clubs.id))
-      .where(eq(clubMembers.userId, userId))
+      .where(and(eq(clubMembers.userId, userId), eq(clubMembers.status, "active")))
       .orderBy(desc(clubMembers.createdAt))
       .limit(1);
     if (viaMember?.c) return viaMember.c;
@@ -442,6 +445,16 @@ export class DatabaseStorage implements IStorage {
     return m;
   }
 
+  async getLatestClubMemberByUser(userId: string): Promise<ClubMember | undefined> {
+    const [m] = await db
+      .select()
+      .from(clubMembers)
+      .where(eq(clubMembers.userId, userId))
+      .orderBy(desc(clubMembers.createdAt))
+      .limit(1);
+    return m;
+  }
+
   async deleteClubMember(id: string): Promise<void> {
     await db.delete(clubMembers).where(eq(clubMembers.id, id));
   }
@@ -450,6 +463,18 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db
       .update(clubMembers)
       .set({ status })
+      .where(eq(clubMembers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateClubMemberOperationsAccess(
+    id: string,
+    operationsAccess: boolean,
+  ): Promise<ClubMember | undefined> {
+    const [updated] = await db
+      .update(clubMembers)
+      .set({ operationsAccess })
       .where(eq(clubMembers.id, id))
       .returning();
     return updated;

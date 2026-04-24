@@ -150,6 +150,8 @@ export const clubMembers = pgTable(
     displayName: text("display_name").notNull().default(""),
     jerseyNumber: text("jersey_number").notNull().default(""),
     position: text("position").notNull().default(""),
+    /** Operations badge: grants additional staff capabilities (e.g., wellness ops). */
+    operationsAccess: boolean("operations_access").notNull().default(false),
     status: varchar("status", { length: 16 }).notNull().default("active"),
     invitedEmail: text("invited_email"),
     joinedAt: timestamp("joined_at", { withTimezone: true }),

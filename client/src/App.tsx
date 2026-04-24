@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Switch, Route, useLocation, useRoute } from "wouter";
 import { migrateLegacyOnboarding, shouldOfferOnboarding } from "@/lib/onboarding-state";
 import OnboardingFlow from "@/pages/OnboardingFlow";
@@ -11,6 +11,7 @@ import NotFound from "@/pages/not-found";
 import { useAuth } from "@/lib/useAuth";
 import { useLocale } from "@/lib/i18n";
 import Login from "@/pages/Login";
+import { useClub } from "@/lib/club-api";
 
 import { UCoreBootSplash } from "@/components/branding/UScoutBrand";
 import CoachHome from "@/pages/coach/CoachHome";
@@ -165,7 +166,45 @@ function AuthGate() {
     return <OnboardingFlow userId={user.id} onDone={() => setNeedsOnboarding(false)} />;
   }
   const defaultPath = "/home";
-  return <AuthenticatedRoutes defaultPath={defaultPath} />;
+  return (
+    <ClubSecurityGate>
+      <AuthenticatedRoutes defaultPath={defaultPath} />
+    </ClubSecurityGate>
+  );
+}
+
+function ClubSecurityGate(props: { children: ReactNode }) {
+  const { user, profile, signOut } = useAuth();
+  const clubQ = useClub({ enabled: Boolean(user && profile) });
+
+  useEffect(() => {
+    if (!user?.id || !profile) return;
+    if (!clubQ.isError) return;
+    const msg = String((clubQ.error as any)?.message ?? clubQ.error ?? "");
+    const isBanned = msg.includes("403") && msg.includes("banned");
+    if (!isBanned) return;
+
+    // Hard offboarding: clear local club/device state so next login is clean.
+    try {
+      const keys = Object.keys(window.localStorage);
+      for (const k of keys) {
+        if (k.startsWith("uscout-")) window.localStorage.removeItem(k);
+      }
+    } catch {
+      // ignore
+    }
+
+    // Clear all cached queries (persisted + in-memory).
+    try {
+      queryClient.clear();
+    } catch {
+      // ignore
+    }
+
+    void signOut();
+  }, [clubQ.error, clubQ.isError, profile, signOut, user?.id]);
+
+  return <>{props.children}</>;
 }
 
 function App() {

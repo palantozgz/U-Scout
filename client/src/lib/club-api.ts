@@ -19,6 +19,7 @@ export interface ClubMemberDto {
   displayName: string;
   jerseyNumber: string;
   position: string;
+  operationsAccess?: boolean;
   status: string;
   invitedEmail: string | null;
   joinedAt: string | null;
@@ -125,6 +126,23 @@ export function useBanClubMember() {
         ? `/api/club/members/${encodeURIComponent(id)}/ban`
         : `/api/club/members/${encodeURIComponent(id)}/unban`;
       await apiRequest("PATCH", path, {});
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: clubQueryKey });
+    },
+  });
+}
+
+export function useSetClubMemberOperationsAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { id: string; operationsAccess: boolean }) => {
+      const res = await apiRequest(
+        "PATCH",
+        `/api/club/members/${encodeURIComponent(args.id)}/operations-access`,
+        { operationsAccess: args.operationsAccess },
+      );
+      return res.json() as Promise<ClubMemberDto>;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: clubQueryKey });

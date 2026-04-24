@@ -30,8 +30,8 @@ describe("club member permissions", () => {
     expect(canRemoveMember({ meRole: "head_coach", targetRole: "player", isOwner: false, isSelf: false })).toBe(true);
   });
 
-  it("coach can remove/ban players only (not staff)", () => {
-    expect(canRemoveMember({ meRole: "coach", targetRole: "player", isOwner: false, isSelf: false })).toBe(true);
+  it("coach cannot remove/ban members (head coach only)", () => {
+    expect(canRemoveMember({ meRole: "coach", targetRole: "player", isOwner: false, isSelf: false })).toBe(false);
     expect(canRemoveMember({ meRole: "coach", targetRole: "coach", isOwner: false, isSelf: false })).toBe(false);
     expect(canRemoveMember({ meRole: "coach", targetRole: "head_coach", isOwner: false, isSelf: false })).toBe(false);
   });

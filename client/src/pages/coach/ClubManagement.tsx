@@ -26,13 +26,14 @@ import { useLocale } from "@/lib/i18n";
 type Translate = ReturnType<typeof useLocale>["t"];
 import { useAuth } from "@/lib/useAuth";
 import { useCapabilities, type ClubMembership } from "@/lib/capabilities";
-import { canBanMember, canRemoveMember, type ClubActorRole } from "@/lib/clubMemberPermissions";
+import { canBanMember, canRemoveMember, canToggleOperationsAccess, type ClubActorRole } from "@/lib/clubMemberPermissions";
 import {
   useClub,
   usePatchClub,
   useClubInvite,
   useDeleteClubMember,
   useBanClubMember,
+  useSetClubMemberOperationsAccess,
   useRevokeClubInvitation,
   useClubStats,
   clubStatsQueryKey,
@@ -252,6 +253,7 @@ export default function ClubManagement() {
       role: me.role as ClubMembership["role"],
       status: me.status as ClubMembership["status"],
       isOwner: q.data.club.ownerId === profile.id,
+      operationsAccess: Boolean(me.operationsAccess),
     };
   }, [profile?.id, q.data?.club, q.data?.members]);
 
@@ -275,6 +277,7 @@ export default function ClubManagement() {
   const inviteMut = useClubInvite();
   const delMember = useDeleteClubMember();
   const banMut = useBanClubMember();
+  const opsMut = useSetClubMemberOperationsAccess();
   const revokeInv = useRevokeClubInvitation();
   const statsQ = useClubStats({ enabled: activeTab === "stats" });
   const queryClient = useQueryClient();
@@ -846,6 +849,7 @@ export default function ClubManagement() {
                       clubOwnerId={q.data.club.ownerId}
                       delMember={delMember}
                       banMut={banMut}
+                      opsMut={opsMut}
                     />
                   ));
                 })()}
@@ -875,6 +879,7 @@ export default function ClubManagement() {
                       clubOwnerId={q.data.club.ownerId}
                       delMember={delMember}
                       banMut={banMut}
+                      opsMut={opsMut}
                     />
                   ));
                 })()}
@@ -1054,6 +1059,7 @@ function MemberRow({
   clubOwnerId,
   delMember,
   banMut,
+  opsMut,
 }: {
   m: ClubMemberDto;
   variant: "staff" | "player";
@@ -1065,12 +1071,15 @@ function MemberRow({
   clubOwnerId: string;
   delMember: ReturnType<typeof useDeleteClubMember>;
   banMut: ReturnType<typeof useBanClubMember>;
+  opsMut: ReturnType<typeof useSetClubMemberOperationsAccess>;
 }) {
   const isOwner = m.userId === clubOwnerId && m.role === "head_coach";
   const isSelf = m.userId === profileId;
   const banned = m.status === "banned";
   const canRemove = canRemoveMember({ meRole, targetRole: m.role, isOwner, isSelf });
   const canBan = canBanMember({ meRole, targetRole: m.role, isOwner, isSelf });
+  const canOps = canToggleOperationsAccess({ meRole, targetRole: m.role, isOwner, isSelf });
+  const opsEnabled = Boolean(m.operationsAccess) && m.role === "coach";
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1091,6 +1100,11 @@ function MemberRow({
           <Badge variant="secondary" className="text-[10px] font-bold uppercase">
             {roleLabel(m.role)}
           </Badge>
+          {m.role === "coach" && opsEnabled ? (
+            <Badge variant="outline" className="text-[10px] font-bold uppercase">
+              {t("club_ops_access_badge")}
+            </Badge>
+          ) : null}
           <Badge variant={banned ? "destructive" : "outline"} className="text-[10px] font-bold uppercase">
             {banned ? t("club_status_banned") : t("club_status_active")}
           </Badge>
@@ -1105,6 +1119,14 @@ function MemberRow({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[10rem]">
+              {canOps ? (
+                <DropdownMenuItem
+                  className="font-medium"
+                  onSelect={() => opsMut.mutate({ id: m.id, operationsAccess: !opsEnabled })}
+                >
+                  {opsEnabled ? t("club_ops_access_remove") : t("club_ops_access_grant")}
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem
                 className={cn("font-medium", !canRemove && "opacity-50 pointer-events-none")}
                 onSelect={() => {
@@ -1117,15 +1139,28 @@ function MemberRow({
               {canBan ? (
                 <DropdownMenuItem
                   className="font-medium"
-                  onSelect={() => banMut.mutate({ id: m.id, ban: !banned })}
+                  onSelect={() => {
+                    if (banned) return;
+                    banMut.mutate({ id: m.id, ban: true });
+                  }}
                 >
-                  {banned ? t("club_unban") : t("club_ban")}
+                  <span className={banned ? "opacity-60" : ""}>{t("club_ban")}</span>
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
           <div className="flex flex-wrap gap-2 shrink-0">
+            {canOps ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={opsMut.isPending}
+                onClick={() => opsMut.mutate({ id: m.id, operationsAccess: !opsEnabled })}
+              >
+                {opsEnabled ? t("club_ops_access_remove") : t("club_ops_access_grant")}
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               size="sm"
@@ -1139,10 +1174,10 @@ function MemberRow({
               <Button
                 variant="outline"
                 size="sm"
-                disabled={banMut.isPending}
-                onClick={() => banMut.mutate({ id: m.id, ban: !banned })}
+                disabled={banMut.isPending || banned}
+                onClick={() => banMut.mutate({ id: m.id, ban: true })}
               >
-                {banned ? t("club_unban") : t("club_ban")}
+                {t("club_ban")}
               </Button>
             )}
           </div>

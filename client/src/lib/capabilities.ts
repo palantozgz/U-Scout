@@ -9,6 +9,8 @@ export type ClubMembership = {
   status: "active" | "pending" | "banned";
   /** Whether this user is the club owner. */
   isOwner?: boolean;
+  /** Operations badge for coaches (granted by head coach). */
+  operationsAccess?: boolean;
 };
 
 export type Capabilities = {
@@ -56,6 +58,7 @@ export function computeCapabilities(input: {
     realRole === "head_coach" ? "head_coach" : realRole === "coach" ? "coach" : realRole === "player" ? "player" : null;
 
   const isPhysicalTrainer = Boolean(badges?.physical_trainer) && staffRole === "coach";
+  const hasOperationsAccess = Boolean(m?.operationsAccess) && staffRole === "coach" && m?.status === "active";
 
   // UI-only capability (frontend rendering).
   const canCreateEvent =
@@ -87,7 +90,7 @@ export function computeCapabilities(input: {
   // Reports are coach/staff oriented in legacy U Scout; keep conservative.
   const canAccessReports = canViewCoachUI;
 
-  const canManageWellness = staffRole === "head_coach" || isPhysicalTrainer;
+  const canManageWellness = staffRole === "head_coach" || isPhysicalTrainer || hasOperationsAccess;
 
   return {
     staffRole,

@@ -584,6 +584,10 @@ export async function registerRoutes(
         });
       }
       if (!club) {
+        const latest = await storage.getLatestClubMemberByUser(uid);
+        if (latest?.status === "banned") {
+          return res.status(403).json({ error: "banned" });
+        }
         return res.status(404).json({ error: "No club found. Ask your head coach for an invite." });
       }
 
@@ -615,6 +619,7 @@ export async function registerRoutes(
             displayName: m.displayName,
             jerseyNumber: m.jerseyNumber,
             position: m.position,
+            operationsAccess: Boolean(m.operationsAccess),
             status: m.status,
             invitedEmail: m.invitedEmail,
             joinedAt: m.joinedAt ? m.joinedAt.toISOString() : null,
@@ -637,6 +642,30 @@ export async function registerRoutes(
       });
     } catch (err) {
       res.status(500).json({ error: "Failed to load club" });
+    }
+  });
+
+  app.patch("/api/club/members/:id/operations-access", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id as string;
+      const parsed = z
+        .object({ operationsAccess: z.boolean() })
+        .safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+      }
+      const member = await storage.getClubMemberById(id);
+      if (!member) return res.status(404).json({ error: "Member not found" });
+      if (!(await userCanManageClub(req, member.clubId))) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      if (member.role !== "coach") {
+        return res.status(400).json({ error: "Operations access can only be set for coaches" });
+      }
+      const updated = await storage.updateClubMemberOperationsAccess(id, parsed.data.operationsAccess);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update operations access" });
     }
   });
 
