@@ -128,3 +128,30 @@ export function useWellnessEntriesLastNDays(params: { clubId?: string; userId?: 
   });
 }
 
+export function useWellnessEntriesRangeForUsers(params: {
+  clubId?: string;
+  userIds: string[];
+  fromDate: string; // YYYY-MM-DD
+  toDate: string; // YYYY-MM-DD
+}) {
+  return useQuery({
+    queryKey: ["wellness-entries", "range-users", params.clubId ?? null, params.fromDate, params.toDate, params.userIds],
+    enabled: Boolean(params.clubId) && params.userIds.length > 0 && Boolean(params.fromDate) && Boolean(params.toDate),
+    networkMode: "offlineFirst",
+    queryFn: async (): Promise<WellnessEntry[]> => {
+      const { data, error } = await supabase
+        .from("wellness_entries")
+        .select(
+          "id, club_id, user_id, entry_date, sleep_quality, energy_level, muscle_soreness, mental_readiness, submitted_at",
+        )
+        .eq("club_id", params.clubId!)
+        .gte("entry_date", params.fromDate)
+        .lte("entry_date", params.toDate)
+        .in("user_id", params.userIds)
+        .order("entry_date", { ascending: true });
+      if (error) throw error;
+      return (data as WellnessEntry[]) ?? [];
+    },
+  });
+}
+
