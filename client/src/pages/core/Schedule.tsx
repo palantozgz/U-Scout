@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
+import { formatTimeHHMMFromParts, formatTimeHHMMFromTotalMinutes, parseTimeHHMMToTotalMinutes } from "@/lib/timeHHMM";
 import {
   todayKey,
   useUpsertWellnessEntry,
@@ -138,7 +139,7 @@ const ACTIVITY_TYPE_CONFIG: Record<ScheduleEvent["session_type"], ActivityTypeCo
 };
 
 export default function Schedule() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { profile } = useAuth();
   const clubQ = useClub();
   const clubId = clubQ.data?.club.id;
@@ -227,7 +228,7 @@ export default function Schedule() {
   const [createSessionType, setCreateSessionType] = useState<ScheduleEvent["session_type"]>("training");
   const [createTitle, setCreateTitle] = useState("");
   const [createDate, setCreateDate] = useState("");
-  const [createStartTime, setCreateStartTime] = useState("");
+  const [createStartMins, setCreateStartMins] = useState<number | null>(null);
   const [createEndTime, setCreateEndTime] = useState("");
   const [createLocation, setCreateLocation] = useState("");
   const [createNotes, setCreateNotes] = useState("");
@@ -478,12 +479,12 @@ export default function Schedule() {
 
   const runCreateOrUpdate = async (opts?: { overrideTemplate?: SessionTemplate | null }) => {
     if (!clubId || !userId) return;
-    if (!createDate || !createStartTime) return;
+    if (!createDate || createStartMins == null) return;
     if (attendanceMode === "selected_players" && selectedPlayerIds.size < 1) return;
     if (!signupMaxSpotsOk) return;
     const baseTitle = (opts?.overrideTemplate ? opts.overrideTemplate.title : createTitle).trim();
     const title = baseTitle || t(ACTIVITY_TYPE_CONFIG[createSessionType].labelKey);
-    const startsIso = new Date(`${createDate}T${createStartTime}`).toISOString();
+    const startsIso = new Date(`${createDate}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`).toISOString();
     const endsIso = createEndTime ? new Date(`${createDate}T${createEndTime}`).toISOString() : null;
     const constraints = {
       target_attendance: targetAttendance.trim() ? Number(targetAttendance) : undefined,
@@ -648,6 +649,17 @@ export default function Schedule() {
     }
   };
 
+  const intlLocale = useMemo(() => {
+    return locale === "es" ? "es" : locale === "zh" ? "zh-CN" : "en";
+  }, [locale]);
+
+  const formatTimeHHMM = (h: number, m: number) => formatTimeHHMMFromParts(h, m);
+  const createStartTime = useMemo(() => {
+    return typeof createStartMins === "number" && Number.isFinite(createStartMins)
+      ? formatTimeHHMMFromTotalMinutes(createStartMins)
+      : "";
+  }, [createStartMins]);
+
   const days = useMemo(() => {
     return Array.from({ length: 7 }).map((_, i) => {
       const d = new Date(selectedWeekStart);
@@ -665,7 +677,7 @@ export default function Schedule() {
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
     setCreateDate(`${yyyy}-${mm}-${dd}`);
-    setCreateStartTime(`${String(hour).padStart(2, "0")}:00`);
+    setCreateStartMins(hour * 60);
     setCreateEndTime("");
     setCreateLocation("");
     setCreateNotes("");
@@ -941,17 +953,17 @@ export default function Schedule() {
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
     setCreateDate(`${yyyy}-${mm}-${dd}`);
-    setCreateStartTime(`${String(hour).padStart(2, "0")}:00`);
+    setCreateStartMins(hour * 60);
     setUseCustomDateTime(false);
   };
 
   const applyDurationPreset = (mins: number) => {
     setDurationMins(mins);
-    if (!createDate || !createStartTime) return;
-    const start = new Date(`${createDate}T${createStartTime}`);
+    if (!createDate || createStartMins == null) return;
+    const start = new Date(`${createDate}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`);
     if (Number.isNaN(start.getTime())) return;
     const end = new Date(start.getTime() + mins * 60000);
-    setCreateEndTime(`${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`);
+    setCreateEndTime(formatTimeHHMM(end.getHours(), end.getMinutes()));
     setUseCustomDateTime(true);
   };
 
@@ -965,10 +977,10 @@ export default function Schedule() {
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
     setCreateDate(`${yyyy}-${mm}-${dd}`);
-    setCreateStartTime(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
+    setCreateStartMins(d.getHours() * 60 + d.getMinutes());
     if (ev.ends_at) {
       const e = new Date(ev.ends_at);
-      setCreateEndTime(`${String(e.getHours()).padStart(2, "0")}:${String(e.getMinutes()).padStart(2, "0")}`);
+      setCreateEndTime(formatTimeHHMM(e.getHours(), e.getMinutes()));
     } else {
       setCreateEndTime("");
     }
@@ -1034,11 +1046,9 @@ export default function Schedule() {
   };
 
   const adjustStartTimeMins = (deltaMins: number) => {
-    if (!createDate || !createStartTime) return;
-    const dt = new Date(`${createDate}T${createStartTime}`);
-    if (Number.isNaN(dt.getTime())) return;
-    const next = new Date(dt.getTime() + deltaMins * 60000);
-    setCreateStartTime(`${String(next.getHours()).padStart(2, "0")}:${String(next.getMinutes()).padStart(2, "0")}`);
+    if (createStartMins == null) return;
+    const next = (createStartMins + deltaMins + 1440) % 1440;
+    setCreateStartMins(next);
     if (durationMins) applyDurationPreset(durationMins);
   };
 
@@ -1349,12 +1359,12 @@ export default function Schedule() {
   const summaryText = useMemo(() => {
     const parts: string[] = [];
     parts.push(t(ACTIVITY_TYPE_CONFIG[createSessionType].labelKey));
-    if (createDate && createStartTime) parts.push(`${createDate} ${createStartTime}`);
+    if (createDate && createStartMins != null) parts.push(`${createDate} ${formatTimeHHMMFromTotalMinutes(createStartMins)}`);
     else parts.push(t("schedule_create_summary_time_missing"));
     if (createLocation.trim()) parts.push(createLocation.trim());
     else parts.push(t("schedule_create_summary_location_missing"));
     return parts.join(" · ");
-  }, [createDate, createLocation, createSessionType, createStartTime, t]);
+  }, [createDate, createLocation, createSessionType, createStartMins, t]);
 
   const createLocationPlaceholderKey = useMemo(() => {
     if (createSessionType === "training") return "schedule_session_location_placeholder_training";
@@ -1394,14 +1404,14 @@ export default function Schedule() {
   ]);
 
   const derivedDurationFromEndTimeMins = useMemo(() => {
-    if (!createDate || !createStartTime || !createEndTime) return null;
-    const start = new Date(`${createDate}T${createStartTime}`);
+    if (!createDate || createStartMins == null || !createEndTime) return null;
+    const start = new Date(`${createDate}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`);
     const end = new Date(`${createDate}T${createEndTime}`);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
     const diff = Math.round((end.getTime() - start.getTime()) / 60000);
     if (!Number.isFinite(diff) || diff <= 0) return null;
     return diff;
-  }, [createDate, createEndTime, createStartTime]);
+  }, [createDate, createEndTime, createStartMins]);
 
   const durationOptions = useMemo(() => {
     const cfg = ACTIVITY_TYPE_CONFIG[createSessionType];
@@ -2040,7 +2050,7 @@ export default function Schedule() {
                               ].join(" ")}
                             >
                               <p className="text-[11px] font-black text-foreground">
-                                {new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(d)}
+                                {new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d)}
                               </p>
                               <p className="text-[10px] font-semibold text-muted-foreground">
                                 {new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d)}
@@ -2132,7 +2142,7 @@ export default function Schedule() {
                                                       <Clock className="w-4 h-4" />
                                                       {t("schedule_move_to").replace(
                                                         "{slot}",
-                                                        `${new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(dd)} ${t(ss.labelKey as any)}`,
+                                                        `${new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(dd)} ${t(ss.labelKey as any)}`,
                                                       )}
                                                     </DropdownMenuItem>
                                                   )),
@@ -2386,7 +2396,7 @@ export default function Schedule() {
                   <div />
                   {days.map((d) => {
                     const dayKey = d.toISOString().slice(0, 10);
-                    const dayLabel = new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(d);
+                    const dayLabel = new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d);
                     const dateLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d);
                     return (
                       <div key={dayKey} style={{ padding: "8px 10px" }}>
@@ -3113,13 +3123,14 @@ export default function Schedule() {
                     "{when}",
                     (() => {
                       const d = createDate ? new Date(`${createDate}T00:00`) : null;
-                      const labelDay = d ? new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(d) : "";
+                      const labelDay = d ? new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d) : "";
                       const labelDate = d ? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d) : "";
-                      const hour = createStartTime ? Number(createStartTime.split(":")[0]) : null;
+                      const mins = typeof createStartMins === "number" ? createStartMins : null;
+                      const hour = typeof mins === "number" ? Math.floor(mins / 60) : null;
                       const slot =
-                        hour === 9
+                        typeof hour === "number" && hour >= 0 && hour < 12
                           ? t("schedule_planner_slot_morning" as any)
-                          : hour === 12
+                          : typeof hour === "number" && hour < 17
                             ? t("schedule_planner_slot_midday" as any)
                             : t("schedule_planner_slot_evening" as any);
                       return `${labelDay} · ${slot} · ${labelDate}`;
@@ -3160,19 +3171,39 @@ export default function Schedule() {
                   <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                     {t("schedule_session_start_time")}
                   </p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <input
-                      className="flex-1 h-10 rounded-md border border-border bg-background px-3 text-sm"
-                      type="time"
-                      value={createStartTime}
-                      onChange={(e) => setCreateStartTime(e.target.value)}
-                    />
-                    <Button type="button" variant="outline" size="sm" className="h-10 px-3" onClick={() => adjustStartTimeMins(-15)}>
-                      -15
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" className="h-10 px-3" onClick={() => adjustStartTimeMins(15)}>
-                      +15
-                    </Button>
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+                    <div
+                      className="grid items-center gap-2"
+                      style={{ gridTemplateColumns: "1fr minmax(5.75rem, 1.2fr) 1fr" }}
+                    >
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 px-0 w-full font-black"
+                        onClick={() => adjustStartTimeMins(-15)}
+                      >
+                        -15
+                      </Button>
+                      <input
+                        className="h-10 w-full min-w-0 rounded-md border border-border bg-background px-3 text-[15px] leading-none text-center tabular-nums"
+                        type="time"
+                        value={createStartTime}
+                        onChange={(e) => {
+                          const mins = parseTimeHHMMToTotalMinutes(e.target.value);
+                          setCreateStartMins(mins);
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 px-0 w-full font-black"
+                        onClick={() => adjustStartTimeMins(15)}
+                      >
+                        +15
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -3692,7 +3723,7 @@ export default function Schedule() {
                                   >
                                     {[0, 1, 2, 3, 4, 5, 6].map((d) => (
                                       <ToggleGroupItem key={d} value={String(d)} size="sm" variant="outline" className="h-9 px-3">
-                                        {new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(new Date(2024, 0, 7 + d))}
+                                        {new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(new Date(2024, 0, 7 + d))}
                                       </ToggleGroupItem>
                                     ))}
                                   </ToggleGroup>
@@ -3732,7 +3763,7 @@ export default function Schedule() {
                       setCreateSessionType("training");
                       setCreateTitle("");
                       setCreateDate("");
-                      setCreateStartTime("");
+                      setCreateStartMins(null);
                       setCreateEndTime("");
                       setCreateLocation("");
                       setCreateNotes("");
@@ -4255,7 +4286,7 @@ export default function Schedule() {
                   {byDay.map((list, i) => {
                     const day = new Date(selectedWeekStart);
                     day.setDate(day.getDate() + i);
-                    const label = new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(day);
+                    const label = new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(day);
                     return (
                       <div key={i} className="flex items-start justify-between gap-2">
                         <p className="text-xs font-black text-foreground w-12 shrink-0">{label}</p>

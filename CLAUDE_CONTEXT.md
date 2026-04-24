@@ -46,11 +46,11 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 
 ---
 
-## Estado actual — sesión 20 abr 2026
+## Estado actual — sesión 24 abr 2026
 
 ### Motor (motor-v2.1.ts + motor-v4.ts)
 - **Calibración: 100% (551/551 checks, 66/66 perfiles)**
-- **Quality eval: 91% (42/46 checks, 7/10 perfiles)** — baseline establecido
+- **Quality eval: 100% (46/46 checks, 10/10 perfiles)** ✅
 - Script calibración: `cd "/Users/palant/Downloads/U scout" && npx tsx scripts/calibrate-motor.ts`
 - Script quality: `cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-motor-quality.ts`
 - Perfiles cubiertos: Luka, Jokic, Curry, Giannis, Klay, Embiid, Haliburton, Gobert, A'ja Wilson, Breanna Stewart, Ionescu, Clark, Plum, Micic, Mirotic, SGA, Sabonis, Booker, JB, AD, Trae Young, Middleton, Bam (x2), Taurasi, Jonquel Jones, Alyssa Thomas + 4 amateurs + 4 universitarios + Pika-style + Draymond + otros perfiles de rol (total 66)
@@ -110,25 +110,56 @@ Textos EN/ES/ZH actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR 
 
 ---
 
-## Pendientes activos (priorizados)
+## Contexto de producto — U CORE
+Esta app ES U CORE. U Scout es un módulo dentro de U CORE junto a:
+- **U Schedule** — planner semanal, creación sesiones, attendance, export (`core/Schedule.tsx` — 228 KB, god file)
+- **U Wellness** — check-in diario jugadores, dashboard staff riesgo/tendencias
+- **U Scout** — scouting defensivo 1-on-1 (este módulo, el más avanzado)
+- **U Stats** — placeholder (`core/Stats.tsx` — 0.6 KB stub)
+Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 
-1. **Rediseño slides 2–3** — slide 2 descriptivo + threat scores rankeados, slide 3 instrucción ejecutable, runners-up por tap
+## Bundle — estado actual
+- Bundle JS: **1,836 KB minificado / 509 KB gzip** ⚠️ (objetivo TestFlight: <300 KB gzip)
+- Culpables principales:
+  - `i18n.ts` 250 KB + archivos `generated*i18n` 166 KB → todos cargan al inicio
+  - `Schedule.tsx` 228 KB god file
+  - `PlayerEditor.tsx` 126 KB god file
+  - `motor-v2.1.ts` 106 KB (debería ser server-side only)
+- Fix mayor impacto: **i18n lazy por locale** → elimina ~250 KB del bundle inicial
+- Fix mediano: **code splitting por módulo** via React.lazy
+- Fix largo: **motor server-side** → API call en vez de bundle cliente
+- **Capacitor** para TestFlight una vez bundle optimizado
+
+## Pendientes activos — U Scout (priorizados)
+
+1. **Rediseño slides 2–3** — slide 2: threat scores rankeados, slide 3: DENY/FORCE/ALLOW ejecutable + runners-up por tap
    → Requiere diseño en Figma antes de tocar código
 
-3. **PlayerEditor input redesign** — ~48 campos finales (audit pendiente sección screener)
-   → Prompt Cursor: `cursor_prompt_inputs_redesign.md`
-   → Diagrama media pista ✅ implementado (`HalfCourtZoneSelector`, 5 zonas clicables, retrocompatible)
-
-4. **`motorOutputToRichText`** — texto descriptivo por jugadora usando enrichedInputs en slide 1
-   → Ya en main, revisar calidad
-
-5. **Revision flow** — al guardar → pantalla revisión (ReportViewV4)
-
-6. **ALLOW Tier 1: `allow_drive_weak_side`** — complementa FORCE dirección con "si te supera yendo a X, deja que llegue al aro"
-   → Motor v2.1 + renderer EN/ES/ZH + perfil calibración
+2. **ALLOW Tier 1: `allow_drive_weak_side`** — complementa FORCE dirección
    → Diseño documentado en `scripts/allow_slot_design.md`
 
-7. **Versiones inputs por coach** — tabla `player_inputs_versions` (requiere migración schema)
+3. **PlayerEditor input redesign** — audit sección screener pendiente
+   → Prompt Cursor: `cursor_prompt_inputs_redesign.md`
+   → Diagrama media pista ✅ (`HalfCourtZoneSelector`, 5 zonas clicables)
+
+4. **Revision flow** — al guardar → pantalla revisión (ReportViewV4)
+
+5. **Offline queue + sincronización** — cola de cambios offline, sync al reconectar
+
+6. **Discrepancias entre coaches** — dos entrenadores eligen opciones distintas → detección + debate
+
+7. **Hot/cold streaks** — tendencia reciente de jugadora en informe
+
+8. **Versiones inputs por coach** — tabla `player_inputs_versions` (requiere migración schema)
+
+## Pendientes activos — U CORE / TestFlight
+
+1. **i18n lazy loading** — mayor ROI, menor riesgo. Solo cargar locale activo.
+2. **Code splitting** — Schedule, Scout, Wellness como chunks separados
+3. **motor-v2.1 server-side** — eliminar del bundle cliente
+4. **Schedule.tsx decomposition** — partir en subcomponentes
+5. **Capacitor setup** — wrapper iOS para TestFlight
+6. **localStorage → server persistence** — attendance/signup aún usa localStorage
 
 ---
 
