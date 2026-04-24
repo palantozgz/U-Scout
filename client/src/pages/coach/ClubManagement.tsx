@@ -1,13 +1,23 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList } from "lucide-react";
+import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList, Dumbbell, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -282,6 +292,20 @@ export default function ClubManagement() {
   const statsQ = useClubStats({ enabled: activeTab === "stats" });
   const queryClient = useQueryClient();
 
+  const hintKey = useMemo(() => `uscout-hint:v1:club:${profile?.id ?? "anon"}`, [profile?.id]);
+  const [hintDismissed, setHintDismissed] = useState(false);
+  useEffect(() => {
+    try {
+      setHintDismissed(window.localStorage.getItem(hintKey) === "1");
+    } catch {
+      setHintDismissed(false);
+    }
+  }, [hintKey]);
+  const dismissHint = () => {
+    setHintDismissed(true);
+    try { window.localStorage.setItem(hintKey, "1"); } catch {}
+  };
+
   useEffect(() => {
     if (activeTab !== "stats") return;
     void queryClient.invalidateQueries({ queryKey: clubStatsQueryKey });
@@ -312,6 +336,11 @@ export default function ClubManagement() {
     if (profile?.role === "master") return "master";
     return membership?.role ?? null;
   }, [membership?.role, profile?.role]);
+
+  const canManageStaff = useMemo(() => {
+    if (meClubRole === "master") return true;
+    return membership?.role === "head_coach" && membership.status === "active";
+  }, [meClubRole, membership?.role, membership?.status]);
 
   const clubMemberByUserId = useMemo(() => {
     const map = new Map<string, ClubMemberDto>();
@@ -481,6 +510,25 @@ export default function ClubManagement() {
       </header>
 
       <main className="flex-1 p-4 pb-10">
+        {!hintDismissed ? (
+          <div className="mb-4 rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[11px] font-semibold text-muted-foreground">
+                {t("onboarding_staff_club_hint" as any)}
+              </p>
+              <button
+                type="button"
+                className="h-9 w-9 -mr-2 -mt-2 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                onClick={dismissHint}
+                aria-label={t("dismiss" as any)}
+                title={t("dismiss" as any)}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {q.isLoading && (
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -491,9 +539,16 @@ export default function ClubManagement() {
           <p className="text-sm text-muted-foreground text-center py-12 px-2">{t("club_no_club")}</p>
         )}
 
-        {q.isError && !isNoClubError && (
-          <p className="text-sm text-destructive text-center py-8">{t("club_load_error")}</p>
-        )}
+                {q.isError && !isNoClubError && (
+                  <div className="space-y-3 py-8">
+                    <p className="text-sm text-destructive text-center">{t("club_load_error")}</p>
+                    <div className="flex justify-center">
+                      <Button variant="secondary" className="h-11 px-6" onClick={() => void q.refetch()}>
+                        {t("retry")}
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
         {q.data && (
           <>
@@ -834,7 +889,18 @@ export default function ClubManagement() {
                 {(() => {
                   const staff = q.data.members.filter((m) => m.role === "coach" || m.role === "head_coach");
                   if (staff.length === 0) {
-                    return <p className="text-sm text-muted-foreground py-6 text-center">{t("club_empty_staff")}</p>;
+                    return (
+                      <div className="py-6 text-center space-y-3">
+                        <p className="text-sm text-muted-foreground">{t("club_empty_staff")}</p>
+                        {canInviteMembers ? (
+                          <div className="flex justify-center">
+                            <Button size="sm" variant="secondary" className="h-11 px-6 font-bold" onClick={() => openInvite("coach")}>
+                              {t("club_invite_staff")}
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
                   }
                   return staff.map((m) => (
                     <MemberRow
@@ -843,7 +909,7 @@ export default function ClubManagement() {
                       variant="staff"
                       t={t}
                       roleLabel={roleLabel}
-                      canManage={canSeeAdminActions}
+                      canManage={canManageStaff}
                       meRole={meClubRole}
                       profileId={profile?.id}
                       clubOwnerId={q.data.club.ownerId}
@@ -864,7 +930,18 @@ export default function ClubManagement() {
                 {(() => {
                   const roster = q.data.members.filter((m) => m.role === "player");
                   if (roster.length === 0) {
-                    return <p className="text-sm text-muted-foreground py-6 text-center">{t("club_empty_roster")}</p>;
+                    return (
+                      <div className="py-6 text-center space-y-3">
+                        <p className="text-sm text-muted-foreground">{t("club_empty_roster")}</p>
+                        {canInviteMembers ? (
+                          <div className="flex justify-center">
+                            <Button size="sm" variant="secondary" className="h-11 px-6 font-bold" onClick={() => openInvite("player")}>
+                              {t("club_invite_player")}
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
                   }
                   return roster.map((m) => (
                     <MemberRow
@@ -873,7 +950,7 @@ export default function ClubManagement() {
                       variant="player"
                       t={t}
                       roleLabel={roleLabel}
-                      canManage={canSeeAdminActions}
+                      canManage={canManageStaff}
                       meRole={meClubRole}
                       profileId={profile?.id}
                       clubOwnerId={q.data.club.ownerId}
@@ -1080,6 +1157,8 @@ function MemberRow({
   const canBan = canBanMember({ meRole, targetRole: m.role, isOwner, isSelf });
   const canOps = canToggleOperationsAccess({ meRole, targetRole: m.role, isOwner, isSelf });
   const opsEnabled = Boolean(m.operationsAccess) && m.role === "coach";
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [banConfirmOpen, setBanConfirmOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1097,12 +1176,21 @@ function MemberRow({
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary" className="text-[10px] font-bold uppercase">
-            {roleLabel(m.role)}
-          </Badge>
+          {m.role === "head_coach" ? (
+            <Badge variant="secondary" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] font-black uppercase tracking-wide">
+              <ShieldCheck className="w-3 h-3" />
+              {t("role_head_coach")}
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] font-black uppercase tracking-wide">
+              <Users className="w-3 h-3" />
+              {t("role_coach")}
+            </Badge>
+          )}
           {m.role === "coach" && opsEnabled ? (
-            <Badge variant="outline" className="text-[10px] font-bold uppercase">
-              {t("club_ops_access_badge")}
+            <Badge variant="outline" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] font-black uppercase tracking-wide">
+              <Dumbbell className="w-3 h-3" />
+              PREP
             </Badge>
           ) : null}
           <Badge variant={banned ? "destructive" : "outline"} className="text-[10px] font-bold uppercase">
@@ -1122,30 +1210,53 @@ function MemberRow({
               {canOps ? (
                 <DropdownMenuItem
                   className="font-medium"
-                  onSelect={() => opsMut.mutate({ id: m.id, operationsAccess: !opsEnabled })}
+                  onSelect={() => {
+                    const next = !opsEnabled;
+                    opsMut.mutate(
+                      { id: m.id, operationsAccess: next },
+                      {
+                        onSuccess: () => {
+                          toast({ description: next ? t("club_ops_access_grant") : t("club_ops_access_remove") });
+                        },
+                        onError: (err) => {
+                          toast({
+                            description:
+                              typeof (err as any)?.message === "string"
+                                ? (err as any).message
+                                : t("schedule_edit_error"),
+                            variant: "destructive" as any,
+                          });
+                        },
+                      },
+                    );
+                  }}
                 >
                   {opsEnabled ? t("club_ops_access_remove") : t("club_ops_access_grant")}
                 </DropdownMenuItem>
               ) : null}
-              <DropdownMenuItem
-                className={cn("font-medium", !canRemove && "opacity-50 pointer-events-none")}
-                onSelect={() => {
-                  if (!canRemove) return;
-                  delMember.mutate(m.id);
-                }}
-              >
-                <span className="text-destructive">{t("club_remove")}</span>
-              </DropdownMenuItem>
-              {canBan ? (
-                <DropdownMenuItem
-                  className="font-medium"
-                  onSelect={() => {
-                    if (banned) return;
-                    banMut.mutate({ id: m.id, ban: true });
-                  }}
-                >
-                  <span className={banned ? "opacity-60" : ""}>{t("club_ban")}</span>
-                </DropdownMenuItem>
+              {!isSelf ? (
+                <>
+                  <DropdownMenuItem
+                    className={cn("font-medium", !canRemove && "opacity-50 pointer-events-none")}
+                    onSelect={() => {
+                      if (!canRemove) return;
+                      setRemoveConfirmOpen(true);
+                    }}
+                  >
+                    <span className="text-destructive">{t("club_remove")}</span>
+                  </DropdownMenuItem>
+                  {canBan ? (
+                    <DropdownMenuItem
+                      className={cn("font-medium", (banned || !canBan) && "opacity-50 pointer-events-none")}
+                      onSelect={() => {
+                        if (banned) return;
+                        setBanConfirmOpen(true);
+                      }}
+                    >
+                      <span className={banned ? "opacity-60" : ""}>{t("club_ban")}</span>
+                    </DropdownMenuItem>
+                  ) : null}
+                </>
               ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1156,7 +1267,26 @@ function MemberRow({
                 variant="outline"
                 size="sm"
                 disabled={opsMut.isPending}
-                onClick={() => opsMut.mutate({ id: m.id, operationsAccess: !opsEnabled })}
+                onClick={() => {
+                  const next = !opsEnabled;
+                  opsMut.mutate(
+                    { id: m.id, operationsAccess: next },
+                    {
+                      onSuccess: () => {
+                        toast({ description: next ? t("club_ops_access_grant") : t("club_ops_access_remove") });
+                      },
+                      onError: (err) => {
+                        toast({
+                          description:
+                            typeof (err as any)?.message === "string"
+                              ? (err as any).message
+                              : t("schedule_edit_error"),
+                          variant: "destructive" as any,
+                        });
+                      },
+                    },
+                  );
+                }}
               >
                 {opsEnabled ? t("club_ops_access_remove") : t("club_ops_access_grant")}
               </Button>
@@ -1166,7 +1296,7 @@ function MemberRow({
               size="sm"
               className="text-destructive border-destructive/30 hover:bg-destructive/10"
               disabled={delMember.isPending || !canRemove}
-              onClick={() => delMember.mutate(m.id)}
+              onClick={() => setRemoveConfirmOpen(true)}
             >
               {t("club_remove")}
             </Button>
@@ -1175,7 +1305,7 @@ function MemberRow({
                 variant="outline"
                 size="sm"
                 disabled={banMut.isPending || banned}
-                onClick={() => banMut.mutate({ id: m.id, ban: true })}
+                onClick={() => setBanConfirmOpen(true)}
               >
                 {t("club_ban")}
               </Button>
@@ -1183,6 +1313,67 @@ function MemberRow({
           </div>
         )
       )}
+
+      <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("club_remove")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {m.displayName || m.invitedEmail || "—"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("close")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                delMember.mutate(m.id, {
+                  onSuccess: () => toast({ description: t("club_remove") }),
+                  onError: (err) =>
+                    toast({
+                      description: typeof (err as any)?.message === "string" ? (err as any).message : t("club_load_error"),
+                      variant: "destructive" as any,
+                    }),
+                });
+              }}
+            >
+              {t("club_remove")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={banConfirmOpen} onOpenChange={setBanConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("club_ban")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {m.displayName || m.invitedEmail || "—"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("close")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                banMut.mutate(
+                  { id: m.id, ban: true },
+                  {
+                    onSuccess: () => toast({ description: t("club_ban") }),
+                    onError: (err) =>
+                      toast({
+                        description: typeof (err as any)?.message === "string" ? (err as any).message : t("club_load_error"),
+                        variant: "destructive" as any,
+                      }),
+                  },
+                );
+              }}
+            >
+              {t("club_ban")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

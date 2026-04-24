@@ -641,7 +641,9 @@ export async function registerRoutes(
         })),
       });
     } catch (err) {
-      res.status(500).json({ error: "Failed to load club" });
+      console.error("GET /api/club failed", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: "Failed to load club", detail: msg });
     }
   });
 
@@ -652,7 +654,7 @@ export async function registerRoutes(
         .object({ operationsAccess: z.boolean() })
         .safeParse(req.body ?? {});
       if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.flatten() });
+        return res.status(400).json({ error: "Invalid request", detail: parsed.error.flatten() });
       }
       const member = await storage.getClubMemberById(id);
       if (!member) return res.status(404).json({ error: "Member not found" });
@@ -663,9 +665,12 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Operations access can only be set for coaches" });
       }
       const updated = await storage.updateClubMemberOperationsAccess(id, parsed.data.operationsAccess);
-      res.json(updated);
+      if (!updated) return res.status(500).json({ error: "Update failed" });
+      return res.status(200).json({ ok: true, member: updated });
     } catch (err) {
-      res.status(500).json({ error: "Failed to update operations access" });
+      // include a tiny debug hint in dev; still safe for prod
+      const msg = err instanceof Error ? err.message : String(err);
+      return res.status(500).json({ error: "Failed to update operations access", detail: msg });
     }
   });
 

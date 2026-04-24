@@ -88,7 +88,8 @@ export async function apiRequest(
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
-    throw new Error(`${method} ${url} → ${res.status}: ${text}`);
+    // Include resolved URL (helps debug Vite HTML fallbacks / wrong host/port)
+    throw new Error(`${method} ${res.url || url} → ${res.status}: ${text}`);
   }
   return res;
 }

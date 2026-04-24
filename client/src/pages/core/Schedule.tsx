@@ -2,7 +2,7 @@ import { ModulePageShell } from "./ModulePage";
 import { useLocale } from "@/lib/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/useAuth";
-import { useCapabilities } from "@/lib/capabilities";
+import { useCapabilities, type ClubMembership } from "@/lib/capabilities";
 import { useClub } from "@/lib/club-api";
 import type { ReactNode } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,8 @@ import {
   Trash2,
   Clock,
   LayoutTemplate,
+  Share2,
+  X,
   Dumbbell,
   HeartPulse,
   Trophy,
@@ -25,6 +27,7 @@ import {
   CalendarDays,
   Info,
 } from "lucide-react";
+import { toPng } from "html-to-image";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,12 +140,30 @@ const ACTIVITY_TYPE_CONFIG: Record<ScheduleEvent["session_type"], ActivityTypeCo
 export default function Schedule() {
   const { t } = useLocale();
   const { profile } = useAuth();
-  const caps = useCapabilities();
-  const isPlayer = caps.canUsePlayerUX;
   const clubQ = useClub();
   const clubId = clubQ.data?.club.id;
   const userId = profile?.id;
+  const membership: ClubMembership | null = useMemo(() => {
+    if (!profile?.id || !clubQ.data?.club) return null;
+    const me = (clubQ.data.members ?? []).find((m) => m.userId === profile.id);
+    if (!me) return null;
+    return {
+      clubId: clubQ.data.club.id,
+      userId: profile.id,
+      role: me.role as ClubMembership["role"],
+      status: me.status as ClubMembership["status"],
+      isOwner: clubQ.data.club.ownerId === profile.id,
+      operationsAccess: Boolean(me.operationsAccess),
+    };
+  }, [clubQ.data?.club, clubQ.data?.members, profile?.id]);
+
+  const caps = useCapabilities({ membership });
+  const isPlayer = caps.canUsePlayerUX;
   const canCreateSession = caps.canCreateEvent;
+  const canExportWeekImage =
+    !isPlayer &&
+    (caps.staffRole === "head_coach" ||
+      (caps.staffRole === "coach" && Boolean(membership?.operationsAccess)));
   const rosterPlayers = useMemo(() => {
     const members = clubQ.data?.members ?? [];
     return members.filter((m) => m.role === "player" && m.status === "active");
@@ -564,6 +585,68 @@ export default function Schedule() {
       ] as const,
     [],
   );
+
+  const exportNodeRef = useRef<HTMLDivElement | null>(null);
+  const [exportBusy, setExportBusy] = useState(false);
+
+  const wellnessHintKey = useMemo(() => `uscout-hint:v1:wellness:${userId ?? "anon"}`, [userId]);
+  const [wellnessHintDismissed, setWellnessHintDismissed] = useState(false);
+  useEffect(() => {
+    try {
+      setWellnessHintDismissed(window.localStorage.getItem(wellnessHintKey) === "1");
+    } catch {
+      setWellnessHintDismissed(false);
+    }
+  }, [wellnessHintKey]);
+  const dismissWellnessHint = () => {
+    setWellnessHintDismissed(true);
+    try { window.localStorage.setItem(wellnessHintKey, "1"); } catch {}
+  };
+
+  const exportVisibleWeekImage = async () => {
+    if (!canExportWeekImage) return;
+    if (!exportNodeRef.current) return;
+    if (!clubId) return;
+    if (exportBusy) return;
+    setExportBusy(true);
+    try {
+      const clubName = clubQ.data?.club.name || "My Club";
+      const weekLabel = fmtWeekRange(selectedWeekStart);
+      const fileNameSafe = `${clubName} ${weekLabel}`.replace(/[^\w\s\-–—]/g, "").trim() || "schedule";
+      const dataUrl = await toPng(exportNodeRef.current, {
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+        pixelRatio: 2,
+      });
+
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `${fileNameSafe}.png`, { type: "image/png" });
+
+      const nav = navigator as any;
+      if (nav?.share && nav?.canShare?.({ files: [file] })) {
+        await nav.share({
+          files: [file],
+          title: `${clubName} · ${weekLabel}`,
+          text: `${clubName} · ${weekLabel}`,
+        });
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${fileNameSafe}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 3000);
+    } catch {
+      toast({ description: t("schedule_export_failed" as any) });
+    } finally {
+      setExportBusy(false);
+    }
+  };
 
   const days = useMemo(() => {
     return Array.from({ length: 7 }).map((_, i) => {
@@ -2123,6 +2206,23 @@ export default function Schedule() {
                               {t("schedule_week_templates")}
                             </Button>
                           </div>
+
+                          {canExportWeekImage ? (
+                            <div className="flex justify-center">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-11 px-6"
+                                disabled={!clubId || exportBusy}
+                                onClick={() => void exportVisibleWeekImage()}
+                                aria-label={t("schedule_export_week" as any)}
+                                title={t("schedule_export_week" as any)}
+                              >
+                                <Share2 className="w-4 h-4 mr-2" />
+                                {exportBusy ? t("schedule_exporting" as any) : t("schedule_export_week" as any)}
+                              </Button>
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })()}
@@ -2234,6 +2334,168 @@ export default function Schedule() {
             )}
           </TabsContent>
 
+          {/* Offscreen render target for week export image */}
+          {canExportWeekImage ? (
+            <div className="fixed left-[-99999px] top-0 pointer-events-none opacity-0">
+              <div
+                ref={exportNodeRef}
+                style={{
+                  width: 1080,
+                  background: "#ffffff",
+                  color: "#0a0a0a",
+                  padding: 48,
+                  fontFamily:
+                    'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"',
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: -0.5 }}>
+                      {clubQ.data?.club.name || "My Club"}
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: "#4b5563" }}>
+                      {fmtWeekRange(selectedWeekStart)}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "#6b7280",
+                      textTransform: "uppercase",
+                      letterSpacing: 1.4,
+                    }}
+                  >
+                    {t("ucore_card_schedule_title")}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 24, borderTop: "1px solid #e5e7eb" }} />
+
+                {/* Grid header */}
+                <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "140px repeat(7, 1fr)", gap: 12 }}>
+                  <div />
+                  {days.map((d) => {
+                    const dayKey = d.toISOString().slice(0, 10);
+                    const dayLabel = new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(d);
+                    const dateLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d);
+                    return (
+                      <div key={dayKey} style={{ padding: "8px 10px" }}>
+                        <div style={{ fontSize: 13, fontWeight: 800 }}>{dayLabel}</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginTop: 2 }}>{dateLabel}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Slots */}
+                <div style={{ marginTop: 6, display: "grid", gridTemplateColumns: "140px 1fr", gap: 12 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingTop: 10 }}>
+                    {slotDefs.map((s) => (
+                      <div
+                        key={s.key}
+                        style={{
+                          height: 140,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "flex-start",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          color: "#111827",
+                        }}
+                      >
+                        {t(s.labelKey as any)}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12 }}>
+                    {days.map((d) => {
+                      const dayKey = d.toISOString().slice(0, 10);
+                      const daySessions = (plannerWeekQ.data ?? [])
+                        .filter((ev) => ev.starts_at.slice(0, 10) === dayKey)
+                        .slice()
+                        .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+
+                      const buckets: Record<(typeof slotDefs)[number]["key"], ScheduleEvent[]> = {
+                        morning: [],
+                        midday: [],
+                        evening: [],
+                      };
+                      for (const ev of daySessions) {
+                        const h = new Date(ev.starts_at).getHours();
+                        if (h < 12) buckets.morning.push(ev);
+                        else if (h < 18) buckets.midday.push(ev);
+                        else buckets.evening.push(ev);
+                      }
+
+                      return (
+                        <div key={dayKey} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                          {slotDefs.map((s) => {
+                            const list = buckets[s.key];
+                            return (
+                              <div
+                                key={s.key}
+                                style={{
+                                  minHeight: 140,
+                                  border: "1px solid #e5e7eb",
+                                  borderRadius: 14,
+                                  padding: 10,
+                                  background: "#ffffff",
+                                  boxShadow: "0 1px 0 rgba(0,0,0,0.03)",
+                                }}
+                              >
+                                {list.length === 0 ? (
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", paddingTop: 4 }}>
+                                    —
+                                  </div>
+                                ) : (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    {list.slice(0, 4).map((ev) => (
+                                      <div
+                                        key={ev.id}
+                                        style={{
+                                          borderRadius: 12,
+                                          padding: "8px 10px",
+                                          background: "#f9fafb",
+                                          border: "1px solid #eef2f7",
+                                        }}
+                                      >
+                                        <div style={{ fontSize: 12, fontWeight: 800, lineHeight: 1.2 }}>
+                                          {ev.title}
+                                        </div>
+                                        <div style={{ marginTop: 3, fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+                                          {formatTime(ev.starts_at)}
+                                          {ev.location ? ` · ${ev.location}` : ""}
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {list.length > 4 ? (
+                                      <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280" }}>
+                                        +{list.length - 4}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 22, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af" }}>
+                    {new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" }).format(new Date())}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#9ca3af" }}>U Core</div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <TabsContent value="wellness" className="mt-4 space-y-4">
             <div className="rounded-2xl border border-border bg-card p-4">
               <p className="text-sm font-black tracking-tight text-foreground">{t("wellness_title")}</p>
@@ -2241,8 +2503,58 @@ export default function Schedule() {
                 {isPlayer ? t("wellness_subtitle") : t("wellness_staff_subtitle")}
               </p>
 
+              {!wellnessHintDismissed ? (
+                <div className="mt-3 rounded-xl border border-border bg-background/40 px-3 py-2.5 flex items-start justify-between gap-3">
+                  <p className="text-[11px] font-semibold text-muted-foreground">
+                    {isPlayer ? t("onboarding_player_wellness_hint" as any) : t("onboarding_staff_wellness_hint" as any)}
+                  </p>
+                  <button
+                    type="button"
+                    className="h-9 w-9 -mr-1 -mt-1 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    onClick={dismissWellnessHint}
+                    aria-label={t("dismiss" as any)}
+                    title={t("dismiss" as any)}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : null}
+
               {!isPlayer ? (
                 <div className="mt-4 space-y-3">
+                  {(() => {
+                    const top = staffRiskRowsSorted.find((p) => p.score > 0) ?? null;
+                    const missing = staffWellnessSummary.missing;
+                    return (
+                      <div className="rounded-2xl border border-border bg-card p-4">
+                        <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                          {t("wellness_staff_today" as any)}
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                              {t("wellness_staff_missing_today_label" as any)}
+                            </p>
+                            <p className="mt-1 text-lg font-black text-foreground">{missing}</p>
+                          </div>
+                          <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                              {t("wellness_staff_top_risk_label" as any)}
+                            </p>
+                            <p className="mt-1 text-sm font-extrabold text-foreground truncate">
+                              {top ? top.name : t("wellness_staff_top_risk_none" as any)}
+                            </p>
+                            {top ? (
+                              <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">
+                                {t("wellness_staff_priority_score" as any).replace("{score}", String(top.score))}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <div className="rounded-2xl border border-border bg-background/40 p-3">
                     <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
                       {t("wellness_staff_alerts_title" as any)}
@@ -2359,19 +2671,19 @@ export default function Schedule() {
                             <div className="grid grid-cols-2 gap-3">
                               <div>
                                 <p className="text-xs font-bold text-foreground">{t("wellness_metric_sleep" as any)}</p>
-                                <div className="mt-1"><SparklineBars values={pick("avgSleep")} /></div>
+                                <div className="mt-1"><SparklineBars values={pick("avgSleep")} goodUp /></div>
                               </div>
                               <div>
                                 <p className="text-xs font-bold text-foreground">{t("wellness_metric_energy" as any)}</p>
-                                <div className="mt-1"><SparklineBars values={pick("avgEnergy")} /></div>
+                                <div className="mt-1"><SparklineBars values={pick("avgEnergy")} goodUp /></div>
                               </div>
                               <div>
                                 <p className="text-xs font-bold text-foreground">{t("wellness_metric_soreness" as any)}</p>
-                                <div className="mt-1"><SparklineBars values={pick("avgSoreness")} /></div>
+                                <div className="mt-1"><SparklineBars values={pick("avgSoreness")} goodUp={false} /></div>
                               </div>
                               <div>
                                 <p className="text-xs font-bold text-foreground">{t("wellness_metric_readiness" as any)}</p>
-                                <div className="mt-1"><SparklineBars values={pick("avgReadiness")} /></div>
+                                <div className="mt-1"><SparklineBars values={pick("avgReadiness")} goodUp /></div>
                               </div>
                             </div>
                           );
@@ -2429,19 +2741,29 @@ export default function Schedule() {
                             }
                           }
                           return (
-                            <div key={p.userId} className="rounded-xl border border-border bg-background/40 px-3 py-2.5">
+                            <div key={p.userId} className="rounded-xl border border-border bg-background/40 px-3 py-3 min-h-[56px]">
                               <div className="flex items-center justify-between gap-2">
                                 <p className="text-sm font-extrabold text-foreground truncate">{p.name}</p>
                                 <p className="text-[11px] font-bold text-muted-foreground">{t("wellness_staff_priority_score" as any).replace("{score}", String(p.score))}</p>
                               </div>
                               <div className="mt-1 flex flex-wrap gap-1.5">
                                 {reasons.slice(0, 4).map((r) => (
-                                  <span key={r} className="px-2 py-0.5 rounded-full border border-border bg-muted/30 text-[10px] font-bold text-muted-foreground">
+                                  <span
+                                    key={r}
+                                    className={[
+                                      "px-2 py-0.5 rounded-full border text-[10px] font-black tracking-wide",
+                                      r === t("wellness_reason_missing" as any)
+                                        ? "border-sky-500/25 bg-sky-500/10 text-sky-900 dark:text-sky-200"
+                                        : r === t("wellness_reason_high_soreness" as any) || r === t("wellness_reason_low_readiness" as any)
+                                          ? "border-amber-500/25 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+                                          : "border-border bg-muted/25 text-muted-foreground",
+                                    ].join(" ")}
+                                  >
                                     {r}
                                   </span>
                                 ))}
                                 {chips.slice(0, 2).map((c) => (
-                                  <span key={c} className="px-2 py-0.5 rounded-full border border-border bg-background/40 text-[10px] font-bold text-muted-foreground">
+                                  <span key={c} className="px-2 py-0.5 rounded-full border border-border bg-background/40 text-[10px] font-black tracking-wide text-muted-foreground">
                                     {c}
                                   </span>
                                 ))}
@@ -2625,25 +2947,25 @@ export default function Schedule() {
                             <div>
                               <p className="text-xs font-bold text-foreground">{t("wellness_metric_sleep" as any)}</p>
                               <div className="mt-1">
-                                <SparklineBars values={pick("sleep")} />
+                                <SparklineBars values={pick("sleep")} goodUp />
                               </div>
                             </div>
                             <div>
                               <p className="text-xs font-bold text-foreground">{t("wellness_metric_energy" as any)}</p>
                               <div className="mt-1">
-                                <SparklineBars values={pick("energy")} />
+                                <SparklineBars values={pick("energy")} goodUp />
                               </div>
                             </div>
                             <div>
                               <p className="text-xs font-bold text-foreground">{t("wellness_metric_soreness" as any)}</p>
                               <div className="mt-1">
-                                <SparklineBars values={pick("soreness")} />
+                                <SparklineBars values={pick("soreness")} goodUp={false} />
                               </div>
                             </div>
                             <div>
                               <p className="text-xs font-bold text-foreground">{t("wellness_metric_readiness" as any)}</p>
                               <div className="mt-1">
-                                <SparklineBars values={pick("readiness")} />
+                                <SparklineBars values={pick("readiness")} goodUp />
                               </div>
                             </div>
                           </div>
@@ -2662,6 +2984,11 @@ export default function Schedule() {
                   >
                     {t("wellness_edit")}
                   </Button>
+
+                  <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
+                    <p className="text-sm font-extrabold text-foreground">{t("wellness_done_title" as any)}</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">{t("wellness_done_subtitle" as any)}</p>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -4083,14 +4410,14 @@ function WellnessRow(props: {
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <p className="text-xs font-bold text-foreground">{props.label}</p>
+          <p className="text-xs font-black tracking-tight text-foreground">{props.label}</p>
           {props.tooltip ? (
             <span className="inline-flex items-center text-muted-foreground" title={props.tooltip} aria-label={props.tooltip}>
               <Info className="w-3.5 h-3.5" />
             </span>
           ) : null}
         </div>
-        <p className="text-[11px] text-muted-foreground mt-0.5">1–5</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{props.value ? "Selected" : "1–5"}</p>
       </div>
       <ToggleGroup
         type="single"
@@ -4100,7 +4427,16 @@ function WellnessRow(props: {
         disabled={props.disabled}
       >
         {["1", "2", "3", "4", "5"].map((n) => (
-          <ToggleGroupItem key={n} value={n} size="sm" variant="outline" className="h-9 w-9 px-0">
+          <ToggleGroupItem
+            key={n}
+            value={n}
+            size="sm"
+            variant="outline"
+            className={[
+              "h-10 w-10 px-0 text-sm font-black",
+              "data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm",
+            ].join(" ")}
+          >
             {n}
           </ToggleGroupItem>
         ))}
@@ -4121,22 +4457,34 @@ function Metric(props: { label: string; value: number }) {
 function SparklineBars(props: {
   values: Array<number | null>;
   height?: number;
-  invert?: boolean; // for soreness (higher is "worse") we may invert comparisons elsewhere; visual stays same
+  goodUp?: boolean;
 }) {
-  const h = props.height ?? 28;
+  const h = props.height ?? 30;
   const finite = props.values.filter((v) => typeof v === "number" && Number.isFinite(v)) as number[];
   const min = finite.length ? Math.min(...finite) : 0;
   const max = finite.length ? Math.max(...finite) : 1;
   const span = max - min || 1;
+  const first = (props.values.find((v) => typeof v === "number" && Number.isFinite(v)) ?? null) as number | null;
+  const last = ([...props.values].reverse().find((v) => typeof v === "number" && Number.isFinite(v)) ?? null) as number | null;
+  const delta = typeof first === "number" && typeof last === "number" ? last - first : 0;
+  const goodUp = props.goodUp ?? true;
+  const trendGood = goodUp ? delta >= 0 : delta <= 0;
+  const baseColor = trendGood ? "bg-emerald-600/75 dark:bg-emerald-400/70" : "bg-amber-600/75 dark:bg-amber-400/70";
+  const lastColor = trendGood ? "bg-emerald-600 dark:bg-emerald-400" : "bg-amber-600 dark:bg-amber-400";
   return (
     <div className="flex items-end gap-1" style={{ height: h }}>
       {props.values.map((v, idx) => {
         const pct = typeof v === "number" && Number.isFinite(v) ? (v - min) / span : 0;
         const barH = Math.max(2, Math.round(pct * (h - 2)));
+        const isLast = idx === props.values.length - 1;
         return (
           <div
             key={idx}
-            className={typeof v === "number" ? "w-2 rounded-sm bg-primary/70" : "w-2 rounded-sm bg-muted/40"}
+            className={
+              typeof v === "number"
+                ? `w-2.5 rounded-sm ${isLast ? lastColor : baseColor}`
+                : "w-2.5 rounded-sm bg-muted/35"
+            }
             style={{ height: barH }}
             title={typeof v === "number" ? String(Math.round(v * 10) / 10) : "—"}
           />

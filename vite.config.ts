@@ -31,6 +31,14 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     allowedHosts: true,
+    // In dev, the client runs on Vite and the API runs on Express (PORT=3000).
+    // Proxy /api/* so fetch("/api/...") never falls back to index.html.
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],

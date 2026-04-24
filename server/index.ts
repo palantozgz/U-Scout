@@ -67,6 +67,12 @@ app.use((req, res, next) => {
 (async () => {
   await registerRoutes(httpServer, app);
 
+  // Hard guarantee: API routes must never fall through to the SPA HTML.
+  // If an /api route is not matched, return JSON 404 instead of Vite index.html.
+  app.use("/api", (_req, res) => {
+    return res.status(404).json({ error: "Not found" });
+  });
+
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

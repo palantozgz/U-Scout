@@ -111,7 +111,21 @@ export function useDeleteClubMember() {
     mutationFn: async (memberId: string) => {
       await apiRequest("DELETE", `/api/club/members/${encodeURIComponent(memberId)}`);
     },
-    onSuccess: () => {
+    onMutate: async (memberId) => {
+      await qc.cancelQueries({ queryKey: clubQueryKey });
+      const prev = qc.getQueryData<ClubPayload>(clubQueryKey);
+      if (prev) {
+        qc.setQueryData<ClubPayload>(clubQueryKey, {
+          ...prev,
+          members: prev.members.filter((m) => m.id !== memberId),
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _memberId, ctx) => {
+      if (ctx?.prev) qc.setQueryData(clubQueryKey, ctx.prev);
+    },
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: clubQueryKey });
       void qc.invalidateQueries({ queryKey: clubStatsQueryKey });
     },
@@ -127,7 +141,23 @@ export function useBanClubMember() {
         : `/api/club/members/${encodeURIComponent(id)}/unban`;
       await apiRequest("PATCH", path, {});
     },
-    onSuccess: () => {
+    onMutate: async (args) => {
+      await qc.cancelQueries({ queryKey: clubQueryKey });
+      const prev = qc.getQueryData<ClubPayload>(clubQueryKey);
+      if (prev) {
+        qc.setQueryData<ClubPayload>(clubQueryKey, {
+          ...prev,
+          members: prev.members.map((m) =>
+            m.id === args.id ? { ...m, status: args.ban ? "banned" : "active" } : m,
+          ),
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _args, ctx) => {
+      if (ctx?.prev) qc.setQueryData(clubQueryKey, ctx.prev);
+    },
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: clubQueryKey });
     },
   });
@@ -142,9 +172,45 @@ export function useSetClubMemberOperationsAccess() {
         `/api/club/members/${encodeURIComponent(args.id)}/operations-access`,
         { operationsAccess: args.operationsAccess },
       );
-      return res.json() as Promise<ClubMemberDto>;
+      const text = await res.text().catch(() => "");
+      if (!text || text.trim().length === 0) {
+        throw new Error(`Empty response from server (${res.status} ${res.url})`);
+      }
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        // Show the first chars so devs can see HTML/text responses.
+        const ct = res.headers.get("content-type") ?? "unknown";
+        throw new Error(
+          `Non-JSON response (${res.status} ${res.url}) [${ct}]: ${text.slice(0, 180)}`,
+        );
+      }
+      if (parsed?.ok !== true || !parsed?.member) {
+        throw new Error(
+          typeof parsed?.error === "string"
+            ? parsed.error + (typeof parsed?.detail === "string" ? `: ${parsed.detail}` : "")
+            : "Unexpected response from server",
+        );
+      }
+      return parsed.member as ClubMemberDto;
     },
-    onSuccess: () => {
+    onMutate: async (args) => {
+      await qc.cancelQueries({ queryKey: clubQueryKey });
+      const prev = qc.getQueryData<ClubPayload>(clubQueryKey);
+      if (prev) {
+        qc.setQueryData<ClubPayload>(clubQueryKey, {
+          ...prev,
+          members: prev.members.map((m) => (m.id === args.id ? { ...m, operationsAccess: args.operationsAccess } : m)),
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _args, ctx) => {
+      if (ctx?.prev) qc.setQueryData(clubQueryKey, ctx.prev);
+    },
+    onSettled: () => {
+      // Always refetch to ensure server is source of truth.
       void qc.invalidateQueries({ queryKey: clubQueryKey });
     },
   });
