@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/useAuth";
+import { useCapabilities } from "@/lib/capabilities";
 
 /**
  * U Core Scout module entrypoint.
@@ -9,14 +10,15 @@ import { useAuth } from "@/lib/useAuth";
  */
 export default function Scout() {
   const { profile, loading } = useAuth();
+  const caps = useCapabilities();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
     if (loading) return;
     if (!profile) setLocation("/login");
-    if (profile?.role === "player") setLocation("/player");
+    if (caps.canUsePlayerUX) setLocation("/player");
     else setLocation("/coach");
-  }, [loading, profile, setLocation]);
+  }, [caps.canUsePlayerUX, loading, profile, setLocation]);
 
   if (loading) {
     return (

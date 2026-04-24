@@ -25,6 +25,8 @@ import { useLocale } from "@/lib/i18n";
 
 type Translate = ReturnType<typeof useLocale>["t"];
 import { useAuth } from "@/lib/useAuth";
+import { useCapabilities, type ClubMembership } from "@/lib/capabilities";
+import { canBanMember, canRemoveMember, type ClubActorRole } from "@/lib/clubMemberPermissions";
 import {
   useClub,
   usePatchClub,
@@ -237,16 +239,34 @@ export default function ClubManagement() {
   const [dialogLink, setDialogLink] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
-  const canAccess = profile?.role === "master" || profile?.role === "head_coach" || profile?.role === "coach";
-
-  useEffect(() => {
-    if (profile && !canAccess) {
-      setLocation("/coach");
-    }
-  }, [profile, canAccess, setLocation]);
-
   const q = useClub();
   const patchClub = usePatchClub();
+
+  const membership: ClubMembership | null = useMemo(() => {
+    if (!profile?.id || !q.data?.club) return null;
+    const me = q.data.members.find((m) => m.userId === profile.id);
+    if (!me) return null;
+    return {
+      clubId: q.data.club.id,
+      userId: profile.id,
+      role: me.role as ClubMembership["role"],
+      status: me.status as ClubMembership["status"],
+      isOwner: q.data.club.ownerId === profile.id,
+    };
+  }, [profile?.id, q.data?.club, q.data?.members]);
+
+  const caps = useCapabilities({ membership });
+
+  // Page entry: canManageClub (realRole + membership), not effectiveRole.
+  useEffect(() => {
+    if (!profile) return;
+    if (profile.role === "player") {
+      setLocation("/coach");
+      return;
+    }
+    if (!q.data && profile.role !== "master") return;
+    if (!caps.canManageClub) setLocation("/coach");
+  }, [caps.canManageClub, profile, q.data, setLocation]);
 
   useEffect(() => {
     if (!q.data || !profile?.id) return;
@@ -272,26 +292,23 @@ export default function ClubManagement() {
     }
   }, [q.data?.club, nameDirty]);
 
-  const canEditBranding =
-    profile &&
-    q.data &&
-    (profile.role === "master" || q.data.club.ownerId === profile.id);
+  const canEditBranding = caps.canEditClub;
 
   /** Owner/master, or active club head coach — can edit league / gender / level / age (head coach cannot rename club or logo). */
   const canEditClubContext = useMemo(() => {
     if (!profile || !q.data) return false;
-    if (profile.role === "master" || q.data.club.ownerId === profile.id) return true;
+    if (caps.canEditClub) return true;
     const me = q.data.members.find((m) => m.userId === profile.id);
     return me?.status === "active" && me.role === "head_coach";
-  }, [profile, q.data]);
+  }, [caps.canEditClub, profile, q.data]);
 
-  const canManage = useMemo(() => {
-    if (!profile || !q.data) return false;
-    if (profile.role === "master") return true;
-    if (q.data.club.ownerId === profile.id) return true;
-    const me = q.data.members.find((m) => m.userId === profile.id);
-    return me?.status === "active" && (me.role === "head_coach" || me.role === "coach");
-  }, [profile, q.data]);
+  const canInviteMembers = caps.canInviteMembers;
+  const canSeeAdminActions = caps.canSeeAdminActions;
+
+  const meClubRole = useMemo<ClubActorRole>(() => {
+    if (profile?.role === "master") return "master";
+    return membership?.role ?? null;
+  }, [membership?.role, profile?.role]);
 
   const clubMemberByUserId = useMemo(() => {
     const map = new Map<string, ClubMemberDto>();
@@ -438,7 +455,7 @@ export default function ClubManagement() {
 
   const isNoClubError = q.isError && String((q.error as Error)?.message).includes("404");
 
-  if (!canAccess) {
+  if (profile?.role === "player") {
     return (
       <div className="flex items-center justify-center min-h-[100dvh] bg-background">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -778,7 +795,7 @@ export default function ClubManagement() {
                     <section className="rounded-2xl border border-border bg-card p-4">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t("club_overview_quick_actions")}</p>
                       <div className="flex flex-wrap gap-2">
-                        {canManage ? (
+                        {canInviteMembers ? (
                           <>
                             <Button size="sm" variant="secondary" className="font-bold gap-2" onClick={() => openInvite("coach")}>
                               <UserPlus className="w-4 h-4" />
@@ -806,7 +823,7 @@ export default function ClubManagement() {
               </TabsContent>
 
               <TabsContent value="staff" className="space-y-3 mt-0">
-                {canManage && (
+                {canInviteMembers && (
                   <Button size="sm" variant="secondary" className="font-bold" onClick={() => openInvite("coach")}>
                     {t("club_invite_staff")}
                   </Button>
@@ -823,7 +840,8 @@ export default function ClubManagement() {
                       variant="staff"
                       t={t}
                       roleLabel={roleLabel}
-                      canManage={canManage}
+                      canManage={canSeeAdminActions}
+                      meRole={meClubRole}
                       profileId={profile?.id}
                       clubOwnerId={q.data.club.ownerId}
                       delMember={delMember}
@@ -834,7 +852,7 @@ export default function ClubManagement() {
               </TabsContent>
 
               <TabsContent value="roster" className="space-y-3 mt-0">
-                {canManage && (
+                {canInviteMembers && (
                   <Button size="sm" variant="secondary" className="font-bold" onClick={() => openInvite("player")}>
                     {t("club_invite_player")}
                   </Button>
@@ -851,7 +869,8 @@ export default function ClubManagement() {
                       variant="player"
                       t={t}
                       roleLabel={roleLabel}
-                      canManage={canManage}
+                      canManage={canSeeAdminActions}
+                      meRole={meClubRole}
                       profileId={profile?.id}
                       clubOwnerId={q.data.club.ownerId}
                       delMember={delMember}
@@ -890,7 +909,7 @@ export default function ClubManagement() {
                             {copiedId === inv.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                             {copiedId === inv.id ? t("invite_copied") : t("invite_copy")}
                           </Button>
-                          {canManage && (
+                          {canInviteMembers && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -1030,6 +1049,7 @@ function MemberRow({
   t,
   roleLabel,
   canManage,
+  meRole,
   profileId,
   clubOwnerId,
   delMember,
@@ -1040,6 +1060,7 @@ function MemberRow({
   t: Translate;
   roleLabel: (r: string) => string;
   canManage: boolean;
+  meRole: ClubActorRole;
   profileId?: string;
   clubOwnerId: string;
   delMember: ReturnType<typeof useDeleteClubMember>;
@@ -1048,6 +1069,8 @@ function MemberRow({
   const isOwner = m.userId === clubOwnerId && m.role === "head_coach";
   const isSelf = m.userId === profileId;
   const banned = m.status === "banned";
+  const canRemove = canRemoveMember({ meRole, targetRole: m.role, isOwner, isSelf });
+  const canBan = canBanMember({ meRole, targetRole: m.role, isOwner, isSelf });
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1083,15 +1106,15 @@ function MemberRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[10rem]">
               <DropdownMenuItem
-                className={cn("font-medium", isOwner && "opacity-50 pointer-events-none")}
+                className={cn("font-medium", !canRemove && "opacity-50 pointer-events-none")}
                 onSelect={() => {
-                  if (isOwner) return;
+                  if (!canRemove) return;
                   delMember.mutate(m.id);
                 }}
               >
                 <span className="text-destructive">{t("club_remove")}</span>
               </DropdownMenuItem>
-              {!isOwner && !isSelf ? (
+              {canBan ? (
                 <DropdownMenuItem
                   className="font-medium"
                   onSelect={() => banMut.mutate({ id: m.id, ban: !banned })}
@@ -1107,12 +1130,12 @@ function MemberRow({
               variant="outline"
               size="sm"
               className="text-destructive border-destructive/30 hover:bg-destructive/10"
-              disabled={delMember.isPending || isOwner}
+              disabled={delMember.isPending || !canRemove}
               onClick={() => delMember.mutate(m.id)}
             >
               {t("club_remove")}
             </Button>
-            {!isOwner && !isSelf && (
+            {canBan && (
               <Button
                 variant="outline"
                 size="sm"

@@ -41,7 +41,7 @@ const THEMES: { id: Theme; emoji: string; labelKey: string; previewBg: string; d
 export default function Settings() {
   const [, setLocation] = useLocation();
   const { locale, changeLocale, t } = useLocale();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, canUseRolePreview, previewRole, setPreviewRole } = useAuth();
   const { theme, setTheme } = useTheme();
 
   const handleSignOut = async () => {
@@ -175,7 +175,48 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground capitalize">{profile.role}</p>
             </div>
           )}
-          {/* DEV ROLE PREVIEW removed from production paths (re-enable via useAuth override + gated UI). */}
+          {canUseRolePreview ? (
+            <div className="px-5 py-4 border-b border-border space-y-2">
+              <p className="text-xs font-bold tracking-widest uppercase text-muted-foreground">
+                {t("dev_role_preview_title")}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={previewRole ? "outline" : "secondary"}
+                  className="flex-1"
+                  onClick={() => setPreviewRole(null)}
+                  data-testid="dev-role-real"
+                >
+                  {t("dev_role_use_real")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={previewRole === "player" ? "secondary" : "outline"}
+                  className="flex-1"
+                  onClick={() => setPreviewRole("player")}
+                  data-testid="dev-role-player"
+                >
+                  {t("dev_role_preview_player")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={previewRole && previewRole !== "player" ? "secondary" : "outline"}
+                  className="flex-1"
+                  onClick={() => setPreviewRole("coach")}
+                  data-testid="dev-role-staff"
+                >
+                  {t("dev_role_preview_staff")}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {t("dev_role_preview_note")}
+              </p>
+            </div>
+          ) : null}
           <button
             type="button"
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-destructive/10 transition-colors text-left"

@@ -2,18 +2,28 @@ import { useEffect, useMemo, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useLocale } from "@/lib/i18n";
 import { useAuth, type AppUserRole } from "@/lib/useAuth";
+import { computeCapabilities, readCoachBadges, useCapabilities } from "@/lib/capabilities";
 import { cn } from "@/lib/utils";
 import { Settings, ChevronRight, CalendarDays, BarChart3, Users, ClipboardList, BellDot, Activity } from "lucide-react";
 import { useClub } from "@/lib/club-api";
 import { getStoredRosterSignature, rosterSignature, setStoredRosterSignature } from "@/lib/clubRosterSeen";
 import { usePlayerTeams } from "@/lib/player-home";
 import { UCoreLogoSvgLockup } from "@/components/branding/UScoutBrand";
+import {
+  useScheduleParticipantsForEvents,
+  useThisWeekScheduleEvents,
+  useTodayScheduleEvents,
+  useTomorrowScheduleEvents,
+  useTodayWellnessSubmissionPct,
+} from "@/lib/schedule";
+import { useWellnessEntryToday, todayKey } from "@/lib/wellness";
+import { buildHomeSignals } from "@/lib/homeSignals";
 
 type HomeMode = "staff" | "player";
 
 function useHomeMode(): HomeMode {
-  const { profile } = useAuth();
-  return profile?.role === "player" ? "player" : "staff";
+  const caps = useCapabilities();
+  return caps.canUsePlayerUX ? "player" : "staff";
 }
 
 const ROLE_LABEL_KEY: Record<AppUserRole, "role_master" | "role_head_coach" | "role_coach" | "role_player"> = {
@@ -133,22 +143,90 @@ export default function Home() {
   const { t } = useLocale();
   const [, setLocation] = useLocation();
   const mode = useHomeMode();
-  const { profile } = useAuth();
+  const { profile, effectiveRole, previewRole } = useAuth();
+  const caps = useCapabilities();
+  const realCaps = useMemo(
+    () =>
+      computeCapabilities({
+        realRole: profile?.role ?? null,
+        effectiveRole: profile?.role ?? null,
+        badges: readCoachBadges(profile ?? null),
+      }),
+    [profile?.id, profile?.role],
+  );
+  const settingsHref = previewRole ? "/settings" : (caps.canUsePlayerUX ? "/player/home-settings" : "/settings");
   const displayName = profile?.username?.trim() || profile?.email || t("coach_home_name_fallback");
-  const roleLabel = profile?.role ? t(ROLE_LABEL_KEY[profile.role]) : "";
+  const roleLabel = effectiveRole ? t(ROLE_LABEL_KEY[effectiveRole]) : "";
 
   // Staff: show Mi Club activity dot (same logic as previous CoachHome)
-  const watchesClubActivity = mode === "staff" && profile?.role === "head_coach";
+  const watchesClubActivity = mode === "staff" && realCaps.staffRole === "head_coach";
   const clubQuery = useClub({ enabled: watchesClubActivity });
   const clubData = clubQuery.data;
 
+  const clubId = clubData?.club.id;
+  const userId = profile?.id;
+
+  const todaySessionsQ = useTodayScheduleEvents({ clubId });
+  const tomorrowSessionsQ = useTomorrowScheduleEvents({ clubId });
+  const weekSessionsQ = useThisWeekScheduleEvents({ clubId });
+
+  const rosterPlayerUserIds = useMemo(() => {
+    const members = clubData?.members ?? [];
+    return members.filter((m) => m.role === "player" && m.status === "active").map((m) => m.userId);
+  }, [clubData?.members]);
+
+  const todayParticipantsQ = useScheduleParticipantsForEvents({
+    clubId,
+    eventIds: todaySessionsQ.data?.map((s) => s.id) ?? [],
+  });
+
+  const wellnessPctQ = useTodayWellnessSubmissionPct({ clubId, playerUserIds: rosterPlayerUserIds });
+
+  const wellnessEntryQ = useWellnessEntryToday({ clubId, userId });
+  const wellnessSubmittedToday = Boolean(wellnessEntryQ.data);
+  const wellnessDateKey = todayKey();
+
   const showClubActivityDot = useMemo(() => {
     if (!clubData || clubQuery.isError || !profile?.id) return false;
-    if (profile.role !== "head_coach") return false;
+    if (realCaps.staffRole !== "head_coach") return false;
     const prev = getStoredRosterSignature(profile.id, clubData.club.id);
     if (prev === null) return false;
     return prev !== rosterSignature(clubData.members);
-  }, [clubData, clubQuery.isError, profile?.id, profile?.role]);
+  }, [clubData, clubQuery.isError, profile?.id, realCaps.staffRole]);
+
+  const homeSignals = useMemo(
+    () =>
+      buildHomeSignals({
+        todaySessions: todaySessionsQ.data ?? [],
+        tomorrowSessions: tomorrowSessionsQ.data ?? [],
+        weekSessions: weekSessionsQ.data ?? [],
+        todaySessionsIsSuccess: todaySessionsQ.isSuccess,
+        rosterPlayerUserIds,
+        todayParticipants: todayParticipantsQ.data ?? [],
+        wellnessPct: wellnessPctQ.data?.pct ?? null,
+        wellnessSubmittedToday,
+        showClubChanges: showClubActivityDot,
+        staffRole: realCaps.staffRole,
+        isPhysicalTrainer: realCaps.isPhysicalTrainer,
+        canCreateSession: realCaps.canCreateEvent,
+        canManageWellness: realCaps.canManageWellness,
+      }),
+    [
+      realCaps.canCreateEvent,
+      realCaps.canManageWellness,
+      realCaps.isPhysicalTrainer,
+      realCaps.staffRole,
+      rosterPlayerUserIds,
+      showClubActivityDot,
+      todayParticipantsQ.data,
+      todaySessionsQ.data,
+      todaySessionsQ.isSuccess,
+      tomorrowSessionsQ.data,
+      weekSessionsQ.data,
+      wellnessPctQ.data?.pct,
+      wellnessSubmittedToday,
+    ],
+  );
 
   // Keep roster signature initialized once, same as previous CoachHome.
   useEffect(() => {
@@ -179,11 +257,27 @@ export default function Home() {
   }, [mode, playerTeamsQ.data?.teams]);
 
   const smartSlots = useMemo((): SmartSlot[] => {
-    // Slot 1: schedule (truthful neutral until schedule data exists)
+    const scheduleSubtitle = (() => {
+      if (!homeSignals.kpis.nextSession) return t("schedule_empty_next_sessions");
+      try {
+        const time = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(
+          new Date(homeSignals.kpis.nextSession.starts_at),
+        );
+        return `${time}${homeSignals.kpis.nextSession.location ? ` · ${homeSignals.kpis.nextSession.location}` : ""}`;
+      } catch {
+        return homeSignals.kpis.nextSession.starts_at;
+      }
+    })();
+
     const scheduleSlot: SmartSlot = {
       key: "schedule",
-      title: t("ucore_slot_practice_neutral"),
-      subtitle: t("ucore_slot_practice_neutral_sub"),
+      title: mode === "player" ? t("home_next_session") : t("home_sessions_today"),
+      subtitle:
+        mode === "player"
+          ? scheduleSubtitle
+          : todaySessionsQ.isLoading
+            ? t("schedule_loading_today")
+            : t("home_sessions_today_count").replace("{count}", String(homeSignals.kpis.sessionsTodayCount)),
       icon: <CalendarDays className="h-3.5 w-3.5" />,
       href: "/schedule",
       tone: "neutral",
@@ -193,24 +287,14 @@ export default function Home() {
       const pendingCount = playerPending ?? 0;
       const reportsCount = newReportsCount ?? 0;
 
-      const pendingSlot: SmartSlot =
-        pendingCount > 0
-          ? {
-              key: "pending",
-              title: t("ucore_slot_pending_count").replace("{count}", String(pendingCount)),
-              subtitle: undefined,
-              icon: <Activity className="h-3.5 w-3.5" />,
-              href: "/scout",
-              tone: "amber",
-            }
-          : {
-              key: "pending",
-              title: t("ucore_slot_pending_none"),
-              subtitle: undefined,
-              icon: <Activity className="h-3.5 w-3.5" />,
-              href: "/scout",
-              tone: "emerald",
-            };
+      const wellnessSlot: SmartSlot = {
+        key: "wellness",
+        title: t("home_wellness_today"),
+        subtitle: wellnessSubmittedToday ? t("schedule_wellness_submitted") : t("schedule_wellness_pending"),
+        icon: <Activity className="h-3.5 w-3.5" />,
+        href: "/schedule",
+        tone: wellnessSubmittedToday ? "emerald" : "amber",
+      };
 
       const distinctNewReports = reportsCount > 0 && reportsCount !== pendingCount;
 
@@ -241,40 +325,48 @@ export default function Home() {
               tone: "emerald",
             };
 
-      return [scheduleSlot, pendingSlot, reportsSlot];
+      return [scheduleSlot, wellnessSlot, reportsSlot];
     }
 
-    // Staff / coaches: avoid fabricated counts; use real club activity signal for head coaches when available.
-    const pendingSlot: SmartSlot =
-      watchesClubActivity && showClubActivityDot
-        ? {
-            key: "club",
-            title: t("ucore_slot_club_activity"),
-            subtitle: t("ucore_slot_club_activity_sub"),
-            icon: <Users className="h-3.5 w-3.5" />,
-            href: "/coach/club",
-            tone: "amber",
-          }
-        : {
-            key: "ready",
-            title: t("ucore_slot_ready"),
-            subtitle: undefined,
-            icon: <Activity className="h-3.5 w-3.5" />,
-            href: "/scout",
-            tone: "emerald",
-          };
-
-    const reportsSlot: SmartSlot = {
-      key: "scout",
-      title: t("ucore_card_scout_title"),
-      subtitle: t("ucore_card_scout_sub_staff"),
-      icon: <ClipboardList className="h-3.5 w-3.5" />,
-      href: "/scout",
-      tone: "neutral",
+    const attendanceSlot: SmartSlot = {
+      key: "attendance",
+      title: t("home_pending_attendance"),
+      subtitle:
+        todaySessionsQ.isLoading || todayParticipantsQ.isLoading ? t("schedule_placeholder_kpi") : String(homeSignals.kpis.pendingAttendanceCount),
+      icon: <Activity className="h-3.5 w-3.5" />,
+      href: "/schedule",
+      tone: homeSignals.kpis.pendingAttendanceCount > 0 ? "amber" : "emerald",
     };
 
-    return [scheduleSlot, pendingSlot, reportsSlot];
-  }, [mode, newReportsCount, playerPending, showClubActivityDot, t, watchesClubActivity]);
+    const wellnessSlot: SmartSlot = {
+      key: "wellness",
+      title: t("home_wellness_submitted"),
+      subtitle: wellnessPctQ.isLoading
+        ? t("schedule_placeholder_kpi")
+        : t("home_wellness_submitted_pct")
+            .replace("{pct}", String(wellnessPctQ.data?.pct ?? 0))
+            .replace("{submitted}", String(wellnessPctQ.data?.submitted ?? 0))
+            .replace("{total}", String(wellnessPctQ.data?.total ?? 0)),
+      icon: <BellDot className="h-3.5 w-3.5" />,
+      href: "/schedule",
+      tone: (wellnessPctQ.data?.pct ?? 0) >= 80 ? "emerald" : "blue",
+    };
+
+    return [scheduleSlot, attendanceSlot, wellnessSlot];
+  }, [
+    mode,
+    newReportsCount,
+    homeSignals.kpis.nextSession,
+    homeSignals.kpis.pendingAttendanceCount,
+    playerPending,
+    t,
+    todayParticipantsQ.isLoading,
+    todaySessionsQ.data?.length,
+    todaySessionsQ.isLoading,
+    wellnessPctQ.data,
+    wellnessPctQ.isLoading,
+    wellnessSubmittedToday,
+  ]);
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
@@ -285,7 +377,7 @@ export default function Home() {
           </div>
           <button
             type="button"
-            onClick={() => setLocation("/settings")}
+            onClick={() => setLocation(settingsHref)}
             className={cn(
               "mt-1 p-2 rounded-lg text-muted-foreground transition-colors",
               "hover:text-primary hover:bg-muted/40",
@@ -314,6 +406,75 @@ export default function Home() {
         <div className="flex flex-col gap-3 flex-1">
           {mode === "staff" ? (
             <>
+              {(() => {
+                const res = homeSignals.smartActionsRanking;
+                if (!res) return null;
+                const primary = res.primary;
+                const secondary = res.secondary;
+                const wellnessPct = homeSignals.kpis.wellnessPct;
+
+                return (
+                  <div className="rounded-lg border border-border bg-card p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                        {t("home_priorities_today")}
+                      </p>
+                      {secondary ? (
+                        <button
+                          type="button"
+                          className="text-[11px] font-bold text-primary hover:underline"
+                          onClick={() => {
+                            if (secondary.kind === "club") setLocation("/coach/club");
+                            else setLocation("/schedule");
+                          }}
+                          data-testid={`ucore-home-action-secondary-${secondary.kind}`}
+                        >
+                          {secondary.kind === "attendance"
+                            ? t("home_action_review_attendance")
+                            : secondary.kind === "createSession"
+                              ? t("home_action_create_session")
+                              : secondary.kind === "wellness"
+                                ? t("home_action_review_wellness")
+                                : t("home_action_review_club")}
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setLocation(primary.kind === "club" ? "/coach/club" : "/schedule")}
+                      className={cn(
+                        "mt-2 w-full rounded-lg border border-border bg-background/40 p-3 text-left",
+                        "transition-all duration-200 hover:border-primary hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.25)]",
+                        "active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/10",
+                      )}
+                      data-testid={`ucore-home-action-primary-${primary.kind}`}
+                    >
+                      <div className="flex items-center gap-2 text-primary">
+                        {primary.kind === "club" ? <Users className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
+                        <p className="text-sm font-black tracking-tight text-foreground">
+                          {primary.kind === "attendance"
+                            ? t("home_action_review_attendance")
+                            : primary.kind === "createSession"
+                              ? t("home_action_create_session")
+                              : primary.kind === "wellness"
+                                ? t("home_action_review_wellness")
+                                : t("home_action_review_club")}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground font-medium">
+                        {primary.kind === "attendance"
+                            ? t("home_action_pending_count").replace("{count}", String(homeSignals.kpis.pendingAttendanceCount))
+                          : primary.kind === "createSession"
+                            ? t("home_action_create_session_sub")
+                            : primary.kind === "wellness"
+                              ? t("home_action_low_wellness_sub").replace("{pct}", String(wellnessPct ?? 0))
+                            : t("home_action_review_club_sub")}
+                      </p>
+                    </button>
+                  </div>
+                );
+              })()}
               <HomeCard
                 title={t("ucore_card_scout_title")}
                 subtitle={t("ucore_card_scout_sub_staff")}
@@ -323,7 +484,18 @@ export default function Home() {
               />
               <HomeCard
                 title={t("ucore_card_schedule_title")}
-                subtitle={t("ucore_card_schedule_sub")}
+                subtitle={
+                  homeSignals.kpis.nextSession
+                    ? t("home_next_session_sub")
+                        .replace(
+                          "{time}",
+                          new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(
+                            new Date(homeSignals.kpis.nextSession.starts_at),
+                          ),
+                        )
+                        .replace("{title}", homeSignals.kpis.nextSession.title)
+                    : t("schedule_empty_next_sessions")
+                }
                 icon={<CalendarDays className="w-9 h-9" strokeWidth={2} />}
                 onClick={() => setLocation("/schedule")}
                 testId="ucore-home-card-schedule"
@@ -346,9 +518,46 @@ export default function Home() {
             </>
           ) : (
             <>
+              <div className="rounded-lg border border-border bg-card p-4">
+                <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">{t("home_next_session")}</p>
+                <p className="mt-2 text-sm font-extrabold text-foreground">
+                  {todaySessionsQ.isLoading || tomorrowSessionsQ.isLoading || weekSessionsQ.isLoading
+                    ? t("schedule_loading_today")
+                    : homeSignals.kpis.nextSession
+                      ? homeSignals.kpis.nextSession.title
+                      : t("schedule_empty_next_sessions")}
+                </p>
+                {homeSignals.kpis.nextSession?.starts_at ? (
+                  <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
+                    {t("schedule_player_time")}:{" "}
+                    {new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(
+                      new Date(homeSignals.kpis.nextSession.starts_at),
+                    )}
+                    {" · "}
+                    {t("schedule_player_location")}:{" "}
+                    {homeSignals.kpis.nextSession.location?.trim()
+                      ? homeSignals.kpis.nextSession.location
+                      : t("schedule_location_tbd")}
+                  </p>
+                ) : null}
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center rounded-full border border-border bg-background/40 px-2.5 py-1 text-[11px] font-bold text-foreground">
+                    {t("home_wellness_today")}:{" "}
+                    {wellnessSubmittedToday ? t("schedule_wellness_submitted") : t("schedule_wellness_pending")}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-xs font-bold text-primary hover:underline"
+                    onClick={() => setLocation("/schedule")}
+                    data-testid="ucore-home-go-schedule"
+                  >
+                    {t("home_open_schedule")}
+                  </button>
+                </div>
+              </div>
               <HomeCard
                 title={t("ucore_card_schedule_title")}
-                subtitle={t("ucore_card_schedule_sub")}
+                subtitle={t("home_go_schedule_sub").replace("{date}", wellnessDateKey)}
                 icon={<CalendarDays className="w-9 h-9" strokeWidth={2} />}
                 onClick={() => setLocation("/schedule")}
                 testId="ucore-home-card-schedule"
@@ -356,7 +565,11 @@ export default function Home() {
               />
               <HomeCard
                 title={t("ucore_card_scout_title")}
-                subtitle={t("ucore_card_scout_sub_player")}
+                subtitle={
+                  (newReportsCount ?? 0) > 0
+                    ? t("ucore_slot_reports_count").replace("{count}", String(newReportsCount ?? 0))
+                    : t("ucore_card_scout_sub_player")
+                }
                 icon={<ClipboardList className="w-9 h-9" strokeWidth={2} />}
                 onClick={() => setLocation("/scout")}
                 testId="ucore-home-card-scout"

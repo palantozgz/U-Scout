@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/lib/useAuth";
+import { useLocale } from "@/lib/i18n";
 import Login from "@/pages/Login";
 
 import { UCoreBootSplash } from "@/components/branding/UScoutBrand";
@@ -168,13 +169,22 @@ function AuthGate() {
 }
 
 function App() {
-  const { loading, user, profile } = useAuth();
+  const { t } = useLocale();
+  const { loading, user, profile, effectiveRole, previewRole, setPreviewRole } = useAuth();
   const [loc] = useLocation();
   const isJoinRoute = loc.startsWith("/join/") || loc.startsWith("/join-club/");
   const isAuthed = !!user && !!profile;
   const [showSplash, setShowSplash] = useState(false);
   const [splashFadeOut, setSplashFadeOut] = useState(false);
   const splashTimersRef = useRef<{ fade?: number; hard?: number } | null>(null);
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isAuthed) return;
+    if (effectiveRole === "player" && loc.startsWith("/coach")) {
+      setLocation("/home");
+    }
+  }, [effectiveRole, isAuthed, loc, setLocation]);
 
   useEffect(() => {
     // Join routes should never show the boot splash.
@@ -227,6 +237,23 @@ function App() {
         <Toaster />
         <div className="min-h-[100dvh] bg-background max-w-md mx-auto relative shadow-2xl overflow-hidden overflow-y-auto border-x border-border">
           {showSplash ? <UCoreBootSplash fadeOut={splashFadeOut} /> : null}
+          {previewRole && previewRole !== profile?.role ? (
+            <button
+              type="button"
+              className="absolute top-2 right-2 z-[95] inline-flex items-center gap-2 rounded-full border border-border bg-card/90 backdrop-blur px-2.5 py-1 text-[10px] font-bold tracking-wide text-muted-foreground hover:text-foreground"
+              data-testid="dev-role-preview-badge"
+              onClick={() => setPreviewRole(null)}
+              title={t("dev_badge_clear_title")}
+              aria-label={t("dev_badge_clear_title")}
+            >
+              <span>
+                {previewRole === "player"
+                  ? t("dev_badge_preview_player")
+                  : t("dev_badge_preview_staff")}
+              </span>
+              <span className="text-xs leading-none opacity-80">×</span>
+            </button>
+          ) : null}
           <Switch>
             <Route path="/join/:token" component={JoinPage} />
             <Route path="/join-club/:token" component={JoinClub} />

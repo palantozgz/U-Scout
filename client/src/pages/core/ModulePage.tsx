@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Settings, ArrowLeft } from "lucide-react";
 import { ModuleNav } from "./ModuleNav";
+import { useAuth } from "@/lib/useAuth";
+import { useCapabilities } from "@/lib/capabilities";
 
 export function ModulePageShell(
   props: PropsWithChildren<{
@@ -12,6 +14,9 @@ export function ModulePageShell(
 ) {
   const { title, showBack, children } = props;
   const [, setLocation] = useLocation();
+  const { previewRole } = useAuth();
+  const caps = useCapabilities();
+  const settingsHref = previewRole ? "/settings" : (caps.canUsePlayerUX ? "/player/home-settings" : "/settings");
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-16">
@@ -34,7 +39,7 @@ export function ModulePageShell(
           variant="ghost"
           size="icon"
           className="text-muted-foreground hover:text-foreground"
-          onClick={() => setLocation("/settings")}
+          onClick={() => setLocation(settingsHref)}
           aria-label="Settings"
           data-testid="ucore-module-settings"
         >

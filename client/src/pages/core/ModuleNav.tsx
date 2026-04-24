@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/useAuth";
+import { useCapabilities } from "@/lib/capabilities";
 import { CalendarDays, ClipboardList, BarChart3, Home } from "lucide-react";
 import { useLocale } from "@/lib/i18n";
 
@@ -13,8 +13,8 @@ type NavItem = {
 };
 
 function useModuleNavItems() {
-  const { profile } = useAuth();
-  const isPlayer = profile?.role === "player";
+  const caps = useCapabilities();
+  const isPlayer = caps.canUsePlayerUX;
   const { t } = useLocale();
   return useMemo<NavItem[]>(() => {
     const home = { key: "home", label: t("ucore_nav_home"), href: "/home", icon: <Home className="w-4 h-4" /> };
