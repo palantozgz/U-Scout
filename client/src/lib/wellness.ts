@@ -78,3 +78,53 @@ export function useUpsertWellnessEntry() {
   });
 }
 
+export function useWellnessEntriesForDate(params: { clubId?: string; entryDate: string; userIds: string[] }) {
+  return useQuery({
+    queryKey: ["wellness-entries", "by-date", params.clubId ?? null, params.entryDate, params.userIds],
+    enabled: Boolean(params.clubId) && params.userIds.length > 0,
+    networkMode: "offlineFirst",
+    queryFn: async (): Promise<WellnessEntry[]> => {
+      const { data, error } = await supabase
+        .from("wellness_entries")
+        .select(
+          "id, club_id, user_id, entry_date, sleep_quality, energy_level, muscle_soreness, mental_readiness, submitted_at",
+        )
+        .eq("club_id", params.clubId!)
+        .eq("entry_date", params.entryDate)
+        .in("user_id", params.userIds);
+      if (error) throw error;
+      return (data as WellnessEntry[]) ?? [];
+    },
+  });
+}
+
+export function useWellnessEntriesLastNDays(params: { clubId?: string; userId?: string; days: number }) {
+  return useQuery({
+    queryKey: ["wellness-entries", "last-n-days", params.clubId ?? null, params.userId ?? null, params.days],
+    enabled: Boolean(params.clubId) && Boolean(params.userId) && params.days > 0,
+    networkMode: "offlineFirst",
+    queryFn: async (): Promise<WellnessEntry[]> => {
+      const end = todayKey();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - (params.days - 1));
+      const yyyy = startDate.getFullYear();
+      const mm = String(startDate.getMonth() + 1).padStart(2, "0");
+      const dd = String(startDate.getDate()).padStart(2, "0");
+      const start = `${yyyy}-${mm}-${dd}`;
+
+      const { data, error } = await supabase
+        .from("wellness_entries")
+        .select(
+          "id, club_id, user_id, entry_date, sleep_quality, energy_level, muscle_soreness, mental_readiness, submitted_at",
+        )
+        .eq("club_id", params.clubId!)
+        .eq("user_id", params.userId!)
+        .gte("entry_date", start)
+        .lte("entry_date", end)
+        .order("entry_date", { ascending: true });
+      if (error) throw error;
+      return (data as WellnessEntry[]) ?? [];
+    },
+  });
+}
+

@@ -23,6 +23,7 @@ import {
   Bus,
   Video,
   CalendarDays,
+  Info,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -32,7 +33,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
-import { todayKey, useUpsertWellnessEntry, useWellnessEntryToday } from "@/lib/wellness";
+import {
+  todayKey,
+  useUpsertWellnessEntry,
+  useWellnessEntriesForDate,
+  useWellnessEntriesLastNDays,
+  useWellnessEntryToday,
+} from "@/lib/wellness";
 import {
   useCreateScheduleEvent,
   useDeleteScheduleEvent,
@@ -69,7 +76,7 @@ const ACTIVITY_TYPE_CONFIG: Record<ScheduleEvent["session_type"], ActivityTypeCo
     labelKey: "schedule_activity_court_practice",
     icon: Dumbbell,
     defaultDuration: 90,
-    allowedDurations: [90, 120],
+    allowedDurations: [60, 90, 120],
     defaultAttendanceMode: "all_team",
     defaultGearHint: "ball",
     loadWeight: "medium",
@@ -80,7 +87,7 @@ const ACTIVITY_TYPE_CONFIG: Record<ScheduleEvent["session_type"], ActivityTypeCo
     icon: HeartPulse,
     defaultDuration: 60,
     allowedDurations: [60, 90],
-    defaultAttendanceMode: "groups",
+    defaultAttendanceMode: "all_team",
     defaultGearHint: "weights",
     loadWeight: "medium",
   },
@@ -99,7 +106,7 @@ const ACTIVITY_TYPE_CONFIG: Record<ScheduleEvent["session_type"], ActivityTypeCo
     labelKey: "schedule_activity_travel",
     icon: Bus,
     defaultDuration: 120,
-    allowedDurations: [60, 90, 120, 150, 180],
+    allowedDurations: [],
     defaultAttendanceMode: "all_team",
     defaultGearHint: "travel",
     loadWeight: "medium",
@@ -109,7 +116,7 @@ const ACTIVITY_TYPE_CONFIG: Record<ScheduleEvent["session_type"], ActivityTypeCo
     labelKey: "schedule_activity_meeting_video",
     icon: Video,
     defaultDuration: 60,
-    allowedDurations: [60, 90],
+    allowedDurations: [30, 60, 90],
     defaultAttendanceMode: "all_team",
     defaultGearHint: "video",
     loadWeight: "low",
@@ -119,7 +126,7 @@ const ACTIVITY_TYPE_CONFIG: Record<ScheduleEvent["session_type"], ActivityTypeCo
     labelKey: "schedule_activity_event",
     icon: CalendarDays,
     defaultDuration: 60,
-    allowedDurations: [60, 90, 120],
+    allowedDurations: [60, 90],
     defaultAttendanceMode: "all_team",
     defaultGearHint: "none",
     loadWeight: "low",
@@ -238,6 +245,7 @@ export default function Schedule() {
   const [groupName, setGroupName] = useState("");
   // UI-ready only (not persisted yet)
   const [attendanceMode, setAttendanceMode] = useState<AttendanceMode>("all_team");
+  const [attendanceModeTouched, setAttendanceModeTouched] = useState(false);
   const [groupsCount, setGroupsCount] = useState("");
   const [groupCapacity, setGroupCapacity] = useState("");
   const [groupSignupMode, setGroupSignupMode] = useState<GroupSignupMode>("coach_assign");
@@ -245,6 +253,10 @@ export default function Schedule() {
   const [signupDeadline, setSignupDeadline] = useState("");
   const [signupMaxSpots, setSignupMaxSpots] = useState("");
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(() => new Set());
+  const [customDurationOpen, setCustomDurationOpen] = useState(false);
+  const [customDurationMins, setCustomDurationMins] = useState<string>("");
+  const [groupAssignOpen, setGroupAssignOpen] = useState(false);
+  const [choosePlayersOpen, setChoosePlayersOpen] = useState(false);
   const [playerActionsTick, setPlayerActionsTick] = useState(0);
   const [trainingTags, setTrainingTags] = useState<Set<string>>(() => new Set());
   const [subgroupCount, setSubgroupCount] = useState("");
@@ -444,8 +456,11 @@ export default function Schedule() {
 
   const runCreateOrUpdate = async (opts?: { overrideTemplate?: SessionTemplate | null }) => {
     if (!clubId || !userId) return;
-    const title = (opts?.overrideTemplate ? opts.overrideTemplate.title : createTitle).trim();
-    if (!title || !createDate || !createStartTime) return;
+    if (!createDate || !createStartTime) return;
+    if (attendanceMode === "selected_players" && selectedPlayerIds.size < 1) return;
+    if (!signupMaxSpotsOk) return;
+    const baseTitle = (opts?.overrideTemplate ? opts.overrideTemplate.title : createTitle).trim();
+    const title = baseTitle || t(ACTIVITY_TYPE_CONFIG[createSessionType].labelKey);
     const startsIso = new Date(`${createDate}T${createStartTime}`).toISOString();
     const endsIso = createEndTime ? new Date(`${createDate}T${createEndTime}`).toISOString() : null;
     const constraints = {
@@ -575,6 +590,7 @@ export default function Schedule() {
     setMaxCapacity("");
     setGroupName("");
     setAttendanceMode(ACTIVITY_TYPE_CONFIG.training.defaultAttendanceMode);
+    setAttendanceModeTouched(false);
     setGroupsCount("");
     setGroupCapacity("");
     setGroupSignupMode("coach_assign");
@@ -582,6 +598,8 @@ export default function Schedule() {
     setSignupDeadline("");
     setSignupMaxSpots("");
     setSelectedPlayerIds(new Set());
+    setCustomDurationOpen(false);
+    setCustomDurationMins("");
     setUseCustomDateTime(true);
     setDurationMins(90);
     applyDurationPreset(90);
@@ -880,6 +898,7 @@ export default function Schedule() {
     if (att?.mode === "groups" || att?.mode === "signup" || att?.mode === "selected_players" || att?.mode === "all_team") {
       setAttendanceMode(att.mode);
     }
+    setAttendanceModeTouched(true);
     setGroupsCount(att?.groups_count ? String(att.groups_count) : "");
     setGroupCapacity(att?.group_capacity ? String(att.group_capacity) : "");
     setGroupSignupMode(att?.group_signup_mode === "auto_signup" ? "auto_signup" : "coach_assign");
@@ -887,6 +906,8 @@ export default function Schedule() {
     setSignupDeadline(typeof att?.signup_deadline === "string" ? att.signup_deadline : "");
     setSignupMaxSpots(att?.signup_max_spots ? String(att.signup_max_spots) : "");
     setSelectedPlayerIds(new Set(Array.isArray(att?.selected_player_ids) ? att.selected_player_ids.map(String) : []));
+    setCustomDurationOpen(false);
+    setCustomDurationMins("");
     setTrainingTags(new Set((parsed.constraints?.tags ?? []).map(String)));
     setSubgroupCount(parsed.constraints?.subgroups?.count ? String(parsed.constraints.subgroups.count) : "");
     setSubgroupMinutes(parsed.constraints?.subgroups?.minutes ? String(parsed.constraints.subgroups.minutes) : "");
@@ -981,7 +1002,21 @@ export default function Schedule() {
     toast({ description: t("schedule_template_saved") });
   };
 
-  const canSubmitCreate = Boolean(clubId && userId && createTitle.trim() && createDate && createStartTime);
+  const signupMaxSpotsOk = useMemo(() => {
+    const raw = signupMaxSpots.trim();
+    if (!raw) return true;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 1;
+  }, [signupMaxSpots]);
+
+  const canSubmitCreate = Boolean(
+    clubId &&
+      userId &&
+      createDate &&
+      createStartTime &&
+      signupMaxSpotsOk &&
+      (attendanceMode !== "selected_players" || selectedPlayerIds.size >= 1),
+  );
 
   const [sleepQuality, setSleepQuality] = useState<string>("");
   const [energyLevel, setEnergyLevel] = useState<string>("");
@@ -994,7 +1029,62 @@ export default function Schedule() {
   const entryDate = todayKey();
   const localKey = useMemo(() => `uscout-wellness-local:${userId ?? "anon"}:${entryDate}`, [entryDate, userId]);
 
+  const last7Q = useWellnessEntriesLastNDays({ clubId, userId, days: 7 });
+  const staffTodayEntriesQ = useWellnessEntriesForDate({ clubId, entryDate, userIds: rosterPlayerUserIds });
+
   const submittedToday = Boolean(entryQ.data);
+
+  const rosterLabelByUserId = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const m of rosterPlayers) {
+      map[m.userId] = ((m as any).fullName ?? (m as any).full_name ?? (m as any).email ?? m.userId) as string;
+    }
+    return map;
+  }, [rosterPlayers]);
+
+  const staffWellnessSummary = useMemo(() => {
+    const entries = staffTodayEntriesQ.data ?? [];
+    const byUser: Record<string, (typeof entries)[number]> = {};
+    for (const e of entries) byUser[e.user_id] = e;
+    const total = rosterPlayerUserIds.length;
+    const submitted = entries.length;
+    const missing = Math.max(0, total - submitted);
+    const lowReadinessUserIds = new Set(entries.filter((e) => e.mental_readiness <= 2).map((e) => e.user_id));
+    const highSorenessUserIds = new Set(entries.filter((e) => e.muscle_soreness >= 4).map((e) => e.user_id));
+    const belowNormalUserIds = new Set<string>([...Array.from(lowReadinessUserIds), ...Array.from(highSorenessUserIds)]);
+
+    const priority = rosterPlayerUserIds
+      .map((uid) => {
+        const e = byUser[uid];
+        const missingSubmission = !e;
+        const lowReadiness = Boolean(e && e.mental_readiness <= 2);
+        const highSoreness = Boolean(e && e.muscle_soreness >= 4);
+        const lowSleep = Boolean(e && e.sleep_quality <= 2);
+        const score = missingSubmission ? 100 : (lowReadiness ? 40 : e!.mental_readiness === 3 ? 15 : 0) + (highSoreness ? 25 : 0) + (lowSleep ? 20 : 0);
+        return {
+          userId: uid,
+          score,
+          missingSubmission,
+          lowReadiness,
+          highSoreness,
+          lowSleep,
+          entry: e ?? null,
+        };
+      })
+      .filter((p) => p.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+
+    return {
+      total,
+      submitted,
+      missing,
+      lowReadinessCount: lowReadinessUserIds.size,
+      highSorenessCount: highSorenessUserIds.size,
+      belowNormalCount: belowNormalUserIds.size,
+      priority,
+    };
+  }, [rosterPlayerUserIds, staffTodayEntriesQ.data]);
 
   const setFromEntry = (e: {
     sleep_quality: number;
@@ -1049,25 +1139,35 @@ export default function Schedule() {
     return parts.join(" · ");
   }, [createDate, createLocation, createSessionType, createStartTime, t]);
 
-  useEffect(() => {
-    // Keep default create tap-fast: if user hasn't typed a title, use the activity label.
-    // Edit mode preserves the existing title.
-    if (isEditing) return;
-    if (createTitle.trim()) return;
-    setCreateTitle(t(ACTIVITY_TYPE_CONFIG[createSessionType].labelKey));
-  }, [createSessionType, createTitle, isEditing, t]);
+  // Title is optional; if blank we fall back to the activity label on save.
 
   useEffect(() => {
     const cfg = ACTIVITY_TYPE_CONFIG[createSessionType];
     // Keep UI clean: duration chips adapt by type; if current duration isn't allowed, reset to the type default.
-    if (durationMins == null || !cfg.allowedDurations.includes(durationMins)) {
+    // Travel uses "block time" semantics: no duration chips and no forced end time.
+    if (createSessionType === "travel") {
+      setDurationMins(null);
+      setCreateEndTime("");
+      setUseCustomDateTime(false);
+      setCustomDurationOpen(false);
+      setCustomDurationMins("");
+    } else if (durationMins == null || !cfg.allowedDurations.includes(durationMins)) {
       applyDurationPreset(cfg.defaultDuration);
     }
-    // Attendance modes aren't persisted yet, but keep UI model aligned with type defaults.
-    setAttendanceMode((prev) => prev ?? cfg.defaultAttendanceMode);
-  }, [applyDurationPreset, createSessionType, durationMins]);
+    // Type defaults must actually work: only auto-apply if coach hasn't manually changed attendance mode this session.
+    if (!attendanceModeTouched) setAttendanceMode(cfg.defaultAttendanceMode);
+  }, [
+    applyDurationPreset,
+    attendanceModeTouched,
+    createSessionType,
+    durationMins,
+    setCreateEndTime,
+    setCustomDurationMins,
+    setDurationMins,
+    setUseCustomDateTime,
+  ]);
 
-  const derivedCustomDurationMins = useMemo(() => {
+  const derivedDurationFromEndTimeMins = useMemo(() => {
     if (!createDate || !createStartTime || !createEndTime) return null;
     const start = new Date(`${createDate}T${createStartTime}`);
     const end = new Date(`${createDate}T${createEndTime}`);
@@ -1079,11 +1179,16 @@ export default function Schedule() {
 
   const durationOptions = useMemo(() => {
     const cfg = ACTIVITY_TYPE_CONFIG[createSessionType];
-    const base = cfg.allowedDurations;
-    const custom = derivedCustomDurationMins;
-    if (!custom || base.includes(custom)) return base;
-    return [...base, custom].sort((a, b) => a - b);
-  }, [createSessionType, derivedCustomDurationMins]);
+    return cfg.allowedDurations;
+  }, [createSessionType]);
+
+  useEffect(() => {
+    if (createSessionType === "travel") return;
+    if (!derivedDurationFromEndTimeMins) return;
+    // If user edits end time directly, reflect it as a "Custom" duration selection.
+    setDurationMins(derivedDurationFromEndTimeMins);
+    setCustomDurationMins(String(derivedDurationFromEndTimeMins));
+  }, [createSessionType, derivedDurationFromEndTimeMins]);
 
   useEffect(() => {
     if (!showLocalWellness) return;
@@ -1500,103 +1605,50 @@ export default function Schedule() {
                     </ToggleGroupItem>
                   </ToggleGroup>
 
-                  {staffView === "planner" ? (
-                    <div className="flex items-center gap-1 min-w-0 shrink-0">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 w-8 px-0 shrink-0"
-                        onClick={() => setSelectedWeekStart((p) => new Date(p.getTime() - 7 * 86400000))}
-                        aria-label={t("schedule_week_prev" as any)}
-                      >
-                        ←
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 px-2 min-w-0 max-w-[96px] sm:max-w-[140px]"
-                        onClick={() => {
-                          if (!isCurrentWeek) scrollToToday();
-                        }}
-                      >
-                        <span className="truncate whitespace-nowrap">
-                          {isCurrentWeek ? t("schedule_this_week" as any) : t("schedule_go_current_week" as any)}
-                        </span>
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 w-8 px-0 shrink-0"
-                        onClick={() => setSelectedWeekStart((p) => new Date(p.getTime() + 7 * 86400000))}
-                        aria-label={t("schedule_week_next" as any)}
-                      >
-                        →
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 px-2 shrink-0"
-                        onClick={() => setWeekTemplatesOpen(true)}
-                        data-testid="schedule-week-templates"
-                        aria-label={t("schedule_week_templates")}
-                        title={t("schedule_week_templates")}
-                      >
-                        <LayoutTemplate className="w-4 h-4 sm:mr-2" />
-                        <span className="hidden sm:inline">{t("schedule_week_templates")}</span>
-                      </Button>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40 shrink-0"
-                            aria-label={t("schedule_week_actions" as any)}
-                            data-testid="schedule-week-actions"
-                            title={t("schedule_week_actions" as any)}
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            disabled={!clubId || !userId || (plannerWeekQ.data?.length ?? 0) === 0}
-                            onClick={() => void copyVisibleWeekTo(currentWeekStart)}
-                          >
-                            {t("schedule_copy_visible_to_current" as any)}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            disabled={!clubId || !userId || (plannerWeekQ.data?.length ?? 0) === 0}
-                            onClick={() => void copyVisibleWeekTo(new Date(currentWeekStart.getTime() + 7 * 86400000))}
-                          >
-                            {t("schedule_copy_visible_to_next" as any)}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            disabled={!clubId || !userId || (plannerWeekQ.data?.length ?? 0) === 0}
-                            onClick={() => setSaveWeekTemplateOpen(true)}
-                          >
-                            {t("schedule_save_template" as any)}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            disabled={!clubId || (plannerWeekQ.data?.length ?? 0) === 0}
-                            onClick={() => setClearWeekOpen(true)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            {t("schedule_clear_week")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  ) : null}
+                  <div />
                 </div>
 
                 {staffView === "planner" ? (
-                  <div className="rounded-2xl border border-border bg-card p-4">
-                    <p className="text-[11px] font-semibold text-muted-foreground">{t("schedule_planner_hint")}</p>
+                  <div className="mt-2 grid grid-cols-3 items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-11 w-11 px-0 justify-self-start"
+                      onClick={() => setSelectedWeekStart((p) => new Date(p.getTime() - 7 * 86400000))}
+                      aria-label={t("schedule_week_prev" as any)}
+                    >
+                      ←
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-11 px-3 justify-self-center w-full max-w-[220px]"
+                      onClick={() => {
+                        if (!isCurrentWeek) scrollToToday();
+                      }}
+                    >
+                      <span className="truncate whitespace-nowrap">
+                        {isCurrentWeek ? t("schedule_this_week" as any) : t("schedule_go_current_week" as any)}
+                      </span>
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-11 w-11 px-0 justify-self-end"
+                      onClick={() => setSelectedWeekStart((p) => new Date(p.getTime() + 7 * 86400000))}
+                      aria-label={t("schedule_week_next" as any)}
+                    >
+                      →
+                    </Button>
+                  </div>
+                ) : null}
+
+                {staffView === "planner" ? (
+                  <>
+                    <div className="mt-3 rounded-2xl border border-border bg-card p-4">
+                      <p className="text-[11px] font-semibold text-muted-foreground">{t("schedule_planner_hint")}</p>
 
                     {!isLandscape ? (
                       <div className="mt-3 space-y-3">
@@ -1825,7 +1877,7 @@ export default function Schedule() {
                                               <DropdownMenuTrigger asChild>
                                                 <button
                                                   type="button"
-                                                  className="h-7 w-7 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                                                  className="h-10 w-10 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
                                                   aria-label={t("more")}
                                                 >
                                                   <MoreVertical className="w-4 h-4" />
@@ -1892,7 +1944,55 @@ export default function Schedule() {
                       </div>
                     </div>
                     )}
-                  </div>
+                    </div>
+
+                    {(() => {
+                      const weekCount = plannerWeekQ.data?.length ?? 0;
+                      const prevCount = prevWeekQ.data?.length ?? 0;
+                      const weekHasSessions = !plannerWeekQ.isLoading && weekCount > 0;
+                      const weekEmpty = !plannerWeekQ.isLoading && weekCount === 0;
+                      const prevHasSessions = !prevWeekQ.isLoading && prevCount > 0;
+                      const showCopyPrev = weekEmpty && prevHasSessions;
+                      const showDeleteAll = weekHasSessions;
+                      return (
+                        <div className="mt-3 space-y-2">
+                          <div className="flex justify-center min-h-[44px]">
+                            {showCopyPrev ? (
+                              <Button className="h-11 px-6" disabled={!clubId || !userId} onClick={() => void copyPreviousWeek()}>
+                                {t("schedule_copy_prev_week")}
+                              </Button>
+                            ) : showDeleteAll ? (
+                              <Button
+                                variant="secondary"
+                                className="h-11 px-6 text-destructive"
+                                disabled={!clubId || weekCount === 0}
+                                onClick={() => setClearWeekOpen(true)}
+                              >
+                                {t("schedule_clear_week")}
+                              </Button>
+                            ) : (
+                              <div />
+                            )}
+                          </div>
+
+                          <div className="flex justify-center">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-11 px-6"
+                              onClick={() => setWeekTemplatesOpen(true)}
+                              data-testid="schedule-week-templates"
+                              aria-label={t("schedule_week_templates")}
+                              title={t("schedule_week_templates")}
+                            >
+                              <LayoutTemplate className="w-4 h-4 mr-2" />
+                              {t("schedule_week_templates")}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
                 ) : (
                   <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
@@ -1958,7 +2058,7 @@ export default function Schedule() {
                                 <DropdownMenuTrigger asChild>
                                   <button
                                     type="button"
-                                    className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                                    className="h-10 w-10 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
                                     aria-label={t("more")}
                                   >
                                     <MoreVertical className="w-4 h-4" />
@@ -2008,35 +2108,99 @@ export default function Schedule() {
               </p>
 
               {!isPlayer ? (
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <KpiCard
-                    title={t("wellness_staff_kpi_submitted_pct" as any)}
-                    value={wellnessPctQ.isLoading ? t("schedule_placeholder_kpi") : `${wellnessPctQ.data?.pct ?? 0}%`}
-                  />
-                  <KpiCard
-                    title={t("wellness_staff_kpi_submitted_count" as any)}
-                    value={
-                      wellnessPctQ.isLoading
-                        ? t("schedule_placeholder_kpi")
-                        : `${wellnessPctQ.data?.submitted ?? 0}/${wellnessPctQ.data?.total ?? rosterPlayerUserIds.length}`
-                    }
-                  />
-                  <KpiCard
-                    title={t("wellness_staff_kpi_alerts" as any)}
-                    value={t("schedule_placeholder_kpi")}
-                    subtitle={t("wellness_staff_kpi_placeholder" as any)}
-                  />
-                  <KpiCard
-                    title={t("wellness_staff_kpi_trend" as any)}
-                    value={t("schedule_placeholder_kpi")}
-                    subtitle={t("wellness_staff_kpi_placeholder" as any)}
-                  />
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-2xl border border-border bg-background/40 p-3">
+                    <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                      {t("wellness_staff_alerts_title" as any)}
+                    </p>
+                    <div className="mt-2 space-y-1.5">
+                      {staffWellnessSummary.belowNormalCount >= 3 ? (
+                        <p className="text-sm font-semibold text-foreground">{t("wellness_staff_alert_below_normal" as any)}</p>
+                      ) : null}
+                      {staffWellnessSummary.missing > 0 ? (
+                        <p className="text-sm font-semibold text-foreground">{t("wellness_staff_alert_missing" as any)}</p>
+                      ) : null}
+                      {staffWellnessSummary.belowNormalCount < 3 && staffWellnessSummary.missing === 0 ? (
+                        <p className="text-sm font-semibold text-muted-foreground">{t("wellness_staff_alert_all_clear" as any)}</p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <KpiCard
+                      title={t("wellness_staff_card_submitted_pct" as any)}
+                      value={wellnessPctQ.isLoading ? t("schedule_placeholder_kpi") : `${wellnessPctQ.data?.pct ?? 0}%`}
+                      subtitle={
+                        wellnessPctQ.data
+                          ? t("wellness_staff_card_submitted_subtitle" as any)
+                              .replace("{submitted}", String(wellnessPctQ.data.submitted))
+                              .replace("{total}", String(wellnessPctQ.data.total))
+                          : undefined
+                      }
+                    />
+                    <KpiCard
+                      title={t("wellness_staff_card_missing_today" as any)}
+                      value={staffTodayEntriesQ.isLoading ? t("schedule_placeholder_kpi") : String(staffWellnessSummary.missing)}
+                    />
+                    <KpiCard
+                      title={t("wellness_staff_card_low_readiness" as any)}
+                      value={staffTodayEntriesQ.isLoading ? t("schedule_placeholder_kpi") : String(staffWellnessSummary.lowReadinessCount)}
+                      subtitle={t("wellness_staff_threshold_low_readiness" as any)}
+                    />
+                    <KpiCard
+                      title={t("wellness_staff_card_high_soreness" as any)}
+                      value={staffTodayEntriesQ.isLoading ? t("schedule_placeholder_kpi") : String(staffWellnessSummary.highSorenessCount)}
+                      subtitle={t("wellness_staff_threshold_high_soreness" as any)}
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                      {t("wellness_staff_priority_title" as any)}
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {staffTodayEntriesQ.isLoading ? (
+                        <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
+                          <p className="text-sm font-medium text-muted-foreground">{t("wellness_loading_today")}</p>
+                        </div>
+                      ) : staffWellnessSummary.priority.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
+                          <p className="text-sm font-medium text-muted-foreground">{t("wellness_staff_priority_empty" as any)}</p>
+                        </div>
+                      ) : (
+                        staffWellnessSummary.priority.map((p) => {
+                          const name = rosterLabelByUserId[p.userId] ?? p.userId;
+                          const reasons: string[] = [];
+                          if (p.missingSubmission) reasons.push(t("wellness_reason_missing" as any));
+                          if (p.lowReadiness) reasons.push(t("wellness_reason_low_readiness" as any));
+                          if (p.highSoreness) reasons.push(t("wellness_reason_high_soreness" as any));
+                          if (p.lowSleep) reasons.push(t("wellness_reason_low_sleep" as any));
+                          return (
+                            <div key={p.userId} className="rounded-xl border border-border bg-background/40 px-3 py-2.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-extrabold text-foreground truncate">{name}</p>
+                                <p className="text-[11px] font-bold text-muted-foreground">{t("wellness_staff_priority_score" as any).replace("{score}", String(p.score))}</p>
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                {reasons.slice(0, 4).map((r) => (
+                                  <span key={r} className="px-2 py-0.5 rounded-full border border-border bg-muted/30 text-[10px] font-bold text-muted-foreground">
+                                    {r}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : showLocalWellness ? (
                 <>
                   <div className="mt-4 space-y-4">
                     <WellnessRow
-                      label={t("wellness_sleep_quality")}
+                      label={t("wellness_metric_sleep" as any)}
+                      tooltip={t("wellness_tooltip_sleep" as any)}
                       value={sleepQuality}
                       onValueChange={(v) => {
                         setLocalSaved(false);
@@ -2044,7 +2208,8 @@ export default function Schedule() {
                       }}
                     />
                     <WellnessRow
-                      label={t("wellness_energy_level")}
+                      label={t("wellness_metric_energy" as any)}
+                      tooltip={t("wellness_tooltip_energy" as any)}
                       value={energyLevel}
                       onValueChange={(v) => {
                         setLocalSaved(false);
@@ -2052,7 +2217,8 @@ export default function Schedule() {
                       }}
                     />
                     <WellnessRow
-                      label={t("wellness_muscle_soreness")}
+                      label={t("wellness_metric_soreness" as any)}
+                      tooltip={t("wellness_tooltip_soreness" as any)}
                       value={muscleSoreness}
                       onValueChange={(v) => {
                         setLocalSaved(false);
@@ -2060,7 +2226,8 @@ export default function Schedule() {
                       }}
                     />
                     <WellnessRow
-                      label={t("wellness_mental_readiness")}
+                      label={t("wellness_metric_readiness" as any)}
+                      tooltip={t("wellness_tooltip_readiness" as any)}
                       value={mentalReadiness}
                       onValueChange={(v) => {
                         setLocalSaved(false);
@@ -2106,15 +2273,19 @@ export default function Schedule() {
               ) : submittedToday && !wellnessEditing ? (
                 <div className="mt-4 space-y-3">
                   <div className="rounded-xl border border-border bg-background/40 p-4">
-                    <p className="text-xs font-bold text-muted-foreground">{t("wellness_submitted_today")}</p>
+                    <p className="text-xs font-bold text-foreground">{t("wellness_submitted_today")}</p>
                     <p className="text-[11px] text-muted-foreground mt-1">
                       {t("wellness_entry_date_label").replace("{date}", entryDate)}
                     </p>
                     <div className="mt-3 grid grid-cols-2 gap-2">
-                      <Metric label={t("wellness_sleep_quality")} value={entryQ.data!.sleep_quality} />
-                      <Metric label={t("wellness_energy_level")} value={entryQ.data!.energy_level} />
-                      <Metric label={t("wellness_muscle_soreness")} value={entryQ.data!.muscle_soreness} />
-                      <Metric label={t("wellness_mental_readiness")} value={entryQ.data!.mental_readiness} />
+                      <Metric label={t("wellness_metric_sleep" as any)} value={entryQ.data!.sleep_quality} />
+                      <Metric label={t("wellness_metric_energy" as any)} value={entryQ.data!.energy_level} />
+                      <Metric label={t("wellness_metric_soreness" as any)} value={entryQ.data!.muscle_soreness} />
+                      <Metric label={t("wellness_metric_readiness" as any)} value={entryQ.data!.mental_readiness} />
+                    </div>
+                    <div className="mt-3 rounded-lg border border-border bg-muted/20 px-3 py-2">
+                      <p className="text-sm font-semibold text-foreground">{t("wellness_completed_title" as any)}</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">{t("wellness_completed_subtitle" as any)}</p>
                     </div>
                   </div>
                   <Button
@@ -2128,30 +2299,85 @@ export default function Schedule() {
                   >
                     {t("wellness_edit")}
                   </Button>
+
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                      {t("wellness_last_7_days" as any)}
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {last7Q.isLoading ? (
+                        <p className="text-sm text-muted-foreground">{t("wellness_loading_today")}</p>
+                      ) : (
+                        (() => {
+                          const days = Array.from({ length: 7 }).map((_, i) => {
+                            const d = new Date();
+                            d.setDate(d.getDate() - (6 - i));
+                            const yyyy = d.getFullYear();
+                            const mm = String(d.getMonth() + 1).padStart(2, "0");
+                            const dd = String(d.getDate()).padStart(2, "0");
+                            const key = `${yyyy}-${mm}-${dd}`;
+                            const label = new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(d);
+                            return { key, label };
+                          });
+                          const byDate: Record<string, any> = {};
+                          for (const e of last7Q.data ?? []) byDate[e.entry_date] = e;
+                          const rows = [
+                            { label: t("wellness_metric_sleep" as any), field: "sleep_quality" as const },
+                            { label: t("wellness_metric_energy" as any), field: "energy_level" as const },
+                            { label: t("wellness_metric_soreness" as any), field: "muscle_soreness" as const },
+                            { label: t("wellness_metric_readiness" as any), field: "mental_readiness" as const },
+                          ];
+                          return rows.map((r) => (
+                            <div key={r.field}>
+                              <p className="text-xs font-bold text-foreground">{r.label}</p>
+                              <div className="mt-1 flex gap-1.5">
+                                {days.map((d) => {
+                                  const e = byDate[d.key];
+                                  const v = e ? String((e as any)[r.field]) : "—";
+                                  return (
+                                    <div key={d.key} className="flex flex-col items-center gap-0.5">
+                                      <span className="text-[9px] font-semibold text-muted-foreground">{d.label}</span>
+                                      <span className="h-7 w-7 rounded-md border border-border bg-background/40 inline-flex items-center justify-center text-[11px] font-black text-foreground">
+                                        {v}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ));
+                        })()
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <>
                   <div className="mt-4 space-y-4">
                     <WellnessRow
-                      label={t("wellness_sleep_quality")}
+                      label={t("wellness_metric_sleep" as any)}
+                      tooltip={t("wellness_tooltip_sleep" as any)}
                       value={sleepQuality}
                       onValueChange={setSleepQuality}
                       disabled={upsert.isPending}
                     />
                     <WellnessRow
-                      label={t("wellness_energy_level")}
+                      label={t("wellness_metric_energy" as any)}
+                      tooltip={t("wellness_tooltip_energy" as any)}
                       value={energyLevel}
                       onValueChange={setEnergyLevel}
                       disabled={upsert.isPending}
                     />
                     <WellnessRow
-                      label={t("wellness_muscle_soreness")}
+                      label={t("wellness_metric_soreness" as any)}
+                      tooltip={t("wellness_tooltip_soreness" as any)}
                       value={muscleSoreness}
                       onValueChange={setMuscleSoreness}
                       disabled={upsert.isPending}
                     />
                     <WellnessRow
-                      label={t("wellness_mental_readiness")}
+                      label={t("wellness_metric_readiness" as any)}
+                      tooltip={t("wellness_tooltip_readiness" as any)}
                       value={mentalReadiness}
                       onValueChange={setMentalReadiness}
                       disabled={upsert.isPending}
@@ -2218,6 +2444,9 @@ export default function Schedule() {
           if (!open) {
             setEditingSessionId(null);
             setShowAdvancedCreate(false);
+            setAttendanceModeTouched(false);
+            setCustomDurationOpen(false);
+            setCustomDurationMins("");
           }
         }}
       >
@@ -2261,6 +2490,8 @@ export default function Schedule() {
                   onValueChange={(v) => {
                     if (!v) return;
                     setCreateSessionType(v as any);
+                    setCustomDurationOpen(false);
+                    setCustomDurationMins("");
                   }}
                   className="mt-2 justify-start flex-wrap gap-2"
                 >
@@ -2276,43 +2507,89 @@ export default function Schedule() {
                 </ToggleGroup>
               </div>
 
-                <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="min-w-0 rounded-xl border border-border bg-card p-3">
                   <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                     {t("schedule_session_start_time")}
                   </p>
-                <div className="mt-2 flex items-center gap-2">
-                  <input
-                    className="flex-1 h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    type="time"
-                    value={createStartTime}
-                    onChange={(e) => setCreateStartTime(e.target.value)}
-                  />
-                  <Button type="button" variant="outline" size="sm" className="h-10 px-3" onClick={() => adjustStartTimeMins(-15)}>
-                    -15
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" className="h-10 px-3" onClick={() => adjustStartTimeMins(15)}>
-                    +15
-                  </Button>
-                </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      className="flex-1 h-10 rounded-md border border-border bg-background px-3 text-sm"
+                      type="time"
+                      value={createStartTime}
+                      onChange={(e) => setCreateStartTime(e.target.value)}
+                    />
+                    <Button type="button" variant="outline" size="sm" className="h-10 px-3" onClick={() => adjustStartTimeMins(-15)}>
+                      -15
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" className="h-10 px-3" onClick={() => adjustStartTimeMins(15)}>
+                      +15
+                    </Button>
+                  </div>
                 </div>
 
-              <div>
-                <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
-                  {t("schedule_duration_presets")}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {durationOptions.map((m) => (
-                    <Button
-                      key={m}
-                      type="button"
-                      size="sm"
-                      variant={durationMins === m ? "secondary" : "outline"}
-                      className="h-9 px-3"
-                      onClick={() => applyDurationPreset(m)}
-                    >
-                      {m}
-                    </Button>
-                  ))}
+                <div className="min-w-0 rounded-xl border border-border bg-card p-3">
+                  <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                    {t("schedule_duration_presets")}
+                  </p>
+                  {createSessionType === "travel" ? (
+                    <div className="mt-2 rounded-xl border border-dashed border-border bg-muted/30 px-3 py-3">
+                      <p className="text-sm font-semibold text-muted-foreground">{t("schedule_travel_uses_block_time" as any)}</p>
+                    </div>
+                  ) : (
+                    <div className="mt-2 space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {durationOptions.map((m) => (
+                          <Button
+                            key={m}
+                            type="button"
+                            size="sm"
+                            variant={durationMins === m ? "secondary" : "outline"}
+                            className="h-9 px-3"
+                            onClick={() => {
+                              setCustomDurationOpen(false);
+                              setCustomDurationMins("");
+                              applyDurationPreset(m);
+                            }}
+                          >
+                            {m}
+                          </Button>
+                        ))}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={customDurationOpen || (durationMins != null && !durationOptions.includes(durationMins)) ? "secondary" : "outline"}
+                          className="h-9 px-3"
+                          onClick={() => setCustomDurationOpen((v) => !v)}
+                        >
+                          {t("schedule_duration_custom" as any)}
+                        </Button>
+                      </div>
+                      {customDurationOpen ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            className="flex-1 h-10 rounded-md border border-border bg-background px-3 text-sm"
+                            inputMode="numeric"
+                            value={customDurationMins}
+                            onChange={(e) => setCustomDurationMins(e.target.value)}
+                            placeholder={t("schedule_minutes" as any)}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10"
+                            onClick={() => {
+                              const n = Number(customDurationMins);
+                              if (!Number.isFinite(n) || n <= 0) return;
+                              applyDurationPreset(Math.round(n));
+                            }}
+                          >
+                            {t("apply" as any)}
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2326,6 +2603,7 @@ export default function Schedule() {
                   onValueChange={(v) => {
                     if (!v) return;
                     setAttendanceMode(v as any);
+                    setAttendanceModeTouched(true);
                   }}
                   className="mt-2 justify-start flex-wrap gap-2"
                 >
@@ -2342,116 +2620,141 @@ export default function Schedule() {
                     {t("schedule_attendance_mode_selected_players")}
                   </ToggleGroupItem>
                 </ToggleGroup>
+              </div>
 
-                {attendanceMode === "groups" ? (
-                  <div className="mt-3 space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
-                        <p className="text-xs font-semibold text-muted-foreground">{t("schedule_groups_count")}</p>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-9 w-9 px-0"
-                            onClick={() =>
-                              setGroupsCount((prev) => {
-                                const n = Math.max(2, Math.min(6, Number(prev) || 2));
-                                return String(Math.max(2, n - 1));
-                              })
-                            }
-                          >
-                            −
-                          </Button>
-                          <p className="text-lg font-black text-foreground">{Math.max(2, Math.min(6, Number(groupsCount) || 2))}</p>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-9 w-9 px-0"
-                            onClick={() =>
-                              setGroupsCount((prev) => {
-                                const n = Math.max(2, Math.min(6, Number(prev) || 2));
-                                return String(Math.min(6, n + 1));
-                              })
-                            }
-                          >
-                            +
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
-                        <p className="text-xs font-semibold text-muted-foreground">{t("schedule_group_capacity")}</p>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-9 w-9 px-0"
-                            onClick={() =>
-                              setGroupCapacity((prev) => {
-                                const n = Math.max(0, Number(prev) || 0);
-                                return String(Math.max(0, n - 1));
-                              })
-                            }
-                          >
-                            −
-                          </Button>
-                          <p className="text-lg font-black text-foreground">{Math.max(0, Number(groupCapacity) || 0) || "—"}</p>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-9 w-9 px-0"
-                            onClick={() =>
-                              setGroupCapacity((prev) => {
-                                const n = Math.max(0, Number(prev) || 0);
-                                return String(Math.min(99, n + 1));
-                              })
-                            }
-                          >
-                            +
-                          </Button>
-                        </div>
+              {attendanceMode === "groups" ? (
+                <div className="rounded-xl border border-border bg-card p-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <p className="text-xs font-semibold text-muted-foreground">{t("schedule_groups_count")}</p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 px-0"
+                          onClick={() =>
+                            setGroupsCount((prev) => {
+                              const n = Math.max(2, Math.min(6, Number(prev) || 2));
+                              return String(Math.max(2, n - 1));
+                            })
+                          }
+                        >
+                          −
+                        </Button>
+                        <p className="text-lg font-black text-foreground">{Math.max(2, Math.min(6, Number(groupsCount) || 2))}</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 px-0"
+                          onClick={() =>
+                            setGroupsCount((prev) => {
+                              const n = Math.max(2, Math.min(6, Number(prev) || 2));
+                              return String(Math.min(6, n + 1));
+                            })
+                          }
+                        >
+                          +
+                        </Button>
                       </div>
                     </div>
 
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground mb-2">
-                        {t("schedule_groups_assignment_mode")}
-                      </p>
-                      <ToggleGroup
-                        type="single"
-                        value={groupSignupMode}
-                        onValueChange={(v) => {
-                          if (!v) return;
-                          setGroupSignupMode(v as any);
-                        }}
-                        className="justify-start flex-wrap gap-2"
-                      >
-                        <ToggleGroupItem value="coach_assign" size="sm" variant="outline" className="h-8 px-2.5">
-                          {t("schedule_groups_mode_coach_assign")}
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="auto_signup" size="sm" variant="outline" className="h-8 px-2.5">
-                          {t("schedule_groups_mode_auto_signup")}
-                        </ToggleGroupItem>
-                      </ToggleGroup>
+                    <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <p className="text-xs font-semibold text-muted-foreground">{t("schedule_group_capacity")}</p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 px-0"
+                          onClick={() =>
+                            setGroupCapacity((prev) => {
+                              const n = Math.max(0, Number(prev) || 0);
+                              return String(Math.max(0, n - 1));
+                            })
+                          }
+                        >
+                          −
+                        </Button>
+                        <p className="text-lg font-black text-foreground">{Math.max(0, Number(groupCapacity) || 0) || "—"}</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 px-0"
+                          onClick={() =>
+                            setGroupCapacity((prev) => {
+                              const n = Math.max(0, Number(prev) || 0);
+                              return String(Math.min(99, n + 1));
+                            })
+                          }
+                        >
+                          +
+                        </Button>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">{t("schedule_capacity_unlimited_hint" as any)}</p>
                     </div>
                   </div>
-                ) : null}
-              </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-muted-foreground">{t("schedule_groups_assignment_mode")}</p>
+                    <ToggleGroup
+                      type="single"
+                      value={groupSignupMode}
+                      onValueChange={(v) => {
+                        if (!v) return;
+                        setGroupSignupMode(v as any);
+                      }}
+                      className="justify-end flex-wrap gap-2"
+                    >
+                      <ToggleGroupItem value="coach_assign" size="sm" variant="outline" className="h-8 px-2.5">
+                        {t("schedule_groups_mode_coach_assign")}
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="auto_signup" size="sm" variant="outline" className="h-8 px-2.5">
+                        {t("schedule_groups_mode_auto_signup")}
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+
+                  {groupSignupMode === "coach_assign" ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground">{t("schedule_coach_group_assign")}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {t("schedule_groups_assigned_count" as any).replace("{count}", String(Object.keys(coachGroupAssignments).length))}
+                        </p>
+                      </div>
+                      <Button type="button" variant="outline" className="h-9" onClick={() => setGroupAssignOpen(true)}>
+                        {t("schedule_assign_players" as any)}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : attendanceMode === "selected_players" ? (
+                <div className="rounded-xl border border-border bg-card p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{t("schedule_selected_players_quick" as any)}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {t("schedule_selected_players_hint").replace("{count}", String(selectedPlayerIds.size))}
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" className="h-9" onClick={() => setChoosePlayersOpen(true)}>
+                    {t("schedule_choose_players" as any)}
+                  </Button>
+                </div>
+              ) : null}
 
               {(() => {
                 const hasAdvanced =
                   !createAttendanceRequired ||
                   Boolean(targetAttendance.trim()) ||
                   Boolean(maxCapacity.trim()) ||
-                  Boolean(createLocation.trim()) ||
-                  Boolean(createTitle.trim()) ||
                   Boolean(createNotes.trim()) ||
-                  Boolean(createEndTime.trim()) ||
                   Boolean(groupName.trim()) ||
+                  Boolean(signupDeadline.trim()) ||
+                  Boolean(signupMaxSpots.trim()) ||
+                  selectedPlayerIds.size > 0 ||
                   (repeatEnabled && !isEditing);
                 return (
                   <details
@@ -2471,37 +2774,62 @@ export default function Schedule() {
                     </summary>
 
                     <div className="mt-3 space-y-3">
-                      {templates.length > 0 ? (
-                        <div className="rounded-xl border border-border bg-background/40 p-3">
-                          <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
-                            {t("schedule_templates")}
-                          </p>
-                          <div className="mt-2 overflow-x-auto">
-                            <div className="flex gap-2 w-max">
-                              {templates.slice(0, 6).map((tpl) => (
-                                <Button
-                                  key={tpl.id}
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 px-2.5"
-                                  onClick={() => applyTemplate(tpl)}
-                                >
-                                  {tpl.name}
-                                </Button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
-
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_session_title")}</p>
                         <input
                           className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
                           value={createTitle}
                           onChange={(e) => setCreateTitle(e.target.value)}
-                          placeholder={t("schedule_session_title_placeholder")}
+                          placeholder={t("schedule_optional")}
+                        />
+                      </div>
+
+                      <div className="rounded-xl border border-border bg-background/40 p-3">
+                        <p className="text-xs font-semibold text-muted-foreground">{t("schedule_create_location" as any)}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {(() => {
+                            const k = createSessionType;
+                            const keys =
+                              k === "training"
+                                ? (["schedule_loc_training_court", "schedule_loc_training_strength", "schedule_loc_training_outdoor"] as const)
+                                : k === "match"
+                                  ? (["schedule_loc_match_arena", "schedule_loc_match_home", "schedule_loc_match_away"] as const)
+                                  : k === "recovery"
+                                    ? (["schedule_loc_recovery_room", "schedule_loc_recovery_pool", "schedule_loc_recovery_physio"] as const)
+                                    : k === "travel"
+                                      ? (["schedule_loc_travel_airport", "schedule_loc_travel_bus", "schedule_loc_travel_hotel"] as const)
+                                      : (["schedule_loc_meeting_video", "schedule_loc_meeting_room"] as const);
+                            return keys.map((kk) => (
+                              <Button
+                                key={kk}
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-9"
+                                onClick={() => setCreateLocation(t(kk as any))}
+                              >
+                                {t(kk as any)}
+                              </Button>
+                            ));
+                          })()}
+                        </div>
+                        <div className="mt-2">
+                          <input
+                            className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
+                            value={createLocation}
+                            onChange={(e) => setCreateLocation(e.target.value)}
+                            placeholder={t("schedule_session_location_placeholder")}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_session_end_time")}</p>
+                        <input
+                          className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
+                          type="time"
+                          value={createEndTime}
+                          onChange={(e) => setCreateEndTime(e.target.value)}
                         />
                       </div>
 
@@ -2522,16 +2850,6 @@ export default function Schedule() {
                           value={groupName}
                           onChange={(e) => setGroupName(e.target.value)}
                           placeholder={t("schedule_optional")}
-                        />
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_session_end_time")}</p>
-                        <input
-                          className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                          type="time"
-                          value={createEndTime}
-                          onChange={(e) => setCreateEndTime(e.target.value)}
                         />
                       </div>
 
@@ -2635,103 +2953,6 @@ export default function Schedule() {
                         </div>
                       ) : null}
 
-                      {attendanceMode === "groups" && groupSignupMode === "coach_assign" ? (
-                        <div className="rounded-xl border border-border bg-background/40 p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs font-semibold text-muted-foreground">
-                              {t("schedule_coach_group_assign")}
-                            </p>
-                            <p className="text-[11px] font-semibold text-muted-foreground">
-                              {(() => {
-                                const n = Math.max(2, Math.min(6, Number(groupsCount) || 2));
-                                const counts = Array.from({ length: n }).map((_, i) =>
-                                  Object.values(coachGroupAssignments).filter((g) => g === i).length,
-                                );
-                                return counts.map((c, i) => `${String.fromCharCode(65 + i)}:${c}`).join("  ");
-                              })()}
-                            </p>
-                          </div>
-                          <div className="mt-2 max-h-44 overflow-y-auto space-y-2">
-                            {rosterPlayers.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">{t("schedule_no_roster_players")}</p>
-                            ) : (
-                              rosterPlayers.map((m) => {
-                                const label = ((m as any).fullName ?? (m as any).full_name ?? (m as any).email ?? m.userId) as string;
-                                const n = Math.max(2, Math.min(6, Number(groupsCount) || 2));
-                                const current = typeof coachGroupAssignments[m.userId] === "number" ? coachGroupAssignments[m.userId] : -1;
-                                return (
-                                  <div key={m.userId} className="flex items-center justify-between gap-2">
-                                    <p className="text-sm font-semibold text-foreground truncate min-w-0 flex-1">{label}</p>
-                                    <div className="flex gap-1 shrink-0">
-                                      {Array.from({ length: n }).map((_, idx) => (
-                                        <button
-                                          key={idx}
-                                          type="button"
-                                          className={[
-                                            "h-8 w-8 rounded-md border border-border text-xs font-black",
-                                            current === idx ? "bg-muted/60 text-foreground" : "bg-background/40 text-muted-foreground",
-                                          ].join(" ")}
-                                          onClick={() => {
-                                            setCoachGroupAssignments((prev) => {
-                                              const next = { ...prev };
-                                              next[m.userId] = idx;
-                                              return next;
-                                            });
-                                          }}
-                                          aria-label={`${t("schedule_assign_group")} ${String.fromCharCode(65 + idx)}`}
-                                          title={`${t("schedule_assign_group")} ${String.fromCharCode(65 + idx)}`}
-                                        >
-                                          {String.fromCharCode(65 + idx)}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      <div className="rounded-xl border border-border bg-background/40 p-3">
-                        <p className="text-xs font-semibold text-muted-foreground">{t("schedule_create_location" as any)}</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {(() => {
-                            const k = createSessionType;
-                            const keys =
-                              k === "training"
-                                ? (["schedule_loc_training_court", "schedule_loc_training_strength", "schedule_loc_training_outdoor"] as const)
-                                : k === "match"
-                                  ? (["schedule_loc_match_home", "schedule_loc_match_away", "schedule_loc_match_arena"] as const)
-                                  : k === "recovery"
-                                    ? (["schedule_loc_recovery_pool", "schedule_loc_recovery_physio", "schedule_loc_recovery_room"] as const)
-                                    : k === "travel"
-                                      ? (["schedule_loc_travel_airport", "schedule_loc_travel_hotel", "schedule_loc_travel_bus"] as const)
-                                      : (["schedule_loc_meeting_room", "schedule_loc_meeting_video"] as const);
-                            return keys.map((kk) => (
-                              <Button
-                                key={kk}
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-9"
-                                onClick={() => setCreateLocation(t(kk as any))}
-                              >
-                                {t(kk as any)}
-                              </Button>
-                            ));
-                          })()}
-                        </div>
-                        <div className="mt-2">
-                          <input
-                            className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                            value={createLocation}
-                            onChange={(e) => setCreateLocation(e.target.value)}
-                            placeholder={t("schedule_session_location_placeholder")}
-                          />
-                        </div>
-                      </div>
-
                       {!isEditing ? (
                         <details className="rounded-xl border border-border bg-background/40 p-3">
                           <summary className="cursor-pointer list-none">
@@ -2824,6 +3045,17 @@ export default function Schedule() {
                       setTargetAttendance("");
                       setMaxCapacity("");
                       setGroupName("");
+                      setAttendanceMode("all_team");
+                      setAttendanceModeTouched(false);
+                      setGroupsCount("");
+                      setGroupCapacity("");
+                      setGroupSignupMode("coach_assign");
+                      setCoachGroupAssignments({});
+                      setSignupDeadline("");
+                      setSignupMaxSpots("");
+                      setSelectedPlayerIds(new Set());
+                      setCustomDurationOpen(false);
+                      setCustomDurationMins("");
                     };
                     void runCreateOrUpdate()
                       .then(() => {
@@ -3097,7 +3329,7 @@ export default function Schedule() {
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                          className="h-10 w-10 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
                           aria-label={t("schedule_favorite_toggle" as any)}
                           onClick={() => {
                             persistWeekTemplates(
@@ -3383,12 +3615,154 @@ export default function Schedule() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={groupAssignOpen} onOpenChange={setGroupAssignOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("schedule_assign_players" as any)}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {rosterPlayers.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
+                <p className="text-sm font-medium text-muted-foreground">{t("schedule_no_roster_players")}</p>
+              </div>
+            ) : (
+              (() => {
+                const n = Math.max(2, Math.min(6, Number(groupsCount) || 2));
+                const sorted = [...rosterPlayers].sort((a, b) => {
+                  const la = ((a as any).fullName ?? (a as any).full_name ?? (a as any).email ?? a.userId) as string;
+                  const lb = ((b as any).fullName ?? (b as any).full_name ?? (b as any).email ?? b.userId) as string;
+                  const ga = typeof coachGroupAssignments[a.userId] === "number" ? coachGroupAssignments[a.userId] : 999;
+                  const gb = typeof coachGroupAssignments[b.userId] === "number" ? coachGroupAssignments[b.userId] : 999;
+                  if (ga !== gb) return ga - gb;
+                  return la.localeCompare(lb);
+                });
+
+                const groups = Array.from({ length: n }).map((_, idx) => idx);
+                const inGroup = (idx: number) => sorted.filter((m) => coachGroupAssignments[m.userId] === idx);
+                const unassigned = sorted.filter((m) => typeof coachGroupAssignments[m.userId] !== "number");
+
+                const PlayerRow = (m: (typeof sorted)[number]) => {
+                  const label = ((m as any).fullName ?? (m as any).full_name ?? (m as any).email ?? m.userId) as string;
+                  const current = typeof coachGroupAssignments[m.userId] === "number" ? coachGroupAssignments[m.userId] : -1;
+                  return (
+                    <div key={m.userId} className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-foreground truncate min-w-0 flex-1">{label}</p>
+                      <div className="flex gap-1 shrink-0">
+                        {groups.map((idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            className={[
+                              "h-8 w-8 rounded-md border text-xs font-black transition-colors",
+                              current === idx
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background/40 text-muted-foreground hover:bg-muted/40",
+                            ].join(" ")}
+                            onClick={() => {
+                              setCoachGroupAssignments((prev) => {
+                                const next = { ...prev };
+                                next[m.userId] = idx;
+                                return next;
+                              });
+                            }}
+                            aria-label={`${t("schedule_assign_group")} ${String.fromCharCode(65 + idx)}`}
+                            title={`${t("schedule_assign_group")} ${String.fromCharCode(65 + idx)}`}
+                          >
+                            {String.fromCharCode(65 + idx)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                };
+
+                return (
+                  <div className="space-y-3 max-h-[60dvh] overflow-y-auto pr-1">
+                    <div className="rounded-xl border border-border bg-background/40 p-3">
+                      <p className="text-xs font-semibold text-muted-foreground">{t("schedule_unassigned" as any)}</p>
+                      <div className="mt-2 space-y-2">
+                        {unassigned.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">{t("schedule_none" as any)}</p>
+                        ) : (
+                          unassigned.map(PlayerRow)
+                        )}
+                      </div>
+                    </div>
+                    {groups.map((idx) => (
+                      <div key={idx} className="rounded-xl border border-border bg-background/40 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-muted-foreground">
+                            {t("schedule_group_label" as any).replace("{group}", String.fromCharCode(65 + idx))}
+                          </p>
+                          <p className="text-[11px] font-semibold text-muted-foreground">{inGroup(idx).length}</p>
+                        </div>
+                        <div className="mt-2 space-y-2">{inGroup(idx).map(PlayerRow)}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={choosePlayersOpen} onOpenChange={setChoosePlayersOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("schedule_choose_players" as any)}</DialogTitle>
+          </DialogHeader>
+          <div className="rounded-lg border border-border bg-background/40 p-3 max-h-[60dvh] overflow-y-auto space-y-2">
+            {rosterPlayers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("schedule_no_roster_players")}</p>
+            ) : (
+              rosterPlayers
+                .slice()
+                .sort((a, b) => {
+                  const la = ((a as any).fullName ?? (a as any).full_name ?? (a as any).email ?? a.userId) as string;
+                  const lb = ((b as any).fullName ?? (b as any).full_name ?? (b as any).email ?? b.userId) as string;
+                  return la.localeCompare(lb);
+                })
+                .map((m) => {
+                  const checked = selectedPlayerIds.has(m.userId);
+                  const label = ((m as any).fullName ?? (m as any).full_name ?? (m as any).email ?? m.userId) as string;
+                  return (
+                    <label key={m.userId} className="flex items-center justify-between gap-3 py-1.5">
+                      <span className="text-sm font-semibold text-foreground truncate">{label}</span>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          const on = e.target.checked;
+                          setSelectedPlayerIds((prev) => {
+                            const next = new Set(prev);
+                            if (on) next.add(m.userId);
+                            else next.delete(m.userId);
+                            return next;
+                          });
+                        }}
+                      />
+                    </label>
+                  );
+                })
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChoosePlayersOpen(false)}>
+              {t("close")}
+            </Button>
+            <Button onClick={() => setChoosePlayersOpen(false)}>{t("apply" as any)}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ModulePageShell>
   );
 }
 
 function WellnessRow(props: {
   label: string;
+  tooltip?: string;
   value: string;
   onValueChange: (v: string) => void;
   disabled?: boolean;
@@ -3396,7 +3770,14 @@ function WellnessRow(props: {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-xs font-bold text-foreground">{props.label}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-bold text-foreground">{props.label}</p>
+          {props.tooltip ? (
+            <span className="inline-flex items-center text-muted-foreground" title={props.tooltip} aria-label={props.tooltip}>
+              <Info className="w-3.5 h-3.5" />
+            </span>
+          ) : null}
+        </div>
         <p className="text-[11px] text-muted-foreground mt-0.5">1–5</p>
       </div>
       <ToggleGroup
