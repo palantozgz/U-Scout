@@ -49,6 +49,9 @@ import {
   useDeleteScheduleEvent,
   useScheduleParticipantsForEvents,
   useScheduleParticipantsForUser,
+  computeWaitlistState,
+  useScheduleRegistrationsForEvents,
+  useScheduleRegistrationsForUser,
   useScheduleEventsRange,
   useThisWeekScheduleEvents,
   useTodayScheduleEvents,
@@ -56,6 +59,7 @@ import {
   useTomorrowScheduleEvents,
   useUpdateScheduleEvent,
   useUpsertScheduleParticipant,
+  useUpsertScheduleRegistration,
   startOfTomorrowLocal,
   type ScheduleEvent,
 } from "@/lib/schedule";
@@ -179,6 +183,7 @@ export default function Schedule() {
   const updateEventMut = useUpdateScheduleEvent();
   const deleteEventMut = useDeleteScheduleEvent();
   const upsertParticipant = useUpsertScheduleParticipant();
+  const upsertRegistration = useUpsertScheduleRegistration();
   const weekRestSessions = useMemo(() => {
     const start = startOfTomorrowLocal();
     start.setDate(start.getDate() + 1);
@@ -202,6 +207,16 @@ export default function Schedule() {
   const todayParticipantsQ = useScheduleParticipantsForEvents({
     clubId,
     eventIds: todayEventsQ.data?.map((e) => e.id) ?? [],
+  });
+
+  const myRegistrationsQ = useScheduleRegistrationsForUser({
+    clubId,
+    userId,
+    eventIds: isPlayer ? participantEventIds : [],
+  });
+  const todayRegistrationsQ = useScheduleRegistrationsForEvents({
+    clubId,
+    eventIds: isPlayer ? (todayEventsQ.data?.map((e) => e.id) ?? []) : [],
   });
   const wellnessPctQ = useTodayWellnessSubmissionPct({ clubId, playerUserIds: rosterPlayerUserIds });
 
@@ -265,6 +280,12 @@ export default function Schedule() {
   const [targetAttendance, setTargetAttendance] = useState("");
   const [maxCapacity, setMaxCapacity] = useState("");
   const [groupName, setGroupName] = useState("");
+  const plannerLandscapeHintKey = useMemo(
+    () => `uscout-schedule:planner-landscape-hint:${profile?.id ?? "anon"}`,
+    [profile?.id],
+  );
+  const [plannerLandscapeHintDismissed, setPlannerLandscapeHintDismissed] = useState(true);
+  const [isSmallPortrait, setIsSmallPortrait] = useState(false);
   // UI-ready only (not persisted yet)
   const [attendanceMode, setAttendanceMode] = useState<AttendanceMode>("all_team");
   const [attendanceModeTouched, setAttendanceModeTouched] = useState(false);
@@ -279,10 +300,14 @@ export default function Schedule() {
   const [customDurationMins, setCustomDurationMins] = useState<string>("");
   const [groupAssignOpen, setGroupAssignOpen] = useState(false);
   const [choosePlayersOpen, setChoosePlayersOpen] = useState(false);
-  const [playerActionsTick, setPlayerActionsTick] = useState(0);
   const [trainingTags, setTrainingTags] = useState<Set<string>>(() => new Set());
   const [subgroupCount, setSubgroupCount] = useState("");
   const [subgroupMinutes, setSubgroupMinutes] = useState("");
+  const plannerTap = useRef<{
+    ok: boolean;
+    x: number;
+    y: number;
+  } | null>(null);
 
   type SessionTemplate = {
     id: string;
@@ -1429,8 +1454,34 @@ export default function Schedule() {
     }
   }, [localKey, showLocalWellness]);
 
-  const playerSignupKey = (club: string, eventId: string, user: string) => `uscout-schedule:signup:${club}:${eventId}:${user}`;
-  const playerGroupKey = (club: string, eventId: string, user: string) => `uscout-schedule:group:${club}:${eventId}:${user}`;
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      setIsSmallPortrait(w < 430 && h >= w);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem(plannerLandscapeHintKey);
+      setPlannerLandscapeHintDismissed(v === "1");
+    } catch {
+      setPlannerLandscapeHintDismissed(true);
+    }
+  }, [plannerLandscapeHintKey]);
+
+  const dismissPlannerLandscapeHint = () => {
+    setPlannerLandscapeHintDismissed(true);
+    try {
+      window.localStorage.setItem(plannerLandscapeHintKey, "1");
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <ModulePageShell title={t("ucore_card_schedule_title")}>
@@ -1521,6 +1572,8 @@ export default function Schedule() {
                     ) : (
                       (todayEventsQ.data ?? []).map((ev) => {
                         const my = (myParticipantsQ.data ?? []).find((p) => p.event_id === ev.id);
+                        const myReg = (myRegistrationsQ.data ?? []).find((r) => r.event_id === ev.id);
+                        const regsForEvent = (todayRegistrationsQ.data ?? []).filter((r) => r.event_id === ev.id);
                         const rowPending = pendingSessionIds.has(ev.id);
                         const attendanceRequired = ev.attendance_required !== false;
                         const parsed = readConstraintsFromNotes(ev.notes ?? null);
@@ -1530,18 +1583,20 @@ export default function Schedule() {
                           mode === "selected_players" && Array.isArray(att?.selected_player_ids) && userId
                             ? att.selected_player_ids.map(String).includes(String(userId))
                             : false;
-                        // Ensure localStorage-backed actions re-render immediately after changes.
-                        void playerActionsTick;
                         const isSignedUp =
-                          mode === "signup" && clubId && userId
-                            ? Boolean(window.localStorage.getItem(playerSignupKey(clubId, ev.id, userId)))
-                            : false;
+                          mode === "signup" && myReg?.mode === "signup" && myReg.state !== "left" ? true : false;
+                        const isWaitlisted =
+                          (mode === "signup" || mode === "groups") && myReg?.state === "waitlisted" ? true : false;
                         const chosenGroup =
-                          mode === "groups" && att?.group_signup_mode === "auto_signup" && clubId && userId
-                            ? window.localStorage.getItem(playerGroupKey(clubId, ev.id, userId))
+                          mode === "groups" &&
+                          att?.group_signup_mode === "auto_signup" &&
+                          myReg?.mode === "group_auto" &&
+                          myReg.state !== "left"
+                            ? (myReg.group_label ?? null)
                             : null;
                         const groupsN = Math.max(2, Math.min(6, Number(att?.groups_count) || 2));
                         const groupCap = Number(att?.group_capacity) || null;
+                        const signupCap = Number(att?.signup_max_spots) || null;
                         const assignedGroupIdx =
                           mode === "groups" && att?.group_signup_mode === "coach_assign" && userId
                             ? (typeof att?.coach_assignments?.[String(userId)] === "number"
@@ -1586,8 +1641,31 @@ export default function Schedule() {
                                         });
                                     };
 
+                                    const setRegistration = async (patch: {
+                                      mode: "signup" | "group_auto";
+                                      state: "joined" | "left" | "waitlisted";
+                                      group_label?: string | null;
+                                    }) => {
+                                      if (!clubId || !userId) return;
+                                      await upsertRegistration.mutateAsync({
+                                        club_id: clubId,
+                                        event_id: ev.id,
+                                        user_id: userId,
+                                        mode: patch.mode,
+                                        state: patch.state,
+                                        group_label: patch.group_label ?? null,
+                                      });
+                                    };
+
                                     const disabledCore =
-                                      !clubId || !userId || myParticipantsQ.isLoading || rowPending || upsertParticipant.isPending;
+                                      !clubId ||
+                                      !userId ||
+                                      myParticipantsQ.isLoading ||
+                                      myRegistrationsQ.isLoading ||
+                                      todayRegistrationsQ.isLoading ||
+                                      rowPending ||
+                                      upsertParticipant.isPending ||
+                                      upsertRegistration.isPending;
 
                                     if (mode === "selected_players" && !selectedMandatory) {
                                       return null;
@@ -1599,7 +1677,7 @@ export default function Schedule() {
                                           {isSignedUp ? (
                                             <>
                                               <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-[11px] font-bold text-foreground">
-                                                {t("schedule_player_joined")}
+                                                {isWaitlisted ? t("schedule_player_waitlisted" as any) : t("schedule_player_joined")}
                                               </span>
                                               <Button
                                                 size="sm"
@@ -1608,13 +1686,11 @@ export default function Schedule() {
                                                 disabled={disabledCore}
                                                 onClick={() => {
                                                   if (!clubId || !userId) return;
-                                                  try {
-                                                    window.localStorage.removeItem(playerSignupKey(clubId, ev.id, userId));
-                                                  } catch {
-                                                    // ignore
-                                                  }
-                                                  setParticipantStatus("declined");
-                                                  setPlayerActionsTick((x) => x + 1);
+                                                  void setRegistration({ mode: "signup", state: "left", group_label: null })
+                                                    .catch(() =>
+                                                      toast({ variant: "destructive", description: t("schedule_attendance_error") }),
+                                                    )
+                                                    .finally(() => setParticipantStatus("declined"));
                                                 }}
                                               >
                                                 {t("schedule_player_leave")}
@@ -1628,13 +1704,16 @@ export default function Schedule() {
                                               disabled={disabledCore}
                                               onClick={() => {
                                                 if (!clubId || !userId) return;
-                                                try {
-                                                  window.localStorage.setItem(playerSignupKey(clubId, ev.id, userId), "1");
-                                                } catch {
-                                                  // ignore
-                                                }
-                                                setParticipantStatus("confirmed");
-                                                setPlayerActionsTick((x) => x + 1);
+                                                const joinedCount = regsForEvent.filter(
+                                                  (r) => r.mode === "signup" && r.state === "joined",
+                                                ).length;
+                                                const nextState: "joined" | "waitlisted" =
+                                                  computeWaitlistState({ cap: signupCap, joinedCount });
+                                                void setRegistration({ mode: "signup", state: nextState, group_label: null })
+                                                  .then(() => setParticipantStatus("confirmed"))
+                                                  .catch(() =>
+                                                    toast({ variant: "destructive", description: t("schedule_attendance_error") }),
+                                                  );
                                               }}
                                             >
                                               {t("schedule_player_join_session")}
@@ -1663,13 +1742,20 @@ export default function Schedule() {
                                                     key={label}
                                                     onClick={() => {
                                                       if (!clubId || !userId) return;
-                                                      try {
-                                                        window.localStorage.setItem(playerGroupKey(clubId, ev.id, userId), label);
-                                                      } catch {
-                                                        // ignore
-                                                      }
-                                                      setParticipantStatus("confirmed");
-                                                      setPlayerActionsTick((x) => x + 1);
+                                                      const joinedCount = regsForEvent.filter(
+                                                        (r) =>
+                                                          r.mode === "group_auto" && r.group_label === label && r.state === "joined",
+                                                      ).length;
+                                                      const nextState: "joined" | "waitlisted" =
+                                                        computeWaitlistState({ cap: groupCap, joinedCount });
+                                                      void setRegistration({ mode: "group_auto", state: nextState, group_label: label })
+                                                        .then(() => setParticipantStatus("confirmed"))
+                                                        .catch(() =>
+                                                          toast({
+                                                            variant: "destructive",
+                                                            description: t("schedule_attendance_error"),
+                                                          }),
+                                                        );
                                                     }}
                                                   >
                                                     {t("schedule_player_group_pick").replace("{group}", label)}
@@ -1684,6 +1770,7 @@ export default function Schedule() {
                                             <>
                                               <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-[11px] font-bold text-foreground">
                                                 {t("schedule_player_group").replace("{group}", chosenGroup)}
+                                                {isWaitlisted ? ` · ${t("schedule_player_waitlisted_badge" as any)}` : ""}
                                               </span>
                                               <Button
                                                 size="sm"
@@ -1692,13 +1779,11 @@ export default function Schedule() {
                                                 disabled={disabledCore}
                                                 onClick={() => {
                                                   if (!clubId || !userId) return;
-                                                  try {
-                                                    window.localStorage.removeItem(playerGroupKey(clubId, ev.id, userId));
-                                                  } catch {
-                                                    // ignore
-                                                  }
-                                                  setParticipantStatus("declined");
-                                                  setPlayerActionsTick((x) => x + 1);
+                                                  void setRegistration({ mode: "group_auto", state: "left", group_label: null })
+                                                    .catch(() =>
+                                                      toast({ variant: "destructive", description: t("schedule_attendance_error") }),
+                                                    )
+                                                    .finally(() => setParticipantStatus("declined"));
                                                 }}
                                               >
                                                 {t("schedule_player_leave_group")}
@@ -1829,35 +1914,41 @@ export default function Schedule() {
                   <div className="mt-2 grid grid-cols-3 items-center gap-2">
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="h-11 w-11 px-0 justify-self-start"
+                      variant="secondary"
+                      className="h-11 px-3 justify-self-start bg-background/40 hover:bg-muted/40"
                       onClick={() => setSelectedWeekStart((p) => new Date(p.getTime() - 7 * 86400000))}
                       aria-label={t("schedule_week_prev" as any)}
                     >
-                      ←
+                      <span className="text-xs font-extrabold tracking-tight">← Week</span>
                     </Button>
+
+                    {isCurrentWeek ? (
+                      <div className="h-11 w-full max-w-[220px] justify-self-center inline-flex items-center justify-center">
+                        <span className="text-xs font-black tracking-tight text-muted-foreground">
+                          {t("schedule_this_week" as any)}
+                        </span>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-11 px-3 justify-self-center w-full max-w-[220px] border border-border bg-transparent hover:bg-muted/30"
+                        onClick={() => scrollToToday()}
+                      >
+                        <span className="truncate whitespace-nowrap text-xs font-extrabold tracking-tight">
+                          {t("schedule_go_current_week" as any)}
+                        </span>
+                      </Button>
+                    )}
 
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="h-11 px-3 justify-self-center w-full max-w-[220px]"
-                      onClick={() => {
-                        if (!isCurrentWeek) scrollToToday();
-                      }}
-                    >
-                      <span className="truncate whitespace-nowrap">
-                        {isCurrentWeek ? t("schedule_this_week" as any) : t("schedule_go_current_week" as any)}
-                      </span>
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-11 w-11 px-0 justify-self-end"
+                      variant="secondary"
+                      className="h-11 px-3 justify-self-end bg-background/40 hover:bg-muted/40"
                       onClick={() => setSelectedWeekStart((p) => new Date(p.getTime() + 7 * 86400000))}
                       aria-label={t("schedule_week_next" as any)}
                     >
-                      →
+                      <span className="text-xs font-extrabold tracking-tight">Week →</span>
                     </Button>
                   </div>
                 ) : null}
@@ -1866,6 +1957,23 @@ export default function Schedule() {
                   <>
                     <div className="mt-3 rounded-2xl border border-border bg-card p-4">
                       <p className="text-[11px] font-semibold text-muted-foreground">{t("schedule_planner_hint")}</p>
+
+                      {!isLandscape && isSmallPortrait && !plannerLandscapeHintDismissed ? (
+                        <div className="mt-3 rounded-xl border border-border bg-background/40 px-3 py-2.5 flex items-start justify-between gap-3">
+                          <p className="text-[11px] font-semibold text-muted-foreground">
+                            Landscape gives wider planner view ↻
+                          </p>
+                          <button
+                            type="button"
+                            className="h-9 w-9 -mr-1 -mt-1 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                            onClick={dismissPlannerLandscapeHint}
+                            aria-label={t("dismiss" as any)}
+                            title={t("dismiss" as any)}
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : null}
 
                     {!isLandscape ? (
                       <div className="mt-3 space-y-3">
@@ -1994,7 +2102,26 @@ export default function Schedule() {
                                         <button
                                           type="button"
                                           disabled={!canCreateSession}
-                                          onClick={() => openCreatePrefilled(d, slot.hour)}
+                                          onPointerDown={(e) => {
+                                            plannerTap.current = { ok: true, x: Number((e as any).clientX ?? 0), y: Number((e as any).clientY ?? 0) };
+                                          }}
+                                          onPointerMove={(e) => {
+                                            if (!plannerTap.current?.ok) return;
+                                            const x = Number((e as any).clientX ?? 0);
+                                            const y = Number((e as any).clientY ?? 0);
+                                            const dx = x - plannerTap.current.x;
+                                            const dy = y - plannerTap.current.y;
+                                            if (Math.hypot(dx, dy) > 10) plannerTap.current.ok = false;
+                                          }}
+                                          onPointerCancel={() => {
+                                            plannerTap.current = null;
+                                          }}
+                                          onClick={() => {
+                                            const ok = plannerTap.current?.ok ?? true;
+                                            plannerTap.current = null;
+                                            if (!ok) return;
+                                            openCreatePrefilled(d, slot.hour);
+                                          }}
                                           className={[
                                             "h-9 px-3 inline-flex items-center gap-2 rounded-lg border border-dashed border-border/70",
                                             "bg-transparent text-xs font-extrabold text-muted-foreground",
@@ -2144,7 +2271,29 @@ export default function Schedule() {
                                     ) : (
                                       <button
                                         type="button"
-                                        onClick={() => openCreatePrefilled(d, slot.hour)}
+                                        onPointerDown={(e) => {
+                                          plannerTap.current = { ok: true, x: Number((e as any).clientX ?? 0), y: Number((e as any).clientY ?? 0) };
+                                        }}
+                                        onPointerMove={(e) => {
+                                          if (!plannerTap.current?.ok) return;
+                                          const x = Number((e as any).clientX ?? 0);
+                                          const y = Number((e as any).clientY ?? 0);
+                                          const dx = x - plannerTap.current.x;
+                                          const dy = y - plannerTap.current.y;
+                                          if (Math.hypot(dx, dy) > 10) plannerTap.current.ok = false;
+                                        }}
+                                        onPointerUp={() => {
+                                          // keep current flag until click
+                                        }}
+                                        onPointerCancel={() => {
+                                          plannerTap.current = null;
+                                        }}
+                                        onClick={() => {
+                                          const ok = plannerTap.current?.ok ?? true;
+                                          plannerTap.current = null;
+                                          if (!ok) return;
+                                          openCreatePrefilled(d, slot.hour);
+                                        }}
                                         className="w-full rounded-lg border border-dashed border-border bg-muted/20 px-2 py-2 text-left hover:bg-muted/30"
                                       >
                                         <p className="text-[10px] font-semibold text-muted-foreground">
