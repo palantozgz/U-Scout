@@ -1356,6 +1356,15 @@ export default function Schedule() {
     return parts.join(" · ");
   }, [createDate, createLocation, createSessionType, createStartTime, t]);
 
+  const createLocationPlaceholderKey = useMemo(() => {
+    if (createSessionType === "training") return "schedule_session_location_placeholder_training";
+    if (createSessionType === "recovery") return "schedule_session_location_placeholder_recovery";
+    if (createSessionType === "match") return "schedule_session_location_placeholder_match";
+    if (createSessionType === "travel") return "schedule_session_location_placeholder_travel";
+    if (createSessionType === "meeting") return "schedule_session_location_placeholder_meeting";
+    return "schedule_session_location_placeholder_other";
+  }, [createSessionType]);
+
   // Title is optional; if blank we fall back to the activity label on save.
 
   useEffect(() => {
@@ -3191,7 +3200,7 @@ export default function Schedule() {
                               applyDurationPreset(m);
                             }}
                           >
-                            {m}
+                            {m}′
                           </Button>
                         ))}
                         <Button
@@ -3457,7 +3466,7 @@ export default function Schedule() {
                             className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
                             value={createLocation}
                             onChange={(e) => setCreateLocation(e.target.value)}
-                            placeholder={t("schedule_session_location_placeholder")}
+                            placeholder={t(createLocationPlaceholderKey as any)}
                           />
                         </div>
                       </div>
@@ -3505,23 +3514,75 @@ export default function Schedule() {
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_target_attendance")}</p>
-                              <input
-                                className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                                inputMode="numeric"
-                                value={targetAttendance}
-                                onChange={(e) => setTargetAttendance(e.target.value)}
-                                placeholder={t("schedule_optional")}
-                              />
+                              <div className="h-10 rounded-md border border-border bg-background px-2 flex items-center justify-between gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 w-8 px-0"
+                                  onClick={() =>
+                                    setTargetAttendance((prev) => {
+                                      const n = Math.max(0, Number(prev) || 0);
+                                      return String(Math.max(0, n - 1));
+                                    })
+                                  }
+                                >
+                                  −
+                                </Button>
+                                <p className="text-sm font-black text-foreground tabular-nums">
+                                  {Math.max(0, Number(targetAttendance) || 0) || "—"}
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 w-8 px-0"
+                                  onClick={() =>
+                                    setTargetAttendance((prev) => {
+                                      const n = Math.max(0, Number(prev) || 0);
+                                      return String(Math.min(99, n + 1));
+                                    })
+                                  }
+                                >
+                                  +
+                                </Button>
+                              </div>
                             </div>
                             <div>
                               <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_max_capacity")}</p>
-                              <input
-                                className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                                inputMode="numeric"
-                                value={maxCapacity}
-                                onChange={(e) => setMaxCapacity(e.target.value)}
-                                placeholder={t("schedule_optional")}
-                              />
+                              <div className="h-10 rounded-md border border-border bg-background px-2 flex items-center justify-between gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 w-8 px-0"
+                                  onClick={() =>
+                                    setMaxCapacity((prev) => {
+                                      const n = Math.max(0, Number(prev) || 0);
+                                      return String(Math.max(0, n - 1));
+                                    })
+                                  }
+                                >
+                                  −
+                                </Button>
+                                <p className="text-sm font-black text-foreground tabular-nums">
+                                  {Math.max(0, Number(maxCapacity) || 0) || "—"}
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 w-8 px-0"
+                                  onClick={() =>
+                                    setMaxCapacity((prev) => {
+                                      const n = Math.max(0, Number(prev) || 0);
+                                      return String(Math.min(99, n + 1));
+                                    })
+                                  }
+                                >
+                                  +
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ) : null}
