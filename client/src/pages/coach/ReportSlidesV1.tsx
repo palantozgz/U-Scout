@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react";
 import { generateMotorV4 } from "@/lib/motor-v4";
 import {
@@ -15,13 +15,18 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { useClub } from "@/lib/club-api";
 import { cn, isRealPhoto } from "@/lib/utils";
-import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+
+const BasketballPlaceholderAvatar = lazy(() =>
+  import("@/components/BasketballPlaceholderAvatar").then(m => ({
+    default: m.BasketballPlaceholderAvatar,
+  })),
+);
 
 export interface ReportSlidesV1Props {
   playerId: string;
@@ -307,7 +312,9 @@ export default function ReportSlidesV1({
                     </>
                   ) : (
                     <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted shadow-md">
-                      <BasketballPlaceholderAvatar size={112} />
+                      <Suspense fallback={<div className="h-28 w-28 rounded-full bg-muted" />}>
+                        <BasketballPlaceholderAvatar size={112} />
+                      </Suspense>
                     </div>
                   )}
                   {jerseyNumber && (

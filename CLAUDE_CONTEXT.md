@@ -27,6 +27,15 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `scripts/calibrate-motor.ts` — 66 perfiles con expectations (100% / 551 checks)
 - `scripts/eval-motor-quality.ts` — 10 perfiles de calidad → scripts/eval-quality-results.txt
 
+## i18n — arquitectura lazy (implementada 25 abr 2026)
+- `client/src/lib/i18n-core.ts` — runtime lazy: EN estático, ES/ZH async bajo demanda
+- `client/src/lib/i18n.ts` — re-export shim (todos los imports existentes sin cambios)
+- `client/src/lib/locales/en.ts` — bundle EN (estático, fallback síncrono)
+- `client/src/lib/locales/es.ts` — chunk lazy ES (~23 KB gzip)
+- `client/src/lib/locales/zh.ts` — chunk lazy ZH (~24 KB gzip)
+- Para añadir clave: añadir en `locales/en.ts`, `locales/es.ts`, `locales/zh.ts`
+- Para añadir idioma: nuevo archivo en `locales/`, import dinámico en `i18n-core.ts`
+
 ## NUNCA tocar
 - `Profile.tsx`
 - `schema.ts`
@@ -46,13 +55,23 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 
 ---
 
-## Estado actual — sesión 25 abr 2026 (cierre definitivo)
+## Estado actual — sesión 25 abr 2026 (tarde)
 
 ### Commits de hoy (main)
 - `feat: splash + headers unificados con U mark — CORE/SCOUT/STATS coherentes`
 - `fix: replace chatgpt logo with correct U mark SVGs, add module logos`
 - `fix: ModuleHeader en Schedule — U SCHEDULE logo + tagline`
 - `feat: ReportSlidesV1 rediseño visual — slides más legibles, DENY/FORCE/ALLOW/AWARE coherentes`
+- `perf: i18n lazy loading + React.lazy code splitting — bundle 509→268 KB gzip`
+
+### Bundle — estado actual ✅
+- **Build confirmado: 978 KB min / 267.99 KB gzip** (objetivo <300 KB conseguido)
+- Línea base anterior: 1,836 KB min / 508.90 KB gzip
+- Fase 1 completada: i18n lazy — ES/ZH como chunks separados (-43 KB gzip)
+- Fase 2 completada: React.lazy en App.tsx — 17 rutas lazy (-197 KB gzip)
+- Chunks lazy notables: `PlayerEditor` 15 KB, `ReportSlidesV1` 24 KB, `Schedule` 29 KB, `ClubManagement` 22 KB
+- **Capacitor / TestFlight: prerequisito de bundle cumplido**
+- Próximo fix de bundle (opcional, no bloqueante): `mock-data` 25 KB en main chunk
 
 ### Motor (motor-v2.1.ts + motor-v4.ts)
 - **Calibración: 100% (551/551 checks, 66/66 perfiles)**
@@ -73,10 +92,10 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 - `pnrSnake` conectado (reduce force_direction weight + aware)
 - `allow_pnr_mid_range` para PnR handler sin deepRange (under coverage válido)
 - `deny_pnr_pop` suprime `deny_spot_deep` para pop screener (con/sin deepRange)
-- `deny_spot_deep` ahora se emite para `spotUpFreq=P` sin deepRange (peso 0.80) — tiradora primaria merece closeout agresivo aunque no tenga rango extra-largo
-- `force_trap` reformulado como instrucción 1-on-1 (over screen + canal débil) — elimina lenguaje colectivo
-- `offHandFinish` derivado de `isoFinishLeft/Right` en bridge (era incorrecto via `closeoutReaction`)
-- `force_post_channel`: infiere canal dominante cruzando `hand` + `postMoves` (up_and_under/hook)
+- `deny_spot_deep` ahora se emite para `spotUpFreq=P` sin deepRange (peso 0.80)
+- `force_trap` reformulado como instrucción 1-on-1 (over screen + canal débil)
+- `offHandFinish` derivado de `isoFinishLeft/Right` en bridge
+- `force_post_channel`: infiere canal dominante cruzando `hand` + `postMoves`
 - ath modula ISO weight parcialmente
 - `aware_passer` ponderado: vision=5+escape=0.95, vision=4+pass=0.72
 
@@ -87,23 +106,7 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 - Basketball Immersion scouting reports
 
 ### Renderer (reportTextRenderer.ts)
-Textos EN/ES/ZH actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR QUÉ):
-- `deny_iso_space`: dirección + contexto atlético
-- `deny_pnr_downhill`: deepRange + passer context
-- `deny_post_entry`: "Deny the X block entry" explícito + técnica fronting + phys
-- `deny_spot_deep`: closeout mechanics (shoot vs attack)
-- `deny_trans_rim`: cue de sprint al aro
-- `deny_oreb`: timing (antes del tiro, no después)
-- `deny_cut_backdoor/basket/flash/curl`: casos explícitos EN/ES/ZH con contexto ball-side
-- `deny_pnr_pop`: menciona "catch" — "No space to catch — they shoot off the screen"
-- `force_direction`: ISO context vs PnR context vs shooter
-- `force_contact`: dirección + por qué
-- `force_trap`: reformulado 1-on-1 — over screen + canal débil + no lenguaje colectivo
-- `allow_spot_three`: redirige a proteger pintura
-- `allow_iso`: instrucción activa (give ball, stay upright, contest)
-- `force_post_channel`: canal dominante en poste (up_and_under/hook cruzado con `hand`)
-
-**ZH**: paridad con EN/ES conseguida — `renderInstructionZH` dinámico, `renderAlertText` y `renderTriggerCue` ZH completos. ✅
+Textos EN/ES/ZH actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR QUÉ). ZH: paridad con EN/ES conseguida. ✅
 
 ### Campos FT
 - `ftShooting` + `foulDrawing` conectados al motor (isoDanger, hackable, ftDangerous)
@@ -112,7 +115,6 @@ Textos EN/ES/ZH actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR 
 ### Club INNER MONGOLIA
 - Club ID: `4bca3aa8-9062-4709-9d29-9e2313308f1a`
 - Miembros: Pablo (owner) + Luffy + Yuming + Javier (coaches)
-- SQL completado en Supabase
 
 ---
 
@@ -124,165 +126,81 @@ Esta app ES U CORE. U Scout es un módulo dentro de U CORE junto a:
 - **U Stats** — placeholder (`core/Stats.tsx` — 0.6 KB stub)
 Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 
-## Bundle — estado actual
-- Build confirmado: `1,836 KB minificado / 508.90 KB gzip` (1 solo chunk, sin splitting)
-- Vite config: sin `manualChunks` ni `rollupOptions` — chunk único por defecto
-- **i18n.ts: 4,939 líneas** — 3 locales inline (en/es/zh), todos cargan al inicio
-- Archivos generated*i18n: 2,634 líneas adicionales (6 archivos, 3 locales cada uno)
-- `motor-v2.1-i18n.ts`: 484 líneas, también inline en bundle cliente
-- Total i18n: ~7,573 líneas / estimado ~350–400 KB del bundle inicial
-- `Schedule.tsx` 228 KB god file
-- `PlayerEditor.tsx` 126 KB god file
-- `motor-v2.1.ts` 106 KB (debería ser server-side only)
-- Plan completo documentado en `BUNDLE_PLAN.md` (ver sección Bundle)
-- **Tokens Cursor agotados hasta ~3 may** — ejecución del plan aplazada
-- Fix mayor impacto: **i18n lazy por locale** → elimina ~350 KB del bundle inicial
-- Fix mediano: **code splitting por módulo** via React.lazy
-- Fix largo: **motor server-side** → API call en vez de bundle cliente
-- **Capacitor** para TestFlight una vez bundle optimizado
-
-## PLAN DE TRABAJO — U CORE (actualizado 25 abr 2026)
-
-### FASE 0 — Prerequisitos técnicos (con Cursor, ~3 may)
-Esto desbloquea TestFlight y hace la app mantenible.
-
-**0A. i18n lazy loading** — mayor ROI, menor riesgo
-- Separar en/es/zh en archivos independientes, importar solo el locale activo
-- Ahorro estimado: ~210-230 KB gzip
-- Plan detallado en `BUNDLE_PLAN.md`
-
-**0B. Code splitting con React.lazy**
-- Schedule, Scout, Wellness como chunks separados
-- Ahorro estimado: ~80-100 KB gzip
-- Objetivo: bundle <300 KB gzip → TestFlight viable
-
-**0C. Refactor arquitectura de carpetas**
-- `pages/coach/` → `pages/scout/`, `pages/core/`
-- Ver sección "Deuda técnica" al final de este archivo
-- Prerequisito de mantenibilidad: sin esto cada sesión perdemos contexto
-
 ---
+
+## PLAN DE TRABAJO — U CORE (actualizado 25 abr 2026 tarde)
+
+### FASE 0 — Prerequisitos técnicos ✅ COMPLETADA
+- **0A. i18n lazy loading** ✅ — ES/ZH como chunks lazy, EN estático
+- **0B. React.lazy code splitting** ✅ — 17 rutas lazy en App.tsx
+- **Resultado: 509 → 268 KB gzip. Objetivo <300 KB cumplido.**
+- **0C. Refactor arquitectura carpetas** — aplazado (no bloqueante para TestFlight)
+
+### FASE 5 — Capacitor + TestFlight (desbloqueada)
+```bash
+cd "/Users/palant/Downloads/U scout"
+npm install @capacitor/core @capacitor/cli @capacitor/ios
+npx cap init "U Core" "com.ucore.app"
+npx cap add ios
+npm run build
+npx cap sync
+npx cap open ios
+```
+Después: configurar signing en Xcode + subir a TestFlight.
 
 ### FASE 1 — U SCOUT (módulo más maduro, pulir antes de escalar)
 
 **1A. PlayerEditor audit completo**
 - Revisar campo a campo con metodología scouting científica
-- Secciones: Post, ISO, PnR, Off-Ball, Spot-up
 - Prompt Cursor: `cursor_prompt_inputs_redesign.md`
-- Diagrama media pista: `HalfCourtZoneSelector` ✅ implementado
 
 **1B. ReportSlidesV1 → implementación definitiva**
 - Diseño visual en Figma ✅ (Gamenight/Office/Oldschool)
-- Implementar con Cursor: 3 slides definitivos con colores, iconos, layout
 - ALLOW Tier 1: `allow_drive_weak_side` → `allow_slot_design.md`
-- Iconos: OBLIGATORIO diseño Figma antes de implementar (nunca SVG generado)
+- Iconos: OBLIGATORIO diseño Figma antes de implementar
 
 **1C. Textos renderer sin sujeto**
 - Reescribir en imperativo: "drives left" no "they drive left"
-- Afecta `reportTextRenderer.ts` — Cursor, ~300 líneas
 
 **1D. eval-report-llm.ts**
-- Añadir ANTHROPIC_API_KEY en `.env` (console.anthropic.com)
-- Ejecutar evaluador LLM para diagnóstico de calidad
+- Añadir ANTHROPIC_API_KEY en `.env`
 
----
-
-### FASE 2 — U SCHEDULE & WELLNESS (módulo funcional, necesita estabilización)
-
-**2A. Schedule.tsx decomposition**
-- Partir god file 228 KB en subcomponentes
-- Añadir ModuleHeader correctamente
-- Sesión Cursor dedicada (alto impacto en legibilidad + bundle)
-
-**2B. localStorage → server persistence**
-- Attendance/signup aún usa localStorage
-- Migración a tabla Supabase con schema + migration
-
-**2C. Offline queue + sincronización**
-- Cola de cambios offline, sync al reconectar
-- Afecta principalmente Schedule y Wellness
-
----
+### FASE 2 — U SCHEDULE & WELLNESS
+**2A.** Schedule.tsx decomposition (god file 228 KB)
+**2B.** localStorage → server persistence (attendance/signup)
+**2C.** Offline queue + sincronización
 
 ### FASE 3 — U STATS (diseño + implementación desde cero)
-
-**Estado actual:** stub de 0.6 KB — solo título + placeholder.
-
-**3A. Definir scope de producto** (antes de tocar código)
-Preguntas a decidir:
-- ¿Qué datos existen ya en Supabase vs qué hay que importar?
-- ¿Stats de attendance del Schedule? ¿Stats de scouting (jugadoras más scouted)? ¿Stats de wellness del equipo?
-- ¿Es un módulo para entrenadores, jugadores, o ambos?
-- ¿Requiere fuente externa (Synergy, importación CSV) o solo datos propios de U CORE?
-
-**3B. Diseño en Figma**
-- Dashboard principal con métricas clave
-- Referencia visual: `elradardelscout.com` (bubble chart frecuencia vs eficiencia)
-- Gráficos: attendance trends, wellness trends, scouting coverage
-- Misma arquitectura visual que el resto de módulos
-
-**3C. Implementación con Cursor**
-- Schema + migrations si necesita nuevas tablas
-- Componentes: KPI cards, charts (recharts ya disponible en el stack)
-- Integración con datos existentes de Schedule (sessions, attendance) y Wellness
-
----
+**3A.** Definir scope de producto antes de tocar código
+**3B.** Diseño en Figma (referencia: `elradardelscout.com`)
+**3C.** Implementación con Cursor
 
 ### FASE 4 — Branding y experiencia final
-
-**4A. 3 temas visuales en código** (Gamenight / Office / Oldschool)
-- Diseño en Figma ✅
-- Implementar CSS vars + selector en Settings
-- ~300 líneas en `index.css` + toggle
-
-**4B. Iconos defensivos en slides**
-- Diseño Figma OBLIGATORIO antes de implementar
-- Nunca SVG generado desde código sin referencia visual
-
-**4C. Favicon + logos definitivos**
-- Favicon con U mark
-- Club logo con imagen real (reemplaza emoji picker)
-- SVG Figma → animación Rive (largo plazo)
-
----
-
-### FASE 5 — TestFlight + distribución
-
-**5A. Capacitor setup**
-- Prerequisito: bundle <300 KB gzip (Fase 0)
-- Wrapper iOS, configuración Xcode
-- Build + submit a TestFlight
-
-**5B. motor-v2.1 server-side**
-- Eliminar del bundle cliente (106 KB)
-- Mover a endpoint API en Express
-- Mayor refactor — después de TestFlight inicial
-
----
+**4A.** 3 temas visuales (Gamenight / Office / Oldschool) — Figma ✅, implementar CSS vars
+**4B.** Iconos defensivos — Figma OBLIGATORIO antes de implementar
+**4C.** Favicon + logos definitivos + animación Rive (largo plazo)
 
 ### BACKLOG SIN FECHA
-- Deep Report: scope pendiente de decisión. Candidatos: situaciones adicionales, notas entrenador, clips de vídeo
+- motor-v2.1 server-side (elimina ~50 KB gzip adicional del bundle)
+- mock-data server-side o lazy (25 KB gzip en main chunk, no bloqueante)
+- Deep Report: scope pendiente
 - Discrepancias entre coaches: detección + debate (overrideEngine)
-- Versiones inputs por coach: tabla `player_inputs_versions` (requiere migración)
+- Versiones inputs por coach: tabla `player_inputs_versions`
 - Hot/cold streaks: tendencia reciente en informe
 - Modo Simple vs Pro
-- Branding: animación Rive del U mark
-
----
+- Refactor carpetas: `pages/coach/` → `pages/scout/` (mantenibilidad, no urgente)
 
 ### ORDEN LÓGICO RECOMENDADO
 ```
-Fase 0 (prerequisitos) → Fase 1 (Scout pulido) → Fase 3A+3B (Stats definición+diseño)
+Fase 5 (Capacitor/TestFlight) → Fase 1 (Scout pulido) → Fase 3A+3B (Stats definición+diseño)
 → Fase 2 (Schedule estabilización) → Fase 3C (Stats implementación)
-→ Fase 4 (branding) → Fase 5 (TestFlight)
+→ Fase 4 (branding) → motor server-side (bundle final)
 ```
-U Stats necesita definición de producto ANTES de implementar.
-U Schedule necesita decomposición ANTES de añadir features.
-TestFlight necesita bundle optimizado ANTES de Capacitor.
 
+---
 
-- Scope: solo matchup 1-on-1. Sin situaciones colectivas. Sin cobertura PnR de equipo.
-- Report: 3 SLIDES — Slide 1: ¿Quién es?, Slide 2: ¿Qué hará? (top 3 situaciones), Slide 3: ¿Qué hago yo? (DENY/FORCE/ALLOW + max 2 AWARE)
+- Scope: solo matchup 1-on-1. Sin situaciones colectivas.
+- Report: 3 SLIDES — Slide 1: ¿Quién es?, Slide 2: ¿Qué hará?, Slide 3: ¿Qué hago yo?
 - Mismo informe jugadora y entrenador (coachMode controla runners-up y edición)
 - ClubContext a nivel club, no por jugadora
 - Iconos: diseño Figma obligatorio. Nunca SVG generado desde código.
@@ -313,8 +231,6 @@ npx tsx scripts/eval-report-llm.ts --fast        # solo 5 perfiles
 npx tsx scripts/eval-report-llm.ts --profile llm001  # un perfil
 # Requiere ANTHROPIC_API_KEY en .env
 # Output: scripts/eval-report-llm-results.json + .txt
-# Evalúa: coherencia, accionabilidad, proporción, especificidad, narrativa
-# Diagnostica origen del fallo: input | motor | renderer | concepto
 ```
 
 ## Audit rápido
@@ -334,45 +250,3 @@ cd "/Users/palant/Downloads/U scout" && bash scripts/audit.sh > scripts/audit-ou
 - Archetype: perfil ofensivo primario de la jugadora
 - trapResponse: reacción a blitz/hedge colectivo en PnR (escape/pass/struggle)
 - pressureResponse: reacción a presión individual (escapes/struggles)
-
----
-
-## Deuda técnica — refactor de arquitectura de carpetas (PENDIENTE CURSOR)
-
-**Problema:** La estructura de carpetas no refleja que U CORE es la plataforma contenedora.
-La home de U SCOUT está en `pages/coach/CoachHome.tsx` por razón histórica (era la app original).
-Todo lo de U SCOUT está mezclado en `pages/coach/`.
-
-**Estado actual:**
-```
-pages/
-  coach/          ← mezcla: U SCOUT home + PlayerEditor + Report* + ClubManagement
-  core/           ← U CORE home + módulos
-  player/         ← vista jugador
-```
-
-**Objetivo:**
-```
-pages/
-  core/           ← U CORE shell (Home, ModuleNav, ModulePage, Settings, ClubManagement)
-  scout/          ← todo U SCOUT (ScoutHome, PlayerEditor, Report*, Dashboard)
-  schedule/       ← U SCHEDULE & WELLNESS
-  stats/          ← U STATS
-  player/         ← vista jugador (sin cambios)
-```
-
-**Archivos a mover con Cursor:**
-- `pages/coach/CoachHome.tsx` → `pages/scout/ScoutHome.tsx`
-- `pages/coach/PlayerEditor.tsx` → `pages/scout/PlayerEditor.tsx`
-- `pages/coach/ReportSlidesV1.tsx` → `pages/scout/ReportSlides.tsx`
-- `pages/coach/ReportViewV4.tsx` → `pages/scout/ReportView.tsx`
-- `pages/coach/Dashboard.tsx` → `pages/scout/Dashboard.tsx`
-- `pages/coach/ClubManagement.tsx` → `pages/core/ClubManagement.tsx`
-- `pages/coach/Settings.tsx` → `pages/core/Settings.tsx`
-- Actualizar todos los imports en `App.tsx` y demás archivos
-
-**Componentes a renombrar:**
-- `components/branding/UScoutBrand.tsx` → `UCoreShell.tsx` (es el splash de U CORE)
-- `components/UScoutLogo.tsx` → el U mark es de U CORE, no exclusivo de U SCOUT
-
-**Impacto:** Alto. Requiere sesión dedicada con Cursor. No hacer en partes.

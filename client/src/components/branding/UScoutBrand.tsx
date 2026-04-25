@@ -2,7 +2,6 @@
  * U Scout — splash + logo estático + marca de agua.
  * U Core lockup: mismo símbolo aprobado (`UScoutLogo`) + CORE (misma jerarquía que SCOUT en lockup estático).
  */
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 // Approved U mark path (viewBox 0 0 1024 1024) copied from `client/src/components/UScoutLogo.tsx`.
@@ -115,10 +114,10 @@ export function UScoutWatermark({ position = "bottom-right", className = "" }: W
 
   return (
     <div className={`${pos} z-0 select-none ${className}`} aria-hidden>
-      <motion.div
+      <style>{`@keyframes ucore-watermark-pulse { 0%,100%{opacity:.7} 50%{opacity:1} }`}</style>
+      <div
         className="text-[#e2e8f0]/[0.06]"
-        animate={{ opacity: [0.7, 1, 0.7] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        style={{ animation: "ucore-watermark-pulse 10s ease-in-out infinite" }}
       >
         <div className="flex flex-col items-center" style={{ transform: "skewX(-10deg)" }}>
           <svg viewBox="0 0 200 120" className="w-24 h-auto opacity-90">
@@ -138,7 +137,7 @@ export function UScoutWatermark({ position = "bottom-right", className = "" }: W
             SCOUT
           </span>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
