@@ -1,10 +1,10 @@
 import { useLocation } from "wouter";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
-import { Pencil, FileText, Settings, ChevronRight } from "lucide-react";
-import { UScoutLogo } from "@/components/UScoutLogo";
+import { Pencil, FileText, ChevronRight } from "lucide-react";
 import type { AppUserRole } from "@/lib/useAuth";
 import { ModuleNav } from "@/pages/core/ModuleNav";
+import { ModuleHeader } from "@/components/branding/ModuleHeader";
 
 const ROLE_LABEL_KEY: Record<AppUserRole, "role_master" | "role_head_coach" | "role_coach" | "role_player"> = {
   master: "role_master",
@@ -23,44 +23,10 @@ export default function CoachHome() {
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden pb-16">
-      <button
-        type="button"
-        onClick={() => setLocation("/settings")}
-        className="absolute top-4 right-4 z-20 p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-muted/50 transition-colors"
-        title={t("settings_title")}
-        data-testid="coach-home-settings"
-        aria-label={t("settings_title")}
-      >
-        <Settings className="w-5 h-5" />
-      </button>
+      <main className="relative z-10 flex flex-col flex-1 px-5 pb-6 max-w-md mx-auto w-full">
+        <ModuleHeader module="scout" tagline={t("tagline_scout")} />
 
-      <main className="relative z-10 flex flex-col flex-1 px-5 pt-10 pb-6 max-w-md mx-auto w-full">
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            paddingTop: "2rem",
-            paddingBottom: "1.5rem",
-            gap: "0.5rem",
-          }}
-          className="text-foreground"
-        >
-          <UScoutLogo size={204} animated={true} />
-          <span
-            style={{
-              fontSize: "11px",
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              opacity: 0.45,
-              fontWeight: 500,
-            }}
-          >
-            {t("app.tagline") ?? "Scouting Platform"}
-          </span>
-        </div>
-
-        <div className="mt-8 mb-8 h-px w-full max-w-[280px] mx-auto bg-border" />
+        <div className="mb-4 h-px w-full max-w-[280px] mx-auto bg-border" />
 
         <div className="flex flex-col gap-4 flex-1 justify-center">
           <button

@@ -95,6 +95,12 @@ const en = {
   ucore_nav_scout: "Scout",
   ucore_nav_schedule: "Schedule",
   ucore_nav_stats: "Stats",
+
+  // ── Module taglines ──────────────────────────────────────────────
+  tagline_core: "Club Operations Platform",
+  tagline_scout: "Scouting Platform",
+  tagline_schedule: "Training & Wellbeing",
+  tagline_stats: "Performance & Analytics",
   ucore_card_scout_title: "U Scout",
   ucore_card_scout_sub_staff: "Build scouting reports",
   ucore_card_scout_sub_player: "All reports",
@@ -2192,6 +2198,12 @@ const es: I18nStrings = {
   wellness_saved_local: "Guardado localmente.",
   wellness_local_note: "Guardado en este dispositivo (sin conexión).",
 
+  // ── Module taglines ──────────────────────────────────────────────
+  tagline_core: "Plataforma de Operaciones del Club",
+  tagline_scout: "Plataforma de Scouting",
+  tagline_schedule: "Entrenamiento y Bienestar",
+  tagline_stats: "Rendimiento y Analítica",
+
   coach_home_tagline: "PLATAFORMA DE SCOUTING",
   "app.tagline": "Plataforma de Scouting",
   coach_home_scout_title: "SCOUT",
@@ -3781,6 +3793,12 @@ const zh: I18nStrings = {
   wellness_saved_local_cta: "已本地保存",
   wellness_saved_local: "已本地保存。",
   wellness_local_note: "已保存在本设备（离线）。",
+
+  // ── Module taglines ──────────────────────────────────────────────
+  tagline_core: "俱乐部运营平台",
+  tagline_scout: "球探平台",
+  tagline_schedule: "训练与健康管理",
+  tagline_stats: "数据表现与分析",
 
   coach_home_tagline: "球探平台",
   "app.tagline": "球探平台",

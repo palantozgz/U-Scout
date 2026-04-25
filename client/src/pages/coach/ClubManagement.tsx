@@ -529,7 +529,7 @@ export default function ClubManagement() {
           </div>
         ) : null}
 
-        {q.isLoading && (
+        {q.isLoading && !q.data && (
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
@@ -539,7 +539,7 @@ export default function ClubManagement() {
           <p className="text-sm text-muted-foreground text-center py-12 px-2">{t("club_no_club")}</p>
         )}
 
-                {q.isError && !isNoClubError && (
+                {q.isError && !isNoClubError && !q.data && (
                   <div className="space-y-3 py-8">
                     <p className="text-sm text-destructive text-center">{t("club_load_error")}</p>
                     <div className="flex justify-center">

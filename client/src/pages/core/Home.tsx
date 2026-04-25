@@ -371,7 +371,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
       <main className="relative z-10 flex flex-col flex-1 px-4 pt-6 pb-4 max-w-md mx-auto w-full">
-        <ModuleHeader module="core" tagline={t("app.tagline") ?? "Operations Platform"} />
+        <ModuleHeader module="core" tagline={t("tagline_core")} />
 
         <div className="mt-3.5">
           <SmartSlots slots={smartSlots} onNavigate={setLocation} />

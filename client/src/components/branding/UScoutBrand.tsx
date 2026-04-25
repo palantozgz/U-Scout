@@ -78,8 +78,8 @@ export function UCoreBootSplash({ fadeOut = false }: UCoreBootSplashProps) {
       >
         {/* U mark solo el símbolo — mismo tamaño que CoachHome (260px) */}
         <svg
-          viewBox="260 300 510 210"
-          style={{ height: 260, width: 260, display: "block", color: "currentColor" }}
+          viewBox="0 0 1024 1024"
+          style={{ height: 120, width: 120, display: "block", color: "currentColor" }}
           aria-hidden
         >
           <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={U_MARK_PATH_D} />

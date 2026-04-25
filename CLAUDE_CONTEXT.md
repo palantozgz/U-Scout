@@ -261,3 +261,45 @@ cd "/Users/palant/Downloads/U scout" && bash scripts/audit.sh > scripts/audit-ou
 - Archetype: perfil ofensivo primario de la jugadora
 - trapResponse: reacción a blitz/hedge colectivo en PnR (escape/pass/struggle)
 - pressureResponse: reacción a presión individual (escapes/struggles)
+
+---
+
+## Deuda técnica — refactor de arquitectura de carpetas (PENDIENTE CURSOR)
+
+**Problema:** La estructura de carpetas no refleja que U CORE es la plataforma contenedora.
+La home de U SCOUT está en `pages/coach/CoachHome.tsx` por razón histórica (era la app original).
+Todo lo de U SCOUT está mezclado en `pages/coach/`.
+
+**Estado actual:**
+```
+pages/
+  coach/          ← mezcla: U SCOUT home + PlayerEditor + Report* + ClubManagement
+  core/           ← U CORE home + módulos
+  player/         ← vista jugador
+```
+
+**Objetivo:**
+```
+pages/
+  core/           ← U CORE shell (Home, ModuleNav, ModulePage, Settings, ClubManagement)
+  scout/          ← todo U SCOUT (ScoutHome, PlayerEditor, Report*, Dashboard)
+  schedule/       ← U SCHEDULE & WELLNESS
+  stats/          ← U STATS
+  player/         ← vista jugador (sin cambios)
+```
+
+**Archivos a mover con Cursor:**
+- `pages/coach/CoachHome.tsx` → `pages/scout/ScoutHome.tsx`
+- `pages/coach/PlayerEditor.tsx` → `pages/scout/PlayerEditor.tsx`
+- `pages/coach/ReportSlidesV1.tsx` → `pages/scout/ReportSlides.tsx`
+- `pages/coach/ReportViewV4.tsx` → `pages/scout/ReportView.tsx`
+- `pages/coach/Dashboard.tsx` → `pages/scout/Dashboard.tsx`
+- `pages/coach/ClubManagement.tsx` → `pages/core/ClubManagement.tsx`
+- `pages/coach/Settings.tsx` → `pages/core/Settings.tsx`
+- Actualizar todos los imports en `App.tsx` y demás archivos
+
+**Componentes a renombrar:**
+- `components/branding/UScoutBrand.tsx` → `UCoreShell.tsx` (es el splash de U CORE)
+- `components/UScoutLogo.tsx` → el U mark es de U CORE, no exclusivo de U SCOUT
+
+**Impacto:** Alto. Requiere sesión dedicada con Cursor. No hacer en partes.
