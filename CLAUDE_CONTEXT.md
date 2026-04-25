@@ -141,73 +141,146 @@ Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 - Fix largo: **motor server-side** → API call en vez de bundle cliente
 - **Capacitor** para TestFlight una vez bundle optimizado
 
-## Pendientes activos — U Scout (priorizados)
+## PLAN DE TRABAJO — U CORE (actualizado 25 abr 2026)
 
-1. **Rediseño slides 2–3** — slide 2: threat scores rankeados, slide 3: DENY/FORCE/ALLOW ejecutable + runners-up por tap
-   → Requiere diseño en Figma antes de tocar código
+### FASE 0 — Prerequisitos técnicos (con Cursor, ~3 may)
+Esto desbloquea TestFlight y hace la app mantenible.
 
-2. **ALLOW Tier 1: `allow_drive_weak_side`** — complementa FORCE dirección
-   → Diseño documentado en `scripts/allow_slot_design.md`
+**0A. i18n lazy loading** — mayor ROI, menor riesgo
+- Separar en/es/zh en archivos independientes, importar solo el locale activo
+- Ahorro estimado: ~210-230 KB gzip
+- Plan detallado en `BUNDLE_PLAN.md`
 
-3. **PlayerEditor input redesign** — audit sección screener pendiente
-   → Prompt Cursor: `cursor_prompt_inputs_redesign.md`
-   → Diagrama media pista ✅ (`HalfCourtZoneSelector`, 5 zonas clicables)
+**0B. Code splitting con React.lazy**
+- Schedule, Scout, Wellness como chunks separados
+- Ahorro estimado: ~80-100 KB gzip
+- Objetivo: bundle <300 KB gzip → TestFlight viable
 
-4. **Revision flow** — al guardar → pantalla revisión (ReportViewV4)
-
-5. **Offline queue + sincronización** — cola de cambios offline, sync al reconectar
-
-6. **Discrepancias entre coaches** — dos entrenadores eligen opciones distintas → detección + debate
-
-7. **Hot/cold streaks** — tendencia reciente de jugadora en informe
-
-8. **Versiones inputs por coach** — tabla `player_inputs_versions` (requiere migración schema)
-
-## Branding — estado actual (25 abr 2026)
-- `ModuleHeader.tsx` creado — componente reutilizable: U mark + dot acento + wordmark + tagline + settings button
-- Aplicado a: U CORE Home, U Stats. Pendiente: U Schedule (god file, requiere Cursor ~3 may)
-- `UCoreBootSplash` actualizado — mismo patrón visual coherente con U Scout
-- 4 SVGs de lockup en `client/public/`: logo-scout.svg, logo-core.svg, logo-schedule.svg, logo-wellness.svg
-- Sistema de acentos por módulo: SCOUT #3A81FE · CORE #6B6BAA · SCHEDULE #10B981 · WELLNESS #A78BFA
-- PNGs de ChatGPT (ucore-logo-transparent*.png) en public/ pero ya no usados — borrar cuando haya tiempo
-- Figma archivo: https://www.figma.com/design/odswsQA5XDEgULEDh2UMZi (3 páginas: Report Slides, Themes, Logos)
-- Plan Starter Figma: límite de 3 páginas y límite de llamadas MCP alcanzado en sesión
-
-## Pendientes activos — U CORE / TestFlight
-
-1. **i18n lazy loading** — mayor ROI, menor riesgo. Plan completo en `BUNDLE_PLAN.md`. Ejecutar con Cursor ~3 may.
-2. **Code splitting** — Schedule, Scout, Wellness como chunks separados via React.lazy
-3. **motor-v2.1 server-side** — eliminar del bundle cliente
-4. **Schedule.tsx decomposition** — partir en subcomponentes + añadir ModuleHeader
-5. **Capacitor setup** — wrapper iOS para TestFlight
-6. **localStorage → server persistence** — attendance/signup aún usa localStorage
-7. **eval-report-llm.ts** — listo, pendiente ANTHROPIC_API_KEY en .env para ejecutar
-8. **Textos renderer** — reescribir en imperativo sin sujeto ("drives left" no "they drive left")
-9. **Deep Report** — pendiente decisión de producto: ¿qué añade exactamente para el jugador?
-10. **ReportSlidesV1** — rediseño a 3 slides diseñado en Figma, pendiente implementar con Cursor
+**0C. Refactor arquitectura de carpetas**
+- `pages/coach/` → `pages/scout/`, `pages/core/`
+- Ver sección "Deuda técnica" al final de este archivo
+- Prerequisito de mantenibilidad: sin esto cada sesión perdemos contexto
 
 ---
 
-## Backlog futuro
-- Iconos defensivos en slides: diseño Figma OBLIGATORIO antes de implementar. Nunca SVG generado.
-- Favicon U Scout
-- Logo club con imagen real (reemplaza emoji picker)
-- Branding: SVG Figma → animación Rive
+### FASE 1 — U SCOUT (módulo más maduro, pulir antes de escalar)
+
+**1A. PlayerEditor audit completo**
+- Revisar campo a campo con metodología scouting científica
+- Secciones: Post, ISO, PnR, Off-Ball, Spot-up
+- Prompt Cursor: `cursor_prompt_inputs_redesign.md`
+- Diagrama media pista: `HalfCourtZoneSelector` ✅ implementado
+
+**1B. ReportSlidesV1 → implementación definitiva**
+- Diseño visual en Figma ✅ (Gamenight/Office/Oldschool)
+- Implementar con Cursor: 3 slides definitivos con colores, iconos, layout
+- ALLOW Tier 1: `allow_drive_weak_side` → `allow_slot_design.md`
+- Iconos: OBLIGATORIO diseño Figma antes de implementar (nunca SVG generado)
+
+**1C. Textos renderer sin sujeto**
+- Reescribir en imperativo: "drives left" no "they drive left"
+- Afecta `reportTextRenderer.ts` — Cursor, ~300 líneas
+
+**1D. eval-report-llm.ts**
+- Añadir ANTHROPIC_API_KEY en `.env` (console.anthropic.com)
+- Ejecutar evaluador LLM para diagnóstico de calidad
+
+---
+
+### FASE 2 — U SCHEDULE & WELLNESS (módulo funcional, necesita estabilización)
+
+**2A. Schedule.tsx decomposition**
+- Partir god file 228 KB en subcomponentes
+- Añadir ModuleHeader correctamente
+- Sesión Cursor dedicada (alto impacto en legibilidad + bundle)
+
+**2B. localStorage → server persistence**
+- Attendance/signup aún usa localStorage
+- Migración a tabla Supabase con schema + migration
+
+**2C. Offline queue + sincronización**
+- Cola de cambios offline, sync al reconectar
+- Afecta principalmente Schedule y Wellness
+
+---
+
+### FASE 3 — U STATS (diseño + implementación desde cero)
+
+**Estado actual:** stub de 0.6 KB — solo título + placeholder.
+
+**3A. Definir scope de producto** (antes de tocar código)
+Preguntas a decidir:
+- ¿Qué datos existen ya en Supabase vs qué hay que importar?
+- ¿Stats de attendance del Schedule? ¿Stats de scouting (jugadoras más scouted)? ¿Stats de wellness del equipo?
+- ¿Es un módulo para entrenadores, jugadores, o ambos?
+- ¿Requiere fuente externa (Synergy, importación CSV) o solo datos propios de U CORE?
+
+**3B. Diseño en Figma**
+- Dashboard principal con métricas clave
+- Referencia visual: `elradardelscout.com` (bubble chart frecuencia vs eficiencia)
+- Gráficos: attendance trends, wellness trends, scouting coverage
+- Misma arquitectura visual que el resto de módulos
+
+**3C. Implementación con Cursor**
+- Schema + migrations si necesita nuevas tablas
+- Componentes: KPI cards, charts (recharts ya disponible en el stack)
+- Integración con datos existentes de Schedule (sessions, attendance) y Wellness
+
+---
+
+### FASE 4 — Branding y experiencia final
+
+**4A. 3 temas visuales en código** (Gamenight / Office / Oldschool)
+- Diseño en Figma ✅
+- Implementar CSS vars + selector en Settings
+- ~300 líneas en `index.css` + toggle
+
+**4B. Iconos defensivos en slides**
+- Diseño Figma OBLIGATORIO antes de implementar
+- Nunca SVG generado desde código sin referencia visual
+
+**4C. Favicon + logos definitivos**
+- Favicon con U mark
+- Club logo con imagen real (reemplaza emoji picker)
+- SVG Figma → animación Rive (largo plazo)
+
+---
+
+### FASE 5 — TestFlight + distribución
+
+**5A. Capacitor setup**
+- Prerequisito: bundle <300 KB gzip (Fase 0)
+- Wrapper iOS, configuración Xcode
+- Build + submit a TestFlight
+
+**5B. motor-v2.1 server-side**
+- Eliminar del bundle cliente (106 KB)
+- Mover a endpoint API en Express
+- Mayor refactor — después de TestFlight inicial
+
+---
+
+### BACKLOG SIN FECHA
+- Deep Report: scope pendiente de decisión. Candidatos: situaciones adicionales, notas entrenador, clips de vídeo
+- Discrepancias entre coaches: detección + debate (overrideEngine)
+- Versiones inputs por coach: tabla `player_inputs_versions` (requiere migración)
+- Hot/cold streaks: tendencia reciente en informe
 - Modo Simple vs Pro
-- Offline queue + sincronización
-- Cards por los 3 estilos visuales (gamenight/office/oldschool) — pendiente diseño Figma
-- Elementos gráficos en slides para reconocimiento de patrones (iconos situacionales, flecha de dirección, etc.) — pendiente diseño Figma
-- Deep Report: reconsiderar como feature OPCIONAL para el jugador que quiere estudiar más a su rival (no para el entrenador). Pendiente decisión de producto: ¿qué añade exactamente? Candidatos: situaciones adicionales, notas del entrenador, clips de vídeo. No implementar hasta definir scope.
-- Textos renderer: reescribir en estilo imperativo sin sujeto ("drives left" no "they drive left") — pendiente Cursor ~3 may
-- 3 estilos visuales a rediseñar: Gamenight (dark, base sólida — pulir profundidad), Office (blanco roto, líneas de cancha como fondo, pizarra táctica), Oldschool (textura cuero balón, granulado, naranja/negro/crema, tipografía bold condensada universitaria años 80)
-- U SCHEDULE: ModuleHeader pendiente — Schedule.tsx es god file 228KB, no tocar sin Cursor (~3 may)
-- eval-report-llm.ts: pendiente ANTHROPIC_API_KEY en .env (console.anthropic.com → API Keys)
-- Implementar 3 temas visuales en código: pendiente Cursor (~3 may)
-- Textos renderer sin sujeto ("drives left" no "they drive left"): pendiente Cursor (~3 may)
+- Branding: animación Rive del U mark
 
 ---
 
-## Decisiones de producto (bloqueadas)
+### ORDEN LÓGICO RECOMENDADO
+```
+Fase 0 (prerequisitos) → Fase 1 (Scout pulido) → Fase 3A+3B (Stats definición+diseño)
+→ Fase 2 (Schedule estabilización) → Fase 3C (Stats implementación)
+→ Fase 4 (branding) → Fase 5 (TestFlight)
+```
+U Stats necesita definición de producto ANTES de implementar.
+U Schedule necesita decomposición ANTES de añadir features.
+TestFlight necesita bundle optimizado ANTES de Capacitor.
+
+
 - Scope: solo matchup 1-on-1. Sin situaciones colectivas. Sin cobertura PnR de equipo.
 - Report: 3 SLIDES — Slide 1: ¿Quién es?, Slide 2: ¿Qué hará? (top 3 situaciones), Slide 3: ¿Qué hago yo? (DENY/FORCE/ALLOW + max 2 AWARE)
 - Mismo informe jugadora y entrenador (coachMode controla runners-up y edición)
