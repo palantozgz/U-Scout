@@ -1,5 +1,6 @@
 import { ModulePageShell } from "./ModulePage";
 import { useLocale } from "@/lib/i18n";
+import { ModuleHeader } from "@/components/branding/ModuleHeader";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/useAuth";
 import { useCapabilities, type ClubMembership } from "@/lib/capabilities";
@@ -1452,7 +1453,7 @@ export default function Schedule() {
   const playerGroupKey = (club: string, eventId: string, user: string) => `uscout-schedule:group:${club}:${eventId}:${user}`;
 
   return (
-    <ModulePageShell title={t("ucore_card_schedule_title")}>
+    <ModulePageShell title={t("ucore_card_schedule_title")} moduleHeader={{ module: "schedule", tagline: "Training & Wellness" }}>
       <div className="p-4 pb-10 max-w-md mx-auto w-full">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "schedule" | "wellness")}>
           <div className="flex items-center justify-between gap-3">

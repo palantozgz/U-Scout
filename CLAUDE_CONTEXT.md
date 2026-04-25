@@ -46,7 +46,7 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 
 ---
 
-## Estado actual — sesión 25 abr 2026
+## Estado actual — sesión 25 abr 2026 (actualizado al cierre)
 
 ### Motor (motor-v2.1.ts + motor-v4.ts)
 - **Calibración: 100% (551/551 checks, 66/66 perfiles)**
@@ -157,14 +157,28 @@ Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 
 8. **Versiones inputs por coach** — tabla `player_inputs_versions` (requiere migración schema)
 
+## Branding — estado actual (25 abr 2026)
+- `ModuleHeader.tsx` creado — componente reutilizable: U mark + dot acento + wordmark + tagline + settings button
+- Aplicado a: U CORE Home, U Stats. Pendiente: U Schedule (god file, requiere Cursor ~3 may)
+- `UCoreBootSplash` actualizado — mismo patrón visual coherente con U Scout
+- 4 SVGs de lockup en `client/public/`: logo-scout.svg, logo-core.svg, logo-schedule.svg, logo-wellness.svg
+- Sistema de acentos por módulo: SCOUT #3A81FE · CORE #6B6BAA · SCHEDULE #10B981 · WELLNESS #A78BFA
+- PNGs de ChatGPT (ucore-logo-transparent*.png) en public/ pero ya no usados — borrar cuando haya tiempo
+- Figma archivo: https://www.figma.com/design/odswsQA5XDEgULEDh2UMZi (3 páginas: Report Slides, Themes, Logos)
+- Plan Starter Figma: límite de 3 páginas y límite de llamadas MCP alcanzado en sesión
+
 ## Pendientes activos — U CORE / TestFlight
 
 1. **i18n lazy loading** — mayor ROI, menor riesgo. Plan completo en `BUNDLE_PLAN.md`. Ejecutar con Cursor ~3 may.
 2. **Code splitting** — Schedule, Scout, Wellness como chunks separados via React.lazy
 3. **motor-v2.1 server-side** — eliminar del bundle cliente
-4. **Schedule.tsx decomposition** — partir en subcomponentes
+4. **Schedule.tsx decomposition** — partir en subcomponentes + añadir ModuleHeader
 5. **Capacitor setup** — wrapper iOS para TestFlight
 6. **localStorage → server persistence** — attendance/signup aún usa localStorage
+7. **eval-report-llm.ts** — listo, pendiente ANTHROPIC_API_KEY en .env para ejecutar
+8. **Textos renderer** — reescribir en imperativo sin sujeto ("drives left" no "they drive left")
+9. **Deep Report** — pendiente decisión de producto: ¿qué añade exactamente para el jugador?
+10. **ReportSlidesV1** — rediseño a 3 slides diseñado en Figma, pendiente implementar con Cursor
 
 ---
 
