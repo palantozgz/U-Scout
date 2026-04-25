@@ -55,7 +55,7 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 
 ---
 
-## Estado actual — sesión 25 abr 2026 (tarde)
+## Estado actual — sesión 25 abr 2026 (noche)
 
 ### Commits de hoy (main)
 - `feat: splash + headers unificados con U mark — CORE/SCOUT/STATS coherentes`
@@ -63,54 +63,27 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 - `fix: ModuleHeader en Schedule — U SCHEDULE logo + tagline`
 - `feat: ReportSlidesV1 rediseño visual — slides más legibles, DENY/FORCE/ALLOW/AWARE coherentes`
 - `perf: i18n lazy loading + React.lazy code splitting — bundle 509→268 KB gzip`
+- `perf: remove framer-motion, lazy BasketballAvatar — main bundle 268→229 KB gzip`
 
 ### Bundle — estado actual ✅
-- **Build confirmado: 978 KB min / 267.99 KB gzip** (objetivo <300 KB conseguido)
-- Línea base anterior: 1,836 KB min / 508.90 KB gzip
-- Fase 1 completada: i18n lazy — ES/ZH como chunks separados (-43 KB gzip)
-- Fase 2 completada: React.lazy en App.tsx — 17 rutas lazy (-197 KB gzip)
-- Chunks lazy notables: `PlayerEditor` 15 KB, `ReportSlidesV1` 24 KB, `Schedule` 29 KB, `ClubManagement` 22 KB
-- **Capacitor / TestFlight: prerequisito de bundle cumplido**
-- Próximo fix de bundle (opcional, no bloqueante): `mock-data` 25 KB en main chunk
+- **Build confirmado: 229.48 KB gzip (main chunk)**
+- Línea base original: 508.90 KB gzip
+- Reducción total: -55% en 3 fases
+- Margen para U Stats completo: +35 KB estimado → ~265 KB, bien bajo 300 KB
+- Chunks lazy activos: PlayerEditor, ReportSlidesV1, Schedule, ClubManagement, BasketballAvatar, ES, ZH
+- `Profile.tsx` chunk: 47 KB gzip (contiene BasketballAvatar estático — aceptable, no bloqueante)
+- Próximo fix opcional: `mock-data` 25 KB en main chunk (no bloqueante)
 
 ### Motor (motor-v2.1.ts + motor-v4.ts)
 - **Calibración: 100% (551/551 checks, 66/66 perfiles)**
 - **Quality eval: 100% (46/46 checks, 10/10 perfiles)** ✅
-- Script calibración: `cd "/Users/palant/Downloads/U scout" && npx tsx scripts/calibrate-motor.ts`
-- Script quality: `cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-motor-quality.ts`
-- Perfiles cubiertos: Luka, Jokic, Curry, Giannis, Klay, Embiid, Haliburton, Gobert, A'ja Wilson, Breanna Stewart, Ionescu, Clark, Plum, Micic, Mirotic, SGA, Sabonis, Booker, JB, AD, Trae Young, Middleton, Bam (x2), Taurasi, Jonquel Jones, Alyssa Thomas + 4 amateurs + 4 universitarios + Pika-style + Draymond + otros perfiles de rol (total 66)
-
-**Inferencias clave implementadas (motor + bridge):**
-- `trapResponse` desde `motorPressureResponse` del editor (scout > inferencia de visión)
-- `force_direction` para tiradora PnR mid-range ambos lados (shooter context)
-- `force_early` suprimido cuando `isoDir` está definido (L/R) — `force_direction` siempre gana con dirección conocida
-- `aware_passer` suprimido cuando `trapResponse = struggle`
-- `force_weak_hand` suprimido si `isoWeakHandFinish = drive` (ambidiestro)
-- `orebThreat = medium` inferido para C/PF con phys≥4 si no seteado
-- `force_full_court` suprimido para C/PF sin transición activa (bug Kalani corregido)
-- `aware_instant_shot` para tiradores primarios con release inmediato
-- `pnrSnake` conectado (reduce force_direction weight + aware)
-- `allow_pnr_mid_range` para PnR handler sin deepRange (under coverage válido)
-- `deny_pnr_pop` suprime `deny_spot_deep` para pop screener (con/sin deepRange)
-- `deny_spot_deep` ahora se emite para `spotUpFreq=P` sin deepRange (peso 0.80)
-- `force_trap` reformulado como instrucción 1-on-1 (over screen + canal débil)
-- `offHandFinish` derivado de `isoFinishLeft/Right` en bridge
-- `force_post_channel`: infiere canal dominante cruzando `hand` + `postMoves`
-- ath modula ISO weight parcialmente
-- `aware_passer` ponderado: vision=5+escape=0.95, vision=4+pass=0.72
-
-**Base científica:**
-- Synergy Sports: PPP por play type (Cuts=1.58, Spot-up alta, ISO/Post 0.78-0.98)
-- Frontiers/PMC: PnR weak/under coverage, mano dominante
-- Analytics: mid-range -0.16 PPP vs 3PT; open 3PT = shot más eficiente
-- Basketball Immersion scouting reports
 
 ### Renderer (reportTextRenderer.ts)
-Textos EN/ES/ZH actualizados a instrucciones ejecutables (CUÁNDO + CÓMO + POR QUÉ). ZH: paridad con EN/ES conseguida. ✅
+Textos EN/ES/ZH actualizados a instrucciones ejecutables. ZH: paridad conseguida. ✅
 
 ### Campos FT
-- `ftShooting` + `foulDrawing` conectados al motor (isoDanger, hackable, ftDangerous)
-- `ftRating`: @deprecated, ignorado por el motor, mantenido solo por retrocompat
+- `ftShooting` + `foulDrawing` conectados al motor
+- `ftRating`: @deprecated, retrocompat only
 
 ### Club INNER MONGOLIA
 - Club ID: `4bca3aa8-9062-4709-9d29-9e2313308f1a`
@@ -128,15 +101,32 @@ Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 
 ---
 
-## PLAN DE TRABAJO — U CORE (actualizado 25 abr 2026 tarde)
+## PLAN DE TRABAJO — Pre-TestFlight Beta (actualizado 25 abr 2026 noche)
 
-### FASE 0 — Prerequisitos técnicos ✅ COMPLETADA
-- **0A. i18n lazy loading** ✅ — ES/ZH como chunks lazy, EN estático
-- **0B. React.lazy code splitting** ✅ — 17 rutas lazy en App.tsx
-- **Resultado: 509 → 268 KB gzip. Objetivo <300 KB cumplido.**
-- **0C. Refactor arquitectura carpetas** — aplazado (no bloqueante para TestFlight)
+### FASE 0 — Bundle ✅ COMPLETADA
+- **229 KB gzip main chunk. Objetivo <300 KB cumplido con margen.**
 
-### FASE 5 — Capacitor + TestFlight (desbloqueada)
+### FASE PRE-BETA — Usabilidad mínima para primera beta (PRIORIDAD ACTUAL)
+Antes de Capacitor, la app debe ser usable en móvil real.
+
+**PB-1. Mi Club — latencia 4-5s en carga inicial**
+- Síntoma: primera carga de /coach/club tarda 4-5 segundos
+- Causa probable: waterfall de queries sin prefetch ni skeleton adecuado
+- Fix: stale-while-revalidate en useClub, skeleton inmediato, prefetch desde Home
+- Archivos: `client/src/lib/club-api.ts`, `client/src/pages/coach/ClubManagement.tsx`
+
+**PB-2. Responsive móvil — portrait y landscape**
+- Audit sistemático de todas las rutas en viewport móvil (375px portrait, 667px landscape)
+- Tamaños de botones: mínimo 44px touch target
+- Overflow, truncación, scroll, z-index en todos los módulos
+- Archivos: App.tsx shell, todos los pages
+
+**PB-3. Diseño Figma → código**
+- Implementar los diseños aprobados en Figma que aún no están en código
+- Temas visuales (Gamenight/Office/Oldschool) — CSS vars
+- Iconos defensivos slides — OBLIGATORIO diseño Figma primero
+
+### FASE 5 — Capacitor + TestFlight
 ```bash
 cd "/Users/palant/Downloads/U scout"
 npm install @capacitor/core @capacitor/cli @capacitor/ios
@@ -146,56 +136,33 @@ npm run build
 npx cap sync
 npx cap open ios
 ```
-Después: configurar signing en Xcode + subir a TestFlight.
 
-### FASE 1 — U SCOUT (módulo más maduro, pulir antes de escalar)
-
-**1A. PlayerEditor audit completo**
-- Revisar campo a campo con metodología scouting científica
-- Prompt Cursor: `cursor_prompt_inputs_redesign.md`
-
-**1B. ReportSlidesV1 → implementación definitiva**
-- Diseño visual en Figma ✅ (Gamenight/Office/Oldschool)
-- ALLOW Tier 1: `allow_drive_weak_side` → `allow_slot_design.md`
-- Iconos: OBLIGATORIO diseño Figma antes de implementar
-
-**1C. Textos renderer sin sujeto**
-- Reescribir en imperativo: "drives left" no "they drive left"
-
-**1D. eval-report-llm.ts**
-- Añadir ANTHROPIC_API_KEY en `.env`
+### FASE 1 — U SCOUT pulido
+**1A.** PlayerEditor audit completo
+**1B.** ReportSlidesV1 implementación definitiva
+**1C.** Textos renderer sin sujeto (imperativo)
+**1D.** eval-report-llm.ts (ANTHROPIC_API_KEY en .env)
 
 ### FASE 2 — U SCHEDULE & WELLNESS
-**2A.** Schedule.tsx decomposition (god file 228 KB)
-**2B.** localStorage → server persistence (attendance/signup)
-**2C.** Offline queue + sincronización
+**2A.** Schedule.tsx decomposition
+**2B.** localStorage → server persistence
+**2C.** Offline queue
 
-### FASE 3 — U STATS (diseño + implementación desde cero)
-**3A.** Definir scope de producto antes de tocar código
-**3B.** Diseño en Figma (referencia: `elradardelscout.com`)
-**3C.** Implementación con Cursor
+### FASE 3 — U STATS
+**3A.** Definir scope → **3B.** Figma → **3C.** Implementación
 
-### FASE 4 — Branding y experiencia final
-**4A.** 3 temas visuales (Gamenight / Office / Oldschool) — Figma ✅, implementar CSS vars
-**4B.** Iconos defensivos — Figma OBLIGATORIO antes de implementar
-**4C.** Favicon + logos definitivos + animación Rive (largo plazo)
+### FASE 4 — Branding final
+**4A.** Temas CSS vars · **4B.** Iconos Figma · **4C.** Favicon + Rive
 
-### BACKLOG SIN FECHA
-- motor-v2.1 server-side (elimina ~50 KB gzip adicional del bundle)
-- mock-data server-side o lazy (25 KB gzip en main chunk, no bloqueante)
-- Deep Report: scope pendiente
-- Discrepancias entre coaches: detección + debate (overrideEngine)
-- Versiones inputs por coach: tabla `player_inputs_versions`
-- Hot/cold streaks: tendencia reciente en informe
+### BACKLOG
+- motor-v2.1 server-side
+- mock-data lazy
+- Deep Report
+- Discrepancias coaches
+- Versiones inputs por coach
+- Hot/cold streaks
 - Modo Simple vs Pro
-- Refactor carpetas: `pages/coach/` → `pages/scout/` (mantenibilidad, no urgente)
-
-### ORDEN LÓGICO RECOMENDADO
-```
-Fase 5 (Capacitor/TestFlight) → Fase 1 (Scout pulido) → Fase 3A+3B (Stats definición+diseño)
-→ Fase 2 (Schedule estabilización) → Fase 3C (Stats implementación)
-→ Fase 4 (branding) → motor server-side (bundle final)
-```
+- Refactor carpetas pages/coach/ → pages/scout/
 
 ---
 
@@ -217,20 +184,9 @@ Fase 5 (Capacitor/TestFlight) → Fase 1 (Scout pulido) → Fase 3A+3B (Stats de
 
 ## Scripts de validación
 ```bash
-# Regression tests (bugs) — lógica de outputs
 cd "/Users/palant/Downloads/U scout" && npx tsx scripts/calibrate-motor.ts
-# Score actual: 100% (551/551 checks, 66/66 perfiles)
-
-# Quality eval — calidad texto + coherencia básica (checks hardcodeados)
 cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-motor-quality.ts
-# Score actual: 100% (46/46 checks, 10/10 perfiles)
-
-# LLM Report Evaluator — calidad profesional del report completo (Claude como juez)
 cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts
-npx tsx scripts/eval-report-llm.ts --fast        # solo 5 perfiles
-npx tsx scripts/eval-report-llm.ts --profile llm001  # un perfil
-# Requiere ANTHROPIC_API_KEY en .env
-# Output: scripts/eval-report-llm-results.json + .txt
 ```
 
 ## Audit rápido

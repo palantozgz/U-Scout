@@ -5,6 +5,8 @@ import { useAuth, type AppUserRole } from "@/lib/useAuth";
 import { computeCapabilities, readCoachBadges, useCapabilities } from "@/lib/capabilities";
 import { cn } from "@/lib/utils";
 import { ChevronRight, CalendarDays, BarChart3, Users, ClipboardList, BellDot, Activity } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { clubQueryKey } from "@/lib/club-api";
 import { useClub } from "@/lib/club-api";
 import { getStoredRosterSignature, rosterSignature, setStoredRosterSignature } from "@/lib/clubRosterSeen";
 import { usePlayerTeams } from "@/lib/player-home";
@@ -145,6 +147,15 @@ export default function Home() {
   const mode = useHomeMode();
   const { profile, effectiveRole, previewRole } = useAuth();
   const caps = useCapabilities();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    void queryClient.prefetchQuery({
+      queryKey: clubQueryKey,
+      queryFn: async () => (await fetch("/api/club")).json(),
+      staleTime: 5 * 60 * 1000,
+    });
+  }, [queryClient]);
   const realCaps = useMemo(
     () =>
       computeCapabilities({

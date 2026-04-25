@@ -62,6 +62,7 @@ export function useClub(options?: { enabled?: boolean }) {
     queryKey: clubQueryKey,
     queryFn: async (): Promise<ClubPayload> => (await apiRequest("GET", "/api/club")).json(),
     networkMode: "offlineFirst",
+    staleTime: 5 * 60 * 1000,
     enabled: options?.enabled !== false,
   });
 }
