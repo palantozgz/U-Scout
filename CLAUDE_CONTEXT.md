@@ -46,7 +46,13 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 
 ---
 
-## Estado actual — sesión 25 abr 2026 (actualizado al cierre)
+## Estado actual — sesión 25 abr 2026 (cierre definitivo)
+
+### Commits de hoy (main)
+- `feat: splash + headers unificados con U mark — CORE/SCOUT/STATS coherentes`
+- `fix: replace chatgpt logo with correct U mark SVGs, add module logos`
+- `fix: ModuleHeader en Schedule — U SCHEDULE logo + tagline`
+- `feat: ReportSlidesV1 rediseño visual — slides más legibles, DENY/FORCE/ALLOW/AWARE coherentes`
 
 ### Motor (motor-v2.1.ts + motor-v4.ts)
 - **Calibración: 100% (551/551 checks, 66/66 perfiles)**
