@@ -4,11 +4,11 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth, type AppUserRole } from "@/lib/useAuth";
 import { computeCapabilities, readCoachBadges, useCapabilities } from "@/lib/capabilities";
 import { cn } from "@/lib/utils";
-import { Settings, ChevronRight, CalendarDays, BarChart3, Users, ClipboardList, BellDot, Activity } from "lucide-react";
+import { ChevronRight, CalendarDays, BarChart3, Users, ClipboardList, BellDot, Activity } from "lucide-react";
 import { useClub } from "@/lib/club-api";
 import { getStoredRosterSignature, rosterSignature, setStoredRosterSignature } from "@/lib/clubRosterSeen";
 import { usePlayerTeams } from "@/lib/player-home";
-import { UCoreLogoSvgLockup } from "@/components/branding/UScoutBrand";
+import { ModuleHeader } from "@/components/branding/ModuleHeader";
 import {
   useScheduleParticipantsForEvents,
   useThisWeekScheduleEvents,
@@ -371,25 +371,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
       <main className="relative z-10 flex flex-col flex-1 px-4 pt-6 pb-4 max-w-md mx-auto w-full">
-        <header className="flex items-start justify-between gap-3 pb-2">
-          <div className="pt-0.5">
-            <UCoreLogoSvgLockup size={104} className="opacity-95" />
-          </div>
-          <button
-            type="button"
-            onClick={() => setLocation(settingsHref)}
-            className={cn(
-              "mt-1 p-2 rounded-lg text-muted-foreground transition-colors",
-              "hover:text-primary hover:bg-muted/40",
-              "active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/10",
-            )}
-            title={t("settings_title")}
-            aria-label={t("settings_title")}
-            data-testid="ucore-home-settings"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-        </header>
+        <ModuleHeader module="core" tagline={t("app.tagline") ?? "Operations Platform"} />
 
         <div className="mt-3.5">
           <SmartSlots slots={smartSlots} onNavigate={setLocation} />

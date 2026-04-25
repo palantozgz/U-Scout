@@ -46,7 +46,7 @@ Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
 
 ---
 
-## Estado actual — sesión 24 abr 2026
+## Estado actual — sesión 25 abr 2026
 
 ### Motor (motor-v2.1.ts + motor-v4.ts)
 - **Calibración: 100% (551/551 checks, 66/66 perfiles)**
@@ -119,13 +119,18 @@ Esta app ES U CORE. U Scout es un módulo dentro de U CORE junto a:
 Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 
 ## Bundle — estado actual
-- Bundle JS: **1,836 KB minificado / 509 KB gzip** ⚠️ (objetivo TestFlight: <300 KB gzip)
-- Culpables principales:
-  - `i18n.ts` 250 KB + archivos `generated*i18n` 166 KB → todos cargan al inicio
-  - `Schedule.tsx` 228 KB god file
-  - `PlayerEditor.tsx` 126 KB god file
-  - `motor-v2.1.ts` 106 KB (debería ser server-side only)
-- Fix mayor impacto: **i18n lazy por locale** → elimina ~250 KB del bundle inicial
+- Build confirmado: `1,836 KB minificado / 508.90 KB gzip` (1 solo chunk, sin splitting)
+- Vite config: sin `manualChunks` ni `rollupOptions` — chunk único por defecto
+- **i18n.ts: 4,939 líneas** — 3 locales inline (en/es/zh), todos cargan al inicio
+- Archivos generated*i18n: 2,634 líneas adicionales (6 archivos, 3 locales cada uno)
+- `motor-v2.1-i18n.ts`: 484 líneas, también inline en bundle cliente
+- Total i18n: ~7,573 líneas / estimado ~350–400 KB del bundle inicial
+- `Schedule.tsx` 228 KB god file
+- `PlayerEditor.tsx` 126 KB god file
+- `motor-v2.1.ts` 106 KB (debería ser server-side only)
+- Plan completo documentado en `BUNDLE_PLAN.md` (ver sección Bundle)
+- **Tokens Cursor agotados hasta ~3 may** — ejecución del plan aplazada
+- Fix mayor impacto: **i18n lazy por locale** → elimina ~350 KB del bundle inicial
 - Fix mediano: **code splitting por módulo** via React.lazy
 - Fix largo: **motor server-side** → API call en vez de bundle cliente
 - **Capacitor** para TestFlight una vez bundle optimizado
@@ -154,8 +159,8 @@ Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 
 ## Pendientes activos — U CORE / TestFlight
 
-1. **i18n lazy loading** — mayor ROI, menor riesgo. Solo cargar locale activo.
-2. **Code splitting** — Schedule, Scout, Wellness como chunks separados
+1. **i18n lazy loading** — mayor ROI, menor riesgo. Plan completo en `BUNDLE_PLAN.md`. Ejecutar con Cursor ~3 may.
+2. **Code splitting** — Schedule, Scout, Wellness como chunks separados via React.lazy
 3. **motor-v2.1 server-side** — eliminar del bundle cliente
 4. **Schedule.tsx decomposition** — partir en subcomponentes
 5. **Capacitor setup** — wrapper iOS para TestFlight
@@ -170,6 +175,15 @@ Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 - Branding: SVG Figma → animación Rive
 - Modo Simple vs Pro
 - Offline queue + sincronización
+- Cards por los 3 estilos visuales (gamenight/office/oldschool) — pendiente diseño Figma
+- Elementos gráficos en slides para reconocimiento de patrones (iconos situacionales, flecha de dirección, etc.) — pendiente diseño Figma
+- Deep Report: reconsiderar como feature OPCIONAL para el jugador que quiere estudiar más a su rival (no para el entrenador). Pendiente decisión de producto: ¿qué añade exactamente? Candidatos: situaciones adicionales, notas del entrenador, clips de vídeo. No implementar hasta definir scope.
+- Textos renderer: reescribir en estilo imperativo sin sujeto ("drives left" no "they drive left") — pendiente Cursor ~3 may
+- 3 estilos visuales a rediseñar: Gamenight (dark, base sólida — pulir profundidad), Office (blanco roto, líneas de cancha como fondo, pizarra táctica), Oldschool (textura cuero balón, granulado, naranja/negro/crema, tipografía bold condensada universitaria años 80)
+- U SCHEDULE: ModuleHeader pendiente — Schedule.tsx es god file 228KB, no tocar sin Cursor (~3 may)
+- eval-report-llm.ts: pendiente ANTHROPIC_API_KEY en .env (console.anthropic.com → API Keys)
+- Implementar 3 temas visuales en código: pendiente Cursor (~3 may)
+- Textos renderer sin sujeto ("drives left" no "they drive left"): pendiente Cursor (~3 may)
 
 ---
 
@@ -192,13 +206,22 @@ Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 
 ## Scripts de validación
 ```bash
-# Regression tests (bugs)
+# Regression tests (bugs) — lógica de outputs
 cd "/Users/palant/Downloads/U scout" && npx tsx scripts/calibrate-motor.ts
 # Score actual: 100% (551/551 checks, 66/66 perfiles)
 
-# Quality eval
+# Quality eval — calidad texto + coherencia básica (checks hardcodeados)
 cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-motor-quality.ts
 # Score actual: 100% (46/46 checks, 10/10 perfiles)
+
+# LLM Report Evaluator — calidad profesional del report completo (Claude como juez)
+cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts
+npx tsx scripts/eval-report-llm.ts --fast        # solo 5 perfiles
+npx tsx scripts/eval-report-llm.ts --profile llm001  # un perfil
+# Requiere ANTHROPIC_API_KEY en .env
+# Output: scripts/eval-report-llm-results.json + .txt
+# Evalúa: coherencia, accionabilidad, proporción, especificidad, narrativa
+# Diagnostica origen del fallo: input | motor | renderer | concepto
 ```
 
 ## Audit rápido
