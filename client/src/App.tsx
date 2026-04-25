@@ -13,26 +13,33 @@ import { useLocale } from "@/lib/i18n";
 import Login from "@/pages/Login";
 import { useClub } from "@/lib/club-api";
 
+import { lazy, Suspense } from "react";
+
 import { UCoreBootSplash } from "@/components/branding/UScoutBrand";
-import CoachHome from "@/pages/coach/CoachHome";
-import ClubManagement from "@/pages/coach/ClubManagement";
 import JoinClub from "@/pages/JoinClub";
-import CoachDashboard from "@/pages/coach/Dashboard";
-import PlayerEditor from "@/pages/coach/PlayerEditor";
-import ReportViewV4 from "@/pages/coach/ReportViewV4";
-import ReportSlidesV1 from "@/pages/coach/ReportSlidesV1";
-import TestMode from "@/pages/coach/TestMode";
-import Settings from "@/pages/coach/Settings";
-import PlayerHome from "@/pages/player/PlayerHome";
-import PlayerHomeSettingsStub from "@/pages/player/PlayerHomeSettingsStub";
-import PlayerTeamList from "@/pages/player/PlayerTeamList";
-import { PlayerTeamView } from "@/pages/player/Dashboard";
-import PlayerProfileViewer from "@/pages/player/Profile";
 import JoinPage from "@/pages/Join";
-import UCoreHome from "@/pages/core/Home";
-import UCoreScout from "@/pages/core/Scout";
-import UCoreSchedule from "@/pages/core/Schedule";
-import UCoreStats from "@/pages/core/Stats";
+
+const CoachHome = lazy(() => import("@/pages/coach/CoachHome"));
+const ClubManagement = lazy(() => import("@/pages/coach/ClubManagement"));
+const CoachDashboard = lazy(() =>
+  import("@/pages/coach/Dashboard").then(m => ({ default: m.default })),
+);
+const PlayerEditor = lazy(() => import("@/pages/coach/PlayerEditor"));
+const ReportViewV4 = lazy(() => import("@/pages/coach/ReportViewV4"));
+const ReportSlidesV1 = lazy(() => import("@/pages/coach/ReportSlidesV1"));
+const TestMode = lazy(() => import("@/pages/coach/TestMode"));
+const Settings = lazy(() => import("@/pages/coach/Settings"));
+const PlayerHome = lazy(() => import("@/pages/player/PlayerHome"));
+const PlayerHomeSettingsStub = lazy(() => import("@/pages/player/PlayerHomeSettingsStub"));
+const PlayerTeamList = lazy(() => import("@/pages/player/PlayerTeamList"));
+const PlayerTeamView = lazy(() =>
+  import("@/pages/player/Dashboard").then(m => ({ default: m.PlayerTeamView })),
+);
+const PlayerProfileViewer = lazy(() => import("@/pages/player/Profile"));
+const UCoreHome = lazy(() => import("@/pages/core/Home"));
+const UCoreScout = lazy(() => import("@/pages/core/Scout"));
+const UCoreSchedule = lazy(() => import("@/pages/core/Schedule"));
+const UCoreStats = lazy(() => import("@/pages/core/Stats"));
 
 function RootRedirect({ to }: { to: string }) {
   const [, setLocation] = useLocation();
@@ -79,6 +86,13 @@ function PlayerReportV4Route() {
 
 function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
   return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
     <Switch>
       <Route path="/">
         <RootRedirect to={defaultPath} />
@@ -129,6 +143,7 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
 
       <Route component={NotFound} />
     </Switch>
+    </Suspense>
   );
 }
 
