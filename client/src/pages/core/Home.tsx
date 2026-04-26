@@ -51,7 +51,7 @@ function HomeCard(props: {
       onClick={onClick}
       className={cn(
         // Match legacy U Scout card material (beige card, crisp border, primary accent on hover)
-        "group w-full text-left rounded-lg border border-border bg-card p-4 flex items-stretch gap-4",
+        "group w-full text-left rounded-lg border border-border bg-card p-4 landscape:py-2.5 flex items-stretch gap-4",
         "transition-all duration-200 hover:border-primary hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.35)]",
         "active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/10",
         className,
@@ -272,6 +272,7 @@ export default function Home() {
 
   const smartSlots = useMemo((): SmartSlot[] => {
     const scheduleSubtitle = (() => {
+      if (!todaySessionsQ.isSuccess || !tomorrowSessionsQ.isSuccess || !weekSessionsQ.isSuccess) return t("schedule_loading_today");
       if (!homeSignals.kpis.nextSession) return t("schedule_empty_next_sessions");
       try {
         const time = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(
@@ -384,7 +385,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
-      <main className="relative z-10 flex flex-col flex-1 px-4 pt-6 pb-4 max-w-md mx-auto w-full">
+      <main className="relative z-10 flex flex-col flex-1 px-4 pt-6 pb-[calc(1rem+env(safe-area-inset-bottom))] max-w-md mx-auto w-full">
         <ModuleHeader module="core" tagline={t("tagline_core")} />
 
         <div className="mt-3.5">
@@ -517,7 +518,7 @@ export default function Home() {
               <div className="rounded-lg border border-border bg-card p-4">
                 <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">{t("home_next_session")}</p>
                 <p className="mt-2 text-sm font-extrabold text-foreground">
-                  {todaySessionsQ.isLoading || tomorrowSessionsQ.isLoading || weekSessionsQ.isLoading
+                  {(!todaySessionsQ.isSuccess || !tomorrowSessionsQ.isSuccess || !weekSessionsQ.isSuccess)
                     ? t("schedule_loading_today")
                     : homeSignals.kpis.nextSession
                       ? homeSignals.kpis.nextSession.title

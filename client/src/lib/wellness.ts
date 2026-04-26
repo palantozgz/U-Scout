@@ -13,8 +13,24 @@ export type WellnessEntry = {
   submitted_at: string;
 };
 
-export function todayKey(): string {
-  // Local date key (YYYY-MM-DD). Phase 2A: keep it simple; timezone alignment can be refined later.
+export function todayKey(timezoneName?: string): string {
+  try {
+    if (timezoneName) {
+      const d = new Date();
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: timezoneName,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(d);
+      const year  = parts.find(p => p.type === "year")?.value  ?? String(d.getFullYear());
+      const month = parts.find(p => p.type === "month")?.value ?? String(d.getMonth() + 1).padStart(2, "0");
+      const day   = parts.find(p => p.type === "day")?.value   ?? String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+  } catch {
+    // fall through to local
+  }
   const d = new Date();
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");

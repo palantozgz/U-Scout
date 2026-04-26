@@ -980,9 +980,17 @@ export default function ClubManagement() {
                             <span className="text-xs text-muted-foreground truncate max-w-full">{inv.invitedEmail}</span>
                           )}
                         </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          {t("team_mgmt_inv_expires")}: {formatWhen(inv.expiresAt, locale)}
-                        </p>
+                        {(() => {
+                          const expiresMs = new Date(inv.expiresAt).getTime() - Date.now();
+                          const daysLeft = Math.ceil(expiresMs / (1000 * 60 * 60 * 24));
+                          const urgent = daysLeft <= 2;
+                          return (
+                            <p className={`text-[11px] ${urgent ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted-foreground"}`}>
+                              {t("team_mgmt_inv_expires")}: {formatWhen(inv.expiresAt, locale)}
+                              {urgent && daysLeft > 0 ? ` · ${daysLeft}d` : urgent ? " · Hoy" : ""}
+                            </p>
+                          );
+                        })()}
                         <p className="text-xs font-mono break-all text-foreground bg-muted/50 rounded-lg p-2">{inv.link}</p>
                         <div className="flex flex-wrap gap-2">
                           <Button
@@ -1201,7 +1209,7 @@ function MemberRow({
           </Badge>
         </div>
       </div>
-      {canManage && (
+      {canManage && !(isSelf && isOwner) && (
         variant === "staff" ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
