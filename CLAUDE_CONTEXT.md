@@ -56,7 +56,7 @@ Dashboard → PlayerEditor → ReportViewV4 → Proponer/Publicar
 
 ---
 
-## Estado actual — sesión 25 abr 2026 (noche, cierre)
+## Estado actual — sesión 25 abr 2026
 
 ### Commits de hoy (main)
 - `perf: i18n lazy loading + React.lazy — bundle 509→268 KB gzip`
@@ -65,6 +65,7 @@ Dashboard → PlayerEditor → ReportViewV4 → Proponer/Publicar
 - `fix: mobile responsive audit — 17 fixes across 6 files`
 - `fix: invitation flow — auto-accept after login, persist token through auth`
 - `fix: hide owner kebab in ClubManagement MemberRow`
+- `fix: bloque 2 — race condition sessions, landscape padding, safe-area, timezone wellness, expiry warning invitaciones`
 
 ### Bundle ✅
 - **229.49 KB gzip** — objetivo <300 KB cumplido
@@ -98,134 +99,76 @@ Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 
 ---
 
-## PLAN PRE-TESTFLIGHT — backlog priorizado
+## PLAN PRE-TESTFLIGHT
 
-### BLOQUE 1 — U Scout features incompletas (CRÍTICO para beta)
+### ✅ BLOQUE 0 — Bundle
+- 509 → 229 KB gzip
 
-**1A. Workflow de aprobación — 3 niveles sin implementar completo**
-El flujo diseñado existe en backend (approval_api, overrideEngine) pero la UI no lo comunica claramente:
-- Nivel 1: Coach edita inputs → genera report (privado)
-- Nivel 2: Coach aprueba su versión → visible al staff
+### ✅ BLOQUE 2 — Bugs bloqueantes (completado)
+- 2A ✅ Race condition "no sessions" en Home player
+- 2B ✅ HomeCards landscape:py-2.5
+- 2C ✅ Safe-area padding en main Home
+- 2D ✅ todayKey() timezone-aware
+- 2E ✅ Expiry warning en invitaciones (<2 días → amber)
+- 2F ✅ isSelf check en MemberRow variant="player" (ya estaba OK)
+- Stats card falsa — POSPUESTO (en diseño Figma)
+- Schedule localStorage → server persistence — POSPUESTO (Fase 2B)
+
+### 🎯 BLOQUE 1 — U Scout features incompletas (PRIORIDAD ACTUAL)
+
+**1A. Workflow de aprobación — indicadores de estado**
+El flujo de 3 niveles existe en backend pero la UI no lo comunica:
+- Nivel 1: Coach edita inputs → report privado
+- Nivel 2: Coach aprueba → visible al staff
 - Nivel 3: Cualquier aprobado publica → llega a jugadora
-Problema actual: el entrenador no entiende en qué nivel está ni qué le falta hacer.
-Fix: indicadores visuales claros en ReportViewV4 del estado actual + siguiente acción requerida.
+Fix: indicadores visuales claros en ReportViewV4 del estado actual + siguiente acción.
+Archivos: `client/src/pages/coach/ReportViewV4.tsx`, `client/src/lib/approval-api.ts`
 
-**1B. Sistema de discrepancias entre entrenadores — NO implementado en UI**
-El backend detecta discrepancias (overrideEngine.ts, `hasDiscrepancy` en routes.ts).
-La UI nunca las muestra. El staff no sabe cuándo dos entrenadores tienen versiones distintas.
-Fix: badge "Discrepancia detectada" en Dashboard + vista de comparación en ReportViewV4.
+**1B. Discrepancias entre entrenadores — UI no implementada**
+Backend detecta discrepancias (hasDiscrepancy en routes.ts) pero nunca se muestran.
+Fix: badge "Discrepancia" en Dashboard + vista comparación en ReportViewV4.
+Archivos: `Dashboard.tsx`, `ReportViewV4.tsx`
 
-**1C. Hot/Cold streaks — NO implementado**
-El motor no genera tendencia reciente del jugador (últimos 5 partidos).
-Diseñado en CLAUDE_CONTEXT pero pendiente de implementar en motor + renderer + UI.
-Fix: añadir campo `recentForm: "hot" | "cold" | "stable"` al PlayerEditor + motor + slide 1.
+**1C. Hot/Cold streaks — no implementado**
+No existe en motor ni en PlayerEditor.
+Fix: campo `recentForm: "hot"|"cold"|"stable"` en PlayerEditor + motor + slide 1.
 
-**1D. Flujo post-PlayerEditor — 2 taps innecesarios**
-Al guardar un jugador, el entrenador vuelve al Dashboard y tiene que navegar manualmente al report.
-Fix: redirect automático a ReportViewV4 tras guardar el jugador.
+**1D. Flujo post-PlayerEditor**
+Guardar jugador → vuelve al Dashboard → entrenador navega al report manualmente.
+Fix: redirect automático a ReportViewV4 tras guardar.
+Archivo: `client/src/pages/coach/PlayerEditor.tsx`
 
-**1E. Hint de swipe en ReportSlidesV1 — primer uso**
-No hay indicador visual de que los slides son swipeables. El usuario no lo sabe en la primera visita.
-Fix: micro-animación de nudge (8px) en el primer slide, solo la primera vez (localStorage flag).
+**1E. Hint de swipe en ReportSlidesV1**
+Sin indicador visual de que los slides son swipeables.
+Fix: micro-animación nudge (8px) en el primer slide, solo primera visita (localStorage flag).
+Archivo: `client/src/pages/coach/ReportSlidesV1.tsx`
 
 **1F. Textos renderer en imperativo**
-Textos actuales tienen sujeto: "they drive left". Deben ser imperativos: "drives left" / "Force left".
-Fix: revisar reportTextRenderer.ts y reescribir sin sujeto.
+Textos con sujeto: "they drive left" → imperativo: "drives left".
+Archivo: `client/src/lib/reportTextRenderer.ts`
 
-### BLOQUE 2 — Bugs bloqueantes para beta real
+### BLOQUE 3 — Offline system
+- Queue de mutations offline con retry al recuperar conexión
+- Indicador visual "Sin conexión"
+- Scope mínimo: PlayerEditor save + ReportApproval + WellnessEntry
 
-**2A. Home player: race condition "no sessions"**
-Si las 3 queries (today/tomorrow/week) no han terminado, muestra "No sessions" aunque las haya.
-Fix: mostrar skeleton hasta que isSuccess en las 3, luego evaluar empty state.
-
-**2B. Schedule localStorage → sin sincronización multi-dispositivo**
-Attendance y wellness usan localStorage. Cambio de dispositivo = pérdida de datos.
-Fix: migrar a server persistence (ya planeado, Fase 2B del plan).
-
-**2C. Stats card visible con módulo vacío**
-Home muestra HomeCard de U Stats pero la página está vacía → expectativa falsa.
-Fix: ocultar HomeCard de Stats hasta que haya datos reales, o mostrar "Próximamente".
-
-**2D. Timezone wellness**
-`todayKey()` usa fecha local del dispositivo. En China (CST +8) puede desfasarse vs UTC del servidor.
-Fix: añadir timezone del club en ClubContext y usarla para entry_date.
-
-**2E. Home landscape — demasiado scroll**
-HomeCards con py-5 en landscape 375px de alto requieren mucho scroll.
-Fix: `landscape:py-3` en HomeCards.
-
-**2F. isSelf check en variant="player" de MemberRow**
-El fix del kebab owner se aplicó en variant="staff". Verificar que aplica también en "player".
-
-### BLOQUE 3 — Offline-first system
-
-**3A. Estado actual**
-`networkMode: "offlineFirst"` en todas las queries (lectura OK offline).
-Las mutations fallan silenciosamente sin conexión (guardar player, aprobar report, etc.).
-
-**3B. Fix requerido para beta**
-Queue de mutations offline con retry automático al recuperar conexión.
-Librería candidata: `@tanstack/query` + `idb` (IndexedDB) para persistir la queue.
-Scope mínimo: PlayerEditor save + ReportApproval + WellnessEntry.
-
-**3C. Indicador visual de estado offline**
-La app no muestra si está offline. El usuario no sabe por qué sus cambios no se guardan.
-Fix: banner "Sin conexión — los cambios se guardarán cuando vuelva la red" cuando offline.
-
-### BLOQUE 4 — Figma → código (1 mayo)
+### BLOQUE 4 — Figma (1 mayo)
 - File: https://www.figma.com/design/odswsQA5XDEgULEDh2UMZi
-- Temas Gamenight/Office/Oldschool — CSS vars
-- Iconos defensivos ReportSlidesV1 — OBLIGATORIO Figma antes de código
+- Temas + iconos defensivos
 
 ### BLOQUE 5 — Evaluador multi-juez
-- DeepSeek: platform.deepseek.com (móvil chino — hacer primero)
-- Gemini: aistudio.google.com (cuenta Google, gratis, sin SMS)
-- Anthropic: console.anthropic.com (requiere SMS español)
-- OpenAI: platform.openai.com (requiere SMS español)
-- Ver: `EVAL_BLUEPRINT.md`
+- DeepSeek: platform.deepseek.com (móvil chino — primero)
+- Gemini: aistudio.google.com (gratis, sin SMS)
+- Anthropic + OpenAI: requieren SMS español
 
 ### BLOQUE 6 — U Stats UI
-- POST /api/stats/ingest en Railway (Bearer token)
-- Stats Home con standings reales de WCBA
-- Opponent Report UI
+- POST /api/stats/ingest Railway + Stats Home + Opponent Report
 
-### BLOQUE 7 — Limpieza y reorganización
-- Eliminar: `CLAUDE_CONTEXT.md.save`, `ReportSlidesV1.backup.tsx`, `report-limpieza-pendiente.md`, `BUNDLE_PLAN.md`, prompts Cursor ejecutados en scripts/
-- Reorganizar: `pages/coach/` → `pages/scout/`, `script/` → `scripts/`
-- Revisar duplicaciones: `translateMotorOutput.ts` vs `reportTextRenderer.ts`
+### BLOQUE 7 — Limpieza
+- Eliminar archivos basura, reorganizar carpetas
 
 ### CUANDO LLEGUE APPLE DEVELOPER ACCOUNT
-- Xcode (~10GB, Mac App Store) + `npx cap sync && npx cap open ios`
-- Signing → TestFlight
-
----
-
-## Audit U CORE — hallazgos sesión 25 abr 2026
-
-### Bugs detectados por código (sin ejecutar)
-Ver audit completo en la sesión. Resumen:
-- Home player: race condition nextSession (Bloque 2A)
-- Schedule: localStorage sin sync (Bloque 2B)
-- Stats card falsa (Bloque 2C)
-- Wellness timezone (Bloque 2D)
-- Scout.tsx: flash de spinner antes de redirect
-- MemberRow isSelf en variant="player" (Bloque 2F)
-
-### Fortalezas confirmadas
-- Bundle 229 KB gzip — excepcional para la complejidad
-- Motor 100% calibrado — core diferencial sólido
-- capabilities.ts — sistema de permisos coherente y extensible
-- homeSignals — lógica de prioridades centralizada y testeable
-- i18n lazy — escalable sin tocar nada
-- ModuleNav — safe-area, landscape:hidden, active state correcto
-
-### Potenciaciones de alto ROI
-1. Notificaciones push con Capacitor — diferencial vs mercado chino
-2. U Stats + U Scout integración — stats reales en el report
-3. physical_trainer badge — TODO hardcodeado en capabilities.ts
-4. Modo offline-first completo — crítico para pabellón sin wifi
-5. Onboarding guiado — no existe, bloquea adopción de nuevos usuarios
-6. Historial versiones report — "Actualizado el X" en slide 1
+- Xcode + `npx cap sync && npx cap open ios` → TestFlight
 
 ---
 
@@ -259,6 +202,6 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts --jud
 - Runners-up: alternativas rankeadas por el motor
 - Override: decisión entrenador sobre output del motor
 - Discrepancia: dos entrenadores con opciones distintas
-- Hot/Cold/Stable: tendencia reciente del jugador (pendiente implementar)
+- Hot/Cold/Stable: tendencia reciente jugador (pendiente 1C)
 - trapResponse: reacción a blitz/hedge en PnR
 - pressureResponse: reacción a presión individual

@@ -687,7 +687,13 @@ export default function PlayerEditor() {
         await updatePlayerMutation.mutateAsync({ id: currentId, updates: updated });
       }
     } catch {}
-    setTimeout(() => setShowSaveFlash(false), 600);
+    setTimeout(() => {
+      setShowSaveFlash(false);
+      const savedId = getPlayerId();
+      if (savedId && savedId !== "new") {
+        setLocation(`/coach/scout/${savedId}/review`);
+      }
+    }, 600);
   };
 
   const ui = (key: keyof PlayerInput, value: any) => {

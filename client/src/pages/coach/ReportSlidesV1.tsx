@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react";
 import { generateMotorV4 } from "@/lib/motor-v4";
 import {
@@ -74,11 +74,22 @@ export default function ReportSlidesV1({
   const [slide, setSlide] = useState(0);
   const [arrowsVisible, setArrowsVisible] = useState(false);
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null);
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
 
   const touchStartX = useRef<number | null>(null);
   const dragStartX = useRef<number | null>(null);
   const isDragging = useRef(false);
   const arrowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const key = "uscout:swipe-hint-seen:v1";
+    try {
+      if (!localStorage.getItem(key)) {
+        setShowSwipeHint(true);
+        localStorage.setItem(key, "1");
+      }
+    } catch {}
+  }, []);
 
   function showArrows() {
     setArrowsVisible(true);
@@ -226,6 +237,16 @@ export default function ReportSlidesV1({
 
   return (
     <>
+      <style>{`
+        @keyframes swipe-hint {
+          0% { opacity: 0; transform: translateX(-50%) translateX(0px); }
+          20% { opacity: 1; transform: translateX(-50%) translateX(0px); }
+          45% { opacity: 1; transform: translateX(-50%) translateX(-12px); }
+          55% { opacity: 1; transform: translateX(-50%) translateX(12px); }
+          80% { opacity: 1; transform: translateX(-50%) translateX(0px); }
+          100% { opacity: 0; transform: translateX(-50%) translateX(0px); }
+        }
+      `}</style>
       <div
         className="flex min-h-[100dvh] flex-col bg-background select-none"
         onTouchStart={handleTouchStart}
@@ -284,6 +305,18 @@ export default function ReportSlidesV1({
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
+          {showSwipeHint && (
+            <div
+              className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+              style={{ animation: "swipe-hint 1.5s ease-in-out 0.5s forwards" }}
+            >
+              <div className="flex items-center gap-2 bg-foreground/80 text-background text-xs font-bold px-4 py-2 rounded-full backdrop-blur-sm">
+                <span>←</span>
+                <span>swipe</span>
+                <span>→</span>
+              </div>
+            </div>
+          )}
           <div
             className="flex h-full transition-transform duration-300 ease-out"
             style={{
