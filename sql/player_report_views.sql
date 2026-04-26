@@ -1,3 +1,4 @@
+-- STATUS: Verify if this has been applied in Supabase. If not applied, run in Supabase SQL Editor.
 -- U Scout — player_report_views (Bloque B: slide-level read tracking for player mode)
 -- Apply manually in Supabase SQL editor or psql. Do not run via drizzle-kit push unless you intend to sync schema.
 

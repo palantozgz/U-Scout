@@ -19,16 +19,16 @@ import { UCoreBootSplash } from "@/components/branding/UScoutBrand";
 import JoinClub from "@/pages/JoinClub";
 import JoinPage from "@/pages/Join";
 
-const CoachHome = lazy(() => import("@/pages/coach/CoachHome"));
-const ClubManagement = lazy(() => import("@/pages/coach/ClubManagement"));
+const CoachHome = lazy(() => import("@/pages/scout/CoachHome"));
+const ClubManagement = lazy(() => import("@/pages/scout/ClubManagement"));
 const CoachDashboard = lazy(() =>
-  import("@/pages/coach/Dashboard").then(m => ({ default: m.default })),
+  import("@/pages/scout/Dashboard").then(m => ({ default: m.default })),
 );
-const PlayerEditor = lazy(() => import("@/pages/coach/PlayerEditor"));
-const ReportViewV4 = lazy(() => import("@/pages/coach/ReportViewV4"));
-const ReportSlidesV1 = lazy(() => import("@/pages/coach/ReportSlidesV1"));
-const TestMode = lazy(() => import("@/pages/coach/TestMode"));
-const Settings = lazy(() => import("@/pages/coach/Settings"));
+const PlayerEditor = lazy(() => import("@/pages/scout/PlayerEditor"));
+const ReportViewV4 = lazy(() => import("@/pages/scout/ReportViewV4"));
+const ReportSlidesV1 = lazy(() => import("@/pages/scout/ReportSlidesV1"));
+const TestMode = lazy(() => import("@/pages/scout/TestMode"));
+const Settings = lazy(() => import("@/pages/scout/Settings"));
 const PlayerHome = lazy(() => import("@/pages/player/PlayerHome"));
 const PlayerHomeSettingsStub = lazy(() => import("@/pages/player/PlayerHomeSettingsStub"));
 const PlayerTeamList = lazy(() => import("@/pages/player/PlayerTeamList"));

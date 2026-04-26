@@ -361,9 +361,26 @@ export default function ReportSlidesV1({
               </div>
 
               {/* Name + position */}
-              <h1 className="text-center text-2xl font-black tracking-tight text-foreground">
-                {player.name?.trim() || t("dashboard_unnamed_player")}
-              </h1>
+              <div className="flex items-center justify-center gap-2">
+                <h1 className="text-center text-2xl font-black tracking-tight text-foreground">
+                  {player.name?.trim() || t("dashboard_unnamed_player")}
+                </h1>
+                {(() => {
+                  const form = player.inputs?.recentForm ?? (player.scoutingInputs as any)?.recentForm;
+                  if (!form || form === "stable") return null;
+                  return (
+                    <span
+                      className={`text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                        form === "hot"
+                          ? "bg-orange-500/15 text-orange-500 dark:text-orange-400"
+                          : "bg-sky-500/15 text-sky-500 dark:text-sky-400"
+                      }`}
+                    >
+                      {form === "hot" ? "🔥 HOT" : "🧊 COLD"}
+                    </span>
+                  );
+                })()}
+              </div>
               {position && (
                 <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
                   {position}

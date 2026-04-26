@@ -391,12 +391,9 @@ function PlayerRow({
       >
         <h3 className="font-extrabold text-sm truncate text-foreground">{player.name?.trim() || t("dashboard_unnamed_player")}</h3>
         {mode === "editor" && approvalStatus?.hasDiscrepancy && (
-          <div className="flex flex-wrap items-center gap-1 mt-1">
-            <span
-              className="inline-flex items-center justify-center min-w-6 h-5 px-1 rounded-md border border-destructive/40 bg-destructive/10 text-destructive text-xs font-black"
-              title={t("approval_discrepancy")}
-            >
-              ⚠
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black">
+              ⚠ {t("approval_discrepancy")}
             </span>
           </div>
         )}

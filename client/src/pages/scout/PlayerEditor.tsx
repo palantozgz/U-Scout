@@ -846,6 +846,53 @@ export default function PlayerEditor() {
                 </div>
               </div>
 
+              {/* Recent form */}
+              <div className="space-y-2">
+                <FieldLabel
+                  label={locale === "es" ? "Forma reciente (últimos 3-5 partidos)" : "Recent form (last 3–5 games)"}
+                  tooltip={locale === "es"
+                    ? "Observación del scout: ¿el jugador está por encima, en línea o por debajo de su perfil habitual?"
+                    : "Scout observation: is the player performing above, in line with, or below their usual profile?"}
+                />
+                <div className="flex flex-wrap gap-3">
+                  {([
+                    { v: "hot" as const, label: locale === "es" ? "🔥 Racha caliente" : "🔥 Hot streak" },
+                    { v: "stable" as const, label: locale === "es" ? "〰️ Estable" : "〰️ Stable" },
+                    { v: "cold" as const, label: locale === "es" ? "🧊 Racha fría" : "🧊 Cold streak" },
+                  ] as const).map(({ v, label }) => (
+                    <Button
+                      key={v}
+                      type="button"
+                      variant={(inputs.recentForm ?? null) === v ? "default" : "outline"}
+                      style={{ minHeight: 44 }}
+                      className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${
+                        (inputs.recentForm ?? null) === v
+                          ? v === "hot"
+                            ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                            : v === "cold"
+                              ? "bg-sky-500 border-sky-500 text-white hover:bg-sky-500 hover:text-white"
+                              : "bg-slate-600 border-slate-600 text-white hover:bg-slate-600 hover:text-white"
+                          : "border-slate-200 dark:border-slate-700"
+                      }`}
+                      onClick={() =>
+                        ui("recentForm" as any, (inputs.recentForm ?? null) === v ? null : v)
+                      }
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant={(inputs.recentForm ?? null) == null ? "secondary" : "outline"}
+                    style={{ minHeight: 44 }}
+                    className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold"
+                    onClick={() => ui("recentForm" as any, null)}
+                  >
+                    {locale === "es" ? "No observado" : "Not observed"}
+                  </Button>
+                </div>
+              </div>
+
               <div className="space-y-1.5">
                 <FieldLabel label={t("team")} />
                 <Select value={player.teamId} onValueChange={v => setPlayer(prev => prev ? { ...prev, teamId: v } : prev)} disabled={teams.length < 2}>

@@ -18,10 +18,10 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/lib/motor-v2.1.ts` — motor base
 - `client/src/lib/reportTextRenderer.ts` — texto EN/ES/ZH con gender
 - `client/src/lib/mock-data.ts` — playerInputToMotorInputs, clubRowToMotorContext
-- `client/src/pages/coach/ReportSlidesV1.tsx` — 3 slides
-- `client/src/pages/coach/ReportViewV4.tsx` — shell coach_review
-- `client/src/pages/coach/PlayerEditor.tsx` — editor inputs jugador
-- `client/src/pages/coach/Dashboard.tsx` — lista equipos/jugadores
+- `client/src/pages/scout/ReportSlidesV1.tsx` — 3 slides
+- `client/src/pages/scout/ReportViewV4.tsx` — shell coach_review
+- `client/src/pages/scout/PlayerEditor.tsx` — editor inputs jugador
+- `client/src/pages/scout/Dashboard.tsx` — lista equipos/jugadores
 - `server/routes.ts` — rutas API Express
 - `server/storage.ts` — acceso Supabase
 - `scripts/calibrate-motor.ts` — 66 perfiles (100% / 551 checks)

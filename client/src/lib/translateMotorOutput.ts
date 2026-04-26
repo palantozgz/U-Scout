@@ -1,3 +1,4 @@
+// TODO: Audit — possibly superseded by reportTextRenderer.ts
 import type { Locale } from "@/lib/i18n";
 import type { ClubGender } from "@shared/club-context";
 import { candidateSpanishKeysForGender } from "@/lib/spanishClubGenderI18n";

@@ -87,6 +87,14 @@ export interface PlayerInput {
   foulDrawing?: PhysicalLevel;
   personality?: ("clutch" | "leader" | "selfish" | "freezes")[] | null;
   starPlayer?: boolean | null;
+  /**
+   * Recent form indicator — scout-observed last 3-5 games.
+   * hot: clearly above baseline output
+   * cold: clearly below baseline output
+   * stable: consistent with scouted profile
+   * null / undefined: not observed / not applicable
+   */
+  recentForm?: "hot" | "cold" | "stable" | null;
 
   // Post
   postFrequency: IntensityLevel;

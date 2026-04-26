@@ -10,7 +10,7 @@ echo "--- MOTOR exports ---"
 grep -n "^export" client/src/lib/motor-v4.ts | head -20
 echo ""
 echo "--- REPORTVIEWV4 imports+hooks ---"
-grep -n "^import\|useState\|useQuery\|useMemo\|useEffect" client/src/pages/coach/ReportViewV4.tsx | head -30
+grep -n "^import\|useState\|useQuery\|useMemo\|useEffect" client/src/pages/scout/ReportViewV4.tsx | head -30
 echo ""
 echo "--- console.log en producción ---"
 grep -rn "console\.log" client/src/ --include="*.ts" --include="*.tsx" | head -20

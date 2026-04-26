@@ -6,7 +6,7 @@
   "scripts": {
     "dev:client": "vite dev --port 5000",
     "dev": "PORT=3000 NODE_ENV=development VITE_SUPABASE_URL=https://ybpzvkkxcmwwxrrouyhm.supabase.co VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlicHp2a2t4Y213d3hycm91eWhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1ODYwOTksImV4cCI6MjA5MDE2MjA5OX0.6C_zsnqgORbxmvO_5yZKP4aHNyln_aVSvJrc2LTARTE DATABASE_URL=postgresql://postgres.ybpzvkkxcmwwxrrouyhm:Miercoles_13@aws-1-eu-west-1.pooler.supabase.com:5432/postgres tsx server/index.ts",
-    "build": "tsx script/build.ts",
+    "build": "tsx scripts/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "test": "vitest run",

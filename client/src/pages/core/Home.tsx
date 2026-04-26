@@ -177,7 +177,7 @@ export default function Home() {
   const clubQuery = useClub({ enabled: watchesClubActivity });
   const clubData = clubQuery.data;
 
-  const clubId = clubData?.club.id;
+  const clubId = clubData?.club?.id;
   const userId = profile?.id;
 
   const todaySessionsQ = useTodayScheduleEvents({ clubId });
@@ -203,7 +203,9 @@ export default function Home() {
   const showClubActivityDot = useMemo(() => {
     if (!clubData || clubQuery.isError || !profile?.id) return false;
     if (realCaps.staffRole !== "head_coach") return false;
-    const prev = getStoredRosterSignature(profile.id, clubData.club.id);
+    const clubIdForDot = clubData.club?.id;
+    if (!clubIdForDot) return false;
+    const prev = getStoredRosterSignature(profile.id, clubIdForDot);
     if (prev === null) return false;
     return prev !== rosterSignature(clubData.members);
   }, [clubData, clubQuery.isError, profile?.id, realCaps.staffRole]);
@@ -245,7 +247,8 @@ export default function Home() {
   // Keep roster signature initialized once, same as previous CoachHome.
   useEffect(() => {
     if (!clubData || clubQuery.isError || !profile?.id) return;
-    const clubId = clubData.club.id;
+    const clubId = clubData.club?.id;
+    if (!clubId) return;
     const sig = rosterSignature(clubData.members);
     const prev = getStoredRosterSignature(profile.id, clubId);
     if (prev === null) setStoredRosterSignature(profile.id, clubId, sig);
