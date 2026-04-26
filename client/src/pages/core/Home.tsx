@@ -106,7 +106,10 @@ function SmartSlots(props: { slots: SmartSlot[]; onNavigate: (href: string) => v
   };
 
   return (
-    <div className="grid grid-cols-3 gap-2 min-h-[4.25rem]">
+    <div
+      className="grid gap-2 min-h-[4.25rem]"
+      style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}
+    >
       {props.slots.map((s) => (
         <button
           key={s.key}
@@ -122,14 +125,14 @@ function SmartSlots(props: { slots: SmartSlot[]; onNavigate: (href: string) => v
           <div className="flex items-start gap-2">
             <span
               className={cn(
-                "mt-0.5 shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-background/40",
+                "mt-0.5 shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-lg border border-border bg-background/40",
                 iconTone(s.tone),
               )}
             >
               {s.icon}
             </span>
             <div className="min-w-0">
-              <p className="text-[11px] font-black leading-snug tracking-tight text-foreground line-clamp-2">{s.title}</p>
+              <p className="text-[10px] font-black leading-snug tracking-tight text-foreground line-clamp-2">{s.title}</p>
               {s.subtitle ? (
                 <p className="mt-0.5 text-[10px] font-semibold leading-snug text-muted-foreground line-clamp-2">{s.subtitle}</p>
               ) : null}

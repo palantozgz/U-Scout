@@ -77,7 +77,7 @@ export default function Settings() {
                 type="button"
                 onClick={() => setTheme(th.id)}
                 className={[
-                  "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all",
+                  "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
                   theme === th.id
                     ? "border-primary bg-primary/10 scale-[1.03]"
                     : "border-border hover:border-primary/40",

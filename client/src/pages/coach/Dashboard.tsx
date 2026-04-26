@@ -245,10 +245,10 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
                     {isDeleting ? (
                       <>
                         <span className="text-xs font-semibold text-muted-foreground mr-1">{t("delete_team")}</span>
-                        <Button size="icon" variant="ghost" onClick={() => setPendingDeleteTeam(null)} className="w-8 h-8 text-muted-foreground rounded-lg" data-testid={`button-cancel-delete-team-${team.id}`}>
+                        <Button size="icon" variant="ghost" onClick={() => setPendingDeleteTeam(null)} className="w-9 h-9 text-muted-foreground rounded-lg" data-testid={`button-cancel-delete-team-${team.id}`}>
                           <X className="w-3.5 h-3.5" />
                         </Button>
-                        <Button size="icon" onClick={() => handleDeleteTeam(team.id)} className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-lg" data-testid={`button-confirm-delete-team-${team.id}`}>
+                        <Button size="icon" onClick={() => handleDeleteTeam(team.id)} className="w-9 h-9 bg-red-500 hover:bg-red-600 text-white rounded-lg" data-testid={`button-confirm-delete-team-${team.id}`}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </>
@@ -256,13 +256,13 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
                       <>
                         {isEditor && (
                           <>
-                            <Button size="icon" variant="ghost" onClick={() => startEditTeam(team)} className="w-8 h-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg" data-testid={`button-edit-team-${team.id}`}>
+                            <Button size="icon" variant="ghost" onClick={() => startEditTeam(team)} className="w-9 h-9 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg" data-testid={`button-edit-team-${team.id}`}>
                               <Pencil className="w-3.5 h-3.5" />
                             </Button>
-                            <Button size="icon" variant="ghost" onClick={() => handleDeleteTeam(team.id)} className="w-8 h-8 text-muted-foreground hover:text-red-400 hover:bg-red-950/30 rounded-lg" data-testid={`button-delete-team-${team.id}`}>
+                            <Button size="icon" variant="ghost" onClick={() => handleDeleteTeam(team.id)} className="w-9 h-9 text-muted-foreground hover:text-red-400 hover:bg-red-950/30 rounded-lg" data-testid={`button-delete-team-${team.id}`}>
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
-                            <Button size="icon" onClick={() => setLocation(`/coach/player/new?team=${team.id}`)} className="w-8 h-8 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm" data-testid={`button-add-player-${team.id}`}>
+                            <Button size="icon" onClick={() => setLocation(`/coach/player/new?team=${team.id}`)} className="w-9 h-9 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm" data-testid={`button-add-player-${team.id}`}>
                               <UserPlus className="w-3.5 h-3.5" />
                             </Button>
                           </>
@@ -408,7 +408,7 @@ function PlayerRow({
       </div>
 
       {mode === "editor" ? (
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
+        <div className="flex flex-col items-end gap-1.5 shrink-0 max-w-[140px] sm:max-w-none">
           <div className="flex items-center gap-1 flex-wrap justify-end">
             <Badge
               variant="secondary"
@@ -430,7 +430,7 @@ function PlayerRow({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 px-2 text-[10px] font-bold rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                  className="h-7 px-1.5 text-[10px] font-bold rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
                   disabled={unpublishMut.isPending}
                   data-testid={`button-unpublish-player-${player.id}`}
                   onClick={() => {
@@ -454,7 +454,7 @@ function PlayerRow({
               </>
             )}
           </div>
-          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-1 flex-wrap justify-end" onClick={e => e.stopPropagation()}>
             <Button
               size="sm"
               variant="ghost"

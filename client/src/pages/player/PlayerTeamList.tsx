@@ -19,13 +19,13 @@ export default function PlayerTeamList() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          paddingTop: "2rem",
-          paddingBottom: "1.5rem",
+          paddingTop: "1.25rem",
+          paddingBottom: "1rem",
           gap: "0.5rem",
         }}
         className="text-foreground"
       >
-        <UScoutLogo size={204} animated={true} />
+        <UScoutLogo size={120} animated={false} />
         <span
           style={{
             fontSize: "11px",

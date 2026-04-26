@@ -33,6 +33,12 @@ export default function Login() {
       if (error) {
         setError(error.message);
       } else {
+        const pendingTeamInvite = localStorage.getItem("pending_team_invite");
+        if (pendingTeamInvite) {
+          localStorage.removeItem("pending_team_invite");
+          setLocation(`/join/${pendingTeamInvite}`);
+          return;
+        }
         setLocation("/");
       }
     } else {

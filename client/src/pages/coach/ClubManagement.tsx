@@ -553,7 +553,7 @@ export default function ClubManagement() {
         {q.data && (
           <>
             <section className="rounded-2xl border border-border bg-card p-4 mb-6 space-y-4">
-              <div className="flex items-start gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                 <input
                   ref={logoFileRef}
                   type="file"
@@ -561,7 +561,7 @@ export default function ClubManagement() {
                   className="hidden"
                   onChange={onLogoFile}
                 />
-                <div className="flex w-[6.75rem] shrink-0 flex-col items-stretch gap-2">
+                <div className="flex w-full sm:w-[6.75rem] sm:shrink-0 flex-col items-center sm:items-stretch gap-2">
                   {canEditBranding && !isClubLogoImageUrl(q.data.club.logo) ? (
                     <button
                       type="button"
@@ -630,7 +630,7 @@ export default function ClubManagement() {
                       </Button>
                     ))}
                 </div>
-                <div className="min-w-0 flex-1 space-y-1">
+                <div className="min-w-0 w-full space-y-1">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_name_label")}</p>
                   {canEditBranding ? (
                     <Input
@@ -781,7 +781,10 @@ export default function ClubManagement() {
             </section>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1 p-1 mb-4">
+              <TabsList
+                className="flex h-auto w-full overflow-x-auto justify-start gap-1 p-1 mb-4"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
                 <TabsTrigger value="overview" className="text-xs font-bold">
                       {t("club_tab_overview")}
                 </TabsTrigger>
@@ -1202,7 +1205,7 @@ function MemberRow({
         variant === "staff" ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 w-9 p-0" aria-label="More actions">
+              <Button variant="outline" size="sm" className="h-11 w-11 p-0" aria-label="More actions">
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>

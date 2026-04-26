@@ -101,7 +101,7 @@ export default function PlayerHome() {
         )}
 
         {!isLoading && !isError && data && data.reports.length > 0 && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 landscape:grid-cols-3 gap-3">
             {data.reports.map((r) => (
               <button
                 key={r.assignmentId}

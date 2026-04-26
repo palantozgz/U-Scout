@@ -539,14 +539,17 @@ export async function registerRoutes(
       }
 
       const userId = req.user!.id;
-      await storage.upsertTeamMember({
-        userId,
-        teamId: inv.teamId,
-        role: inv.role,
-        jerseyNumber: "",
-        position: "",
-        displayName: "",
-      });
+      const existing = await storage.getTeamMember(userId, inv.teamId);
+      if (!existing) {
+        await storage.upsertTeamMember({
+          userId,
+          teamId: inv.teamId,
+          role: inv.role,
+          jerseyNumber: "",
+          position: "",
+          displayName: "",
+        });
+      }
       await storage.markInvitationUsed(inv.id, userId);
 
       res.json({ ok: true, teamId: inv.teamId, role: inv.role });

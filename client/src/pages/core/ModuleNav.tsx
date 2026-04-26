@@ -40,7 +40,7 @@ export function ModuleNav() {
               type="button"
               onClick={() => setLocation(it.href)}
               className={cn(
-                "h-14 flex flex-col items-center justify-center gap-1 text-[10px] font-bold tracking-wide transition-colors",
+                "h-14 landscape:h-12 flex flex-col items-center justify-center gap-1 text-[10px] font-bold tracking-wide transition-colors",
                 active ? "text-primary" : "text-muted-foreground hover:text-foreground",
               )}
               aria-current={active ? "page" : undefined}
@@ -54,7 +54,7 @@ export function ModuleNav() {
               >
                 {it.icon}
               </span>
-              {it.label}
+              <span className="landscape:hidden">{it.label}</span>
             </button>
           );
         })}

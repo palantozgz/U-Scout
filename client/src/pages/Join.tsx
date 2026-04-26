@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { fetchInvitationPublic, useAcceptInvitation } from "@/lib/player-home";
+import { useEffect } from "react";
 
 export default function JoinPage() {
   const { t } = useLocale();
@@ -57,6 +58,12 @@ export default function JoinPage() {
   }
 
   const data = preview.data!;
+
+  useEffect(() => {
+    if (user && token && !data?.used && !data?.expired && !acceptMutation.isPending && !acceptMutation.isSuccess) {
+      handleAccept();
+    }
+  }, [user, token, data]);
   if (data.used) {
     return (
       <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center gap-4">
@@ -114,7 +121,10 @@ export default function JoinPage() {
         ) : !user ? (
           <div className="space-y-3">
             <p className="text-sm text-center text-muted-foreground">{t("join_sign_in_to_accept")}</p>
-            <Button className="w-full font-bold" onClick={() => setLocation("/login")}>
+            <Button className="w-full font-bold" onClick={() => {
+              localStorage.setItem("pending_team_invite", token);
+              setLocation("/login");
+            }}>
               {t("sign_in")}
             </Button>
           </div>

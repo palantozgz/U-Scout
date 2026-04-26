@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Shield, ShieldAlert } from "lucide-react";
@@ -27,6 +27,33 @@ export default function JoinClub() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [registerSuccess, setRegisterSuccess] = useState(false);
+
+  async function acceptClubInvitationDirect(tok: string) {
+    try {
+      const res = await fetch(`/api/club/invitations/${tok}/accept`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}`,
+        },
+      });
+      if (res.ok) {
+        const body = await res.json();
+        setLocation(body.role === "player" ? "/player" : "/coach");
+      }
+    } catch {
+      // Silent fail — user will see the accept button on next load
+    }
+  }
+
+  useEffect(() => {
+    const pending = localStorage.getItem("pending_club_invite");
+    if (user && (token || pending)) {
+      const tok = token || pending || "";
+      localStorage.removeItem("pending_club_invite");
+      void acceptClubInvitationDirect(tok);
+    }
+  }, [user]);
 
   const preview = useQuery({
     queryKey: ["/api/club/invitations/preview", token],
@@ -58,8 +85,11 @@ export default function JoinClub() {
     setLoading(true);
     if (mode === "login") {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-      if (err) setError(err.message);
+      if (err) { setError(err.message); setLoading(false); return; }
+      // Auto-accept after login — user is now authenticated
+      await acceptClubInvitationDirect(token);
     } else {
+      localStorage.setItem("pending_club_invite", token);
       const { error: err } = await supabase.auth.signUp({
         email,
         password,

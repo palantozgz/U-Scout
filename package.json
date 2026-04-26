@@ -16,6 +16,9 @@
     "db:migrate": "DATABASE_URL=postgresql://postgres.ybpzvkkxcmwwxrrouyhm:Miercoles_13@aws-1-eu-west-1.pooler.supabase.com:5432/postgres drizzle-kit migrate"
   },
   "dependencies": {
+    "@capacitor/cli": "^8.3.1",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/ios": "^8.3.1",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@radix-ui/react-accordion": "^1.2.12",

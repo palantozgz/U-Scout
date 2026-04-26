@@ -18,23 +18,29 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/lib/motor-v2.1.ts` — motor base, lógica de inferencia
 - `client/src/lib/reportTextRenderer.ts` — texto EN/ES/ZH con gender
 - `client/src/lib/mock-data.ts` — playerInputToMotorInputs, clubRowToMotorContext
-- `client/src/pages/coach/ReportSlidesV1.tsx` — 3 slides (swipe + pips), coachMode kebabs + runners-up bottom sheet
-- `client/src/pages/coach/ReportViewV4.tsx` — shell coach_review: ReportSlidesV1 + barra aprobación
+- `client/src/pages/coach/ReportSlidesV1.tsx` — 3 slides (swipe + pips)
+- `client/src/pages/coach/ReportViewV4.tsx` — shell coach_review
 - `client/src/pages/coach/PlayerEditor.tsx` — editor inputs jugador
 - `client/src/pages/coach/Dashboard.tsx` — lista equipos/jugadores
 - `server/routes.ts` — rutas API Express
 - `server/storage.ts` — acceso Supabase
-- `scripts/calibrate-motor.ts` — 66 perfiles con expectations (100% / 551 checks)
-- `scripts/eval-motor-quality.ts` — 10 perfiles de calidad → scripts/eval-quality-results.txt
+- `scripts/calibrate-motor.ts` — 66 perfiles (100% / 551 checks)
+- `scripts/eval-motor-quality.ts` — 10 perfiles calidad
 
 ## i18n — arquitectura lazy (implementada 25 abr 2026)
-- `client/src/lib/i18n-core.ts` — runtime lazy: EN estático, ES/ZH async bajo demanda
-- `client/src/lib/i18n.ts` — re-export shim (todos los imports existentes sin cambios)
-- `client/src/lib/locales/en.ts` — bundle EN (estático, fallback síncrono)
+- `client/src/lib/i18n-core.ts` — runtime lazy: EN estático, ES/ZH async
+- `client/src/lib/i18n.ts` — re-export shim
+- `client/src/lib/locales/en.ts` — bundle EN (estático)
 - `client/src/lib/locales/es.ts` — chunk lazy ES (~23 KB gzip)
 - `client/src/lib/locales/zh.ts` — chunk lazy ZH (~24 KB gzip)
-- Para añadir clave: añadir en `locales/en.ts`, `locales/es.ts`, `locales/zh.ts`
-- Para añadir idioma: nuevo archivo en `locales/`, import dinámico en `i18n-core.ts`
+
+## Capacitor (instalado 25 abr 2026)
+- `capacitor.config.ts` — appId: com.ucore.app, webDir: dist/public
+- iOS platform añadido: `ios/` en repo
+- Xcode: NO instalado todavía (pesa ~10GB)
+- Apple Developer Account: NO contratada ($99/año — pendiente para TestFlight)
+- Estado: listo para compilar cuando se instale Xcode + cuenta developer
+- Comando para retomar: `npx cap sync && npx cap open ios`
 
 ## NUNCA tocar
 - `Profile.tsx`
@@ -46,141 +52,120 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ## Arquitectura 4 capas
 1. `motor-v4.ts` → scores numéricos + candidatos rankeados
-2. `reportTextRenderer.ts` → texto EN/ES/ZH con gender (instrucciones ejecutables)
+2. `reportTextRenderer.ts` → texto EN/ES/ZH con gender
 3. `overrideEngine.ts` → overrides + discrepancias + ML
-4. `ReportSlidesV1.tsx` → UI 3 slides + `ReportViewV4.tsx` → shell coach_review
+4. `ReportSlidesV1.tsx` → UI 3 slides + `ReportViewV4.tsx` → shell
 
 ## Flujo de navegación
-Dashboard → PlayerEditor → ReportViewV4 (coach_review) → Proponer/Publicar
+Dashboard → PlayerEditor → ReportViewV4 → Proponer/Publicar
 
 ---
 
 ## Estado actual — sesión 25 abr 2026 (noche)
 
 ### Commits de hoy (main)
-- `feat: splash + headers unificados con U mark — CORE/SCOUT/STATS coherentes`
-- `fix: replace chatgpt logo with correct U mark SVGs, add module logos`
-- `fix: ModuleHeader en Schedule — U SCHEDULE logo + tagline`
-- `feat: ReportSlidesV1 rediseño visual — slides más legibles, DENY/FORCE/ALLOW/AWARE coherentes`
-- `perf: i18n lazy loading + React.lazy code splitting — bundle 509→268 KB gzip`
-- `perf: remove framer-motion, lazy BasketballAvatar — main bundle 268→229 KB gzip`
+- `perf: i18n lazy loading + React.lazy — bundle 509→268 KB gzip`
+- `perf: remove framer-motion, lazy BasketballAvatar — 268→229 KB gzip`
+- `perf: prefetch club data on Home mount + staleTime 5min`
+- `fix: mobile responsive audit — 17 fixes across 6 files`
 
-### Bundle — estado actual ✅
-- **Build confirmado: 229.48 KB gzip (main chunk)**
-- Línea base original: 508.90 KB gzip
-- Reducción total: -55% en 3 fases
-- Margen para U Stats completo: +35 KB estimado → ~265 KB, bien bajo 300 KB
-- Chunks lazy activos: PlayerEditor, ReportSlidesV1, Schedule, ClubManagement, BasketballAvatar, ES, ZH
-- `Profile.tsx` chunk: 47 KB gzip (contiene BasketballAvatar estático — aceptable, no bloqueante)
-- Próximo fix opcional: `mock-data` 25 KB en main chunk (no bloqueante)
+### Bundle ✅
+- **229.49 KB gzip main chunk** (objetivo <300 KB cumplido)
+- Margen para U Stats: +35 KB estimado → ~265 KB
 
-### Motor (motor-v2.1.ts + motor-v4.ts)
-- **Calibración: 100% (551/551 checks, 66/66 perfiles)**
-- **Quality eval: 100% (46/46 checks, 10/10 perfiles)** ✅
+### Motor ✅
+- Calibración: 100% (551/551, 66 perfiles)
+- Quality eval: 100% (46/46, 10 perfiles)
 
-### Renderer (reportTextRenderer.ts)
-Textos EN/ES/ZH actualizados a instrucciones ejecutables. ZH: paridad conseguida. ✅
+### U Stats DB ✅
+- Schema completo ejecutado en Supabase (25 abr 2026)
+- Tablas: stats_leagues, stats_teams, stats_players, stats_games,
+  stats_boxscores, stats_season, stats_pbp, stats_standings,
+  stats_insights_cache, stats_sync_log
+- Seed: WCBA (competitionId=56, seasonId=2092) + 18 equipos
+- Blueprint completo: `STATS_BLUEPRINT.md`
 
-### Campos FT
-- `ftShooting` + `foulDrawing` conectados al motor
-- `ftRating`: @deprecated, retrocompat only
+### Raspberry Pi
+- Comprada en Taobao (Pi 5 8GB, ~1939 CNY)
+- En tránsito — pendiente de llegar
+- Uso: WCBA scraper + bot Telegram + Tailscale SSH
+- NO para IA en tiempo real (eso es Claude API en Railway)
 
 ### Club INNER MONGOLIA
 - Club ID: `4bca3aa8-9062-4709-9d29-9e2313308f1a`
-- Miembros: Pablo (owner) + Luffy + Yuming + Javier (coaches)
+- Miembros: Pablo (owner) + Luffy + Yuming + Javier
 
 ---
 
 ## Contexto de producto — U CORE
-Esta app ES U CORE. U Scout es un módulo dentro de U CORE junto a:
-- **U Schedule** — planner semanal, creación sesiones, attendance, export (`core/Schedule.tsx` — 228 KB, god file)
-- **U Wellness** — check-in diario jugadores, dashboard staff riesgo/tendencias
-- **U Scout** — scouting defensivo 1-on-1 (este módulo, el más avanzado)
-- **U Stats** — placeholder (`core/Stats.tsx` — 0.6 KB stub)
+- **U Schedule** — `core/Schedule.tsx` (228 KB, god file)
+- **U Wellness** — check-in diario jugadores
+- **U Scout** — scouting defensivo 1-on-1 (módulo más avanzado)
+- **U Stats** — DB lista, collector pendiente (Pi en tránsito)
 Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 
 ---
 
-## PLAN DE TRABAJO — Pre-TestFlight Beta (actualizado 25 abr 2026 noche)
+## PLAN DE TRABAJO — 2-3 semanas antes de TestFlight
 
-### FASE 0 — Bundle ✅ COMPLETADA
-- **229 KB gzip main chunk. Objetivo <300 KB cumplido con margen.**
+### ✅ COMPLETADO
+- Bundle optimizado (509→229 KB gzip)
+- Latencia Mi Club eliminada
+- Responsive móvil (17 fixes)
+- Capacitor instalado + iOS platform añadido
+- U Stats DB schema en Supabase
 
-### FASE PRE-BETA — Usabilidad mínima para primera beta (PRIORIDAD ACTUAL)
-Antes de Capacitor, la app debe ser usable en móvil real.
+### PRIORIDAD ACTUAL — por orden
 
-**PB-1. Mi Club — latencia 4-5s en carga inicial**
-- Síntoma: primera carga de /coach/club tarda 4-5 segundos
-- Causa probable: waterfall de queries sin prefetch ni skeleton adecuado
-- Fix: stale-while-revalidate en useClub, skeleton inmediato, prefetch desde Home
-- Archivos: `client/src/lib/club-api.ts`, `client/src/pages/coach/ClubManagement.tsx`
+**1. Figma → código** (1 mayo, reset créditos Figma MCP)
+- File: https://www.figma.com/design/odswsQA5XDEgULEDh2UMZi
+- Temas Gamenight/Office/Oldschool — CSS vars
+- Iconos defensivos ReportSlidesV1 — OBLIGATORIO Figma antes de código
 
-**PB-2. Responsive móvil — portrait y landscape**
-- Audit sistemático de todas las rutas en viewport móvil (375px portrait, 667px landscape)
-- Tamaños de botones: mínimo 44px touch target
-- Overflow, truncación, scroll, z-index en todos los módulos
-- Archivos: App.tsx shell, todos los pages
+**2. U Scout — mejoras calidad**
+- PlayerEditor audit completo (campo a campo)
+- ReportSlidesV1 implementación definitiva
+- Textos renderer en imperativo (sin sujeto)
 
-**PB-3. Diseño Figma → código**
-- Implementar los diseños aprobados en Figma que aún no están en código
-- Temas visuales (Gamenight/Office/Oldschool) — CSS vars
-- Iconos defensivos slides — OBLIGATORIO diseño Figma primero
+**3. U Stats — UI con datos reales**
+- POST /api/stats/ingest en Railway (Bearer token)
+- Stats Home UI con standings de WCBA
+- Opponent Report UI
+- Collector en Pi cuando llegue
 
-### FASE 5 — Capacitor + TestFlight
-```bash
-cd "/Users/palant/Downloads/U scout"
-npm install @capacitor/core @capacitor/cli @capacitor/ios
-npx cap init "U Core" "com.ucore.app"
-npx cap add ios
-npm run build
-npx cap sync
-npx cap open ios
-```
+**4. U Schedule — estabilización**
+- Schedule.tsx decomposition (god file 228 KB)
+- localStorage → server persistence
 
-### FASE 1 — U SCOUT pulido
-**1A.** PlayerEditor audit completo
-**1B.** ReportSlidesV1 implementación definitiva
-**1C.** Textos renderer sin sujeto (imperativo)
-**1D.** eval-report-llm.ts (ANTHROPIC_API_KEY en .env)
+**5. Audits y pruebas**
+- PlayerEditor en móvil real
+- ReportSlidesV1 swipe gestures
+- Schedule landscape
+- safe-area-inset iOS
 
-### FASE 2 — U SCHEDULE & WELLNESS
-**2A.** Schedule.tsx decomposition
-**2B.** localStorage → server persistence
-**2C.** Offline queue
-
-### FASE 3 — U STATS
-**3A.** Definir scope → **3B.** Figma → **3C.** Implementación
-
-### FASE 4 — Branding final
-**4A.** Temas CSS vars · **4B.** Iconos Figma · **4C.** Favicon + Rive
-
-### BACKLOG
-- motor-v2.1 server-side
-- mock-data lazy
-- Deep Report
-- Discrepancias coaches
-- Versiones inputs por coach
-- Hot/cold streaks
-- Modo Simple vs Pro
-- Refactor carpetas pages/coach/ → pages/scout/
+### CUANDO LLEGUE APPLE DEVELOPER ACCOUNT ($99/año)
+- Xcode (~10GB, Mac App Store)
+- `npx cap sync && npx cap open ios`
+- Signing & Capabilities → Team → cuenta developer
+- Archive → TestFlight
 
 ---
 
-- Scope: solo matchup 1-on-1. Sin situaciones colectivas.
-- Report: 3 SLIDES — Slide 1: ¿Quién es?, Slide 2: ¿Qué hará?, Slide 3: ¿Qué hago yo?
-- Mismo informe jugadora y entrenador (coachMode controla runners-up y edición)
-- ClubContext a nivel club, no por jugadora
-- Iconos: diseño Figma obligatorio. Nunca SVG generado desde código.
+## Principios de producto U CORE
+- Máximo 3 outputs accionables por pantalla
+- Coach usa la app en 2 min antes de un partido
+- Mobile-first: diseño para 375px portrait primero
+- Coherencia visual entre módulos
+- Iconos: Figma obligatorio, nunca SVG generado desde código
 
 ---
 
 ## Reglas entrega código (no negociables)
 - NUNCA "añade estas líneas aquí"
-- Siempre: archivo completo para copy-paste, O comando terminal con `cd`, O prompt Cursor completo
-- Ejecutar `npm run check` después de cada cambio
-- Cursor agent (Claude Sonnet) para ejecución multi-archivo
-- Claude para arquitectura, motor, generación de prompts
-- Destructive migrations: raw SQL en Supabase SQL Editor, nunca `drizzle-kit push`
+- Siempre: archivo completo, O comando terminal con `cd`, O prompt Cursor completo
+- `npm run check` después de cada cambio
+- Cursor agent (Sonnet) para ejecución
+- Destructive migrations: raw SQL en Supabase, nunca `drizzle-kit push`
 
 ## Scripts de validación
 ```bash
@@ -197,12 +182,12 @@ cd "/Users/palant/Downloads/U scout" && bash scripts/audit.sh > scripts/audit-ou
 ---
 
 ## Terminología
-- SCOUT: zona trabajo entrenador — editar inputs, revisar report, proponer al staff
-- DENY/FORCE/ALLOW: las 3 instrucciones defensivas del slide 3
-- AWARE: alertas situacionales (max 2 en el informe)
-- Runners-up: alternativas rankeadas por el motor por línea del informe
-- Override: decisión entrenador que sobreescribe output del motor
-- Discrepancia: dos entrenadores eligieron opciones distintas para el mismo ítem
-- Archetype: perfil ofensivo primario de la jugadora
-- trapResponse: reacción a blitz/hedge colectivo en PnR (escape/pass/struggle)
-- pressureResponse: reacción a presión individual (escapes/struggles)
+- SCOUT: zona trabajo entrenador
+- DENY/FORCE/ALLOW: instrucciones defensivas del slide 3
+- AWARE: alertas situacionales (max 2)
+- Runners-up: alternativas rankeadas por el motor
+- Override: decisión entrenador sobre output del motor
+- Discrepancia: dos entrenadores con opciones distintas
+- Archetype: perfil ofensivo primario
+- trapResponse: reacción a blitz/hedge en PnR
+- pressureResponse: reacción a presión individual
