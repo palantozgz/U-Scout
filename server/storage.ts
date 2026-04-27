@@ -249,15 +249,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPlayers(teamId?: string): Promise<Player[]> {
-    if (teamId) {
-      return db.select().from(players).where(eq(players.teamId, teamId));
-    }
-    return db.select().from(players);
+    const rows = teamId
+      ? await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE team_id = ${teamId}`)
+      : await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players`);
+    const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
+    return arr as Player[];
   }
 
   async getPlayer(id: string): Promise<Player | undefined> {
-    const [player] = await db.select().from(players).where(eq(players.id, id));
-    return player;
+    const rows = await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE id = ${id}`);
+    const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
+    return arr[0] as Player | undefined;
   }
 
   async createPlayer(player: InsertPlayer): Promise<Player> {

@@ -382,10 +382,10 @@ export default function ClubManagement() {
   const overview = useMemo(() => {
     if (!q.data) return null;
     const members = q.data.members;
-    const staff = members.filter((m) => m.role === "coach" || m.role === "head_coach").filter((m) => m.status === "active");
-    const roster = members.filter((m) => m.role === "player").filter((m) => m.status === "active");
-    const pendingInvites = q.data.pendingInvitations.length;
-    const banned = members.filter((m) => m.status === "banned").length;
+    const staff = (members ?? []).filter((m) => m.role === "coach" || m.role === "head_coach").filter((m) => m.status === "active");
+    const roster = (members ?? []).filter((m) => m.role === "player").filter((m) => m.status === "active");
+    const pendingInvites = (q.data.pendingInvitations ?? []).length;
+    const banned = (members ?? []).filter((m) => m.status === "banned").length;
 
     const missingContext: string[] = [];
     if (!q.data.club.leagueType) missingContext.push(t("club_ctx_league"));

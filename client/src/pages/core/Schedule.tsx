@@ -2371,7 +2371,7 @@ export default function Schedule() {
                 <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16 }}>
                   <div>
                     <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: -0.5 }}>
-                      {clubQ.data?.club.name || "My Club"}
+                      {clubQ.data?.club?.name || "My Club"}
                     </div>
                     <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: "#4b5563" }}>
                       {fmtWeekRange(selectedWeekStart)}

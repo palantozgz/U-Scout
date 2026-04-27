@@ -57,7 +57,7 @@ export default function Personnel() {
       promoteLabel: "Make official",
       promoteTip: "Official profiles can be sent to Film Room",
       sandboxLabel: "Practice only",
-      addCanonical: "+ Add canonical profile",
+      addCanonical: "+ New official profile",
       addSandbox: "+ Add practice profile",
       noTeams: "No teams yet. Create a team first from the editor.",
       canonical: "Official",
@@ -82,7 +82,7 @@ export default function Personnel() {
       promoteLabel: "Hacer oficial",
       promoteTip: "Las fichas oficiales pueden enviarse a la Sala de análisis",
       sandboxLabel: "Solo práctica",
-      addCanonical: "+ Añadir ficha canónica",
+      addCanonical: "+ Nueva ficha oficial",
       addSandbox: "+ Añadir ficha de prueba",
       noTeams: "Sin equipos. Crea un equipo primero desde el editor.",
       canonical: "Oficial",
@@ -107,7 +107,7 @@ export default function Personnel() {
       promoteLabel: "设为官方",
       promoteTip: "官方档案可发送至集体分析",
       sandboxLabel: "仅练习",
-      addCanonical: "+ 添加标准档案",
+      addCanonical: "+ 新建官方档案",
       addSandbox: "+ 添加练习档案",
       noTeams: "暂无球队，请先在编辑器中创建球队。",
       canonical: "官方",
@@ -132,7 +132,7 @@ export default function Personnel() {
     promoteLabel: "Make official",
     promoteTip: "Official profiles can be sent to Film Room",
     sandboxLabel: "Practice only",
-    addCanonical: "+ Add canonical profile",
+    addCanonical: "+ New official profile",
     addSandbox: "+ Add practice profile",
     noTeams: "No teams yet.",
     canonical: "Official",
@@ -158,15 +158,18 @@ export default function Personnel() {
       ...def,
       name: newPlayerName.trim() || "New Player",
       number: newPlayerNumber.trim(),
-      // is_canonical set server-side after promotion; new players start as sandbox
     };
     createPlayerMutation.mutate(payload as any, {
-      onSuccess: (created: PlayerProfile) => {
-        // If head coach, auto-promote to canonical
+      onSuccess: async (created: PlayerProfile) => {
+        // head_coach creates directly as canonical — no separate step needed
         if (isHeadCoach) {
-          void apiRequest("POST", `/api/players/${created.id}/canonical`).then(() => {
-            void qc.invalidateQueries({ queryKey: ["/api/players"] });
-          });
+          try {
+            const res = await apiRequest("POST", `/api/players/${created.id}/canonical`);
+            if (!res.ok) console.error("canonical promotion failed", res.status);
+          } catch (e) {
+            console.error("canonical promotion error", e);
+          }
+          await qc.invalidateQueries({ queryKey: ["/api/players"] });
         }
         setShowNewPlayer(false);
         setNewPlayerName("");
@@ -403,7 +406,7 @@ export default function Personnel() {
                       </p>
                     ) : (
                       players.map((player) => {
-                        const isCanonical = (player as any).isCanonical ?? false;
+                        const isCanonical = (player as any).isCanonical ?? (player as any).is_canonical ?? false;
                         const isPendingDel = pendingDelete === player.id;
                         return (
                           <div key={player.id} className="px-4 py-3 flex items-center gap-3 bg-background">
@@ -441,7 +444,7 @@ export default function Personnel() {
 
                             {/* Actions */}
                             <div className="flex items-center gap-1 shrink-0">
-                              {!isCanonical && isHeadCoach && (
+                              {!isCanonical && isHeadCoach && (player as any).createdByCoachId && (player as any).createdByCoachId !== profile?.id && (
                                 <div className="flex flex-col items-end gap-0.5">
                                   <Button
                                     size="sm"

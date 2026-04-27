@@ -29,6 +29,7 @@ const MyScout = lazy(() => import("@/pages/scout/MyScout"));
 const FilmRoom = lazy(() => import("@/pages/scout/FilmRoom"));
 const GamePlan = lazy(() => import("@/pages/scout/GamePlan"));
 const Personnel = lazy(() => import("@/pages/scout/Personnel"));
+const QuickScout = lazy(() => import("@/pages/scout/QuickScout"));
 const Settings = lazy(() => import("@/pages/scout/Settings"));
 const PlayerHome = lazy(() => import("@/pages/player/PlayerHome"));
 const PlayerHomeSettingsStub = lazy(() => import("@/pages/player/PlayerHomeSettingsStub"));
@@ -114,6 +115,9 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       {/* Coach Mode — specific paths before /coach */}
       <Route path="/coach/player/:id/profile" component={PlayerProfileViewer} />
       <Route path="/coach/player/:id" component={PlayerEditor} />
+      <Route path="/coach/quick-scout/:id">
+        {(params) => <QuickScout playerId={params.id ?? ""} />}
+      </Route>
       <Route path="/coach/scout/:id/preview" component={CoachScoutReportPreview} />
       <Route path="/coach/scout/:id/review" component={CoachScoutReportReview} />
       <Route path="/coach/club" component={ClubManagement} />
