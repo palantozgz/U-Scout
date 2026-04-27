@@ -143,18 +143,18 @@ export default function Schedule() {
   const { t, locale } = useLocale();
   const { profile } = useAuth();
   const clubQ = useClub();
-  const clubId = clubQ.data?.club.id;
+  const clubId = clubQ.data?.club?.id;
   const userId = profile?.id;
   const membership: ClubMembership | null = useMemo(() => {
     if (!profile?.id || !clubQ.data?.club) return null;
     const me = (clubQ.data.members ?? []).find((m) => m.userId === profile.id);
     if (!me) return null;
     return {
-      clubId: clubQ.data.club.id,
+      clubId: clubQ.data.club?.id,
       userId: profile.id,
       role: me.role as ClubMembership["role"],
       status: me.status as ClubMembership["status"],
-      isOwner: clubQ.data.club.ownerId === profile.id,
+      isOwner: clubQ.data.club?.ownerId === profile.id,
       operationsAccess: Boolean(me.operationsAccess),
     };
   }, [clubQ.data?.club, clubQ.data?.members, profile?.id]);

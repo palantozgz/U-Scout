@@ -315,6 +315,10 @@ export interface PlayerProfile {
   id: string; teamId: string; name: string; number: string; imageUrl: string;
   /** Set when report has been published (coach workflow). */
   published?: boolean;
+  /** True if created/promoted by head_coach or master — eligible for Film Room */
+  isCanonical?: boolean;
+  /** Coach who created this profile (used for My Scout filtering) */
+  createdByCoachId?: string;
   /**
    * Canonical scouting input payload used to generate outputs.
    * `inputs` is kept for backward-compatibility with older saved players.

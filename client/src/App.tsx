@@ -6,6 +6,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ClubGenderProvider } from "@/lib/clubGenderContext";
 import { Toaster } from "@/components/ui/toaster";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/lib/useAuth";
@@ -28,6 +29,10 @@ const PlayerEditor = lazy(() => import("@/pages/scout/PlayerEditor"));
 const ReportViewV4 = lazy(() => import("@/pages/scout/ReportViewV4"));
 const ReportSlidesV1 = lazy(() => import("@/pages/scout/ReportSlidesV1"));
 const TestMode = lazy(() => import("@/pages/scout/TestMode"));
+const MyScout = lazy(() => import("@/pages/scout/MyScout"));
+const FilmRoom = lazy(() => import("@/pages/scout/FilmRoom"));
+const GamePlan = lazy(() => import("@/pages/scout/GamePlan"));
+const Personnel = lazy(() => import("@/pages/scout/Personnel"));
 const Settings = lazy(() => import("@/pages/scout/Settings"));
 const PlayerHome = lazy(() => import("@/pages/player/PlayerHome"));
 const PlayerHomeSettingsStub = lazy(() => import("@/pages/player/PlayerHomeSettingsStub"));
@@ -126,6 +131,10 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       <Route path="/coach/reports">
         <CoachDashboard mode="reports" />
       </Route>
+      <Route path="/coach/my-scout" component={MyScout} />
+      <Route path="/coach/film-room" component={FilmRoom} />
+      <Route path="/coach/game-plan" component={GamePlan} />
+      <Route path="/coach/personnel" component={Personnel} />
       <Route path="/coach" component={CoachHome} />
       <Route path="/settings" component={Settings} />
       <Route path="/player/settings" component={Settings} />
@@ -288,6 +297,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ClubGenderProvider>
       <TooltipProvider>
+        <OfflineBanner />
         <Toaster />
         <div className="min-h-[100dvh] bg-background max-w-md mx-auto relative shadow-2xl overflow-hidden overflow-y-auto border-x border-border">
           {showSplash ? <UCoreBootSplash fadeOut={splashFadeOut} /> : null}

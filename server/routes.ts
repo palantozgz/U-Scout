@@ -354,6 +354,82 @@ export async function registerRoutes(
     }
   });
 
+  // ── Scout versions (Film Room backend) ───────────────────────────────────
+  // Mark player as canonical (head_coach / master only)
+  app.post("/api/players/:id/canonical", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const role = req.user!.role;
+      if (role !== "head_coach" && role !== "master") {
+        return res.status(403).json({ error: "Only head_coach or master can mark canonical" });
+      }
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      await storage.setPlayerCanonical(playerId, true);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: "Failed to set canonical" });
+    }
+  });
+
+  // Upsert this coach's scout version (auto-save from PlayerEditor)
+  app.put("/api/players/:id/scout-version", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const coachId = req.user!.id;
+      const { inputs } = req.body;
+      if (!inputs || typeof inputs !== "object") {
+        return res.status(400).json({ error: "inputs required" });
+      }
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      const version = await storage.upsertScoutVersion(playerId, coachId, inputs);
+      res.json(version);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to save scout version" });
+    }
+  });
+
+  // Submit this coach's version to Film Room
+  app.post("/api/players/:id/scout-version/submit", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const coachId = req.user!.id;
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      if (!(player as any).is_canonical) {
+        return res.status(400).json({ error: "Player is not canonical — cannot submit to Film Room" });
+      }
+      const version = await storage.getScoutVersion(playerId, coachId);
+      if (!version) return res.status(404).json({ error: "No scout version found for this coach" });
+      await storage.submitScoutVersion(playerId, coachId);
+      // Also upsert the report approval (existing flow)
+      await storage.upsertReportApproval(playerId, coachId);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: "Failed to submit scout version" });
+    }
+  });
+
+  // List all scout versions for a player (Film Room view)
+  app.get("/api/players/:id/scout-versions", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const coachId = req.user!.id;
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      // Anti-bias: coach can only see all versions if they have submitted their own
+      const myVersion = await storage.getScoutVersion(playerId, coachId);
+      if (!myVersion || myVersion.status === "draft") {
+        return res.status(403).json({ error: "Submit your own version first" });
+      }
+      const versions = await storage.listScoutVersionsForPlayer(playerId);
+      res.json({ versions, isCanonical: !!(player as any).is_canonical });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load scout versions" });
+    }
+  });
+
   // ── Player home (membership + assigned scouting reports) ─────────────────
   app.get("/api/player/home", requireAuth, async (req, res) => {
     try {

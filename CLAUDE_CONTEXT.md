@@ -56,9 +56,58 @@ Dashboard → PlayerEditor → ReportViewV4 → Proponer/Publicar
 
 ---
 
-## Estado actual — sesión 25 abr 2026
+## Estado actual — sesión 27 abr 2026
 
 ### Commits de hoy (main)
+- `feat: bloque-A limpieza repo — 15 archivos basura, aliases muertos, pages/coach→pages/scout`
+- `feat: bloque 1 — hot/cold streaks, approval indicators, discrepancy UI, Home crash fix`
+- `feat: sprint 1+2A — U Scout workflow redesign, player_scout_versions schema, Schedule crash fix`
+- `feat: sprints 2B+3 — Personnel UI, MyScout UI, Schedule crash fix, header spacing, isCanonical schema`
+
+### U Scout — nuevo workflow (sprints 1–3)
+**Arquitectura de 4 contenedores aprobada e implementada:**
+- `/coach` → CoachHome rediseñado: alertas smart + Personnel + separador WORKFLOW + MY SCOUT → FILM ROOM → GAME PLAN
+- `/coach/personnel` → Personnel.tsx: fichas canónicas (head_coach) + modo sandbox (coaches normales)
+- `/coach/my-scout` → MyScout.tsx: mis fichas, botón → Film Room solo si isCanonical + tiene report
+- `/coach/film-room` → FilmRoom.tsx: stub (Sprint 4)
+- `/coach/game-plan` → GamePlan.tsx: stub (Sprint 5)
+
+**Schema añadido (SQL Supabase, no schema.ts):**
+- `players.is_canonical` boolean DEFAULT false
+- `player_scout_versions` tabla: (player_id, coach_id, inputs JSONB, status, submitted_at)
+- Datos de experimentos limpiados (DELETE FROM players/approvals/overrides)
+
+**Backend añadido (storage.ts + routes.ts):**
+- `POST /api/players/:id/canonical` — promover a canónica (head_coach/master)
+- `PUT /api/players/:id/scout-version` — guardar versión coach
+- `POST /api/players/:id/scout-version/submit` — enviar al Film Room
+- `GET /api/players/:id/scout-versions` — listar versiones (anti-bias: solo si ya enviaste)
+
+**PlayerProfile en mock-data.ts:**
+- `isCanonical?: boolean`
+- `createdByCoachId?: string`
+
+**Hotfixes:**
+- Schedule.tsx: `clubQ.data.club.` → `clubQ.data.club?.` (2 puntos)
+- ModuleHeader.tsx: MARK_SIZE 120→88, HEADER_PT 1.25→0.75rem (todos los módulos)
+- Home.tsx cards: eliminado `uppercase` CSS (solo U Core mantiene mayúsculas)
+
+**Nombres finales EN/ES/ZH:**
+| Menú | EN | ES | ZH |
+|------|----|----|----|
+| Infraestructura | Personnel | Plantilla | 球员档案 |
+| Mi trabajo | My Scout | Mi Scout | 我的报告 |
+| Trabajo grupo | Film Room | Sala de análisis | 集体分析 |
+| Publicado | Game Plan | Plan de juego | 比赛方案 |
+
+**Próximos sprints:**
+- Sprint 4: Film Room UI (vista colectiva, anti-bias, panel discrepancias)
+- Sprint 5: Game Plan UI (vista publicada, botón retirar)
+- Sprint 6: Stats badges (capa presentación, cuando Pi esté activa)
+- Wizard rápido 3 preguntas (entrada opcional PlayerEditor)
+- Offline approve-en-hold (Sprint 3 extendido)
+
+### Sesión anterior (25 abr)
 - `perf: i18n lazy loading + React.lazy — bundle 509→268 KB gzip`
 - `perf: remove framer-motion, lazy BasketballAvatar — 268→229 KB gzip`
 - `perf: prefetch club data on Home mount + staleTime 5min`
@@ -114,43 +163,22 @@ Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 - Stats card falsa — POSPUESTO (en diseño Figma)
 - Schedule localStorage → server persistence — POSPUESTO (Fase 2B)
 
-### 🎯 BLOQUE 1 — U Scout features incompletas (PRIORIDAD ACTUAL)
+### ✅ BLOQUE 1 — U Scout features incompletas (completado 27 abr)
+- 1A ✅ Approval workflow UI — stage 1/2/3 en ReportViewV4 (draft → approved → published)
+- 1B ✅ Discrepancias — badge amber en Dashboard + detalle de items en conflicto en ReportViewV4
+- 1C ✅ Hot/Cold streaks — `recentForm` en PlayerInput, selector en PlayerEditor, badge en slide 1
+- 1D ✅ Redirect post-PlayerEditor (ya estaba implementado)
+- 1E ✅ Swipe hint ReportSlidesV1 (ya estaba implementado)
+- 1F ✅ Textos imperativos renderer (ya estaba implementado)
+- NOTA: flujo nivel 2 "visible al staff" requiere schema change — pendiente Fase 2
 
-**1A. Workflow de aprobación — indicadores de estado**
-El flujo de 3 niveles existe en backend pero la UI no lo comunica:
-- Nivel 1: Coach edita inputs → report privado
-- Nivel 2: Coach aprueba → visible al staff
-- Nivel 3: Cualquier aprobado publica → llega a jugadora
-Fix: indicadores visuales claros en ReportViewV4 del estado actual + siguiente acción.
-Archivos: `client/src/pages/coach/ReportViewV4.tsx`, `client/src/lib/approval-api.ts`
+### hotfix (27 abr)
+- Home.tsx crash — `clubData.club` sin optional chaining en 3 puntos (showClubActivityDot, useEffect roster, clubId)
 
-**1B. Discrepancias entre entrenadores — UI no implementada**
-Backend detecta discrepancias (hasDiscrepancy en routes.ts) pero nunca se muestran.
-Fix: badge "Discrepancia" en Dashboard + vista comparación en ReportViewV4.
-Archivos: `Dashboard.tsx`, `ReportViewV4.tsx`
-
-**1C. Hot/Cold streaks — no implementado**
-No existe en motor ni en PlayerEditor.
-Fix: campo `recentForm: "hot"|"cold"|"stable"` en PlayerEditor + motor + slide 1.
-
-**1D. Flujo post-PlayerEditor**
-Guardar jugador → vuelve al Dashboard → entrenador navega al report manualmente.
-Fix: redirect automático a ReportViewV4 tras guardar.
-Archivo: `client/src/pages/coach/PlayerEditor.tsx`
-
-**1E. Hint de swipe en ReportSlidesV1**
-Sin indicador visual de que los slides son swipeables.
-Fix: micro-animación nudge (8px) en el primer slide, solo primera visita (localStorage flag).
-Archivo: `client/src/pages/coach/ReportSlidesV1.tsx`
-
-**1F. Textos renderer en imperativo**
-Textos con sujeto: "they drive left" → imperativo: "drives left".
-Archivo: `client/src/lib/reportTextRenderer.ts`
-
-### BLOQUE 3 — Offline system
-- Queue de mutations offline con retry al recuperar conexión
-- Indicador visual "Sin conexión"
-- Scope mínimo: PlayerEditor save + ReportApproval + WellnessEntry
+### ✅ BLOQUE 3 — Offline system (completado 27 abr)
+- Queue de mutations offline PlayerEditor: ya existía en queryClient.ts (enqueueOfflinePlayerMutation + flushOfflinePlayerMutations)
+- Indicador visual OfflineBanner: `client/src/components/OfflineBanner.tsx` — banner fijo top, amber pulse, desaparece al reconectar
+- WellnessEntry offline — POSPUESTO (requiere queue separada, bajo impacto TestFlight)
 
 ### BLOQUE 4 — Figma (1 mayo)
 - File: https://www.figma.com/design/odswsQA5XDEgULEDh2UMZi
@@ -202,6 +230,6 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts --jud
 - Runners-up: alternativas rankeadas por el motor
 - Override: decisión entrenador sobre output del motor
 - Discrepancia: dos entrenadores con opciones distintas
-- Hot/Cold/Stable: tendencia reciente jugador (pendiente 1C)
+- Hot/Cold/Stable: tendencia reciente jugador — campo `recentForm` en PlayerInput
 - trapResponse: reacción a blitz/hedge en PnR
 - pressureResponse: reacción a presión individual

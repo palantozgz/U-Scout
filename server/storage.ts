@@ -36,6 +36,18 @@ import {
   playerReportViews,
 } from "@shared/schema";
 
+// ── Scout version types (player_scout_versions table — raw SQL, not in schema.ts) ──
+export interface ScoutVersion {
+  id: string;
+  playerId: string;
+  coachId: string;
+  inputs: Record<string, unknown>;
+  submittedAt: Date | null;
+  status: "draft" | "submitted" | "merged";
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -136,6 +148,16 @@ export interface IStorage {
   publishPlayerReport(playerId: string, publishedBy: string): Promise<Player | undefined>;
   unpublishPlayerReport(playerId: string): Promise<Player | undefined>;
 
+  // is_canonical management
+  setPlayerCanonical(playerId: string, isCanonical: boolean): Promise<void>;
+
+  // player_scout_versions management
+  upsertScoutVersion(playerId: string, coachId: string, inputs: Record<string, unknown>): Promise<ScoutVersion>;
+  getScoutVersion(playerId: string, coachId: string): Promise<ScoutVersion | undefined>;
+  listScoutVersionsForPlayer(playerId: string): Promise<ScoutVersion[]>;
+  submitScoutVersion(playerId: string, coachId: string): Promise<void>;
+  mergeAndClearScoutVersions(playerId: string): Promise<void>;
+
   userHasScoutingReportAssignment(userId: string, playerId: string): Promise<boolean>;
   recordPlayerReportSlideView(userId: string, playerId: string, slideIndex: number): Promise<void>;
   listPlayerTeamsReportSummary(
@@ -145,6 +167,19 @@ export interface IStorage {
     userId: string,
     teamId: string,
   ): Promise<Array<{ player: Player; viewStatus: "none" | "partial" | "complete" }>>;
+}
+
+function rowToScoutVersion(row: Record<string, unknown>): ScoutVersion {
+  return {
+    id: row.id as string,
+    playerId: row.player_id as string,
+    coachId: row.coach_id as string,
+    inputs: row.inputs as Record<string, unknown>,
+    submittedAt: row.submitted_at ? new Date(row.submitted_at as string) : null,
+    status: row.status as "draft" | "submitted" | "merged",
+    createdAt: new Date(row.created_at as string),
+    updatedAt: new Date(row.updated_at as string),
+  };
 }
 
 export class DatabaseStorage implements IStorage {
@@ -689,6 +724,70 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updated;
     });
+  }
+
+  async setPlayerCanonical(playerId: string, isCanonical: boolean): Promise<void> {
+    await db.execute(
+      sql`UPDATE players SET is_canonical = ${isCanonical} WHERE id = ${playerId}`
+    );
+  }
+
+  async upsertScoutVersion(
+    playerId: string,
+    coachId: string,
+    inputs: Record<string, unknown>,
+  ): Promise<ScoutVersion> {
+    const res = await db.execute(sql`
+      INSERT INTO player_scout_versions (player_id, coach_id, inputs, status)
+      VALUES (${playerId}, ${coachId}, ${JSON.stringify(inputs)}::jsonb, 'draft')
+      ON CONFLICT (player_id, coach_id)
+      DO UPDATE SET inputs = ${JSON.stringify(inputs)}::jsonb, updated_at = now()
+      RETURNING *
+    `);
+    const rows = ((res as any).rows ?? res) as Record<string, unknown>[];
+    return rowToScoutVersion(rows[0] as Record<string, unknown>);
+  }
+
+  async getScoutVersion(playerId: string, coachId: string): Promise<ScoutVersion | undefined> {
+    const res = await db.execute(sql`
+      SELECT * FROM player_scout_versions
+      WHERE player_id = ${playerId} AND coach_id = ${coachId}
+    `);
+    const rows = ((res as any).rows ?? res) as Record<string, unknown>[];
+    return rows[0] ? rowToScoutVersion(rows[0] as Record<string, unknown>) : undefined;
+  }
+
+  async listScoutVersionsForPlayer(playerId: string): Promise<ScoutVersion[]> {
+    const res = await db.execute(sql`
+      SELECT * FROM player_scout_versions
+      WHERE player_id = ${playerId}
+      ORDER BY created_at ASC
+    `);
+    const rows = ((res as any).rows ?? res) as Record<string, unknown>[];
+    return rows.map(rowToScoutVersion);
+  }
+
+  async submitScoutVersion(playerId: string, coachId: string): Promise<void> {
+    await db.execute(sql`
+      UPDATE player_scout_versions
+      SET status = 'submitted', submitted_at = now()
+      WHERE player_id = ${playerId} AND coach_id = ${coachId}
+    `);
+  }
+
+  async mergeAndClearScoutVersions(playerId: string): Promise<void> {
+    // Called when head_coach publishes to Game Plan.
+    // Deletes all per-coach versions — the canonical inputs are already
+    // in players.inputs (set by head_coach during the merge/publish step).
+    await db.execute(sql`
+      DELETE FROM player_scout_versions WHERE player_id = ${playerId}
+    `);
+    await db.execute(sql`
+      UPDATE report_approvals SET coach_id = coach_id WHERE player_id = ${playerId}
+    `);
+    await db.execute(sql`
+      DELETE FROM report_overrides WHERE player_id = ${playerId}
+    `);
   }
 
   async userHasScoutingReportAssignment(userId: string, playerId: string): Promise<boolean> {
