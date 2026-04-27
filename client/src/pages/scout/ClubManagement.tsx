@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList, Dumbbell, X } from "lucide-react";
+import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList, Dumbbell, X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -242,7 +242,7 @@ export default function ClubManagement() {
   const { profile } = useAuth();
   const [clubNameDraft, setClubNameDraft] = useState("");
   const [nameDirty, setNameDirty] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("club");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteRole, setInviteRole] = useState<"coach" | "player">("coach");
@@ -255,7 +255,7 @@ export default function ClubManagement() {
 
   const membership: ClubMembership | null = useMemo(() => {
     if (!profile?.id || !q.data?.club) return null;
-    const me = q.data.members.find((m) => m.userId === profile.id);
+    const me = q.data.members?.find((m) => m.userId === profile.id);
     if (!me) return null;
     return {
       clubId: q.data.club.id,
@@ -325,7 +325,7 @@ export default function ClubManagement() {
   const canEditClubContext = useMemo(() => {
     if (!profile || !q.data) return false;
     if (caps.canEditClub) return true;
-    const me = q.data.members.find((m) => m.userId === profile.id);
+    const me = q.data.members?.find((m) => m.userId === profile.id);
     return me?.status === "active" && me.role === "head_coach";
   }, [caps.canEditClub, profile, q.data]);
 
@@ -552,472 +552,437 @@ export default function ClubManagement() {
 
         {q.data && (
           <>
-            <section className="rounded-2xl border border-border bg-card p-4 mb-6 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                <input
-                  ref={logoFileRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={onLogoFile}
-                />
-                <div className="flex w-full sm:w-[6.75rem] sm:shrink-0 flex-col items-center sm:items-stretch gap-2">
-                  {canEditBranding && !isClubLogoImageUrl(q.data.club.logo) ? (
-                    <button
-                      type="button"
-                      onClick={cycleLogo}
-                      disabled={patchClub.isPending}
-                      className={cn(
-                        "flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30 text-5xl leading-none transition-[box-shadow]",
-                        "ring-offset-background hover:ring-2 hover:ring-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50",
-                      )}
-                      title={t("club_logo_hint")}
-                      aria-label={t("club_logo_hint")}
-                    >
-                      <ClubLogoView logo={q.data.club.logo} className="max-h-[5.5rem] max-w-[5.5rem]" />
-                    </button>
-                  ) : (
-                    <div
-                      className={cn(
-                        "flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30 text-5xl leading-none",
-                        canEditBranding && isClubLogoImageUrl(q.data.club.logo) && "ring-offset-background ring-2 ring-transparent",
-                      )}
-                    >
-                      <ClubLogoView logo={q.data.club.logo} className="max-h-[5.5rem] max-w-[5.5rem]" />
-                    </div>
-                  )}
-                  {canEditBranding &&
-                    (isClubLogoImageUrl(q.data.club.logo) ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            className="h-8 w-full px-1 text-[10px] font-bold leading-tight"
-                            disabled={patchClub.isPending}
-                          >
-                            {t("club_logo_manage")}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="center" className="min-w-[10rem]">
-                          <DropdownMenuItem
-                            className="font-medium"
-                            onSelect={() => {
-                              window.requestAnimationFrame(() => logoFileRef.current?.click());
-                            }}
-                          >
-                            {t("club_logo_replace")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="font-medium text-destructive focus:text-destructive"
-                            onSelect={() => patchClub.mutate({ logo: "🏀" })}
-                          >
-                            {t("club_logo_remove")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="h-8 w-full px-1 text-[10px] font-bold leading-tight"
-                        disabled={patchClub.isPending}
-                        onClick={() => logoFileRef.current?.click()}
-                      >
-                        {t("club_logo_upload")}
-                      </Button>
-                    ))}
-                </div>
-                <div className="min-w-0 w-full space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_name_label")}</p>
-                  {canEditBranding ? (
-                    <Input
-                      value={clubNameDraft}
-                      onChange={(e) => {
-                        setNameDirty(true);
-                        setClubNameDraft(e.target.value);
-                      }}
-                      onBlur={onNameBlur}
-                      className="font-bold text-lg bg-background border-border"
-                    />
-                  ) : (
-                    <p className="text-lg font-bold text-foreground truncate">{q.data.club.name}</p>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-border bg-card p-4 mb-6 space-y-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_ctx_section")}</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">{t("club_ctx_hint")}</p>
-              {!canEditClubContext && (
-                <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-primary/40 pl-3">
-                  {t("club_ctx_viewer_hint")}
-                </p>
-              )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_league")}</Label>
-                  <Select
-                    disabled={!canEditClubContext || patchClub.isPending}
-                    value={q.data.club.leagueType ?? CTX_UNSET}
-                    onValueChange={(v) => {
-                      const newLeague = v === CTX_UNSET ? null : (v as ClubLeagueType);
-                      const updates: PatchClubBody = { leagueType: newLeague };
-                      if (newLeague) {
-                        const infer = LEAGUE_AUTO_INFER[newLeague] ?? {};
-                        updates.gender = infer.gender;
-                        updates.level = infer.level;
-                        // `LEAGUE_AUTO_INFER` may not declare ageCategory in its TS type.
-                        // Only apply if present at runtime.
-                        const inferredAgeCategory = (infer as { ageCategory?: PatchClubBody["ageCategory"] }).ageCategory;
-                        if (inferredAgeCategory !== undefined) updates.ageCategory = inferredAgeCategory;
-                        patchClub.mutate(updates, {
-                          onSuccess: () => {
-                            toast({ description: t("club_league_infer_toast") });
-                          },
-                        });
-                        return;
-                      }
-                      patchClub.mutate(updates);
-                    }}
-                  >
-                    <SelectTrigger className="bg-background border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
-                      {CLUB_LEAGUE_SELECT_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {t(opt.i18nKey as never)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_gender")}</Label>
-                  <Select
-                    disabled={
-                      !canEditClubContext ||
-                      patchClub.isPending ||
-                      leagueLocksContextFields(q.data.club.leagueType)
-                    }
-                    value={q.data.club.gender ?? CTX_UNSET}
-                    onValueChange={(v) =>
-                      patchClub.mutate({ gender: v === CTX_UNSET ? null : (v as ClubGender) })
-                    }
-                  >
-                    <SelectTrigger className="bg-background border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
-                      {CLUB_GENDERS.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {t(`club_gender_${opt}` as never)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_level")}</Label>
-                  <Select
-                    disabled={
-                      !canEditClubContext ||
-                      patchClub.isPending ||
-                      leagueLocksContextFields(q.data.club.leagueType)
-                    }
-                    value={q.data.club.level ?? CTX_UNSET}
-                    onValueChange={(v) =>
-                      patchClub.mutate({ level: v === CTX_UNSET ? null : (v as ClubLevel) })
-                    }
-                  >
-                    <SelectTrigger className="bg-background border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
-                      {CLUB_LEVELS.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {t(`club_level_${opt}` as never)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_age")}</Label>
-                  <Select
-                    disabled={
-                      !canEditClubContext ||
-                      patchClub.isPending ||
-                      leagueLocksContextFields(q.data.club.leagueType)
-                    }
-                    value={q.data.club.ageCategory ?? CTX_UNSET}
-                    onValueChange={(v) =>
-                      patchClub.mutate({
-                        ageCategory: v === CTX_UNSET ? null : (v as ClubAgeCategory),
-                      })
-                    }
-                  >
-                    <SelectTrigger className="bg-background border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
-                      {CLUB_AGE_CATEGORIES.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {t(`club_age_${opt}` as never)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </section>
-
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="club" className="w-full">
               <TabsList
                 className="flex h-auto w-full overflow-x-auto justify-start gap-1 p-1 mb-4"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               >
-                <TabsTrigger value="overview" className="text-xs font-bold">
-                      {t("club_tab_overview")}
+                <TabsTrigger value="club" className="text-xs font-bold">
+                  {locale === "zh" ? "球队" : locale === "es" ? "Club" : "Club"}
                 </TabsTrigger>
-                <TabsTrigger value="staff" className="text-xs font-bold">
-                  {t("club_tab_staff")}
+                <TabsTrigger value="liga" className="text-xs font-bold">
+                  {locale === "zh" ? "赛程" : locale === "es" ? "Liga" : "League"}
                 </TabsTrigger>
-                <TabsTrigger value="roster" className="text-xs font-bold">
-                  {t("club_tab_roster")}
-                </TabsTrigger>
-                <TabsTrigger value="invites" className="text-xs font-bold">
-                  {t("club_tab_invitations")}
+                <TabsTrigger value="equipo" className="text-xs font-bold">
+                  {locale === "zh" ? "团队" : locale === "es" ? "Equipo" : "Team"}
                 </TabsTrigger>
                 <TabsTrigger value="stats" className="text-xs font-bold">
                   {t("club_tab_stats")}
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="overview" className="space-y-4 mt-0">
-                {!overview ? null : (
-                  <>
-                    <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_overview_important_alerts")}</p>
-                          <p className="text-xs text-muted-foreground mt-1">{t("club_overview_subtitle")}</p>
-                        </div>
-                        <AlertTriangle className="w-4 h-4 text-muted-foreground shrink-0" />
-                      </div>
-                      <ul className="space-y-2">
-                        {overview.alerts.slice(0, 3).map((a) => (
-                          <li key={a.key} className="rounded-xl border border-border bg-background/40 p-3">
-                            <p className="text-sm font-semibold text-foreground">{a.title}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{a.body}</p>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-
-                    <section className="grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl border border-border bg-card p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_overview_staff_active")}</p>
-                        <p className="mt-2 text-2xl font-black text-foreground">{overview.staffCount}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-card p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_overview_roster_active")}</p>
-                        <p className="mt-2 text-2xl font-black text-foreground">{overview.rosterCount}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-card p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_overview_pending_invites")}</p>
-                        <p className="mt-2 text-2xl font-black text-foreground">{overview.pendingInvites}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-card p-4">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_overview_compliance")}</p>
-                          <ShieldCheck className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        <p className="mt-2 text-2xl font-black text-foreground">
-                          {overview.complianceScore}/{overview.complianceTotal}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {overview.missingContext.length === 0
-                            ? t("club_overview_compliance_configured")
-                            : t("club_overview_compliance_missing")
-                                .replace("{count}", String(overview.missingContext.length))}
-                        </p>
-                      </div>
-                    </section>
-
-                    <section className="rounded-2xl border border-border bg-card p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{t("club_overview_quick_actions")}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {canInviteMembers ? (
-                          <>
-                            <Button size="sm" variant="secondary" className="font-bold gap-2" onClick={() => openInvite("coach")}>
-                              <UserPlus className="w-4 h-4" />
-                              {t("club_invite_staff")}
-                            </Button>
-                            <Button size="sm" variant="secondary" className="font-bold gap-2" onClick={() => openInvite("player")}>
-                              <UserPlus className="w-4 h-4" />
-                              {t("club_invite_player")}
-                            </Button>
-                          </>
-                        ) : null}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="font-bold gap-2"
-                          onClick={() => setActiveTab("invites")}
+              <TabsContent value="club" className="space-y-4 mt-0">
+                <section className="rounded-2xl border border-border bg-card p-4 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                    <input
+                      ref={logoFileRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={onLogoFile}
+                    />
+                    <div className="flex w-full sm:w-[6.75rem] sm:shrink-0 flex-col items-center sm:items-stretch gap-2">
+                      {canEditBranding && !isClubLogoImageUrl(q.data.club.logo) ? (
+                        <button
+                          type="button"
+                          onClick={cycleLogo}
+                          disabled={patchClub.isPending}
+                          className={cn(
+                            "flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30 text-5xl leading-none transition-[box-shadow]",
+                            "ring-offset-background hover:ring-2 hover:ring-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50",
+                          )}
+                          title={t("club_logo_hint")}
+                          aria-label={t("club_logo_hint")}
                         >
-                          <ClipboardList className="w-4 h-4" />
-                          {t("club_tab_invitations")}
+                          <ClubLogoView logo={q.data.club.logo} className="max-h-[5.5rem] max-w-[5.5rem]" />
+                        </button>
+                      ) : (
+                        <div
+                          className={cn(
+                            "flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30 text-5xl leading-none",
+                            canEditBranding && isClubLogoImageUrl(q.data.club.logo) && "ring-offset-background ring-2 ring-transparent",
+                          )}
+                        >
+                          <ClubLogoView logo={q.data.club.logo} className="max-h-[5.5rem] max-w-[5.5rem]" />
+                        </div>
+                      )}
+                      {canEditBranding &&
+                        (isClubLogoImageUrl(q.data.club.logo) ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                className="h-8 w-full px-1 text-[10px] font-bold leading-tight"
+                                disabled={patchClub.isPending}
+                              >
+                                {t("club_logo_manage")}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="center" className="min-w-[10rem]">
+                              <DropdownMenuItem
+                                className="font-medium"
+                                onSelect={() => {
+                                  window.requestAnimationFrame(() => logoFileRef.current?.click());
+                                }}
+                              >
+                                {t("club_logo_replace")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="font-medium text-destructive focus:text-destructive"
+                                onSelect={() => patchClub.mutate({ logo: "🏀" })}
+                              >
+                                {t("club_logo_remove")}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="h-8 w-full px-1 text-[10px] font-bold leading-tight"
+                            disabled={patchClub.isPending}
+                            onClick={() => logoFileRef.current?.click()}
+                          >
+                            {t("club_logo_upload")}
+                          </Button>
+                        ))}
+                    </div>
+                    <div className="min-w-0 w-full space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_name_label")}</p>
+                      {canEditBranding ? (
+                        <Input
+                          value={clubNameDraft}
+                          onChange={(e) => {
+                            setNameDirty(true);
+                            setClubNameDraft(e.target.value);
+                          }}
+                          onBlur={onNameBlur}
+                          className="font-bold text-lg bg-background border-border"
+                        />
+                      ) : (
+                        <p className="text-lg font-bold text-foreground truncate">{q.data.club.name}</p>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_ctx_section")}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{t("club_ctx_hint")}</p>
+                  {!canEditClubContext && (
+                    <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-primary/40 pl-3">
+                      {t("club_ctx_viewer_hint")}
+                    </p>
+                  )}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_league")}</Label>
+                      <Select
+                        disabled={!canEditClubContext || patchClub.isPending}
+                        value={q.data.club.leagueType ?? CTX_UNSET}
+                        onValueChange={(v) => {
+                          const newLeague = v === CTX_UNSET ? null : (v as ClubLeagueType);
+                          const updates: PatchClubBody = { leagueType: newLeague };
+                          if (newLeague) {
+                            const infer = LEAGUE_AUTO_INFER[newLeague] ?? {};
+                            updates.gender = infer.gender;
+                            updates.level = infer.level;
+                            // `LEAGUE_AUTO_INFER` may not declare ageCategory in its TS type.
+                            // Only apply if present at runtime.
+                            const inferredAgeCategory = (infer as { ageCategory?: PatchClubBody["ageCategory"] }).ageCategory;
+                            if (inferredAgeCategory !== undefined) updates.ageCategory = inferredAgeCategory;
+                            patchClub.mutate(updates, {
+                              onSuccess: () => {
+                                toast({ description: t("club_league_infer_toast") });
+                              },
+                            });
+                            return;
+                          }
+                          patchClub.mutate(updates);
+                        }}
+                      >
+                        <SelectTrigger className="bg-background border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
+                          {CLUB_LEAGUE_SELECT_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {t(opt.i18nKey as never)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_gender")}</Label>
+                      <Select
+                        disabled={
+                          !canEditClubContext ||
+                          patchClub.isPending ||
+                          leagueLocksContextFields(q.data.club.leagueType)
+                        }
+                        value={q.data.club.gender ?? CTX_UNSET}
+                        onValueChange={(v) =>
+                          patchClub.mutate({ gender: v === CTX_UNSET ? null : (v as ClubGender) })
+                        }
+                      >
+                        <SelectTrigger className="bg-background border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
+                          {CLUB_GENDERS.map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                              {t(`club_gender_${opt}` as never)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_level")}</Label>
+                      <Select
+                        disabled={
+                          !canEditClubContext ||
+                          patchClub.isPending ||
+                          leagueLocksContextFields(q.data.club.leagueType)
+                        }
+                        value={q.data.club.level ?? CTX_UNSET}
+                        onValueChange={(v) =>
+                          patchClub.mutate({ level: v === CTX_UNSET ? null : (v as ClubLevel) })
+                        }
+                      >
+                        <SelectTrigger className="bg-background border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
+                          {CLUB_LEVELS.map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                              {t(`club_level_${opt}` as never)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_age")}</Label>
+                      <Select
+                        disabled={
+                          !canEditClubContext ||
+                          patchClub.isPending ||
+                          leagueLocksContextFields(q.data.club.leagueType)
+                        }
+                        value={q.data.club.ageCategory ?? CTX_UNSET}
+                        onValueChange={(v) =>
+                          patchClub.mutate({
+                            ageCategory: v === CTX_UNSET ? null : (v as ClubAgeCategory),
+                          })
+                        }
+                      >
+                        <SelectTrigger className="bg-background border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={CTX_UNSET}>{t("club_ctx_not_set")}</SelectItem>
+                          {CLUB_AGE_CATEGORIES.map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                              {t(`club_age_${opt}` as never)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </section>
+              </TabsContent>
+
+              <TabsContent value="liga" className="px-4 pb-6 space-y-4 mt-2">
+                <div className="space-y-1">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/60">
+                    {locale === "zh" ? "赛程" : locale === "es" ? "Calendario de liga" : "League schedule"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {locale === "zh"
+                      ? "手动添加本赛季的联赛赛程"
+                      : locale === "es"
+                      ? "Añade los partidos de la temporada manualmente"
+                      : "Add this season's league matches manually"}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  className="w-full rounded-xl h-10 font-bold text-sm opacity-50"
+                >
+                  + {locale === "zh" ? "添加比赛" : locale === "es" ? "Añadir partido" : "Add match"}
+                </Button>
+                <div className="rounded-xl border border-dashed border-border px-4 py-5 text-center space-y-1">
+                  <p className="text-sm font-semibold text-muted-foreground">
+                    {locale === "zh" ? "暂无赛程" : locale === "es" ? "Sin partidos añadidos" : "No matches yet"}
+                  </p>
+                  <p className="text-xs text-muted-foreground/60">
+                    {locale === "zh"
+                      ? "功能即将上线"
+                      : locale === "es"
+                      ? "Próximamente — también importable desde el scraper de Stats"
+                      : "Coming soon — also importable from the Stats scraper"}
+                  </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="equipo" className="space-y-4 mt-0">
+                {(() => {
+                  const roster = q.data?.members?.filter((m) => m.role === "player" && m.status === "active") ?? [];
+                  return roster.length > 0 ? (
+                    <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">
+                        {locale === "zh" ? "球员名单" : locale === "es" ? "Jugadoras del club" : "Club players"}
+                      </p>
+                      {roster.map((m) => (
+                        <div key={m.id} className="flex items-center gap-2 py-1">
+                          <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-[11px] font-bold text-muted-foreground shrink-0">
+                            {(m.displayName || m.authFullName || "?").slice(0,2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {m.displayName || m.authFullName || m.authEmail || m.invitedEmail || "—"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {(m as any).jerseyNumber ? `#${(m as any).jerseyNumber} · ` : ""}{(m as any).position || (locale === "es" ? "Jugadora" : locale === "zh" ? "球员" : "Player")}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border px-4 py-4 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        {locale === "zh" ? "暂无球员加入" : locale === "es" ? "Sin jugadoras en el club todavía" : "No players have joined yet"}
+                      </p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">
+                        {locale === "zh" ? "通过邀请链接邀请球员" : locale === "es" ? "Invítalas con el enlace de invitación" : "Invite them with an invitation link"}
+                      </p>
+                    </div>
+                  );
+                })()}
+
+                <div className="space-y-3">
+                  {canInviteMembers && (
+                    <Button size="sm" variant="secondary" className="font-bold" onClick={() => openInvite("coach")}>
+                      {t("club_invite_staff")}
+                    </Button>
+                  )}
+                  {(() => {
+                    const staff = q.data.members?.filter((m) => m.role === "coach" || m.role === "head_coach");
+                    if (staff.length === 0) {
+                      return (
+                        <div className="py-6 text-center space-y-3">
+                          <p className="text-sm text-muted-foreground">{t("club_empty_staff")}</p>
+                          {canInviteMembers ? (
+                            <div className="flex justify-center">
+                              <Button size="sm" variant="secondary" className="h-11 px-6 font-bold" onClick={() => openInvite("coach")}>
+                                {t("club_invite_staff")}
+                              </Button>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    }
+                    return staff.map((m) => (
+                      <MemberRow
+                        key={m.id}
+                        m={m}
+                        variant="staff"
+                        t={t}
+                        roleLabel={roleLabel}
+                        canManage={canManageStaff}
+                        meRole={meClubRole}
+                        profileId={profile?.id}
+                        clubOwnerId={q.data.club.ownerId}
+                        delMember={delMember}
+                        banMut={banMut}
+                        opsMut={opsMut}
+                      />
+                    ));
+                  })()}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                      {t("club_tab_invitations")}
+                    </p>
+                    {canInviteMembers ? (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="secondary" className="font-bold" onClick={() => openInvite("coach")}>
+                          {t("club_invite_staff")}
+                        </Button>
+                        <Button size="sm" variant="secondary" className="font-bold" onClick={() => openInvite("player")}>
+                          {t("club_invite_player")}
                         </Button>
                       </div>
-                    </section>
-                  </>
-                )}
-              </TabsContent>
+                    ) : null}
+                  </div>
 
-              <TabsContent value="staff" className="space-y-3 mt-0">
-                {canInviteMembers && (
-                  <Button size="sm" variant="secondary" className="font-bold" onClick={() => openInvite("coach")}>
-                    {t("club_invite_staff")}
-                  </Button>
-                )}
-                {(() => {
-                  const staff = q.data.members.filter((m) => m.role === "coach" || m.role === "head_coach");
-                  if (staff.length === 0) {
-                    return (
-                      <div className="py-6 text-center space-y-3">
-                        <p className="text-sm text-muted-foreground">{t("club_empty_staff")}</p>
-                        {canInviteMembers ? (
-                          <div className="flex justify-center">
-                            <Button size="sm" variant="secondary" className="h-11 px-6 font-bold" onClick={() => openInvite("coach")}>
-                              {t("club_invite_staff")}
-                            </Button>
+                  {q.data.pendingInvitations.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">{t("club_empty_invites")}</p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {q.data.pendingInvitations.map((inv) => (
+                        <li key={inv.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary" className="text-[10px] font-bold uppercase">
+                              {roleLabel(inv.role)}
+                            </Badge>
+                            {inv.invitedEmail && (
+                              <span className="text-xs text-muted-foreground truncate max-w-full">{inv.invitedEmail}</span>
+                            )}
                           </div>
-                        ) : null}
-                      </div>
-                    );
-                  }
-                  return staff.map((m) => (
-                    <MemberRow
-                      key={m.id}
-                      m={m}
-                      variant="staff"
-                      t={t}
-                      roleLabel={roleLabel}
-                      canManage={canManageStaff}
-                      meRole={meClubRole}
-                      profileId={profile?.id}
-                      clubOwnerId={q.data.club.ownerId}
-                      delMember={delMember}
-                      banMut={banMut}
-                      opsMut={opsMut}
-                    />
-                  ));
-                })()}
-              </TabsContent>
-
-              <TabsContent value="roster" className="space-y-3 mt-0">
-                {canInviteMembers && (
-                  <Button size="sm" variant="secondary" className="font-bold" onClick={() => openInvite("player")}>
-                    {t("club_invite_player")}
-                  </Button>
-                )}
-                {(() => {
-                  const roster = q.data.members.filter((m) => m.role === "player");
-                  if (roster.length === 0) {
-                    return (
-                      <div className="py-6 text-center space-y-3">
-                        <p className="text-sm text-muted-foreground">{t("club_empty_roster")}</p>
-                        {canInviteMembers ? (
-                          <div className="flex justify-center">
-                            <Button size="sm" variant="secondary" className="h-11 px-6 font-bold" onClick={() => openInvite("player")}>
-                              {t("club_invite_player")}
-                            </Button>
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  }
-                  return roster.map((m) => (
-                    <MemberRow
-                      key={m.id}
-                      m={m}
-                      variant="player"
-                      t={t}
-                      roleLabel={roleLabel}
-                      canManage={canManageStaff}
-                      meRole={meClubRole}
-                      profileId={profile?.id}
-                      clubOwnerId={q.data.club.ownerId}
-                      delMember={delMember}
-                      banMut={banMut}
-                      opsMut={opsMut}
-                    />
-                  ));
-                })()}
-              </TabsContent>
-
-              <TabsContent value="invites" className="space-y-4 mt-0">
-                {q.data.pendingInvitations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">{t("club_empty_invites")}</p>
-                ) : (
-                  <ul className="space-y-3">
-                    {q.data.pendingInvitations.map((inv) => (
-                      <li key={inv.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary" className="text-[10px] font-bold uppercase">
-                            {roleLabel(inv.role)}
-                          </Badge>
-                          {inv.invitedEmail && (
-                            <span className="text-xs text-muted-foreground truncate max-w-full">{inv.invitedEmail}</span>
-                          )}
-                        </div>
-                        {(() => {
-                          const expiresMs = new Date(inv.expiresAt).getTime() - Date.now();
-                          const daysLeft = Math.ceil(expiresMs / (1000 * 60 * 60 * 24));
-                          const urgent = daysLeft <= 2;
-                          return (
-                            <p className={`text-[11px] ${urgent ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted-foreground"}`}>
-                              {t("team_mgmt_inv_expires")}: {formatWhen(inv.expiresAt, locale)}
-                              {urgent && daysLeft > 0 ? ` · ${daysLeft}d` : urgent ? " · Hoy" : ""}
-                            </p>
-                          );
-                        })()}
-                        <p className="text-xs font-mono break-all text-foreground bg-muted/50 rounded-lg p-2">{inv.link}</p>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5"
-                            onClick={() => copyLink(inv.link, inv.id)}
-                          >
-                            {copiedId === inv.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                            {copiedId === inv.id ? t("invite_copied") : t("invite_copy")}
-                          </Button>
-                          {canInviteMembers && (
+                          {(() => {
+                            const expiresMs = new Date(inv.expiresAt).getTime() - Date.now();
+                            const daysLeft = Math.ceil(expiresMs / (1000 * 60 * 60 * 24));
+                            const urgent = daysLeft <= 2;
+                            return (
+                              <p className={`text-[11px] ${urgent ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted-foreground"}`}>
+                                {t("team_mgmt_inv_expires")}: {formatWhen(inv.expiresAt, locale)}
+                                {urgent && daysLeft > 0 ? ` · ${daysLeft}d` : urgent ? " · Hoy" : ""}
+                              </p>
+                            );
+                          })()}
+                          <p className="text-xs font-mono break-all text-foreground bg-muted/50 rounded-lg p-2">{inv.link}</p>
+                          <div className="flex flex-wrap gap-2">
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                              disabled={revokeInv.isPending}
-                              onClick={() => revokeInv.mutate(inv.id)}
+                              className="gap-1.5"
+                              onClick={() => copyLink(inv.link, inv.id)}
                             >
-                              {t("club_revoke")}
+                              {copiedId === inv.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                              {copiedId === inv.id ? t("invite_copied") : t("invite_copy")}
                             </Button>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                            {canInviteMembers && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                                disabled={revokeInv.isPending}
+                                onClick={() => revokeInv.mutate(inv.id)}
+                              >
+                                {t("club_revoke")}
+                              </Button>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </TabsContent>
 
               <TabsContent value="stats" className="space-y-6 mt-0">

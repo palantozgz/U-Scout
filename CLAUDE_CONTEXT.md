@@ -104,11 +104,29 @@ Dashboard → PlayerEditor → ReportViewV4 → Proponer/Publicar
 - Sprint 4 ✅ Film Room UI — vista colectiva, anti-bias lock, panel discrepancias, → Game Plan
 - Sprint 5 ✅ Game Plan UI — lista publicados, badge emerald, ↩ Retirar (head_coach)
 
+**Fixes navegación legacy (27 abr):**
+- Rutas `/coach/editor`, `/coach/reports`, `/coach/team/:id` eliminadas de App.tsx
+- `CoachDashboard` (Dashboard.tsx) desconectado del router — archivo preservado pero sin rutas activas
+- Todos los `onBack` y `setLocation` que apuntaban a `/coach/editor` redirigen a `/coach/my-scout`
+- PlayerEditor back → `/coach/my-scout`
+- ReportViewV4 back → `/coach/my-scout`
+- ReportSlidesV1 back → `/coach/my-scout`
+
+**Fixes Mi Club:**
+- Tab Equipo → sección Jugadoras restaurada como lista de miembros del club con rol player (no link a Personnel)
+- Crash `q.data.members` undefined → todos los accesos con `?.` en ClubManagement.tsx
+- Crash `clubQ.data.club` undefined → Schedule.tsx corregido
+
+**Personnel mejorado:**
+- Gestión de equipos: `+ Nuevo equipo` + borrado con confirmación
+- Badge sandbox → pill ⚗ Solo práctica (más claro visualmente)
+- Botón Hacer oficial → tooltip explicativo + subtexto
+- Botón doble `+` corregido en Personnel y MyScout
+
 **Pendiente:**
 - Sprint 6: Stats badges (cuando Pi esté activa)
-- Wizard rápido 3 preguntas (entrada opcional PlayerEditor)
 - Offline approve-en-hold
-- Alertas smart CoachHome (conectar datos reales de próximo partido y pendientes)
+- Capacitor / TestFlight prep (bloqueado por Apple Developer Account)
 
 ### Sesión anterior (25 abr)
 - `perf: i18n lazy loading + React.lazy — bundle 509→268 KB gzip`

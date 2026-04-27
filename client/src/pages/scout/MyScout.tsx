@@ -326,7 +326,7 @@ export default function MyScout() {
           className="text-xs font-bold h-9 rounded-lg"
           onClick={() => { setShowNewPlayer(true); setNewTeamId(teams[0]?.id ?? ""); }}
         >
-          <Plus className="w-3 h-3 mr-1" /> {L.add}
+          {L.add}
         </Button>
       </header>
 

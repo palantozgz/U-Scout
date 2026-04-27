@@ -742,7 +742,7 @@ export default function PlayerEditor() {
             variant="ghost"
             size="sm"
             onClick={() => {
-              if (isNew) setLocation("/coach/editor");
+              if (isNew) setLocation("/coach/my-scout");
               else setLocation(`/coach/scout/${getPlayerId()}/review`);
             }}
             className="-ml-2 gap-1.5 text-xs font-bold text-muted-foreground"

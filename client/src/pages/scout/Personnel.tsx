@@ -4,7 +4,7 @@ import { ArrowLeft, Plus, Star, FlaskConical, ChevronRight, Trash2, X } from "lu
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
-import { useTeams, usePlayers, useCreatePlayer, useDeletePlayer, createDefaultPlayer, type PlayerProfile, type Team } from "@/lib/mock-data";
+import { useTeams, usePlayers, useCreatePlayer, useDeletePlayer, useCreateTeam, useDeleteTeam, createDefaultPlayer, type PlayerProfile, type Team } from "@/lib/mock-data";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -39,12 +39,24 @@ export default function Personnel() {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [promotingId, setPromotingId] = useState<string | null>(null);
 
+  const createTeamMutation = useCreateTeam();
+  const deleteTeamMutation = useDeleteTeam();
+  const [showNewTeam, setShowNewTeam] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [pendingDeleteTeam, setPendingDeleteTeam] = useState<string | null>(null);
+
   const L = {
     en: {
       title: "Personnel",
       headCoachSub: "Official rival roster — canonical profiles only",
       sandboxTitle: "⚗️ Sandbox mode",
       sandboxSub: "Profiles you create here are private and cannot be sent to Film Room. Only head coaches can create canonical profiles.",
+      newTeam: "+ New team",
+      deleteTeam: "Delete team",
+      confirmDelete: "Confirm",
+      promoteLabel: "Make official",
+      promoteTip: "Official profiles can be sent to Film Room",
+      sandboxLabel: "Practice only",
       addCanonical: "+ Add canonical profile",
       addSandbox: "+ Add practice profile",
       noTeams: "No teams yet. Create a team first from the editor.",
@@ -53,7 +65,6 @@ export default function Personnel() {
       promote: "Make official",
       promoting: "Promoting...",
       delete: "Delete",
-      confirmDelete: "Confirm delete",
       cancel: "Cancel",
       name: "Name",
       number: "#",
@@ -65,6 +76,12 @@ export default function Personnel() {
       headCoachSub: "Roster rival oficial — solo fichas canónicas",
       sandboxTitle: "⚗️ Modo campo de pruebas",
       sandboxSub: "Las fichas que crees aquí son privadas y no pueden enviarse a la Sala de análisis. Solo los head coaches pueden crear fichas canónicas.",
+      newTeam: "+ Nuevo equipo",
+      deleteTeam: "Eliminar equipo",
+      confirmDelete: "Confirmar",
+      promoteLabel: "Hacer oficial",
+      promoteTip: "Las fichas oficiales pueden enviarse a la Sala de análisis",
+      sandboxLabel: "Solo práctica",
       addCanonical: "+ Añadir ficha canónica",
       addSandbox: "+ Añadir ficha de prueba",
       noTeams: "Sin equipos. Crea un equipo primero desde el editor.",
@@ -73,7 +90,6 @@ export default function Personnel() {
       promote: "Hacer oficial",
       promoting: "Procesando...",
       delete: "Eliminar",
-      confirmDelete: "Confirmar",
       cancel: "Cancelar",
       name: "Nombre",
       number: "#",
@@ -85,6 +101,12 @@ export default function Personnel() {
       headCoachSub: "官方对手名单 — 仅限标准档案",
       sandboxTitle: "⚗️ 测试模式",
       sandboxSub: "此处创建的档案为私人档案，无法发送至集体分析。只有主教练可以创建标准档案。",
+      newTeam: "+ 新建队伍",
+      deleteTeam: "删除队伍",
+      confirmDelete: "确认",
+      promoteLabel: "设为官方",
+      promoteTip: "官方档案可发送至集体分析",
+      sandboxLabel: "仅练习",
       addCanonical: "+ 添加标准档案",
       addSandbox: "+ 添加练习档案",
       noTeams: "暂无球队，请先在编辑器中创建球队。",
@@ -93,7 +115,6 @@ export default function Personnel() {
       promote: "设为官方",
       promoting: "处理中...",
       delete: "删除",
-      confirmDelete: "确认删除",
       cancel: "取消",
       name: "姓名",
       number: "#",
@@ -105,6 +126,12 @@ export default function Personnel() {
     headCoachSub: "Official rival roster — canonical profiles only",
     sandboxTitle: "⚗️ Sandbox mode",
     sandboxSub: "Profiles you create here are private and cannot be sent to Film Room. Only head coaches can create canonical profiles.",
+    newTeam: "+ New team",
+    deleteTeam: "Delete team",
+    confirmDelete: "Confirm",
+    promoteLabel: "Make official",
+    promoteTip: "Official profiles can be sent to Film Room",
+    sandboxLabel: "Practice only",
     addCanonical: "+ Add canonical profile",
     addSandbox: "+ Add practice profile",
     noTeams: "No teams yet.",
@@ -113,7 +140,6 @@ export default function Personnel() {
     promote: "Make official",
     promoting: "Promoting...",
     delete: "Delete",
-    confirmDelete: "Confirm delete",
     cancel: "Cancel",
     name: "Name",
     number: "#",
@@ -159,6 +185,21 @@ export default function Personnel() {
     }
   };
 
+  const handleCreateTeam = () => {
+    const name = newTeamName.trim();
+    if (!name) return;
+    createTeamMutation.mutate(
+      { name, logo: "🏀", primaryColor: "bg-orange-500" },
+      { onSuccess: () => { setShowNewTeam(false); setNewTeamName(""); } }
+    );
+  };
+
+  const handleDeleteTeam = (teamId: string) => {
+    if (pendingDeleteTeam !== teamId) { setPendingDeleteTeam(teamId); return; }
+    deleteTeamMutation.mutate(teamId);
+    setPendingDeleteTeam(null);
+  };
+
   if (teamsLoading) {
     return (
       <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
@@ -183,14 +224,24 @@ export default function Personnel() {
           <h1 className="text-lg font-black text-foreground tracking-tight">{L.title}</h1>
         </div>
         {isHeadCoach && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs font-bold h-9 rounded-lg"
-            onClick={() => { setShowNewPlayer(true); setNewPlayerTeamId(teams[0]?.id ?? ""); }}
-          >
-            <Plus className="w-3 h-3 mr-1" /> {L.addCanonical}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-xs font-bold h-9 rounded-lg"
+              onClick={() => setShowNewTeam(true)}
+            >
+              {L.newTeam}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs font-bold h-9 rounded-lg"
+              onClick={() => { setShowNewPlayer(true); setNewPlayerTeamId(teams[0]?.id ?? ""); }}
+            >
+              {L.addCanonical}
+            </Button>
+          </div>
         )}
       </header>
 
@@ -266,6 +317,33 @@ export default function Personnel() {
           </div>
         )}
 
+        {showNewTeam && isHeadCoach && (
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-black text-foreground">{L.newTeam}</p>
+              <button type="button" onClick={() => setShowNewTeam(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <Input
+              placeholder={locale === "es" ? "Nombre del equipo" : locale === "zh" ? "队伍名称" : "Team name"}
+              value={newTeamName}
+              onChange={(e) => setNewTeamName(e.target.value)}
+              className="h-10 rounded-lg text-sm"
+              autoFocus
+              onKeyDown={(e) => e.key === "Enter" && handleCreateTeam()}
+            />
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" className="flex-1 rounded-lg" onClick={() => setShowNewTeam(false)}>
+                {locale === "es" ? "Cancelar" : locale === "zh" ? "取消" : "Cancel"}
+              </Button>
+              <Button size="sm" className="flex-1 rounded-lg font-bold" onClick={handleCreateTeam} disabled={!newTeamName.trim() || createTeamMutation.isPending}>
+                {locale === "es" ? "Crear" : locale === "zh" ? "创建" : "Create"}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Teams + players */}
         {teams.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-12">{L.noTeams}</p>
@@ -275,25 +353,47 @@ export default function Personnel() {
             const isExpanded = expandedTeamId === team.id;
             return (
               <div key={team.id} className="rounded-xl border border-border overflow-hidden">
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-between px-4 py-3 bg-card hover:bg-muted/50 transition-colors"
-                  onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{team.logo}</span>
-                    <div className="text-left">
-                      <p className="text-sm font-black text-foreground">{team.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {players.length} {locale === "zh" ? "名球员" : locale === "es" ? "jugadoras" : "players"}
-                        {" · "}
-                        {players.filter((p) => (p as any).isCanonical).length}{" "}
-                        {locale === "zh" ? "官方" : locale === "es" ? "oficiales" : "official"}
-                      </p>
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    className="flex-1 flex items-center justify-between px-4 py-3 bg-card hover:bg-muted/50 transition-colors"
+                    onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{team.logo}</span>
+                      <div className="text-left">
+                        <p className="text-sm font-black text-foreground">{team.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {players.length} {locale === "zh" ? "名球员" : locale === "es" ? "jugadoras" : "players"}
+                          {" · "}
+                          {players.filter((p) => (p as any).isCanonical).length}{" "}
+                          {locale === "zh" ? "官方" : locale === "es" ? "oficiales" : "official"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <ChevronRight className={cn("w-4 h-4 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
-                </button>
+                    <ChevronRight className={cn("w-4 h-4 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
+                  </button>
+                  {isHeadCoach && (
+                    pendingDeleteTeam === team.id ? (
+                      <div className="flex items-center gap-1 pr-3">
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] rounded-lg" onClick={() => setPendingDeleteTeam(null)}>
+                          {locale === "es" ? "Cancelar" : "Cancel"}
+                        </Button>
+                        <Button size="sm" className="h-7 px-2 text-[10px] font-bold rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={() => handleDeleteTeam(team.id)}>
+                          {L.confirmDelete}
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="pr-4 pl-2 py-3 text-muted-foreground hover:text-destructive transition-colors"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteTeam(team.id); }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )
+                  )}
+                </div>
 
                 {isExpanded && (
                   <div className="border-t border-border divide-y divide-border">
@@ -324,14 +424,15 @@ export default function Personnel() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <p className="text-sm font-extrabold text-foreground truncate">{player.name || "—"}</p>
-                                <span className={cn(
-                                  "text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full",
-                                  isCanonical
-                                    ? "bg-primary/10 text-primary"
-                                    : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                                )}>
-                                  {isCanonical ? L.canonical : L.sandbox}
-                                </span>
+                                {isCanonical ? (
+                                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                    {L.canonical}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mt-0.5">
+                                    ⚗ {L.sandboxLabel}
+                                  </span>
+                                )}
                               </div>
                               <p className="text-xs text-muted-foreground">
                                 #{player.number || "—"} · {(player.inputs as any)?.position || "—"}
@@ -341,16 +442,22 @@ export default function Personnel() {
                             {/* Actions */}
                             <div className="flex items-center gap-1 shrink-0">
                               {!isCanonical && isHeadCoach && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 px-2 text-[10px] font-bold rounded-lg"
-                                  disabled={promotingId === player.id}
-                                  onClick={() => handlePromote(player.id)}
-                                >
-                                  <Star className="w-3 h-3 mr-1" />
-                                  {promotingId === player.id ? L.promoting : L.promote}
-                                </Button>
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2 text-[10px] font-bold rounded-lg border-primary/30 text-primary hover:bg-primary/5"
+                                    disabled={promotingId === player.id}
+                                    onClick={() => handlePromote(player.id)}
+                                    title={L.promoteTip}
+                                  >
+                                    <Star className="w-3 h-3 mr-1" />
+                                    {promotingId === player.id ? L.promoting : L.promoteLabel}
+                                  </Button>
+                                  <p className="text-[9px] text-muted-foreground/60 max-w-[100px] text-right leading-tight">
+                                    {L.promoteTip}
+                                  </p>
+                                </div>
                               )}
                               <Button
                                 size="sm"

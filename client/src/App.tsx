@@ -22,9 +22,6 @@ import JoinPage from "@/pages/Join";
 
 const CoachHome = lazy(() => import("@/pages/scout/CoachHome"));
 const ClubManagement = lazy(() => import("@/pages/scout/ClubManagement"));
-const CoachDashboard = lazy(() =>
-  import("@/pages/scout/Dashboard").then(m => ({ default: m.default })),
-);
 const PlayerEditor = lazy(() => import("@/pages/scout/PlayerEditor"));
 const ReportViewV4 = lazy(() => import("@/pages/scout/ReportViewV4"));
 const ReportSlidesV1 = lazy(() => import("@/pages/scout/ReportSlidesV1"));
@@ -62,7 +59,7 @@ function CoachScoutReportPreview() {
   return (
     <ReportSlidesV1
       playerId={id}
-      onBack={() => setLocation("/coach/editor")}
+      onBack={() => setLocation("/coach/my-scout")}
     />
   );
 }
@@ -76,7 +73,7 @@ function CoachScoutReportReview() {
     <ReportViewV4
       playerId={id}
       mode="coach_review"
-      onBack={() => setLocation("/coach/editor")}
+      onBack={() => setLocation("/coach/my-scout")}
     />
   );
 }
@@ -121,16 +118,7 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       <Route path="/coach/scout/:id/preview" component={CoachScoutReportPreview} />
       <Route path="/coach/scout/:id/review" component={CoachScoutReportReview} />
       <Route path="/coach/club" component={ClubManagement} />
-      <Route path="/coach/team/:id">
-        <CoachDashboard mode="editor" />
-      </Route>
       <Route path="/coach/test" component={TestMode} />
-      <Route path="/coach/editor">
-        <CoachDashboard mode="editor" />
-      </Route>
-      <Route path="/coach/reports">
-        <CoachDashboard mode="reports" />
-      </Route>
       <Route path="/coach/my-scout" component={MyScout} />
       <Route path="/coach/film-room" component={FilmRoom} />
       <Route path="/coach/game-plan" component={GamePlan} />
