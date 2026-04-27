@@ -430,6 +430,90 @@ export async function registerRoutes(
     }
   });
 
+  // Film Room: list all canonical players with submitted scout versions
+  app.get("/api/film-room", requireAuth, async (req, res) => {
+    try {
+      const coachId = req.user!.id;
+
+      // Get all canonical players
+      const allPlayers = await storage.getPlayers();
+      const canonicalPlayers = allPlayers.filter((p: any) => p.is_canonical);
+
+      // For each canonical player, get all submitted versions
+      const filmRoomData = await Promise.all(
+        canonicalPlayers.map(async (player: any) => {
+          const versions = await storage.listScoutVersionsForPlayer(player.id);
+          const submitted = versions.filter((v) => v.status === "submitted" || v.status === "merged");
+          const myVersion = versions.find((v) => v.coachId === coachId);
+          const hasSubmittedMine = myVersion && myVersion.status !== "draft";
+
+          // Get approval status for discrepancy/publish info (same logic as /approval-status)
+          let approvalStatus: {
+            approvals: Array<{ coachId: string; approvedAt: string }>;
+            isPublished: boolean;
+            hasDiscrepancy: boolean;
+          } | null = null;
+          try {
+            const approvalRows = await storage.listReportApprovalsForPlayer(player.id);
+            const overrideRows = await storage.listReportOverridesForPlayer(player.id);
+            const overrides = overrideRows.map((o) => ({
+              coachId: o.coachId,
+              slide: o.slide,
+              itemKey: o.itemKey,
+              action: o.action,
+            }));
+            approvalStatus = {
+              approvals: approvalRows.map((a) => ({
+                coachId: a.coachId,
+                approvedAt: a.approvedAt.toISOString(),
+              })),
+              isPublished: Boolean(player.published),
+              hasDiscrepancy: computeHasDiscrepancy(overrides),
+            };
+          } catch {}
+
+          return {
+            player,
+            submittedCount: submitted.length,
+            totalVersions: versions.length,
+            hasSubmittedMine: !!hasSubmittedMine,
+            isPublished: approvalStatus?.isPublished ?? false,
+            hasDiscrepancy: approvalStatus?.hasDiscrepancy ?? false,
+            approvalCount: approvalStatus?.approvals?.length ?? 0,
+          };
+        })
+      );
+
+      // Only return players where at least 1 version has been submitted
+      const withSubmissions = filmRoomData.filter((d) => d.submittedCount > 0);
+      res.json({ players: withSubmissions });
+    } catch (err) {
+      console.error("film-room error:", err);
+      res.status(500).json({ error: "Failed to load Film Room data" });
+    }
+  });
+
+  // Film Room: publish player to Game Plan (merge + clear versions)
+  app.post("/api/players/:id/game-plan", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const role = req.user!.role;
+      if (role !== "head_coach" && role !== "master") {
+        return res.status(403).json({ error: "Only head_coach or master can publish to Game Plan" });
+      }
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+
+      // Publish via existing flow
+      await storage.publishPlayerReport(playerId, req.user!.id);
+      // Clear scout versions (merge complete)
+      await storage.mergeAndClearScoutVersions(playerId);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: "Failed to publish to Game Plan" });
+    }
+  });
+
   // ── Player home (membership + assigned scouting reports) ─────────────────
   app.get("/api/player/home", requireAuth, async (req, res) => {
     try {
