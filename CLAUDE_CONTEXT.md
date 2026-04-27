@@ -100,12 +100,15 @@ Dashboard → PlayerEditor → ReportViewV4 → Proponer/Publicar
 | Trabajo grupo | Film Room | Sala de análisis | 集体分析 |
 | Publicado | Game Plan | Plan de juego | 比赛方案 |
 
-**Próximos sprints:**
-- Sprint 4: Film Room UI (vista colectiva, anti-bias, panel discrepancias)
-- Sprint 5: Game Plan UI (vista publicada, botón retirar)
-- Sprint 6: Stats badges (capa presentación, cuando Pi esté activa)
+**Sprints completados:**
+- Sprint 4 ✅ Film Room UI — vista colectiva, anti-bias lock, panel discrepancias, → Game Plan
+- Sprint 5 ✅ Game Plan UI — lista publicados, badge emerald, ↩ Retirar (head_coach)
+
+**Pendiente:**
+- Sprint 6: Stats badges (cuando Pi esté activa)
 - Wizard rápido 3 preguntas (entrada opcional PlayerEditor)
-- Offline approve-en-hold (Sprint 3 extendido)
+- Offline approve-en-hold
+- Alertas smart CoachHome (conectar datos reales de próximo partido y pendientes)
 
 ### Sesión anterior (25 abr)
 - `perf: i18n lazy loading + React.lazy — bundle 509→268 KB gzip`

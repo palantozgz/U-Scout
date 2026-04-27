@@ -15,6 +15,127 @@ import { useQueryClient } from "@tanstack/react-query";
 
 type SubmitState = "idle" | "submitting" | "done" | "error";
 
+// ── Quick wizard ──────────────────────────────────────────────────────────────
+type WizardStep = "situation" | "direction" | "threat";
+
+interface WizardAnswers {
+  situation: "ISO" | "PnR" | "Post" | "Spot-up" | null;
+  direction: "Right" | "Left" | "Balanced" | null;
+  threat: "low" | "medium" | "high" | "elite" | null;
+}
+
+function QuickWizard({
+  locale,
+  onComplete,
+  onSkip,
+}: {
+  locale: string;
+  onComplete: (answers: WizardAnswers) => void;
+  onSkip: () => void;
+}) {
+  const [step, setStep] = useState<WizardStep>("situation");
+  const [answers, setAnswers] = useState<WizardAnswers>({
+    situation: null,
+    direction: null,
+    threat: null,
+  });
+
+  const es = locale === "es";
+  const zh = locale === "zh";
+
+  const pick = <K extends keyof WizardAnswers>(key: K, value: WizardAnswers[K]) => {
+    const next = { ...answers, [key]: value };
+    setAnswers(next);
+    if (key === "situation") setStep("direction");
+    else if (key === "direction") setStep("threat");
+    else onComplete(next);
+  };
+
+  const stepLabel = {
+    situation: es ? "¿Cuál es su situación principal?" : zh ? "主要进攻方式？" : "Main offensive situation?",
+    direction: es ? "¿Hacia qué lado domina?" : zh ? "主导方向？" : "Dominant direction?",
+    threat: es ? "¿Qué nivel de amenaza?" : zh ? "威胁等级？" : "Threat level?",
+  }[step];
+
+  const stepNum = { situation: 1, direction: 2, threat: 3 }[step];
+
+  const options: { value: WizardAnswers[typeof step]; label: string }[] =
+    step === "situation"
+      ? [
+          { value: "ISO", label: "ISO" },
+          { value: "PnR", label: "PnR" },
+          { value: "Post", label: es ? "Poste" : zh ? "低位" : "Post" },
+          { value: "Spot-up", label: "Spot-up" },
+        ]
+      : step === "direction"
+      ? [
+          { value: "Right", label: es ? "Derecha" : zh ? "右手" : "Right" },
+          { value: "Left", label: es ? "Izquierda" : zh ? "左手" : "Left" },
+          { value: "Balanced", label: es ? "Ambas" : zh ? "双手" : "Both" },
+        ]
+      : [
+          { value: "low", label: es ? "Baja" : zh ? "低" : "Low" },
+          { value: "medium", label: es ? "Media" : zh ? "中" : "Medium" },
+          { value: "high", label: es ? "Alta" : zh ? "高" : "High" },
+          { value: "elite", label: es ? "Élite" : zh ? "顶级" : "Elite" },
+        ];
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">
+            {es ? `Paso ${stepNum} de 3` : zh ? `第${stepNum}步，共3步` : `Step ${stepNum} of 3`}
+          </p>
+          <p className="text-sm font-black text-foreground mt-0.5">{stepLabel}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="text-[11px] font-bold text-muted-foreground hover:text-foreground"
+        >
+          {es ? "Ir al editor →" : zh ? "直接编辑 →" : "Full editor →"}
+        </button>
+      </div>
+
+      {/* Progress dots */}
+      <div className="flex gap-1.5">
+        {(["situation", "direction", "threat"] as WizardStep[]).map((s) => (
+          <div
+            key={s}
+            className={cn(
+              "h-1 flex-1 rounded-full transition-colors",
+              s === step
+                ? "bg-primary"
+                : answers[s] !== null
+                ? "bg-primary/40"
+                : "bg-border",
+            )}
+          />
+        ))}
+      </div>
+
+      {/* Options */}
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((opt) => (
+          <button
+            key={String(opt.value)}
+            type="button"
+            onClick={() => pick(step, opt.value as WizardAnswers[typeof step])}
+            className={cn(
+              "rounded-xl border py-3 px-4 text-sm font-bold text-center transition-all",
+              "border-border bg-background hover:border-primary hover:bg-primary/5 active:scale-[0.98]",
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function MyScout() {
   const [, setLocation] = useLocation();
   const { locale } = useLocale();
@@ -30,6 +151,55 @@ export default function MyScout() {
   const [newNumber, setNewNumber] = useState("");
   const [newTeamId, setNewTeamId] = useState("");
   const [submitStates, setSubmitStates] = useState<Record<string, SubmitState>>({});
+  const [showWizard, setShowWizard] = useState<string | null>(null); // playerId being wizard-ed
+
+  const applyWizardAnswers = (playerId: string, answers: WizardAnswers) => {
+    // Map wizard answers to PlayerInput fields via PATCH
+    const patches: Record<string, unknown> = {};
+    if (answers.situation === "ISO") {
+      patches["inputs.isoFrequency"] = "Primary";
+      patches["inputs.pnrFrequency"] = "Never";
+      patches["inputs.postFrequency"] = "Never";
+    } else if (answers.situation === "PnR") {
+      patches["inputs.pnrFrequency"] = "Primary";
+      patches["inputs.isoFrequency"] = "Never";
+      patches["inputs.postFrequency"] = "Never";
+    } else if (answers.situation === "Post") {
+      patches["inputs.postFrequency"] = "Primary";
+      patches["inputs.isoFrequency"] = "Never";
+      patches["inputs.pnrFrequency"] = "Never";
+    } else if (answers.situation === "Spot-up") {
+      patches["inputs.isoFrequency"] = "Rare";
+      patches["inputs.pnrFrequency"] = "Never";
+      patches["inputs.postFrequency"] = "Never";
+    }
+    if (answers.direction === "Right") patches["inputs.isoDominantDirection"] = "Right";
+    else if (answers.direction === "Left") patches["inputs.isoDominantDirection"] = "Left";
+    else if (answers.direction === "Balanced") patches["inputs.isoDominantDirection"] = "Balanced";
+
+    if (answers.threat === "elite") {
+      patches["inputs.athleticism"] = 5;
+      patches["inputs.starPlayer"] = true;
+    } else if (answers.threat === "high") {
+      patches["inputs.athleticism"] = 4;
+    } else if (answers.threat === "medium") {
+      patches["inputs.athleticism"] = 3;
+    } else {
+      patches["inputs.athleticism"] = 2;
+    }
+
+    // Build flat update object compatible with backend PATCH
+    const inputs: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(patches)) {
+      const field = k.replace("inputs.", "");
+      inputs[field] = v;
+    }
+
+    void apiRequest("PATCH", `/api/players/${playerId}`, { inputs })
+      .then(() => qc.invalidateQueries({ queryKey: ["/api/players"] }))
+      .then(() => setLocation(`/coach/player/${playerId}`));
+    setShowWizard(null);
+  };
 
   const myPlayers: PlayerProfile[] = allPlayers.filter(
     (p) => !p.createdByCoachId || p.createdByCoachId === profile?.id,
@@ -256,13 +426,33 @@ export default function MyScout() {
                   {/* Edit */}
                   <button
                     type="button"
-                    onClick={() => setLocation(`/coach/player/${player.id}`)}
+                    onClick={() => {
+                      const hasReport = (player.defensivePlan?.defender?.length ?? 0) > 0;
+                      if (!hasReport) setShowWizard(player.id);
+                      else setLocation(`/coach/player/${player.id}`);
+                    }}
                     className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                     title={L.editReport}
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
                 </div>
+
+                {/* Quick wizard — shown for new players without a report */}
+                {showWizard === player.id && (
+                  <div className="border-t border-border">
+                    <div className="px-4 pt-3 pb-1">
+                      <QuickWizard
+                        locale={locale}
+                        onComplete={(answers) => applyWizardAnswers(player.id, answers)}
+                        onSkip={() => {
+                          setShowWizard(null);
+                          setLocation(`/coach/player/${player.id}`);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Send to Film Room — only for canonical, only if has report */}
                 {isCanonical && hasReport && (

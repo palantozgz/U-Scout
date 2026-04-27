@@ -7,6 +7,12 @@ import { Users, Pencil, Users2, FileText, ChevronRight, ArrowRight } from "lucid
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
 import { cn } from "@/lib/utils";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { usePlayers } from "@/lib/mock-data";
+import { useThisWeekScheduleEvents } from "@/lib/schedule";
+import { useClub } from "@/lib/club-api";
+import { apiRequest } from "@/lib/queryClient";
 
 // ── Smart alert slot ──────────────────────────────────────────────────────────
 function AlertSlot({
@@ -181,6 +187,59 @@ export default function CoachHome() {
     sandboxBanner: "⚗️ Sandbox — profiles created here won't appear in Film Room",
   };
 
+  // ── Data for smart alerts ──────────────────────────────────────────────────
+  const clubQ = useClub();
+  const clubId = clubQ.data?.club?.id;
+  const { data: allPlayers = [] } = usePlayers();
+  const { data: weekEvents = [] } = useThisWeekScheduleEvents({ clubId });
+  const { data: filmRoomData } = useQuery<{ players: Array<{ hasDiscrepancy: boolean; hasSubmittedMine: boolean }> }>({
+    queryKey: ["/api/film-room"],
+    queryFn: async () => (await apiRequest("GET", "/api/film-room")).json(),
+    staleTime: 60_000,
+  });
+
+  // Next game from schedule
+  const nextGame = useMemo(() => {
+    const now = Date.now();
+    return weekEvents
+      .filter((e) => new Date(e.starts_at).getTime() >= now)
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0] ?? null;
+  }, [weekEvents]);
+
+  // My pending: canonical players where I haven't submitted yet
+  const myPendingCount = useMemo(() => {
+    const filmPlayers = filmRoomData?.players ?? [];
+    const canonicalIds = new Set(allPlayers.filter((p) => p.isCanonical).map((p) => p.id));
+    // Count canonical players with no submitted version from me
+    return Math.max(0, canonicalIds.size - filmPlayers.filter((fp) => fp.hasSubmittedMine).length);
+  }, [allPlayers, filmRoomData]);
+
+  // Discrepancies in Film Room
+  const discrepancyCount = useMemo(
+    () => (filmRoomData?.players ?? []).filter((p) => p.hasDiscrepancy).length,
+    [filmRoomData],
+  );
+
+  // Alert slot data
+  const nextGameLabel = nextGame
+    ? (() => {
+        try {
+          const time = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(nextGame.starts_at));
+          return `${nextGame.title ?? (locale === "es" ? "Partido" : "Game")} · ${time}`;
+        } catch {
+          return nextGame.title ?? L.alertNext;
+        }
+      })()
+    : L.alertNoGame;
+
+  const pendingLabel = myPendingCount > 0
+    ? `${myPendingCount} ${L.alertPending}`
+    : L.alertAllGood;
+
+  const conflictsLabel = discrepancyCount > 0
+    ? `${discrepancyCount} ${L.alertConflicts}`
+    : L.alertAllGood;
+
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden pb-16">
       <main className="relative z-10 flex flex-col flex-1 px-4 pb-6 max-w-md mx-auto w-full gap-4">
@@ -194,20 +253,20 @@ export default function CoachHome() {
         <div className="grid grid-cols-3 gap-2">
           <AlertSlot
             icon="📅"
-            label={L.alertNoGame}
-            tone="neutral"
+            label={nextGameLabel}
+            tone={nextGame ? "blue" : "neutral"}
             onClick={() => setLocation("/schedule")}
           />
           <AlertSlot
-            icon="📋"
-            label={L.alertAllGood}
-            tone="emerald"
+            icon={myPendingCount > 0 ? "📋" : "✅"}
+            label={pendingLabel}
+            tone={myPendingCount > 0 ? "amber" : "emerald"}
             onClick={() => setLocation("/coach/my-scout")}
           />
           <AlertSlot
-            icon="✅"
-            tone="emerald"
-            label={L.alertAllGood}
+            icon={discrepancyCount > 0 ? "⚠️" : "✅"}
+            label={conflictsLabel}
+            tone={discrepancyCount > 0 ? "amber" : "emerald"}
             onClick={() => setLocation("/coach/film-room")}
           />
         </div>
