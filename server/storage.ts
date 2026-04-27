@@ -48,6 +48,16 @@ export interface ScoutVersion {
   updatedAt: Date;
 }
 
+export interface LeagueMatch {
+  id: string;
+  clubId: string;
+  rivalName: string;
+  matchDate: Date;
+  location: string | null;
+  matchType: string;
+  createdAt: Date;
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -158,6 +168,11 @@ export interface IStorage {
   submitScoutVersion(playerId: string, coachId: string): Promise<void>;
   mergeAndClearScoutVersions(playerId: string): Promise<void>;
 
+  // league_matches
+  listLeagueMatches(clubId: string): Promise<LeagueMatch[]>;
+  createLeagueMatch(data: { clubId: string; rivalName: string; matchDate: Date; location?: string; matchType?: string }): Promise<LeagueMatch>;
+  deleteLeagueMatch(id: string): Promise<void>;
+
   userHasScoutingReportAssignment(userId: string, playerId: string): Promise<boolean>;
   recordPlayerReportSlideView(userId: string, playerId: string, slideIndex: number): Promise<void>;
   listPlayerTeamsReportSummary(
@@ -179,6 +194,18 @@ function rowToScoutVersion(row: Record<string, unknown>): ScoutVersion {
     status: row.status as "draft" | "submitted" | "merged",
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
+  };
+}
+
+function rowToMatch(row: Record<string, unknown>): LeagueMatch {
+  return {
+    id: row.id as string,
+    clubId: row.club_id as string,
+    rivalName: row.rival_name as string,
+    matchDate: new Date(row.match_date as string),
+    location: row.location as string | null,
+    matchType: row.match_type as string,
+    createdAt: new Date(row.created_at as string),
   };
 }
 
@@ -788,6 +815,29 @@ export class DatabaseStorage implements IStorage {
     await db.execute(sql`
       DELETE FROM report_overrides WHERE player_id = ${playerId}
     `);
+  }
+
+  async listLeagueMatches(clubId: string): Promise<LeagueMatch[]> {
+    const rows = await db.execute(sql`
+      SELECT * FROM league_matches WHERE club_id = ${clubId} ORDER BY match_date ASC
+    `);
+    return (rows as any).rows
+      ? ((rows as any).rows as Record<string, unknown>[]).map(rowToMatch)
+      : ((rows as unknown) as Record<string, unknown>[]).map(rowToMatch);
+  }
+
+  async createLeagueMatch(data: { clubId: string; rivalName: string; matchDate: Date; location?: string; matchType?: string }): Promise<LeagueMatch> {
+    const rows = await db.execute(sql`
+      INSERT INTO league_matches (club_id, rival_name, match_date, location, match_type)
+      VALUES (${data.clubId}, ${data.rivalName}, ${data.matchDate.toISOString()}, ${data.location ?? null}, ${data.matchType ?? 'league'})
+      RETURNING *
+    `);
+    const arr = ((rows as any).rows ?? ((rows as unknown) as Record<string, unknown>[])) as Record<string, unknown>[];
+    return rowToMatch(arr[0]);
+  }
+
+  async deleteLeagueMatch(id: string): Promise<void> {
+    await db.execute(sql`DELETE FROM league_matches WHERE id = ${id}`);
   }
 
   async userHasScoutingReportAssignment(userId: string, playerId: string): Promise<boolean> {

@@ -56,13 +56,53 @@ Dashboard → PlayerEditor → ReportViewV4 → Proponer/Publicar
 
 ---
 
-## Estado actual — sesión 27 abr 2026
+## Estado actual — sesión 27 abr 2026 (cierre)
 
-### Commits de hoy (main)
-- `feat: bloque-A limpieza repo — 15 archivos basura, aliases muertos, pages/coach→pages/scout`
-- `feat: bloque 1 — hot/cold streaks, approval indicators, discrepancy UI, Home crash fix`
-- `feat: sprint 1+2A — U Scout workflow redesign, player_scout_versions schema, Schedule crash fix`
-- `feat: sprints 2B+3 — Personnel UI, MyScout UI, Schedule crash fix, header spacing, isCanonical schema`
+### Últimos commits
+- `feat: liga tab real, cascade deletes, landscape audit, navigate fixes`
+- `fix: TestMode eliminado, myPendingCount corregido, FilmRoom+GamePlan landscape`
+
+### U Scout — estado final de sesión
+**Rutas activas (App.tsx):**
+- `/coach` → CoachHome
+- `/coach/player/:id` → PlayerEditor
+- `/coach/scout/:id/preview` → ReportSlidesV1
+- `/coach/scout/:id/review` → ReportViewV4
+- `/coach/club` → ClubManagement
+- `/coach/my-scout` → MyScout
+- `/coach/film-room` → FilmRoom
+- `/coach/game-plan` → GamePlan
+- `/coach/personnel` → Personnel
+- `/settings` → Settings
+
+**Rutas eliminadas:** `/coach/editor`, `/coach/reports`, `/coach/team/:id`, `/coach/test`
+
+**Mi Club — 4 tabs:**
+- Club: nombre, logo, liga/género/nivel/edad
+- Liga: CRUD de partidos real (league_matches tabla en Supabase)
+- Equipo: staff + jugadoras del club (miembros reales, no Personnel)
+- Estadísticas: stats de actividad del club
+
+**Personnel — funciones:**
+- Crear/borrar equipos (con confirmación)
+- Crear fichas canónicas (head_coach) o de práctica (coaches)
+- Promover ficha a oficial con tooltip explicativo
+- Borrar fichas individuales con confirmación
+- Badge ⚗ Solo práctica para fichas no canónicas
+
+**Supabase schema (todo via SQL, no schema.ts):**
+- `players.is_canonical` boolean
+- `player_scout_versions` tabla
+- `league_matches` tabla
+- CASCADE en players→teams, report_approvals→players, report_overrides→players, player_scout_versions→players
+
+**TestMode.tsx:** archivo preservado pero sin ruta activa. Se eliminará en limpieza futura.
+
+**Pendiente siguiente sesión:**
+- ReportViewV4 → rediseño slides (vertical scroll → 3 slides)
+- PlayerEditor audit de secciones y headers
+- Capacitor / TestFlight (bloqueado por Apple Developer Account)
+- Stats badges en reports (cuando Pi esté activa)
 
 ### U Scout — nuevo workflow (sprints 1–3)
 **Arquitectura de 4 contenedores aprobada e implementada:**

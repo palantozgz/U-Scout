@@ -277,7 +277,7 @@ export default function FilmRoom() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-4 space-y-3 max-w-md mx-auto w-full">
+      <main className="flex-1 px-4 py-4 landscape:py-2 space-y-3 max-w-md mx-auto w-full">
         {isLoading && (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />

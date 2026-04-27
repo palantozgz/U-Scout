@@ -25,7 +25,6 @@ const ClubManagement = lazy(() => import("@/pages/scout/ClubManagement"));
 const PlayerEditor = lazy(() => import("@/pages/scout/PlayerEditor"));
 const ReportViewV4 = lazy(() => import("@/pages/scout/ReportViewV4"));
 const ReportSlidesV1 = lazy(() => import("@/pages/scout/ReportSlidesV1"));
-const TestMode = lazy(() => import("@/pages/scout/TestMode"));
 const MyScout = lazy(() => import("@/pages/scout/MyScout"));
 const FilmRoom = lazy(() => import("@/pages/scout/FilmRoom"));
 const GamePlan = lazy(() => import("@/pages/scout/GamePlan"));
@@ -118,7 +117,6 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       <Route path="/coach/scout/:id/preview" component={CoachScoutReportPreview} />
       <Route path="/coach/scout/:id/review" component={CoachScoutReportReview} />
       <Route path="/coach/club" component={ClubManagement} />
-      <Route path="/coach/test" component={TestMode} />
       <Route path="/coach/my-scout" component={MyScout} />
       <Route path="/coach/film-room" component={FilmRoom} />
       <Route path="/coach/game-plan" component={GamePlan} />

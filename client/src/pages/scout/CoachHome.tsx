@@ -242,7 +242,7 @@ export default function CoachHome() {
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden pb-16">
-      <main className="relative z-10 flex flex-col flex-1 px-4 pb-6 max-w-md mx-auto w-full gap-4">
+      <main className="relative z-10 flex flex-col flex-1 px-4 pb-6 landscape:pb-4 max-w-md mx-auto w-full gap-3 landscape:gap-2">
         <ModuleHeader module="scout" tagline={
           locale === "zh" ? "个人防守侦察" :
           locale === "es" ? "Scouting defensivo individual" :

@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList, Dumbbell, X, ChevronRight } from "lucide-react";
@@ -249,8 +249,37 @@ export default function ClubManagement() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [dialogLink, setDialogLink] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
+  const [showAddMatch, setShowAddMatch] = useState(false);
+  const [matchRival, setMatchRival] = useState("");
+  const [matchDate, setMatchDate] = useState("");
+  const [matchLocation, setMatchLocation] = useState("");
 
   const q = useClub();
+
+  // ── League matches (Liga tab) ───────────────────────────────────────────────
+  const matchesQ = useQuery<Array<{id:string;rivalName:string;matchDate:string;location:string|null;matchType:string}>>({    queryKey: ["/api/club/matches"],
+    queryFn: async () => {
+      const r = await fetch("/api/club/matches", { credentials: "include" });
+      return r.json();
+    },
+    enabled: activeTab === "liga",
+  });
+  const createMatchMut = useMutation({
+    mutationFn: async (data: {rivalName:string;matchDate:string;location:string}) => {
+      const r = await fetch("/api/club/matches", { method:"POST", headers:{"Content-Type":"application/json"}, credentials:"include", body: JSON.stringify(data) });
+      return r.json();
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["/api/club/matches"] });
+      setShowAddMatch(false); setMatchRival(""); setMatchDate(""); setMatchLocation("");
+    },
+  });
+  const deleteMatchMut = useMutation({
+    mutationFn: async (id:string) => {
+      await fetch(`/api/club/matches/${id}`, { method:"DELETE", credentials:"include" });
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["/api/club/matches"] }),
+  });
   const patchClub = usePatchClub();
 
   const membership: ClubMembership | null = useMemo(() => {
@@ -801,39 +830,128 @@ export default function ClubManagement() {
                 </section>
               </TabsContent>
 
-              <TabsContent value="liga" className="px-4 pb-6 space-y-4 mt-2">
-                <div className="space-y-1">
-                  <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/60">
-                    {locale === "zh" ? "赛程" : locale === "es" ? "Calendario de liga" : "League schedule"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {locale === "zh"
-                      ? "手动添加本赛季的联赛赛程"
-                      : locale === "es"
-                      ? "Añade los partidos de la temporada manualmente"
-                      : "Add this season's league matches manually"}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled
-                  className="w-full rounded-xl h-10 font-bold text-sm opacity-50"
-                >
-                  + {locale === "zh" ? "添加比赛" : locale === "es" ? "Añadir partido" : "Add match"}
-                </Button>
-                <div className="rounded-xl border border-dashed border-border px-4 py-5 text-center space-y-1">
-                  <p className="text-sm font-semibold text-muted-foreground">
-                    {locale === "zh" ? "暂无赛程" : locale === "es" ? "Sin partidos añadidos" : "No matches yet"}
-                  </p>
-                  <p className="text-xs text-muted-foreground/60">
-                    {locale === "zh"
-                      ? "功能即将上线"
-                      : locale === "es"
-                      ? "Próximamente — también importable desde el scraper de Stats"
-                      : "Coming soon — also importable from the Stats scraper"}
-                  </p>
-                </div>
+              <TabsContent value="liga" className="space-y-4 mt-0">
+                {(() => {
+                  const now = new Date();
+                  const upcoming = (matchesQ.data ?? []).filter((m: any) => new Date(m.matchDate) >= now);
+                  const past = (matchesQ.data ?? []).filter((m: any) => new Date(m.matchDate) < now);
+                  const fmtDate = (iso: string) => {
+                    try {
+                      return new Intl.DateTimeFormat(
+                        locale === "es" ? "es" : locale === "zh" ? "zh-CN" : "en",
+                        { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }
+                      ).format(new Date(iso));
+                    } catch { return iso; }
+                  };
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/60">
+                          {locale === "zh" ? "赛程" : locale === "es" ? "Calendario de liga" : "League schedule"}
+                        </p>
+                        {canEditClubContext && (
+                          <Button size="sm" variant="outline" className="h-8 rounded-lg text-xs font-bold" onClick={() => setShowAddMatch(true)}>
+                            + {locale === "zh" ? "添加比赛" : locale === "es" ? "Añadir partido" : "Add match"}
+                          </Button>
+                        )}
+                      </div>
+                      {showAddMatch && (
+                        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                          <p className="text-sm font-black text-foreground">
+                            {locale === "zh" ? "添加比赛" : locale === "es" ? "Añadir partido" : "Add match"}
+                          </p>
+                          <Input
+                            placeholder={locale === "zh" ? "对手名称" : locale === "es" ? "Nombre del rival" : "Rival name"}
+                            value={matchRival}
+                            onChange={e => setMatchRival(e.target.value)}
+                            className="h-10 rounded-lg text-sm"
+                            autoFocus
+                          />
+                          <input
+                            type="datetime-local"
+                            value={matchDate}
+                            onChange={e => setMatchDate(e.target.value)}
+                            className="w-full h-10 rounded-lg border border-border bg-background text-sm px-3 text-foreground"
+                          />
+                          <Input
+                            placeholder={locale === "zh" ? "地点（可选）" : locale === "es" ? "Lugar (opcional)" : "Location (optional)"}
+                            value={matchLocation}
+                            onChange={e => setMatchLocation(e.target.value)}
+                            className="h-10 rounded-lg text-sm"
+                          />
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" className="flex-1 rounded-lg" onClick={() => setShowAddMatch(false)}>
+                              {locale === "es" ? "Cancelar" : locale === "zh" ? "取消" : "Cancel"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="flex-1 rounded-lg font-bold"
+                              disabled={!matchRival.trim() || !matchDate || createMatchMut.isPending}
+                              onClick={() => createMatchMut.mutate({ rivalName: matchRival.trim(), matchDate, location: matchLocation.trim() })}
+                            >
+                              {locale === "es" ? "Guardar" : locale === "zh" ? "保存" : "Save"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      {matchesQ.isLoading && (
+                        <div className="flex justify-center py-4">
+                          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      )}
+                      {upcoming.length === 0 && past.length === 0 && !matchesQ.isLoading && (
+                        <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center space-y-1">
+                          <p className="text-sm font-semibold text-muted-foreground">
+                            {locale === "zh" ? "暂无赛程" : locale === "es" ? "Sin partidos añadidos" : "No matches yet"}
+                          </p>
+                          <p className="text-xs text-muted-foreground/60">
+                            {locale === "zh" ? "点击上方按钮添加比赛" : locale === "es" ? "Pulsa «Añadir partido» para empezar" : "Tap «Add match» to get started"}
+                          </p>
+                        </div>
+                      )}
+                      {upcoming.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            {locale === "es" ? "Próximos" : locale === "zh" ? "即将到来" : "Upcoming"}
+                          </p>
+                          {upcoming.map((m: any, i: number) => (
+                            <div key={m.id} className={`rounded-xl border px-4 py-3 flex items-center justify-between gap-3 ${i === 0 ? "border-blue-500/30 bg-blue-500/5" : "border-border bg-card"}`}>
+                              <div>
+                                <p className="text-sm font-extrabold text-foreground">vs {m.rivalName}</p>
+                                <p className="text-xs text-muted-foreground">{fmtDate(m.matchDate)}{m.location ? ` · ${m.location}` : ""}</p>
+                              </div>
+                              {canEditClubContext && (
+                                <button type="button" onClick={() => deleteMatchMut.mutate(m.id)} className="text-muted-foreground hover:text-destructive transition-colors shrink-0">
+                                  <X className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {past.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-50">
+                            {locale === "es" ? "Jugados" : locale === "zh" ? "已完成" : "Past"}
+                          </p>
+                          {past.map((m: any) => (
+                            <div key={m.id} className="rounded-xl border border-border bg-muted/30 px-4 py-3 flex items-center justify-between gap-3 opacity-60">
+                              <div>
+                                <p className="text-sm font-semibold text-foreground">vs {m.rivalName}</p>
+                                <p className="text-xs text-muted-foreground">{fmtDate(m.matchDate)}</p>
+                              </div>
+                              {canEditClubContext && (
+                                <button type="button" onClick={() => deleteMatchMut.mutate(m.id)} className="text-muted-foreground hover:text-destructive transition-colors shrink-0">
+                                  <X className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </TabsContent>
 
               <TabsContent value="equipo" className="space-y-4 mt-0">

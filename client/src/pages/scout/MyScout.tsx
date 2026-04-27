@@ -330,7 +330,7 @@ export default function MyScout() {
         </Button>
       </header>
 
-      <main className="flex-1 px-4 py-4 space-y-3 max-w-md mx-auto w-full">
+      <main className="flex-1 px-4 py-4 landscape:py-2 space-y-3 max-w-md mx-auto w-full">
 
         {/* New player form */}
         {showNewPlayer && (

@@ -1094,6 +1094,69 @@ export async function registerRoutes(
     }
   });
 
+  // ── League matches ────────────────────────────────────────────────────────
+  app.get("/api/club/matches", requireAuth, async (req, res) => {
+    try {
+      const uid = req.user!.id;
+      const club = await storage.getClubForUser(uid);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      const matches = await storage.listLeagueMatches(club.id);
+      res.json(matches.map(m => ({
+        id: m.id,
+        rivalName: m.rivalName,
+        matchDate: m.matchDate.toISOString(),
+        location: m.location,
+        matchType: m.matchType,
+      })));
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load matches" });
+    }
+  });
+
+  app.post("/api/club/matches", requireAuth, async (req, res) => {
+    try {
+      const uid = req.user!.id;
+      const club = await storage.getClubForUser(uid);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      if (!(await userCanManageClub(req, club.id))) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const { rivalName, matchDate, location, matchType } = req.body;
+      if (!rivalName || !matchDate) return res.status(400).json({ error: "rivalName and matchDate required" });
+      const match = await storage.createLeagueMatch({
+        clubId: club.id,
+        rivalName,
+        matchDate: new Date(matchDate),
+        location: location ?? undefined,
+        matchType: matchType ?? "league",
+      });
+      res.status(201).json({
+        id: match.id,
+        rivalName: match.rivalName,
+        matchDate: match.matchDate.toISOString(),
+        location: match.location,
+        matchType: match.matchType,
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to create match" });
+    }
+  });
+
+  app.delete("/api/club/matches/:id", requireAuth, async (req, res) => {
+    try {
+      const uid = req.user!.id;
+      const club = await storage.getClubForUser(uid);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      if (!(await userCanManageClub(req, club.id))) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      await storage.deleteLeagueMatch(req.params.id as string);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: "Failed to delete match" });
+    }
+  });
+
   app.delete("/api/invitations/:id", requireAuth, async (req, res) => {
     try {
       if (!isHeadCoachOrMaster(req)) {

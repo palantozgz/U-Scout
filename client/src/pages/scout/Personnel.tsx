@@ -245,7 +245,7 @@ export default function Personnel() {
         )}
       </header>
 
-      <main className="flex-1 px-4 py-4 space-y-4 max-w-md mx-auto w-full">
+      <main className="flex-1 px-4 py-4 landscape:py-2 space-y-4 max-w-md mx-auto w-full">
 
         {/* Sandbox banner for non-head-coaches */}
         {!isHeadCoach && (
