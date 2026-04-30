@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLocale } from "@/lib/i18n";
+import { apiRequest } from "@/lib/queryClient";
 
 type Translate = ReturnType<typeof useLocale>["t"];
 import { useAuth } from "@/lib/useAuth";
@@ -252,6 +253,7 @@ export default function ClubManagement() {
   const [showAddMatch, setShowAddMatch] = useState(false);
   const [matchRival, setMatchRival] = useState("");
   const [matchDate, setMatchDate] = useState("");
+  const [matchTime, setMatchTime] = useState("12:00");
   const [matchLocation, setMatchLocation] = useState("");
 
   const q = useClub();
@@ -261,7 +263,7 @@ export default function ClubManagement() {
   const matchesQ = useQuery<Array<{id:string;rivalName:string;matchDate:string;location:string|null;matchType:string}>>({    queryKey: ["/api/club/matches"],
     queryFn: async () => {
       try {
-        const r = await fetch("/api/club/matches", { credentials: "include" });
+        const r = await apiRequest("GET", "/api/club/matches");
         if (!r.ok) return [];
         const data = await r.json();
         return Array.isArray(data) ? data : [];
@@ -273,17 +275,20 @@ export default function ClubManagement() {
   });
   const createMatchMut = useMutation({
     mutationFn: async (data: {rivalName:string;matchDate:string;location:string}) => {
-      const r = await fetch("/api/club/matches", { method:"POST", headers:{"Content-Type":"application/json"}, credentials:"include", body: JSON.stringify(data) });
+      const r = await apiRequest("POST", "/api/club/matches", data);
       return r.json();
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["/api/club/matches"] });
-      setShowAddMatch(false); setMatchRival(""); setMatchDate(""); setMatchLocation("");
+      setShowAddMatch(false); setMatchRival(""); setMatchDate(""); setMatchTime("12:00"); setMatchLocation("");
+    },
+    onError: () => {
+      toast({ variant: "destructive", description: locale === "es" ? "Error al guardar el partido" : "Failed to save match" });
     },
   });
   const deleteMatchMut = useMutation({
     mutationFn: async (id:string) => {
-      await fetch(`/api/club/matches/${id}`, { method:"DELETE", credentials:"include" });
+      await apiRequest("DELETE", `/api/club/matches/${id}`);
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["/api/club/matches"] }),
   });
@@ -873,12 +878,20 @@ export default function ClubManagement() {
                             className="h-10 rounded-lg text-sm"
                             autoFocus
                           />
-                          <input
-                            type="datetime-local"
-                            value={matchDate}
-                            onChange={e => setMatchDate(e.target.value)}
-                            className="w-full h-10 rounded-lg border border-border bg-background text-sm px-3 text-foreground"
-                          />
+                          <div className="flex gap-2">
+                            <input
+                              type="date"
+                              value={matchDate}
+                              onChange={e => setMatchDate(e.target.value)}
+                              className="flex-1 h-10 rounded-lg border border-border bg-background text-sm px-3 text-foreground"
+                            />
+                            <input
+                              type="time"
+                              value={matchTime}
+                              onChange={e => setMatchTime(e.target.value)}
+                              className="w-28 h-10 rounded-lg border border-border bg-background text-sm px-3 text-foreground"
+                            />
+                          </div>
                           <Input
                             placeholder={locale === "zh" ? "地点（可选）" : locale === "es" ? "Lugar (opcional)" : "Location (optional)"}
                             value={matchLocation}
@@ -893,7 +906,7 @@ export default function ClubManagement() {
                               size="sm"
                               className="flex-1 rounded-lg font-bold"
                               disabled={!matchRival.trim() || !matchDate || createMatchMut.isPending}
-                              onClick={() => createMatchMut.mutate({ rivalName: matchRival.trim(), matchDate, location: matchLocation.trim() })}
+                              onClick={() => createMatchMut.mutate({ rivalName: matchRival.trim(), matchDate: `${matchDate}T${matchTime || "12:00"}`, location: matchLocation.trim() })}
                             >
                               {locale === "es" ? "Guardar" : locale === "zh" ? "保存" : "Save"}
                             </Button>

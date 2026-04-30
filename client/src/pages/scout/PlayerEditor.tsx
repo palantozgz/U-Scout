@@ -145,7 +145,7 @@ function HalfCourtZoneSelector({
     <div className="flex flex-col items-center gap-2">
       <svg
         viewBox="0 0 280 170"
-        className="w-full max-w-xs rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
+        className="w-full max-w-xs rounded-xl overflow-hidden border border-border bg-slate-50"
         style={{ touchAction: "manipulation" }}
       >
         {/* Court background */}
@@ -218,7 +218,7 @@ function HalfCourtZoneSelector({
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline"
+          className="text-xs text-muted-foreground hover:text-muted-foreground dark:hover:text-slate-300 underline"
         >
           {/* clear */}
           ✕ clear
@@ -243,15 +243,15 @@ function Tooltip({ text }: { text: string }) {
   }, [open]);
   return (
     <>
-      <button ref={btnRef} type="button" onClick={() => setOpen(v => !v)} className="ml-1.5 text-slate-400 hover:text-primary transition-colors flex-shrink-0">
+      <button ref={btnRef} type="button" onClick={() => setOpen(v => !v)} className="ml-1.5 text-muted-foreground hover:text-primary transition-colors flex-shrink-0">
         <HelpCircle className="w-3.5 h-3.5" />
       </button>
       {open && (
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-sm bg-slate-900 text-slate-100 text-sm rounded-2xl p-5 shadow-2xl border border-slate-700 leading-relaxed" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-sm bg-background text-slate-100 text-sm rounded-2xl p-5 shadow-2xl border border-slate-700 leading-relaxed" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <p>{text}</p>
-              <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-white shrink-0 mt-0.5"><X className="w-4 h-4" /></button>
+              <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-white shrink-0 mt-0.5"><X className="w-4 h-4" /></button>
             </div>
           </div>
         </div>
@@ -263,7 +263,7 @@ function Tooltip({ text }: { text: string }) {
 function FieldLabel({ label, tooltip }: { label: string; tooltip?: string }) {
   return (
     <div className="flex items-center gap-0.5">
-      <Label className="font-semibold text-slate-700 dark:text-slate-300 text-sm">{label}</Label>
+      <Label className="font-semibold text-foreground text-sm">{label}</Label>
       {tooltip && <Tooltip text={tooltip} />}
     </div>
   );
@@ -325,11 +325,11 @@ function PowerBar({ label, value, onChange, tooltip }: {
           return (
             <button key={level} type="button" onClick={() => onChange(value === level ? 0 : level)}
               style={{ width: 20 + level * 8, height: 12 + level * 4 }}
-              className={`rounded-sm transition-all duration-150 border-2 ${filled ? levelColorMap[level] + " shadow-sm" : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-primary/50"}`}
+              className={`rounded-sm transition-all duration-150 border-2 ${filled ? levelColorMap[level] + " shadow-sm" : "bg-slate-100 bg-card border-border hover:border-primary/50"}`}
             />
           );
         })}
-        <span className="ml-2 text-xs font-bold text-slate-500 dark:text-slate-400 self-center">{value === 0 ? "—" : `${value}/5`}</span>
+        <span className="ml-2 text-xs font-bold text-muted-foreground self-center">{value === 0 ? "—" : `${value}/5`}</span>
       </div>
     </div>
   );
@@ -346,7 +346,7 @@ function IntensitySelector({ label, value, onChange, tooltip }: {
         {(["Primary", "Secondary", "Rare", "Never"] as IntensityLevel[]).map(level => (
           <Button key={level} type="button" variant={value === level ? "default" : "outline"}
             style={{ minHeight: 44 }}
-            className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${value === level ? "bg-primary border-primary text-white" : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+            className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${value === level ? "bg-primary border-primary text-white" : "bg-transparent border-border text-muted-foreground"}`}
             onClick={() => onChange(level)}>
             {level === "Primary" ? t("freq_primary") : level === "Secondary" ? t("freq_secondary") : level === "Rare" ? t("freq_rare") : t("freq_never")}
           </Button>
@@ -363,11 +363,11 @@ function CloseoutSelect({ label, value, onChange, fallback, tooltip }: {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-0.5">
-        <Label className="font-semibold text-slate-700 dark:text-slate-300 text-xs">{label}</Label>
+      <Label className="font-semibold text-foreground text-xs">{label}</Label>
         {tooltip && <Tooltip text={tooltip} />}
       </div>
       <Select value={value ?? fallback} onValueChange={v => onChange(v as CloseoutReaction)}>
-        <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-xs"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 text-xs"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="Catch & Shoot">{t("opt_closeout_catch_shoot")}</SelectItem>
           <SelectItem value="Attack Baseline">{t("opt_closeout_attack_baseline")}</SelectItem>
@@ -383,10 +383,10 @@ function CloseoutSelect({ label, value, onChange, fallback, tooltip }: {
 
 function IsoCloseoutReactionSection({ inputs, ui }: { inputs: PlayerInput; ui: (key: keyof PlayerInput, value: any) => void }) {
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
+    <div className="rounded-xl border border-border bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
       <FieldLabel label={t("closeout_general")} tooltip={t("hint_closeout_general")} />
       <Select value={inputs.closeoutReaction} onValueChange={v => ui("closeoutReaction", v)}>
-        <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="Catch & Shoot">{t("opt_closeout_catch_shoot")}</SelectItem>
           <SelectItem value="Attack Baseline">{t("opt_closeout_attack_baseline")}</SelectItem>
@@ -407,8 +407,8 @@ function IsoCloseoutReactionSection({ inputs, ui }: { inputs: PlayerInput; ui: (
 // ─── Half-court diagram ───────────────────────────────────────────────────────
 function HalfCourtDiagram({ dominant }: { dominant?: "Right" | "Left" }) {
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-3 space-y-2">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Top view — player's back to the baseline</p>
+    <div className="rounded-xl border border-border bg-slate-50 p-3 space-y-2">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-center">Top view — player's back to the baseline</p>
       <svg viewBox="0 0 240 175" className="w-full max-w-xs mx-auto block" xmlns="http://www.w3.org/2000/svg">
         <rect x="10" y="18" width="220" height="140" fill="none" stroke="#94a3b8" strokeWidth="1.5" rx="3"/>
         <rect x="70" y="60" width="100" height="88" fill="none" stroke="#94a3b8" strokeWidth="1.2"/>
@@ -488,29 +488,29 @@ function PostQuadrantSelector({ value, onChange, dominantHand }: {
           const isRight = q.side === "right";
           const isStrongSide = dominantHand === "Right" ? isRight : !isRight;
           const borderColor = isRight
-            ? current ? "border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/20" : "border-red-100 dark:border-red-900/30 bg-white dark:bg-slate-900"
-            : current ? "border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20" : "border-blue-100 dark:border-blue-900/30 bg-white dark:bg-slate-900";
+            ? current ? "border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/20" : "border-red-100 dark:border-red-900/30 bg-background"
+            : current ? "border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20" : "border-blue-100 dark:border-blue-900/30 bg-background";
           const labelColor = isRight ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400";
           const moves = QUADRANT_MOVES[q.key];
           return (
             <div key={q.key} className={`rounded-xl border p-2.5 space-y-2 transition-all ${borderColor}`}>
               <div className="flex items-center justify-between gap-1">
                 <p className={`text-[11px] font-bold leading-tight ${labelColor}`}>{q.label}{isStrongSide && dominantHand && <span className="ml-1">★</span>}</p>
-                {current && <button type="button" onClick={() => updateQ(q.key, null)} className="text-slate-400 hover:text-red-400 shrink-0"><X className="w-3 h-3" /></button>}
+                {current && <button type="button" onClick={() => updateQ(q.key, null)} className="text-muted-foreground hover:text-red-400 shrink-0"><X className="w-3 h-3" /></button>}
               </div>
               <Select value={current?.moveName ?? "none"} onValueChange={v => updateQ(q.key, v === "none" || v.startsWith("—") ? null : v)}>
-                <SelectTrigger className={`h-8 rounded-lg text-xs border ${isRight ? "border-red-200 dark:border-red-900 text-red-700 dark:text-red-300" : "border-blue-200 dark:border-blue-900 text-blue-700 dark:text-blue-300"} bg-white dark:bg-slate-800`}>
+                <SelectTrigger className={`h-8 rounded-lg text-xs border ${isRight ? "border-red-200 dark:border-red-900 text-red-700 dark:text-red-300" : "border-blue-200 dark:border-blue-900 text-blue-700 dark:text-blue-300"} bg-card`}>
                   <SelectValue placeholder="Not observed" />
                 </SelectTrigger>
                 <SelectContent className="z-[100] max-h-64">
-                  <SelectItem value="none"><span className="text-slate-400 text-xs">{t("not_observed")}</span></SelectItem>
+                  <SelectItem value="none"><span className="text-muted-foreground text-xs">{t("not_observed")}</span></SelectItem>
                   {moves.map(move => move.startsWith("—") ? (
-                    <div key={move} className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 border-t border-slate-100 dark:border-slate-800 mt-1 pt-2">Pass options</div>
+                    <div key={move} className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-t border-slate-100 mt-1 pt-2">Pass options</div>
                   ) : (
                     <SelectItem key={move} value={move}>
                       <div className="flex flex-col py-0.5">
                         <span className="font-semibold text-xs">{move}</span>
-                        {MOVE_DESC[move] && <span className="text-[10px] text-slate-400 leading-tight">{MOVE_DESC[move]}</span>}
+                        {MOVE_DESC[move] && <span className="text-[10px] text-muted-foreground leading-tight">{MOVE_DESC[move]}</span>}
                       </div>
                     </SelectItem>
                   ))}
@@ -545,11 +545,11 @@ function ScreenerActionSelector({ primaryValue, secondaryValue, onPrimaryChange,
         <div className="space-y-1.5">
           {getScreenerOptions().map(opt => (
             <button key={opt.value} type="button"
-              className={`w-full text-left p-2.5 rounded-xl border transition-all ${primaryValue === opt.value ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/20" : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900"}`}
+              className={`w-full text-left p-2.5 rounded-xl border transition-all ${primaryValue === opt.value ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/20" : "border-border bg-slate-50"}`}
               onClick={() => onPrimaryChange(opt.value)}>
               <div className="flex items-start gap-2.5">
                 <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${primaryValue === opt.value ? "bg-blue-500 border-blue-500" : "border-slate-300 dark:border-slate-600"}`}>
-                  {primaryValue === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  {primaryValue === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-background" />}
                 </div>
                 <p className={`font-bold text-xs ${primaryValue === opt.value ? "text-blue-700 dark:text-blue-300" : "text-slate-800 dark:text-slate-200"}`}>{opt.label}</p>
               </div>
@@ -557,10 +557,10 @@ function ScreenerActionSelector({ primaryValue, secondaryValue, onPrimaryChange,
           ))}
         </div>
       </div>
-      <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+      <div className="space-y-2 pt-1 border-t border-slate-100">
         <FieldLabel label={t("pnr_screener_action_secondary")} tooltip={t("hint_screener_secondary")} />
         <Select value={secondaryValue ?? "none"} onValueChange={v => onSecondaryChange(v === "none" ? undefined : v as ScreenerAction)}>
-          <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800 text-sm"><SelectValue placeholder="None" /></SelectTrigger>
+          <SelectTrigger className="h-10 rounded-xl bg-slate-50 dark:bg-slate-950/50 text-sm"><SelectValue placeholder="None" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="none">{t("opt_screen_none")}</SelectItem>
             {getScreenerOptions().filter(o => o.value !== primaryValue).map(opt => (
@@ -727,7 +727,7 @@ export default function PlayerEditor() {
       {showSaveFlash && (
         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none">
           <div className="flex flex-col items-center gap-1 animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-slate-900/90 dark:bg-white/90 backdrop-blur-md rounded-2xl px-6 py-4 shadow-2xl border border-white/10 flex flex-col items-center gap-2">
+            <div className="bg-card/90 backdrop-blur-md rounded-2xl px-6 py-4 shadow-2xl border border-white/10 flex flex-col items-center gap-2">
               <span className="text-4xl font-black italic text-white dark:text-slate-900 leading-none tracking-tighter">U</span>
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 dark:text-slate-900/60">{t("editor_inputs_saved")}</span>
             </div>
@@ -735,7 +735,7 @@ export default function PlayerEditor() {
         </div>
       )}
 
-      <header className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
           {/* Botón volver al review — solo para jugadoras existentes */}
           <Button
@@ -773,7 +773,7 @@ export default function PlayerEditor() {
                 </Button>
               </div>
             ) : (
-              <Button size="icon" variant="ghost" onClick={() => setConfirmDelete(true)} className="text-slate-400 hover:text-red-500">
+              <Button size="icon" variant="ghost" onClick={() => setConfirmDelete(true)} className="text-muted-foreground hover:text-red-500">
                 <Trash2 className="w-4 h-4" />
               </Button>
             )
@@ -792,23 +792,23 @@ export default function PlayerEditor() {
       <main className="flex-1 p-4 pb-24">
         <Tabs defaultValue="context" className="w-full">
           <TabsList className="grid w-full grid-cols-6 mb-6 p-1 bg-slate-200/60 dark:bg-slate-800/60 rounded-xl shadow-inner">
-            <TabsTrigger value="context" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400 data-[state=active]:text-slate-900 dark:data-[state=active]:text-white">
+            <TabsTrigger value="context" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-foreground">
               <Info className="w-3 h-3 sm:w-4 sm:h-4 md:mr-1" /><span className="hidden md:inline">{t("tab_context")}</span>
             </TabsTrigger>
-            <TabsTrigger value="post" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400 data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-400">
+            <TabsTrigger value="post" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-400">
               <svg className="w-3 h-3 sm:w-4 sm:h-4 md:mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M12 2v20"/><path d="M9 10h6"/><path d="M9 14h6"/></svg>
               <span className="hidden md:inline">{t("tab_post")}</span>
             </TabsTrigger>
-            <TabsTrigger value="iso" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400 data-[state=active]:text-orange-600 dark:data-[state=active]:text-orange-400">
+            <TabsTrigger value="iso" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-orange-600 dark:data-[state=active]:text-orange-400">
               <Flame className="w-3 h-3 sm:w-4 sm:h-4 md:mr-1" /><span className="hidden md:inline">{t("tab_iso")}</span>
             </TabsTrigger>
-            <TabsTrigger value="pnr" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">
+            <TabsTrigger value="pnr" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">
               <Zap className="w-3 h-3 sm:w-4 sm:h-4 md:mr-1" /><span className="hidden md:inline">{t("tab_pnr")}</span>
             </TabsTrigger>
-            <TabsTrigger value="offball" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400">
+            <TabsTrigger value="offball" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400">
               <Target className="w-3 h-3 sm:w-4 sm:h-4 md:mr-1" /><span className="hidden md:inline">{t("tab_offball")}</span>
             </TabsTrigger>
-            <TabsTrigger value="spot" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm text-slate-600 dark:text-slate-400 data-[state=active]:text-pink-600 dark:data-[state=active]:text-pink-400">
+            <TabsTrigger value="spot" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-pink-600 dark:data-[state=active]:text-pink-400">
               <span className="text-[11px] sm:text-xs font-black md:mr-1 text-pink-500">3</span>
               <span className="hidden md:inline">{t("tab_spot")}</span>
             </TabsTrigger>
@@ -818,29 +818,29 @@ export default function PlayerEditor() {
           <TabsContent value="context" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
 
             {/* Identidad */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-4 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Info className="w-5 h-5 text-primary" /> {t("identity")}</h3>
+            <div className="bg-background rounded-2xl p-5 space-y-4 border border-border shadow-sm">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-foreground"><Info className="w-5 h-5 text-primary" /> {t("identity")}</h3>
               <PlayerAvatarUpload imageUrl={player.imageUrl} onUpload={url => um("imageUrl", url)} />
 
               {/* Nombre + superestrella — diseño vertical */}
               <div className="space-y-1.5">
                 <FieldLabel label={t("player_name")} />
-                <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-50/80 dark:bg-slate-950/40 shadow-sm">
+                <div className="rounded-xl border border-border overflow-hidden bg-slate-50/80 dark:bg-slate-950/40 shadow-sm">
                   <div className="flex gap-2 items-center p-2">
                     <Input value={player.name} onChange={e => um("name", e.target.value)} placeholder={t("placeholder_player_name")}
-                      className="flex-1 min-w-0 h-11 rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950/80" aria-describedby="star-caption" />
+                      className="flex-1 min-w-0 h-11 rounded-lg border-border bg-background" aria-describedby="star-caption" />
                     {/* Botón superestrella — vertical con icono + texto */}
                     <button type="button"
-                      className={`shrink-0 flex flex-col items-center justify-center gap-0.5 h-11 w-14 rounded-lg border transition-colors ${inputs.starPlayer === true ? "border-amber-400/60 bg-amber-500/15 text-amber-500" : "border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-950/80 hover:border-amber-300 hover:text-amber-400"}`}
+                      className={`shrink-0 flex flex-col items-center justify-center gap-0.5 h-11 w-14 rounded-lg border transition-colors ${inputs.starPlayer === true ? "border-amber-400/60 bg-amber-500/15 text-amber-500" : "border-border text-muted-foreground bg-background hover:border-amber-300 hover:text-amber-400"}`}
                       onClick={() => ui("starPlayer", inputs.starPlayer !== true)} aria-label={t("editor.star_player")} aria-pressed={inputs.starPlayer === true}>
                       <Star className={`w-4 h-4 ${inputs.starPlayer === true ? "fill-amber-400 text-amber-400" : "fill-none"}`} strokeWidth={inputs.starPlayer === true ? 0 : 1.5} />
                       <span className="text-[9px] font-bold leading-none">{inputs.starPlayer === true ? t("editor.star_player_badge_label") : t("star")}</span>
                     </button>
                   </div>
                   {/* Caption siempre debajo, mismo ancho */}
-                  <div id="star-caption" className={`flex items-center gap-2 px-3 py-2 border-t text-xs transition-colors ${inputs.starPlayer === true ? "border-amber-400/25 bg-amber-500/[0.08]" : "border-slate-200/90 dark:border-slate-700/90 bg-slate-100/60 dark:bg-slate-900/50"}`}>
-                    <Star className={`w-3 h-3 shrink-0 ${inputs.starPlayer === true ? "fill-amber-400 text-amber-400" : "text-slate-400 fill-none"}`} strokeWidth={inputs.starPlayer === true ? 0 : 1.5} aria-hidden />
-                    <span className={`text-[11px] ${inputs.starPlayer === true ? "text-amber-700 dark:text-amber-300 font-semibold" : "text-slate-500 dark:text-slate-400"}`}>{t("editor.star_player_limit_note")}</span>
+                  <div id="star-caption" className={`flex items-center gap-2 px-3 py-2 border-t text-xs transition-colors ${inputs.starPlayer === true ? "border-amber-400/25 bg-amber-500/[0.08]" : "border-border bg-slate-100/60 dark:bg-slate-900/50"}`}>
+                    <Star className={`w-3 h-3 shrink-0 ${inputs.starPlayer === true ? "fill-amber-400 text-amber-400" : "text-muted-foreground fill-none"}`} strokeWidth={inputs.starPlayer === true ? 0 : 1.5} aria-hidden />
+                    <span className={`text-[11px] ${inputs.starPlayer === true ? "text-amber-700 dark:text-amber-300 font-semibold" : "text-muted-foreground"}`}>{t("editor.star_player_limit_note")}</span>
                     <Tooltip text={`${t("editor.star_player_hint")}\n\n${t("editor.star_player_limit_note")}`} />
                   </div>
                 </div>
@@ -872,7 +872,7 @@ export default function PlayerEditor() {
                             : v === "cold"
                               ? "bg-sky-500 border-sky-500 text-white hover:bg-sky-500 hover:text-white"
                               : "bg-slate-600 border-slate-600 text-white hover:bg-slate-600 hover:text-white"
-                          : "border-slate-200 dark:border-slate-700"
+                          : "border-border"
                       }`}
                       onClick={() =>
                         ui("recentForm" as any, (inputs.recentForm ?? null) === v ? null : v)
@@ -896,7 +896,7 @@ export default function PlayerEditor() {
               <div className="space-y-1.5">
                 <FieldLabel label={t("team")} />
                 <Select value={player.teamId} onValueChange={v => setPlayer(prev => prev ? { ...prev, teamId: v } : prev)} disabled={teams.length < 2}>
-                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50"><SelectValue /></SelectTrigger>
                   <SelectContent>{teams.map(tm => <SelectItem key={tm.id} value={tm.id}>{tm.logo} {tm.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
@@ -904,7 +904,7 @@ export default function PlayerEditor() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <FieldLabel label={t("number")} />
-                  <Input value={player.number} onChange={e => um("number", e.target.value)} placeholder="e.g. 23" className="bg-slate-50 dark:bg-slate-950/50 h-12 rounded-xl dark:border-slate-800" />
+                  <Input value={player.number} onChange={e => um("number", e.target.value)} placeholder="e.g. 23" className="bg-slate-50 dark:bg-slate-950/50 h-12 rounded-xl" />
                 </div>
                 <div className="space-y-1.5">
                   <FieldLabel label={t("position")} tooltip={t("hint_position")} />
@@ -915,7 +915,7 @@ export default function PlayerEditor() {
                       return (
                         <button key={pos} type="button" style={{ minHeight: 44 }}
                           onClick={() => { if (selected) { ui("position", parts.filter(p => p !== pos).join("/") || pos); } else { ui("position", parts.length === 0 ? pos : `${parts[0]}/${pos}`); } }}
-                          className={`inline-flex min-h-11 min-w-11 items-center justify-center px-3 py-2 rounded-xl text-sm font-bold border transition-all ${selected ? pillActiveClasses("neutral") : "bg-transparent border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"}`}>
+                          className={`inline-flex min-h-11 min-w-11 items-center justify-center px-3 py-2 rounded-xl text-sm font-bold border transition-all ${selected ? pillActiveClasses("neutral") : "bg-transparent border-border text-muted-foreground"}`}>
                           {pos}
                         </button>
                       );
@@ -928,11 +928,11 @@ export default function PlayerEditor() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <FieldLabel label={t("height")} />
-                  <Input value={inputs.height} onChange={e => ui("height", e.target.value)} onFocus={e => { if (e.target.value === "183 cm") ui("height", ""); }} placeholder="e.g. 195 cm" className="bg-slate-50 dark:bg-slate-950/50 h-12 rounded-xl dark:border-slate-800" />
+                  <Input value={inputs.height} onChange={e => ui("height", e.target.value)} onFocus={e => { if (e.target.value === "183 cm") ui("height", ""); }} placeholder="e.g. 195 cm" className="bg-slate-50 dark:bg-slate-950/50 h-12 rounded-xl" />
                 </div>
                 <div className="space-y-1.5">
                   <FieldLabel label={t("weight")} />
-                  <Input value={inputs.weight} onChange={e => ui("weight", e.target.value)} onFocus={e => { if (e.target.value === "82 kg") ui("weight", ""); }} placeholder="e.g. 95 kg" className="bg-slate-50 dark:bg-slate-950/50 h-12 rounded-xl dark:border-slate-800" />
+                  <Input value={inputs.weight} onChange={e => ui("weight", e.target.value)} onFocus={e => { if (e.target.value === "82 kg") ui("weight", ""); }} placeholder="e.g. 95 kg" className="bg-slate-50 dark:bg-slate-950/50 h-12 rounded-xl" />
                 </div>
               </div>
 
@@ -943,7 +943,7 @@ export default function PlayerEditor() {
                   {(["Right", "Left"] as const).map(h => (
                     <Button key={h} type="button" variant={inputs.postDominantHand === h ? "default" : "outline"}
                       style={{ minHeight: 44 }}
-                      className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${inputs.postDominantHand === h ? pillActiveClasses("neutral") : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                      className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${inputs.postDominantHand === h ? pillActiveClasses("neutral") : "bg-transparent border-border text-muted-foreground"}`}
                       onClick={() => ui("postDominantHand", h)}>
                       {h === "Right" ? `🤜 ${t("right_hand")}` : `🤛 ${t("left_hand")}`}
                     </Button>
@@ -953,8 +953,8 @@ export default function PlayerEditor() {
             </div>
 
             {/* Perfil físico */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">💪 {t("physical_profile")}</h3>
+            <div className="bg-background rounded-2xl p-5 space-y-5 border border-border shadow-sm">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">💪 {t("physical_profile")}</h3>
               {/* Todas las barras con el mismo color (primary) */}
               <PowerBar label={t("athleticism")} value={inputs.athleticism} onChange={v => ui("athleticism", v)} tooltip={t("hint_athleticism")} />
               <PowerBar label={t("physical_strength")} value={inputs.physicalStrength} onChange={v => ui("physicalStrength", v)} tooltip={t("hint_physical_strength")} />
@@ -976,7 +976,7 @@ export default function PlayerEditor() {
                       type="button"
                       variant={inputs.contactType === v ? "default" : "outline"}
                       style={{ minHeight: 44 }}
-                      className={`h-auto min-h-11 gap-2 rounded-full px-4 text-sm font-semibold ${inputs.contactType === v ? pillActiveClasses("neutral") : "border-slate-200 bg-transparent dark:border-slate-700"}`}
+                      className={`h-auto min-h-11 gap-2 rounded-full px-4 text-sm font-semibold ${inputs.contactType === v ? pillActiveClasses("neutral") : "border-border bg-transparent"}`}
                       onClick={() => ui("contactType", inputs.contactType === v ? null : v)}
                     >
                       <span aria-hidden>{emoji}</span>
@@ -998,19 +998,19 @@ export default function PlayerEditor() {
             </div>
 
             {/* Tiros libres y provocación de faltas */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">🎯 {t("free_throws_fouling")}</h3>
+            <div className="bg-background rounded-2xl p-5 space-y-5 border border-border shadow-sm">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">🎯 {t("free_throws_fouling")}</h3>
               <PowerBar label={t("ft_shooting")} value={(inputs as any).ftShooting ?? 3} onChange={v => ui("ftShooting" as any, v)} tooltip={t("hint_ft_shooting")} />
               <PowerBar label={t("foul_drawing")} value={(inputs as any).foulDrawing ?? 2} onChange={v => ui("foulDrawing" as any, v)} tooltip={t("hint_foul_drawing")} />
             </div>
 
             {/* Manejo de balón */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">🏀 {t("editor.ball_handling")}</h3>
+            <div className="bg-background rounded-2xl p-5 space-y-5 border border-border shadow-sm">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">🏀 {t("editor.ball_handling")}</h3>
               <div className="space-y-2">
                 <FieldLabel label={t("editor.ball_handling")} tooltip={t("editor.ball_handling_hint")} />
                 <Select value={inputs.motorBallHandling ?? "__none__"} onValueChange={v => ui("motorBallHandling", v === "__none__" ? null : v as NonNullable<PlayerInput["motorBallHandling"]>)}>
-                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
+                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">{t("not_observed")}</SelectItem>
                     <SelectItem value="elite">{t("editor.ball_handling.elite")}</SelectItem>
@@ -1024,7 +1024,7 @@ export default function PlayerEditor() {
               <div className="space-y-2">
                 <FieldLabel label={t("editor.pressure_response")} tooltip={t("hint_motor_pressure")} />
                 <Select value={inputs.motorPressureResponse ?? "__none__"} onValueChange={v => ui("motorPressureResponse", v === "__none__" ? null : v as NonNullable<PlayerInput["motorPressureResponse"]>)}>
-                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
+                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">{t("not_observed")}</SelectItem>
                     <SelectItem value="breaks">{t("editor.pressure.breaks")}</SelectItem>
@@ -1038,11 +1038,11 @@ export default function PlayerEditor() {
 
 
             {/* Personalidad */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+            <div className="bg-background rounded-2xl p-5 border border-border shadow-sm">
+              <div className="border border-border rounded-lg overflow-hidden">
                 <button type="button" onClick={() => setPersonalityAccordionOpen(o => !o)}
                   className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
-                  <span className="font-medium text-sm text-slate-900 dark:text-white">{t("editor.personality")}</span>
+                  <span className="font-medium text-sm text-foreground">{t("editor.personality")}</span>
                   <ChevronDown className={`w-4 h-4 shrink-0 text-slate-500 transition-transform duration-200 ${personalityAccordionOpen ? "rotate-180" : ""}`} />
                 </button>
                 {personalityAccordionOpen && (
@@ -1050,13 +1050,13 @@ export default function PlayerEditor() {
                     <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                       {PERSONALITY_TRAITS.filter(pt => pt.tone === "positive").map(pt => {
                         const active = (inputs.personality ?? []).includes(pt.id);
-                        return <Button key={pt.id} type="button" variant={active ? "default" : "outline"} style={{ minHeight: 44 }} className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${active ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600" : "border-slate-200 dark:border-slate-700"}`} onClick={() => { const list = inputs.personality ?? []; ui("personality", list.includes(pt.id) ? list.filter(x => x !== pt.id) || null : [...list, pt.id]); }}>{t(pt.i18nKey as never)}</Button>;
+                        return <Button key={pt.id} type="button" variant={active ? "default" : "outline"} style={{ minHeight: 44 }} className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${active ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-600" : "border-border"}`} onClick={() => { const list = inputs.personality ?? []; ui("personality", list.includes(pt.id) ? list.filter(x => x !== pt.id) || null : [...list, pt.id]); }}>{t(pt.i18nKey as never)}</Button>;
                       })}
                     </div>
                     <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                       {PERSONALITY_TRAITS.filter(pt => pt.tone === "negative").map(pt => {
                         const active = (inputs.personality ?? []).includes(pt.id);
-                        return <Button key={pt.id} type="button" variant={active ? "default" : "outline"} style={{ minHeight: 44 }} className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${active ? "bg-amber-500 border-amber-500 text-white hover:bg-amber-500" : "border-slate-200 dark:border-slate-700"}`} onClick={() => { const list = inputs.personality ?? []; ui("personality", list.includes(pt.id) ? list.filter(x => x !== pt.id) || null : [...list, pt.id]); }}>{t(pt.i18nKey as never)}</Button>;
+                        return <Button key={pt.id} type="button" variant={active ? "default" : "outline"} style={{ minHeight: 44 }} className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${active ? "bg-amber-500 border-amber-500 text-white hover:bg-amber-500" : "border-border"}`} onClick={() => { const list = inputs.personality ?? []; ui("personality", list.includes(pt.id) ? list.filter(x => x !== pt.id) || null : [...list, pt.id]); }}>{t(pt.i18nKey as never)}</Button>;
                       })}
                     </div>
                   </div>
@@ -1067,8 +1067,8 @@ export default function PlayerEditor() {
 
           {/* ── POST ── */}
           <TabsContent value="post" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-purple-500">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+            <div className="bg-background rounded-2xl p-5 space-y-5 border border-border shadow-sm border-l-4 border-l-purple-500">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">
                 <svg className="w-5 h-5 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M12 2v20"/><path d="M9 10h6"/><path d="M9 14h6"/></svg>
                 {t("section_post")}
               </h3>
@@ -1080,7 +1080,7 @@ export default function PlayerEditor() {
                   <div className="space-y-2">
                     <FieldLabel label={t("post_profile")} tooltip={t("hint_post_profile")} />
                     <Select value={inputs.postProfile ?? "Back to Basket"} onValueChange={v => ui("postProfile", v)}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Back to Basket">{t("opt_post_back_to_basket")}</SelectItem>
                         <SelectItem value="Face-Up">{t("opt_post_face_up")}</SelectItem>
@@ -1094,7 +1094,7 @@ export default function PlayerEditor() {
                   <div className="space-y-2">
                     <FieldLabel label={t("editor.post_entry")} tooltip={t("hint_motor_post_entry")} />
                     <Select value={inputs.motorPostEntry ?? "__none__"} onValueChange={v => ui("motorPostEntry", v === "__none__" ? null : v as PlayerInput["motorPostEntry"])}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
+                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">{t("not_observed")}</SelectItem>
                         <SelectItem value="duck_in">{t("editor.post_entry.duck_in")}</SelectItem>
@@ -1109,7 +1109,7 @@ export default function PlayerEditor() {
                   <div className="space-y-2">
                     <FieldLabel label={t("editor.post_entry_secondary")} tooltip={t("hint_motor_post_entry_secondary")} />
                     <Select value={inputs.motorPostEntrySecondary ?? "__none__"} onValueChange={v => ui("motorPostEntrySecondary", v === "__none__" ? null : v as PlayerInput["motorPostEntrySecondary"])}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
+                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">{t("not_observed")}</SelectItem>
                         <SelectItem value="duck_in">{t("editor.post_entry.duck_in")}</SelectItem>
@@ -1124,8 +1124,8 @@ export default function PlayerEditor() {
                   <PostQuadrantSelector value={inputs.postQuadrants ?? {}} onChange={v => ui("postQuadrants", v)} dominantHand={inputs.postDominantHand} />
 
                   {/* High post zones */}
-                  <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("editor.high_post_zones")}</p>
+                  <div className="space-y-3 pt-2 border-t border-slate-100">
+                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("editor.high_post_zones")}</p>
                     <div className="grid grid-cols-2 gap-3">
                       {([{ zone: "leftElbow" as const, labelKey: "editor.high_post_zone.leftElbow" }, { zone: "rightElbow" as const, labelKey: "editor.high_post_zone.rightElbow" }] as const).map(({ zone, labelKey }) => {
                         const hz = (inputs.highPostZones ?? {}) as HighPostZonesMotor;
@@ -1134,7 +1134,7 @@ export default function PlayerEditor() {
                           <div key={zone} className="rounded-xl border border-purple-200/60 dark:border-purple-900/50 bg-purple-50/40 dark:bg-purple-950/20 p-2.5 space-y-2">
                             <Label className="text-[11px] font-bold uppercase tracking-wide text-purple-700 dark:text-purple-300">{t(labelKey as never)}</Label>
                             <Select value={v ?? "__none__"} onValueChange={val => { const next: HighPostZonesMotor = { ...(inputs.highPostZones ?? {}) }; if (val === "__none__") delete next[zone]; else next[zone] = val as HighPostAction; ui("highPostZones", Object.keys(next).length ? next : {}); }}>
-                              <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900 dark:border-slate-800 text-xs"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
+                              <SelectTrigger className="h-10 rounded-xl bg-background text-xs"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="__none__">{t("not_observed")}</SelectItem>
                                 <SelectItem value="face_up_drive">{t("editor.high_post_action.face_up_drive")}</SelectItem>
@@ -1154,7 +1154,7 @@ export default function PlayerEditor() {
                   <div className="space-y-2">
                     <FieldLabel label={t("editor.post_eff")} tooltip={t("hint_motor_post_eff")} />
                     <Select value={inputs.motorPostEff ?? "__none__"} onValueChange={v => ui("motorPostEff", v === "__none__" ? null : v as PlayerInput["motorPostEff"])}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
+                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">{t("not_observed")}</SelectItem>
                         <SelectItem value="high">{t("editor.eff.high")}</SelectItem>
@@ -1165,10 +1165,10 @@ export default function PlayerEditor() {
                   </div>
 
                   {/* Ante el doble equipo */}
-                  <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <div className="space-y-2 pt-1 border-t border-slate-100">
                     <FieldLabel label={t("post_double_team")} tooltip={t("hint_post_double_team")} />
                     <Select value={inputs.postDoubleTeamReaction ?? "Kicks Out"} onValueChange={v => ui("postDoubleTeamReaction", v)}>
-                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50 dark:border-slate-800"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Forces Through">{t("opt_dt_forces_through")}</SelectItem>
                         <SelectItem value="Kicks Out">{t("opt_dt_kicks_out")}</SelectItem>
@@ -1184,8 +1184,8 @@ export default function PlayerEditor() {
 
           {/* ── ISO ── */}
           <TabsContent value="iso" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-orange-500">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Flame className="w-5 h-5 text-orange-500" /> {t("section_iso")}</h3>
+            <div className="bg-background rounded-2xl p-5 space-y-5 border border-border shadow-sm border-l-4 border-l-orange-500">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-foreground"><Flame className="w-5 h-5 text-orange-500" /> {t("section_iso")}</h3>
               <IntensitySelector label={t("iso_frequency")} value={inputs.isoFrequency} onChange={v => ui("isoFrequency", v)} tooltip={t("hint_iso_frequency")} />
 
               {inputs.isoFrequency !== "Never" && (
@@ -1197,7 +1197,7 @@ export default function PlayerEditor() {
                       {(["Left", "Right", "Balanced"] as const).map(dir => (
                         <Button key={dir} type="button" variant={inputs.isoDominantDirection === dir ? "default" : "outline"}
                           style={{ minHeight: 44 }}
-                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${inputs.isoDominantDirection === dir ? pillActiveClasses("neutral") : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${inputs.isoDominantDirection === dir ? pillActiveClasses("neutral") : "bg-transparent border-border text-muted-foreground"}`}
                           onClick={() => ui("isoDominantDirection", dir)}>
                           {dir === "Left" ? t("opt_dir_left") : dir === "Right" ? t("opt_dir_right") : t("opt_dir_balanced")}
                         </Button>
@@ -1212,7 +1212,7 @@ export default function PlayerEditor() {
                       {([{ v: "Finish" as const, labelKey: "opt_iso_decision_finish" }, { v: "Shoot" as const, labelKey: "balanced" }, { v: "Pass" as const, labelKey: "opt_iso_decision_pass" }] as const).map(({ v, labelKey }) => (
                         <Button key={v} type="button" variant={inputs.isoDecision === v ? "default" : "outline"}
                           style={{ minHeight: 44 }}
-                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${inputs.isoDecision === v ? pillActiveClasses("neutral") : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${inputs.isoDecision === v ? pillActiveClasses("neutral") : "bg-transparent border-border text-muted-foreground"}`}
                           onClick={() => ui("isoDecision", v)}>
                           {t(labelKey as never)}
                         </Button>
@@ -1228,7 +1228,7 @@ export default function PlayerEditor() {
                         type="button"
                         variant={inputs.isoInitiation === "Controlled" ? "default" : "outline"}
                         style={{ minHeight: 56 }}
-                        className={`h-auto flex flex-col items-center justify-center gap-0.5 px-3 py-3 rounded-xl text-sm font-semibold ${inputs.isoInitiation === "Controlled" ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                        className={`h-auto flex flex-col items-center justify-center gap-0.5 px-3 py-3 rounded-xl text-sm font-semibold ${inputs.isoInitiation === "Controlled" ? pillActiveClasses("neutral") : "border-border"}`}
                         onClick={() => ui("isoInitiation", "Controlled")}
                       >
                         <span className="font-semibold">{t("opt_iso_init_controlled")}</span>
@@ -1239,7 +1239,7 @@ export default function PlayerEditor() {
                         type="button"
                         variant={inputs.isoInitiation === "Quick Attack" ? "default" : "outline"}
                         style={{ minHeight: 56 }}
-                        className={`h-auto flex flex-col items-center justify-center gap-0.5 px-3 py-3 rounded-xl text-sm font-semibold ${inputs.isoInitiation === "Quick Attack" ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                        className={`h-auto flex flex-col items-center justify-center gap-0.5 px-3 py-3 rounded-xl text-sm font-semibold ${inputs.isoInitiation === "Quick Attack" ? pillActiveClasses("neutral") : "border-border"}`}
                         onClick={() => ui("isoInitiation", "Quick Attack")}
                       >
                         <span className="font-semibold">{t("opt_iso_init_quick")}</span>
@@ -1254,11 +1254,11 @@ export default function PlayerEditor() {
                     <div className="grid grid-cols-2 gap-3">
                       {([{ field: "isoFinishLeft" as const, labelKey: "left" }, { field: "isoFinishRight" as const, labelKey: "right" }] as const).map(({ field, labelKey }) => (
                         <div key={field} className="space-y-2">
-                          <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t(labelKey as never)}</Label>
+                          <Label className="text-xs font-semibold text-muted-foreground">{t(labelKey as never)}</Label>
                           <div className="flex flex-row flex-wrap gap-1">
                             {([{ v: "drive" as const, lk: "opt_finish_drive" }, { v: "floater" as const, lk: "opt_finish_floater" }, { v: "pullup" as const, lk: "opt_finish_pullup" }, { v: "pass" as const, lk: "opt_iso_decision_pass" }] as const).map(({ v, lk }) => (
                               <Button key={v} type="button" variant={inputs[field] === v ? "default" : "outline"} style={{ minHeight: 40 }}
-                                className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${inputs[field] === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                                className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${inputs[field] === v ? pillActiveClasses("neutral") : "border-border"}`}
                                 onClick={() => ui(field, inputs[field] === v ? null : v)}>
                                 {t(lk as never)}
                               </Button>
@@ -1281,7 +1281,7 @@ export default function PlayerEditor() {
                         {([{ v: "Drive" as const, labelKey: "opt_iso_opposite_yes" }, { v: "Pass" as const, labelKey: "opt_iso_opposite_no" }] as const).map(({ v, labelKey }) => (
                           <Button key={v} type="button" variant={inputs.isoOppositeFinish === v ? "default" : "outline"}
                             style={{ minHeight: 44 }}
-                            className={`h-auto min-h-11 px-4 rounded-xl text-sm font-semibold ${inputs.isoOppositeFinish === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                            className={`h-auto min-h-11 px-4 rounded-xl text-sm font-semibold ${inputs.isoOppositeFinish === v ? pillActiveClasses("neutral") : "border-border"}`}
                             onClick={() => ui("isoOppositeFinish", inputs.isoOppositeFinish === v ? undefined : v)}>
                             {t(labelKey as never)}
                           </Button>
@@ -1301,7 +1301,7 @@ export default function PlayerEditor() {
                       {(["high", "medium", "low"] as const).map(lvl => (
                         <Button key={lvl} type="button" variant={inputs.motorIsoEff === lvl ? "default" : "outline"}
                           style={{ minHeight: 44 }}
-                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.motorIsoEff === lvl ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.motorIsoEff === lvl ? pillActiveClasses("neutral") : "border-border"}`}
                           onClick={() => ui("motorIsoEff", inputs.motorIsoEff === lvl ? null : lvl)}>
                           {lvl === "high" ? t("opt_eff_high") : lvl === "medium" ? t("opt_eff_medium") : t("opt_eff_low")}
                         </Button>
@@ -1319,8 +1319,8 @@ export default function PlayerEditor() {
 
           {/* ── PNR ── */}
           <TabsContent value="pnr" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-blue-500">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Zap className="w-5 h-5 text-blue-500" /> {t("section_pnr")}</h3>
+            <div className="bg-background rounded-2xl p-5 space-y-5 border border-border shadow-sm border-l-4 border-l-blue-500">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-foreground"><Zap className="w-5 h-5 text-blue-500" /> {t("section_pnr")}</h3>
               <IntensitySelector label={t("pnr_frequency")} value={inputs.pnrFrequency} onChange={v => ui("pnrFrequency", v)} tooltip={t("hint_pnr_frequency")} />
 
               {inputs.pnrFrequency !== "Never" && (
@@ -1332,7 +1332,7 @@ export default function PlayerEditor() {
                       {(["Handler", "Screener", "Both"] as const).map(v => (
                         <Button key={v} type="button" variant={inputs.pnrRole === v ? "default" : "outline"}
                           style={{ minHeight: 44 }}
-                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${inputs.pnrRole === v ? pillActiveClasses("neutral") : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                          className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-bold ${inputs.pnrRole === v ? pillActiveClasses("neutral") : "bg-transparent border-border text-muted-foreground"}`}
                           onClick={() => ui("pnrRole", v)}>
                           {v === "Handler" ? t("handler") : v === "Screener" ? t("screener") : t("both")}
                         </Button>
@@ -1352,7 +1352,7 @@ export default function PlayerEditor() {
                           {(["Score First", "Balanced", "Pass First"] as const).map(opt => (
                             <Button key={opt} type="button" variant={inputs.pnrScoringPriority === opt ? "default" : "outline"}
                               style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.pnrScoringPriority === opt ? pillActiveClasses("neutral") : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.pnrScoringPriority === opt ? pillActiveClasses("neutral") : "bg-transparent border-border text-muted-foreground"}`}
                               onClick={() => ui("pnrScoringPriority", opt)}>
                               {opt === "Score First" ? t("opt_pnr_score_first") : opt === "Pass First" ? t("opt_pnr_pass_first") : t("opt_pnr_balanced")}
                             </Button>
@@ -1372,7 +1372,7 @@ export default function PlayerEditor() {
                           ] as const).map(({ v, lk }) => (
                             <Button key={v} type="button" variant={inputs.pnrReactionVsUnder === v ? "default" : "outline"}
                               style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 min-w-11 px-4 rounded-xl text-sm font-semibold ${inputs.pnrReactionVsUnder === v ? pillActiveClasses("neutral") : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                              className={`h-auto min-h-11 min-w-11 px-4 rounded-xl text-sm font-semibold ${inputs.pnrReactionVsUnder === v ? pillActiveClasses("neutral") : "bg-transparent border-border text-muted-foreground"}`}
                               onClick={() => ui("pnrReactionVsUnder", v)}>
                               {t(lk as never)}
                             </Button>
@@ -1393,7 +1393,7 @@ export default function PlayerEditor() {
                           {(["Early (Drag)", "Deep (Half-court)"] as const).map(opt => (
                             <Button key={opt} type="button" variant={inputs.pnrTiming === opt ? "default" : "outline"}
                               style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.pnrTiming === opt ? pillActiveClasses("neutral") : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.pnrTiming === opt ? pillActiveClasses("neutral") : "bg-transparent border-border text-muted-foreground"}`}
                               onClick={() => ui("pnrTiming", opt)}>
                               {opt === "Early (Drag)" ? t("opt_pnr_timing_drag") : t("opt_pnr_timing_halfcourt")}
                             </Button>
@@ -1407,7 +1407,7 @@ export default function PlayerEditor() {
                         <div className="flex flex-row flex-wrap gap-2">
                           {PNR_FINISH_OPTS.map(({ v, labelKey }) => (
                             <Button key={v} type="button" variant={inputs.pnrFinishBallLeft === v ? "default" : "outline"} style={{ minHeight: 40 }}
-                              className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${inputs.pnrFinishBallLeft === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                              className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${inputs.pnrFinishBallLeft === v ? pillActiveClasses("neutral") : "border-border"}`}
                               onClick={() => ui("pnrFinishBallLeft", inputs.pnrFinishBallLeft === v ? null : v)}>
                               {t(labelKey as never)}
                             </Button>
@@ -1425,7 +1425,7 @@ export default function PlayerEditor() {
                         <div className="flex flex-row flex-wrap gap-2">
                           {PNR_FINISH_OPTS.map(({ v, labelKey }) => (
                             <Button key={v} type="button" variant={inputs.pnrFinishBallRight === v ? "default" : "outline"} style={{ minHeight: 40 }}
-                              className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${inputs.pnrFinishBallRight === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                              className={`h-auto min-h-10 px-3 py-2 rounded-lg text-xs font-semibold ${inputs.pnrFinishBallRight === v ? pillActiveClasses("neutral") : "border-border"}`}
                               onClick={() => ui("pnrFinishBallRight", inputs.pnrFinishBallRight === v ? null : v)}>
                               {t(labelKey as never)}
                             </Button>
@@ -1445,7 +1445,7 @@ export default function PlayerEditor() {
                             {([{ v: "Drive" as const, labelKey: "opt_iso_opposite_yes" }, { v: "Pass" as const, labelKey: "opt_iso_opposite_no" }] as const).map(({ v, labelKey }) => (
                               <Button key={v} type="button" variant={inputs.isoOppositeFinish === v ? "default" : "outline"}
                                 style={{ minHeight: 44 }}
-                                className={`h-auto min-h-11 px-4 rounded-xl text-sm font-semibold ${inputs.isoOppositeFinish === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                                className={`h-auto min-h-11 px-4 rounded-xl text-sm font-semibold ${inputs.isoOppositeFinish === v ? pillActiveClasses("neutral") : "border-border"}`}
                                 onClick={() => ui("isoOppositeFinish", inputs.isoOppositeFinish === v ? undefined : v)}>
                                 {t(labelKey as never)}
                               </Button>
@@ -1465,7 +1465,7 @@ export default function PlayerEditor() {
                           {([{ v: true as const, labelKey: "opt_pnr_snake_yes" }, { v: false as const, labelKey: "opt_pnr_snake_no" }] as const).map(({ v, labelKey }) => (
                             <Button key={String(v)} type="button" variant={inputs.pnrSnake === v ? "default" : "outline"}
                               style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.pnrSnake === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.pnrSnake === v ? pillActiveClasses("neutral") : "border-border"}`}
                               onClick={() => ui("pnrSnake", inputs.pnrSnake === v ? null : v)}>
                               {t(labelKey as never)}
                             </Button>
@@ -1484,7 +1484,7 @@ export default function PlayerEditor() {
                           {(["high", "medium", "low"] as const).map(lvl => (
                             <Button key={lvl} type="button" variant={inputs.motorPnrEff === lvl ? "default" : "outline"}
                               style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.motorPnrEff === lvl ? pillActiveClasses("neutral") : "bg-transparent border-slate-200 dark:border-slate-700 dark:text-slate-300"}`}
+                              className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${inputs.motorPnrEff === lvl ? pillActiveClasses("neutral") : "bg-transparent border-border text-muted-foreground"}`}
                               onClick={() => ui("motorPnrEff", lvl)}>
                               {t(`editor.eff.${lvl}` as never)}
                             </Button>
@@ -1507,7 +1507,7 @@ export default function PlayerEditor() {
                           ] as const).map(({ v, labelKey }) => (
                             <Button key={v} type="button" variant={inputs.motorTrapResponse === v ? "default" : "outline"}
                               style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 w-full px-2 rounded-xl text-sm font-semibold ${inputs.motorTrapResponse === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                              className={`h-auto min-h-11 w-full px-2 rounded-xl text-sm font-semibold ${inputs.motorTrapResponse === v ? pillActiveClasses("neutral") : "border-border"}`}
                               onClick={() => ui("motorTrapResponse", inputs.motorTrapResponse === v ? null : v)}>
                               {t(labelKey as never)}
                             </Button>
@@ -1523,8 +1523,8 @@ export default function PlayerEditor() {
 
                   {/* ── BLOQUE BLOQUEADOR ── */}
                   {showScreenerSection && (
-                    <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-4">
-                      {pnrBoth && <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("as_screener")}</p>}
+                    <div className="rounded-xl border border-border bg-slate-50 dark:bg-slate-800/40 p-4 space-y-4">
+                      {pnrBoth && <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("as_screener")}</p>}
 
                       {/* Timing de pantalla */}
                       <div className="space-y-2">
@@ -1533,7 +1533,7 @@ export default function PlayerEditor() {
                           {PNR_SCREEN_TIMING_OPTS.map(opt => (
                             <Button key={opt} type="button" variant={inputs.pnrScreenTiming === opt ? "default" : "outline"}
                               style={{ minHeight: 44 }}
-                              className={`h-auto min-h-11 flex-1 min-w-[8rem] px-4 py-2 rounded-xl text-sm font-semibold ${inputs.pnrScreenTiming === opt ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                              className={`h-auto min-h-11 flex-1 min-w-[8rem] px-4 py-2 rounded-xl text-sm font-semibold ${inputs.pnrScreenTiming === opt ? pillActiveClasses("neutral") : "border-border"}`}
                               onClick={() => ui("pnrScreenTiming", inputs.pnrScreenTiming === opt ? null : opt)}>
                               {t(PNR_SCREEN_TIMING_I18N[opt] as never)}
                             </Button>
@@ -1542,7 +1542,7 @@ export default function PlayerEditor() {
                       </div>
 
                       {inputs.pnrScreenTiming === "slip" ? (
-                        <p className="text-xs text-slate-400">{t("editor.pnr_slip_note")}</p>
+                        <p className="text-xs text-muted-foreground">{t("editor.pnr_slip_note")}</p>
                       ) : (
                         <>
                           <ScreenerActionSelector
@@ -1560,7 +1560,7 @@ export default function PlayerEditor() {
                                 {([{ v: "three" as const, labelKey: "opt_pop_range_three" }, { v: "midrange" as const, labelKey: "opt_pop_range_mid" }] as const).map(({ v, labelKey }) => (
                                   <Button key={v} type="button" variant={(inputs as any).popRange === v ? "default" : "outline"}
                                     style={{ minHeight: 44 }}
-                                    className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${(inputs as any).popRange === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                                    className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm font-semibold ${(inputs as any).popRange === v ? pillActiveClasses("neutral") : "border-border"}`}
                                     onClick={() => ui("popRange" as any, (inputs as any).popRange === v ? null : v)}>
                                     {t(labelKey as never)}
                                   </Button>
@@ -1583,12 +1583,12 @@ export default function PlayerEditor() {
 
           {/* ── OFF-BALL ── */}
           <TabsContent value="offball" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-emerald-500">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white"><Target className="w-5 h-5 text-emerald-500" /> {t("section_offball_activity")}</h3>
+            <div className="bg-background rounded-2xl p-5 space-y-5 border border-border shadow-sm border-l-4 border-l-emerald-500">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-foreground"><Target className="w-5 h-5 text-emerald-500" /> {t("section_offball_activity")}</h3>
 
               {/* ── TRANSICIÓN ── */}
               <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("offball_section_transition")}</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("offball_section_transition")}</p>
                 <IntensitySelector label={t("transition_frequency")} value={inputs.transitionFrequency} onChange={v => ui("transitionFrequency", v)} />
 
                 {inputs.transitionFrequency !== "Never" && (
@@ -1600,7 +1600,7 @@ export default function PlayerEditor() {
                         {TRANS_EDITOR_ROLES.map(v => (
                           <Button key={v} type="button" variant={inputs.transRolePrimary === v ? "default" : "outline"}
                             style={{ minHeight: 44 }}
-                            className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.transRolePrimary === v ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-200 dark:border-slate-700"}`}
+                            className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.transRolePrimary === v ? "bg-emerald-600 border-emerald-600 text-white" : "border-border"}`}
                             onClick={() => { if (inputs.transRolePrimary === v) { ui("transRolePrimary", null); ui("transSubPrimary", null); ui("transRoleSecondary", null); ui("transSubSecondary", null); } else { ui("transRolePrimary", v); ui("transSubPrimary", null); ui("transRoleSecondary", null); ui("transSubSecondary", null); } }}>
                             {t(`opt_trans_role_${v}` as never)}
                           </Button>
@@ -1620,7 +1620,7 @@ export default function PlayerEditor() {
                               <Button key={sub} type="button"
                                 variant={inputs.transSubPrimary === sub ? "default" : "outline"}
                                 style={{ minHeight: 36 }}
-                                className={`h-auto min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold ${inputs.transSubPrimary === sub ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-200 dark:border-slate-700"}`}
+                                className={`h-auto min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold ${inputs.transSubPrimary === sub ? "bg-emerald-600 border-emerald-600 text-white" : "border-border"}`}
                                 onClick={() => ui("transSubPrimary", inputs.transSubPrimary === sub ? null : sub)}>
                                 {t(`editor.trans_sub.${sub}` as never)}
                               </Button>
@@ -1641,7 +1641,7 @@ export default function PlayerEditor() {
                               <Button key={v} type="button" disabled={disabled}
                                 variant={inputs.transRoleSecondary === v ? "default" : "outline"}
                                 style={{ minHeight: 44 }}
-                                className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${disabled ? "opacity-40 pointer-events-none" : ""} ${inputs.transRoleSecondary === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                                className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${disabled ? "opacity-40 pointer-events-none" : ""} ${inputs.transRoleSecondary === v ? pillActiveClasses("neutral") : "border-border"}`}
                                 onClick={() => { if (inputs.transRoleSecondary === v) { ui("transRoleSecondary", null); ui("transSubSecondary", null); } else { ui("transRoleSecondary", v); ui("transSubSecondary", null); } }}>
                                 {t(`opt_trans_role_${v}` as never)}
                               </Button>
@@ -1662,7 +1662,7 @@ export default function PlayerEditor() {
                                 <Button key={sub} type="button"
                                   variant={inputs.transSubSecondary === sub ? "default" : "outline"}
                                   style={{ minHeight: 36 }}
-                                  className={`h-auto min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold ${inputs.transSubSecondary === sub ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                                  className={`h-auto min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold ${inputs.transSubSecondary === sub ? pillActiveClasses("neutral") : "border-border"}`}
                                   onClick={() => ui("transSubSecondary", inputs.transSubSecondary === sub ? null : sub)}>
                                   {t(`editor.trans_sub.${sub}` as never)}
                                 </Button>
@@ -1680,7 +1680,7 @@ export default function PlayerEditor() {
                         {(["high", "medium", "low"] as const).map(v => (
                           <Button key={v} type="button" variant={inputs.transFinishing === v ? "default" : "outline"}
                             style={{ minHeight: 44 }}
-                            className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.transFinishing === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                            className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.transFinishing === v ? pillActiveClasses("neutral") : "border-border"}`}
                             onClick={() => ui("transFinishing", inputs.transFinishing === v ? null : v)}>
                             {t(`opt_eff_${v}` as never)}
                           </Button>
@@ -1695,11 +1695,11 @@ export default function PlayerEditor() {
                 )}
               </div>
 
-              <div className="border-t border-slate-100 dark:border-slate-800 pt-1" />
+              <div className="border-t border-slate-100 pt-1" />
 
               {/* ── CORTES ── */}
               <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("offball_subsection_cuts")}</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("offball_subsection_cuts")}</p>
                 <IntensitySelector label={t("backdoor")} value={inputs.backdoorFrequency} onChange={v => ui("backdoorFrequency", v)} tooltip={t("hint_backdoor")} />
                 <IntensitySelector label={t("editor.free_cuts_frequency")} value={(inputs.freeCutsFrequency ?? "Never") as IntensityLevel} onChange={v => ui("freeCutsFrequency", v)} />
                 {inputs.freeCutsFrequency != null && inputs.freeCutsFrequency !== "Never" && (
@@ -1708,7 +1708,7 @@ export default function PlayerEditor() {
                     <div className="flex flex-wrap gap-3">
                       {FREE_CUTS_TYPE_OPTS.map(opt => (
                         <Button key={opt} type="button" variant={inputs.freeCutsType === opt ? "default" : "outline"} style={{ minHeight: 44 }}
-                          className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.freeCutsType === opt ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                          className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.freeCutsType === opt ? pillActiveClasses("neutral") : "border-border"}`}
                           onClick={() => ui("freeCutsType", inputs.freeCutsType === opt ? null : opt)}>
                           {t(FREE_CUTS_TYPE_I18N[opt] as never)}
                         </Button>
@@ -1723,7 +1723,7 @@ export default function PlayerEditor() {
                   <div className="flex flex-wrap gap-3">
                     {([{ v: 0 as const, lk: "editor.dunker_spot_0" }, { v: 1 as const, lk: "editor.dunker_spot_1" }, { v: 2 as const, lk: "editor.dunker_spot_2" }] as const).map(({ v, lk }) => (
                       <Button key={v} type="button" variant={inputs.dunkerSpot === v ? "default" : "outline"} style={{ minHeight: 44 }}
-                        className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.dunkerSpot === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                        className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.dunkerSpot === v ? pillActiveClasses("neutral") : "border-border"}`}
                         onClick={() => ui("dunkerSpot", inputs.dunkerSpot === v ? null : v)}>
                         {t(lk as never)}
                       </Button>
@@ -1736,11 +1736,11 @@ export default function PlayerEditor() {
                 </div>
               </div>
 
-              <div className="border-t border-slate-100 dark:border-slate-800 pt-1" />
+              <div className="border-t border-slate-100 pt-1" />
 
               {/* ── BLOQUEO INDIRECTO ── */}
               <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("offball_section_screens")}</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("offball_section_screens")}</p>
                 <IntensitySelector label={t("indirects")} value={inputs.indirectsFrequency} onChange={v => ui("indirectsFrequency", v)} tooltip={t("hint_indirects")} />
                 {inputs.indirectsFrequency !== "Never" && (
                   <>
@@ -1753,7 +1753,7 @@ export default function PlayerEditor() {
                           { v: "both" as const, lk: "opt_offball_role_both" },
                         ] as const).map(({ v, lk }) => (
                           <Button key={v} type="button" variant={inputs.offBallRole === v ? "default" : "outline"} style={{ minHeight: 44 }}
-                            className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.offBallRole === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                            className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.offBallRole === v ? pillActiveClasses("neutral") : "border-border"}`}
                             onClick={() => ui("offBallRole", v)}>
                             {t(lk as never)}
                           </Button>
@@ -1763,14 +1763,14 @@ export default function PlayerEditor() {
 
                     {(inputs.offBallRole === "screener" || inputs.offBallRole === "both") && (
                       <div className="space-y-4 border-l-2 border-emerald-700 pl-4">
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("offball_role_screener")}</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("offball_role_screener")}</p>
 
                         <div className="space-y-2">
                           <FieldLabel label={t("offball_screen_primary_action")} tooltip={t("hint_offball_screen_primary_action")} />
                           <div className="flex flex-wrap gap-3">
                             {([{ v: "roll" as const, lk: "editor.screener_action_roll" }, { v: "pop_short" as const, lk: "editor.screener_action_pop_short" }, { v: "slip" as const, lk: "editor.screener_action_slip" }, { v: null, lk: "opt_ghost" }] as const).map(({ v, lk }) => (
                               <Button key={String(v)} type="button" variant={inputs.offBallScreenPattern === v ? "default" : "outline"} style={{ minHeight: 44 }}
-                                className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.offBallScreenPattern === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                                className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.offBallScreenPattern === v ? pillActiveClasses("neutral") : "border-border"}`}
                                 onClick={() => ui("offBallScreenPattern", inputs.offBallScreenPattern === v ? null : v)}>
                                 {t(lk as never)}
                               </Button>
@@ -1783,7 +1783,7 @@ export default function PlayerEditor() {
                           <div className="flex flex-wrap gap-3">
                             {([{ v: "roll" as const, lk: "editor.screener_action_roll" }, { v: "pop_short" as const, lk: "editor.screener_action_pop_short" }, { v: "slip" as const, lk: "editor.screener_action_slip" }, { v: null, lk: "opt_ghost" }] as const).map(({ v, lk }) => (
                               <Button key={String(v)} type="button" variant={(inputs as any).offBallScreenPatternSecondary === v ? "default" : "outline"} style={{ minHeight: 44 }}
-                                className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${(inputs as any).offBallScreenPatternSecondary === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                                className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${(inputs as any).offBallScreenPatternSecondary === v ? pillActiveClasses("neutral") : "border-border"}`}
                                 onClick={() => ui("offBallScreenPatternSecondary" as any, (inputs as any).offBallScreenPatternSecondary === v ? null : v)}>
                                 {t(lk as never)}
                               </Button>
@@ -1799,7 +1799,7 @@ export default function PlayerEditor() {
 
                     {(inputs.offBallRole === "cutter" || inputs.offBallRole === "both") && (
                       <div className="space-y-4 border-l-2 border-emerald-400 pl-4">
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("offball_role_cutter")}</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("offball_role_cutter")}</p>
 
                         <div className="space-y-2">
                           <FieldLabel label={t("offball_cut_action")} />
@@ -1812,7 +1812,7 @@ export default function PlayerEditor() {
                               { v: "catch_and_drive" as const, lk: "opt_cut_drive" },
                             ] as const).map(({ v, lk }) => (
                               <Button key={v} type="button" variant={inputs.offBallCutAction === v ? "default" : "outline"} style={{ minHeight: 44 }}
-                                className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.offBallCutAction === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                                className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.offBallCutAction === v ? pillActiveClasses("neutral") : "border-border"}`}
                                 onClick={() => ui("offBallCutAction", inputs.offBallCutAction === v ? null : v)}>
                                 {t(lk as never)}
                               </Button>
@@ -1829,11 +1829,11 @@ export default function PlayerEditor() {
                 )}
               </div>
 
-              <div className="border-t border-slate-100 dark:border-slate-800 pt-1" />
+              <div className="border-t border-slate-100 pt-1" />
 
               {/* ── REBOTE OFENSIVO ── */}
               <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("offball_section_rebounds")}</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("offball_section_rebounds")}</p>
                 <IntensitySelector label={t("orb")} value={inputs.offensiveReboundFrequency} onChange={v => ui("offensiveReboundFrequency", v)} tooltip={t("hint_orb")} />
                 {inputs.offensiveReboundFrequency !== "Never" && (
                   <div className="space-y-2">
@@ -1841,7 +1841,7 @@ export default function PlayerEditor() {
                     <div className="flex flex-wrap gap-3">
                       {PUTBACK_QUALITY_OPTS.map(q => (
                         <Button key={q} type="button" variant={inputs.putbackQuality === q ? "default" : "outline"} style={{ minHeight: 44 }}
-                          className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.putbackQuality === q ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                          className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${inputs.putbackQuality === q ? pillActiveClasses("neutral") : "border-border"}`}
                           onClick={() => ui("putbackQuality", inputs.putbackQuality === q ? null : q)}>
                           {t(PUTBACK_QUALITY_I18N[q] as never)}
                         </Button>
@@ -1855,8 +1855,8 @@ export default function PlayerEditor() {
 
           {/* ── SPOT-UP ── */}
           <TabsContent value="spot" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 space-y-5 border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-pink-500">
-              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+            <div className="bg-background rounded-2xl p-5 space-y-5 border border-border shadow-sm border-l-4 border-l-pink-500">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">
                 <span className="w-5 h-5 inline-flex items-center justify-center rounded-md bg-pink-500/15 text-pink-500 font-black text-sm">3</span>
                 {t("section_spot")}
               </h3>
@@ -1899,7 +1899,7 @@ export default function PlayerEditor() {
                     <div className="flex flex-wrap gap-3">
                       {([{ v: true as const, lk: "yes" }, { v: false as const, lk: "no" }] as const).map(({ v, lk }) => (
                         <Button key={String(v)} type="button" variant={((inputs as any).deepRange ?? null) === v ? "default" : "outline"} style={{ minHeight: 44 }}
-                          className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${((inputs as any).deepRange ?? null) === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                          className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${((inputs as any).deepRange ?? null) === v ? pillActiveClasses("neutral") : "border-border"}`}
                           onClick={() => ui("deepRange" as any, ((inputs as any).deepRange ?? null) === v ? null : v)}>
                           {t(lk as never)}
                         </Button>
@@ -1927,7 +1927,7 @@ export default function PlayerEditor() {
                           type="button"
                           variant={(inputs.motorLongRange ?? null) === v ? "default" : "outline"}
                           style={{ minHeight: 44 }}
-                          className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${(inputs.motorLongRange ?? null) === v ? pillActiveClasses("neutral") : "border-slate-200 dark:border-slate-700"}`}
+                          className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${(inputs.motorLongRange ?? null) === v ? pillActiveClasses("neutral") : "border-border"}`}
                           onClick={() => ui("motorLongRange" as any, (inputs.motorLongRange ?? null) === v ? null : v)}
                         >
                           {t(lk as never)}

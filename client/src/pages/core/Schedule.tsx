@@ -1031,6 +1031,21 @@ export default function Schedule() {
     }, 50);
   };
 
+  useEffect(() => {
+    const todayStr = new Date().toLocaleDateString("sv");
+    let attempts = 0;
+    const tryScroll = () => {
+      const el = (portraitDayRefs.current[todayStr] ?? landscapeDayRefs.current[todayStr]) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      } else if (attempts < 15) {
+        attempts++;
+        window.setTimeout(tryScroll, 100);
+      }
+    };
+    window.setTimeout(tryScroll, 300);
+  }, []);
+
   const fmtWeekRange = (start: Date) => {
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
@@ -1896,7 +1911,7 @@ export default function Schedule() {
                         {days.map((d) => {
                           const dayKey = d.toISOString().slice(0, 10);
                           const daySessionsAll = (plannerWeekQ.data ?? [])
-                            .filter((s) => s.starts_at.slice(0, 10) === dayKey)
+                            .filter((s) => new Date(s.starts_at).toLocaleDateString("sv") === dayKey)
                             .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
                           const label = new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(d);
                           const dateLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d);
@@ -1912,6 +1927,7 @@ export default function Schedule() {
                             });
                           };
 
+                          const isToday = dayKey === new Date().toLocaleDateString("sv");
                           const isHighlighted = highlightDayKey === dayKey;
                           return (
                             <div
@@ -1920,8 +1936,11 @@ export default function Schedule() {
                                 portraitDayRefs.current[dayKey] = el;
                               }}
                               className={[
-                                "rounded-2xl border border-border bg-card p-4",
-                                isHighlighted ? "ring-2 ring-primary/40" : "",
+                                "rounded-2xl border-2 bg-card p-4",
+                                isToday
+                                  ? "border-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]"
+                                  : "border-border",
+                                isHighlighted ? "ring-2 ring-primary/60" : "",
                               ].join(" ")}
                             >
                               <div className="flex items-center justify-between gap-3">
@@ -2051,7 +2070,14 @@ export default function Schedule() {
                               }}
                               className={[
                                 "text-center",
-                                highlightDayKey === d.toISOString().slice(0, 10) ? "ring-2 ring-primary/30 rounded-lg" : "",
+                                (() => {
+                                  const dk = d.toISOString().slice(0, 10);
+                                  const isTodayLs = dk === new Date().toLocaleDateString("sv");
+                                  const isHighLs = highlightDayKey === dk;
+                                  if (isTodayLs) return "border-2 border-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.15)] rounded-lg";
+                                  if (isHighLs) return "ring-2 ring-primary/60 rounded-lg";
+                                  return "";
+                                })(),
                               ].join(" ")}
                             >
                               <p className="text-[11px] font-black text-foreground">
@@ -2063,7 +2089,7 @@ export default function Schedule() {
                               <div className="mt-1 flex items-center justify-center gap-1 flex-wrap">
                                 {(() => {
                                   const dayKey = d.toISOString().slice(0, 10);
-                                  const daySessions = (plannerWeekQ.data ?? []).filter((s) => s.starts_at.slice(0, 10) === dayKey);
+                                  const daySessions = (plannerWeekQ.data ?? []).filter((s) => new Date(s.starts_at).toLocaleDateString("sv") === dayKey);
                                   const chips: string[] = [];
                                   if (daySessions.length === 0) chips.push("schedule_insight_no_sessions");
                                   if (daySessions.length >= 3) chips.push("schedule_insight_overloaded");

@@ -26,8 +26,9 @@ export default function Personnel() {
 
   const isHeadCoach = profile?.role === "head_coach" || profile?.role === "master";
 
-  // Badge-aware permission: head_coach, master, or operationsAccess
-  const canManageRoster = isHeadCoach || Boolean((profile as any)?.operationsAccess);
+  // operationsAccess viene de la membresía del club, no del perfil auth.
+  // Solo head_coach y master pueden gestionar el roster desde el perfil.
+  const canManageRoster = isHeadCoach;
 
   const { data: teams = [], isLoading: teamsLoading } = useTeams();
 
@@ -154,7 +155,19 @@ export default function Personnel() {
   };
 
   const playersByTeam = (teamId: string) =>
-    allPlayers.filter((p) => p.teamId === teamId);
+    allPlayers.filter((p) => {
+      if (p.teamId !== teamId) return false;
+      // Head coach sees everything. Regular coaches see only canonical + their own sandbox.
+      // Head coach sees canonical profiles from all coaches, but NOT other coaches' sandbox
+      if (isHeadCoach) {
+        const isCanonical = (p as any).isCanonical ?? (p as any).is_canonical ?? false;
+        if (isCanonical) return true;
+        return p.createdByCoachId === profile?.id;
+      }
+      const isCanonical = (p as any).isCanonical ?? (p as any).is_canonical ?? false;
+      if (isCanonical) return true;
+      return p.createdByCoachId === profile?.id;
+    });
 
   // Auto-create Free Agents team if no teams exist and head_coach creates a player
   const ensureFreeAgentsTeam = async (): Promise<string | null> => {
@@ -509,7 +522,7 @@ export default function Personnel() {
 
                             {/* Actions */}
                             <div className="flex items-center gap-1 shrink-0">
-                              {!isCanonical && isHeadCoach && (player as any).createdByCoachId && (player as any).createdByCoachId !== profile?.id && (
+                              {!isCanonical && isHeadCoach && (
                                 <div className="flex flex-col items-end gap-0.5">
                                   <Button
                                     size="sm"
@@ -569,7 +582,18 @@ export default function Personnel() {
         )}
 
         {(() => {
-          const unassigned = allPlayers.filter(p => !p.teamId || !teams.find(t => t.id === p.teamId));
+          const unassigned = allPlayers.filter(p => {
+            if (p.teamId && teams.find(t => t.id === p.teamId)) return false;
+            // Head coach sees canonical profiles from all coaches, but NOT other coaches' sandbox
+            if (isHeadCoach) {
+              const isCanonical = (p as any).isCanonical ?? (p as any).is_canonical ?? false;
+              if (isCanonical) return true;
+              return p.createdByCoachId === profile?.id;
+            }
+            const isCanonical = (p as any).isCanonical ?? (p as any).is_canonical ?? false;
+            if (isCanonical) return true;
+            return p.createdByCoachId === profile?.id;
+          });
           if (unassigned.length === 0) return null;
           return (
             <div className="rounded-xl border border-dashed border-amber-500/30 overflow-hidden">

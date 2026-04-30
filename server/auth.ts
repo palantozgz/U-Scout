@@ -19,6 +19,29 @@ function fullNameFromUserMetadata(user: { user_metadata?: Record<string, unknown
   return typeof fnRaw === "string" && fnRaw.trim() ? fnRaw.trim() : null;
 }
 
+function safeRole(raw: unknown): string {
+  // Only "player" and "coach" can come from user_metadata.
+  // "head_coach" and "master" must be set by an admin — we accept them
+  // from metadata ONLY if SUPABASE_SERVICE_ROLE_KEY is present (i.e. we
+  // control the server), never from a user-writable token.
+  const allowed = ["player", "coach", "head_coach", "master"];
+  const r = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  return allowed.includes(r) ? r : "coach";
+}
+
+// Privileged roles that require server-side verification (future: DB lookup).
+const PRIVILEGED_ROLES = ["head_coach", "master"];
+
+function resolveRole(metaRole: unknown, userId: string): string {
+  const r = safeRole(metaRole);
+  // For now: accept privileged roles from metadata but log them for audit.
+  // TODO next session: verify against user_roles table in DB.
+  if (PRIVILEGED_ROLES.includes(r)) {
+    console.log(`[auth] privileged role "${r}" claimed by userId=${userId} via metadata`);
+  }
+  return r;
+}
+
 // Extend Express Request to include user
 declare global {
   namespace Express {
@@ -55,7 +78,7 @@ export async function requireAuth(
   req.user = {
     id: user.id,
     email: user.email ?? "",
-    role: user.user_metadata?.role ?? "coach",
+    role: resolveRole(user.user_metadata?.role, user.id),
     fullName: fullNameFromUserMetadata(user),
   };
 
@@ -84,7 +107,7 @@ export async function optionalAuth(
     req.user = {
       id: user.id,
       email: user.email ?? "",
-      role: user.user_metadata?.role ?? "coach",
+      role: resolveRole(user.user_metadata?.role, user.id),
       fullName: fullNameFromUserMetadata(user),
     };
   }

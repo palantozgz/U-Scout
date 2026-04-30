@@ -191,7 +191,7 @@ export function useCreateScheduleEvent() {
       });
     },
     onSettled: (_event, _err, vars) => {
-      void qc.invalidateQueries({ queryKey: ["schedule", "events", "today", vars.club_id] });
+      void qc.invalidateQueries({ queryKey: ["schedule", "events"], exact: false });
     },
   });
 }

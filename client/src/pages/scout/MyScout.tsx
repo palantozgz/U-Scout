@@ -31,9 +31,12 @@ export default function MyScout() {
   const [newTeamId, setNewTeamId] = useState("");
   const [submitStates, setSubmitStates] = useState<Record<string, SubmitState>>({});
 
-  const myPlayers: PlayerProfile[] = allPlayers.filter(
-    (p) => !p.createdByCoachId || p.createdByCoachId === profile?.id,
-  );
+  const myPlayers: PlayerProfile[] = allPlayers.filter((p) => {
+    if (p.createdByCoachId !== profile?.id) return false;
+    // MyScout es solo para fichas sandbox — las canónicas van a Personnel/Film Room
+    const isCanonical = (p as any).isCanonical ?? (p as any).is_canonical ?? false;
+    return !isCanonical;
+  });
 
   const teamName = (teamId: string) => teams.find((t) => t.id === teamId)?.name ?? "";
   const teamLogo = (teamId: string) => teams.find((t) => t.id === teamId)?.logo ?? "";
@@ -238,7 +241,8 @@ export default function MyScout() {
           myPlayers.map((player) => {
             const isCanonical = player.isCanonical ?? (player as any).is_canonical ?? false;
             const submitState = submitStates[player.id] ?? "idle";
-            const hasReport = (player.defensivePlan?.defender?.length ?? 0) > 0;
+            const inp = (player as any).inputs ?? (player as any).scoutingInputs;
+            const hasReport = inp && typeof inp === "object" && Object.keys(inp).length > 3;
 
             return (
               <div
@@ -284,7 +288,8 @@ export default function MyScout() {
                   <button
                     type="button"
                     onClick={() => {
-                      const hasReport = (player.defensivePlan?.defender?.length ?? 0) > 0;
+                      const inp = (player as any).inputs ?? (player as any).scoutingInputs;
+                      const hasReport = inp && typeof inp === "object" && Object.keys(inp).length > 3;
                       if (!hasReport) setLocation(`/coach/quick-scout/${player.id}`);
                       else setLocation(`/coach/player/${player.id}`);
                     }}
