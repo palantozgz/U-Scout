@@ -3,9 +3,9 @@ import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
-import { useAuth } from "@/lib/useAuth";
-import { useUpdatePlayer, usePlayers } from "@/lib/mock-data";
+import { useUpdatePlayer, usePlayers, generateProfile, clubRowToMotorContext } from "@/lib/mock-data";
 import { useQueryClient } from "@tanstack/react-query";
+import { useClub } from "@/lib/club-api";
 import { cn } from "@/lib/utils";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 
@@ -181,6 +181,7 @@ export default function QuickScout({ playerId }: Props) {
   const qc = useQueryClient();
   const updatePlayer = useUpdatePlayer();
   const { data: allPlayers = [] } = usePlayers();
+  const { data: clubPayload } = useClub();
   const player = allPlayers.find(p => p.id === playerId);
 
   const [w, setW] = useState<WizardState>(initialState);
@@ -248,16 +249,31 @@ export default function QuickScout({ playerId }: Props) {
 
   const handleFinish = async () => {
     setSaving(true);
-    const newInputs = wizardToInputs(w);
+    const wizardFields = wizardToInputs(w);
     try {
+      // Merge wizard fields into existing inputs
+      const existingInputs = (player?.inputs as Record<string, unknown>) ?? {};
+      const mergedInputs = { ...existingInputs, ...wizardFields };
+
+      // Run the motor client-side to generate defensivePlan, internalModel, archetype
+      const motorCtx = clubRowToMotorContext(clubPayload?.club);
+      const profile = generateProfile(mergedInputs as any, undefined, motorCtx);
+
+      // Save everything — same shape as PlayerEditor
       await updatePlayer.mutateAsync({
         id: playerId,
-        updates: { inputs: { ...(player?.inputs as object ?? {}), ...newInputs } as any },
+        updates: {
+          inputs: mergedInputs,
+          internalModel: profile.internalModel,
+          defensivePlan: profile.defensivePlan,
+          archetype: profile.archetype,
+          keyTraits: profile.keyTraits,
+        } as any,
       });
       await qc.invalidateQueries({ queryKey: ["/api/players"] });
       setLocation(`/coach/player/${playerId}`);
     } catch (e) {
-      console.error(e);
+      console.error("QuickScout save error:", e);
     } finally {
       setSaving(false);
     }

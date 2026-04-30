@@ -255,12 +255,19 @@ export default function ClubManagement() {
   const [matchLocation, setMatchLocation] = useState("");
 
   const q = useClub();
+  const queryClient = useQueryClient();
 
   // ── League matches (Liga tab) ───────────────────────────────────────────────
   const matchesQ = useQuery<Array<{id:string;rivalName:string;matchDate:string;location:string|null;matchType:string}>>({    queryKey: ["/api/club/matches"],
     queryFn: async () => {
-      const r = await fetch("/api/club/matches", { credentials: "include" });
-      return r.json();
+      try {
+        const r = await fetch("/api/club/matches", { credentials: "include" });
+        if (!r.ok) return [];
+        const data = await r.json();
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
     },
     enabled: activeTab === "liga",
   });
@@ -319,7 +326,6 @@ export default function ClubManagement() {
   const opsMut = useSetClubMemberOperationsAccess();
   const revokeInv = useRevokeClubInvitation();
   const statsQ = useClubStats({ enabled: activeTab === "stats" });
-  const queryClient = useQueryClient();
 
   const hintKey = useMemo(() => `uscout-hint:v1:club:${profile?.id ?? "anon"}`, [profile?.id]);
   const [hintDismissed, setHintDismissed] = useState(false);
@@ -833,8 +839,8 @@ export default function ClubManagement() {
               <TabsContent value="liga" className="space-y-4 mt-0">
                 {(() => {
                   const now = new Date();
-                  const upcoming = (matchesQ.data ?? []).filter((m: any) => new Date(m.matchDate) >= now);
-                  const past = (matchesQ.data ?? []).filter((m: any) => new Date(m.matchDate) < now);
+                  const upcoming = (Array.isArray(matchesQ.data) ? matchesQ.data : []).filter((m: any) => new Date(m.matchDate) >= now);
+                  const past = (Array.isArray(matchesQ.data) ? matchesQ.data : []).filter((m: any) => new Date(m.matchDate) < now);
                   const fmtDate = (iso: string) => {
                     try {
                       return new Intl.DateTimeFormat(
@@ -997,7 +1003,7 @@ export default function ClubManagement() {
                     </Button>
                   )}
                   {(() => {
-                    const staff = q.data.members?.filter((m) => m.role === "coach" || m.role === "head_coach");
+                    const staff = (q.data.members ?? []).filter((m) => m.role === "coach" || m.role === "head_coach");
                     if (staff.length === 0) {
                       return (
                         <div className="py-6 text-center space-y-3">
@@ -1048,11 +1054,11 @@ export default function ClubManagement() {
                     ) : null}
                   </div>
 
-                  {q.data.pendingInvitations.length === 0 ? (
+                  {(q.data.pendingInvitations ?? []).length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">{t("club_empty_invites")}</p>
                   ) : (
                     <ul className="space-y-3">
-                      {q.data.pendingInvitations.map((inv) => (
+                      {(q.data.pendingInvitations ?? []).map((inv) => (
                         <li key={inv.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
                           <div className="flex flex-wrap items-center gap-2">
                             <Badge variant="secondary" className="text-[10px] font-bold uppercase">

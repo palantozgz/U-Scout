@@ -224,6 +224,95 @@ Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 - Stats card falsa — POSPUESTO (en diseño Figma)
 - Schedule localStorage → server persistence — POSPUESTO (Fase 2B)
 
+---
+
+## Estado sesión 1 mayo 2026 — BUGS ACTIVOS
+
+### 🔴 CRÍTICO — Mi Club crash
+- Error: `(intermediate value).filter is not a function` en ClubManagement.tsx línea 838
+- El código en disco ES CORRECTO (`Array.isArray` guard en queryFn, `?? []` en filters)
+- El error persiste SOLO con el usuario real de Pablo (datos específicos del club)
+- Hipótesis: `matchesQ.data` recibe un objeto `{error:...}` antes de que el guard actúe, O los datos del club tienen una forma inesperada
+- DIAGNÓSTICO PENDIENTE: ejecutar en consola del browser (F12) en `/coach/club`:
+  ```javascript
+  window.__origFilter = Array.prototype.filter;
+  Array.prototype.filter = function(...args) {
+    if (!Array.isArray(this)) {
+      console.error('FILTER ON NON-ARRAY:', typeof this, JSON.stringify(this).slice(0,200), new Error().stack);
+    }
+    return window.__origFilter.apply(this, args);
+  };
+  ```
+  Esto dirá EXACTAMENTE qué objeto no es array. Pegar output y arreglar.
+
+### 🔴 CRÍTICO — Schedule 403 al crear evento
+- Error: `POST /rest/v1/schedule_events HTTP/2 403`
+- Causa: Supabase RLS sin políticas INSERT
+- Fix pendiente: ejecutar SQL en Supabase:
+  ```sql
+  CREATE POLICY "allow_all" ON schedule_events FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY "allow_all" ON schedule_participants FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY "allow_all" ON wellness_entries FOR ALL USING (true) WITH CHECK (true);
+  ```
+
+### 🔴 CRÍTICO — PlayerEditor no sigue colores del tema visual
+- El editor abre con estilos incorrectos (hardcoded en lugar de CSS variables del tema)
+- Pendiente audit CSS en PlayerEditor.tsx
+
+### 🟡 IMPORTANTE — QuickScout no guarda inputs al motor
+- El wizard guarda solo `isoFrequency` y poco más
+- Fix implementado en código: `handleFinish` ejecuta motor y guarda `defensivePlan` etc.
+- Pendiente verificar que el fix funciona end-to-end
+
+### 🟡 IMPORTANTE — Ficha canónica badge "Solo práctica"
+- A veces persiste tras crear ficha canónica
+- Fix implementado: `createPlayer` y `updatePlayer` re-fetchen con `is_canonical`
+- Fallback `is_canonical` añadido en Personnel y MyScout
+- Pendiente verificar en browser real
+
+### ℹ️ INFO — Cambios en disco sin commit
+- `client/src/pages/scout/ClubManagement.tsx` — queryClient antes de mutations, Array.isArray guard
+- `client/src/pages/scout/Personnel.tsx` — canManageRoster, Free Agents, delete permissions, unassigned section
+- `client/src/pages/scout/QuickScout.tsx` — motor execution en handleFinish
+- `server/storage.ts` — createPlayer/updatePlayer re-fetch con isCanonical
+- HACER COMMIT cuando Mi Club crash esté resuelto
+
+---
+
+## U Scout — arquitectura actual (1 mayo 2026)
+
+### Rutas activas
+- `/coach` → CoachHome (4 contenedores + alertas smart)
+- `/coach/personnel` → Personnel (fichas canónicas + sandbox + equipos)
+- `/coach/my-scout` → MyScout (mis fichas + QuickScout entry)
+- `/coach/quick-scout/:id` → QuickScout (wizard adaptativo 7 ramas)
+- `/coach/player/:id` → PlayerEditor (editor completo)
+- `/coach/film-room` → FilmRoom (revisión colectiva anti-bias)
+- `/coach/game-plan` → GamePlan (publicados al roster)
+- `/coach/scout/:id/review` → ReportViewV4
+- `/coach/scout/:id/preview` → ReportSlidesV1
+- `/coach/club` → ClubManagement (4 tabs: Club/Liga/Equipo/Stats)
+
+### Rutas eliminadas
+- `/coach/editor`, `/coach/reports`, `/coach/team/:id`, `/coach/test` — todas eliminadas
+
+### Schema Supabase (fuera de schema.ts)
+- `players.is_canonical` boolean DEFAULT false
+- `player_scout_versions` (player_id, coach_id, inputs JSONB, status, submitted_at)
+- `league_matches` (club_id, rival_name, match_date, location, match_type)
+- `schedule_events`, `schedule_participants`, `wellness_entries` — tablas creadas, RLS sin políticas
+- CASCADE: players→teams, report_*→players, player_scout_versions→players
+
+### Nombres EN/ES/ZH
+| Menú | EN | ES | ZH |
+|------|----|----|----|
+| Infraestructura | Personnel | Plantilla | 球员档案 |
+| Mi trabajo | My Scout | Mi Scout | 我的报告 |
+| Trabajo grupo | Film Room | Sala de análisis | 集体分析 |
+| Publicado | Game Plan | Plan de juego | 比赛方案 |
+
+---
+
 ### ✅ BLOQUE 1 — U Scout features incompletas (completado 27 abr)
 - 1A ✅ Approval workflow UI — stage 1/2/3 en ReportViewV4 (draft → approved → published)
 - 1B ✅ Discrepancias — badge amber en Dashboard + detalle de items en conflicto en ReportViewV4

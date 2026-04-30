@@ -26,7 +26,13 @@ export default function Personnel() {
 
   const isHeadCoach = profile?.role === "head_coach" || profile?.role === "master";
 
+  // Badge-aware permission: head_coach, master, or operationsAccess
+  const canManageRoster = isHeadCoach || Boolean((profile as any)?.operationsAccess);
+
   const { data: teams = [], isLoading: teamsLoading } = useTeams();
+
+  // Ensure there's always a valid default team — use first team or create Free Agents
+  const defaultTeamId = teams[0]?.id ?? "";
   const { data: allPlayers = [] } = usePlayers();
   const createPlayerMutation = useCreatePlayer();
   const deletePlayerMutation = useDeletePlayer();
@@ -150,9 +156,33 @@ export default function Personnel() {
   const playersByTeam = (teamId: string) =>
     allPlayers.filter((p) => p.teamId === teamId);
 
-  const handleCreatePlayer = () => {
-    const tid = newPlayerTeamId || teams[0]?.id;
-    if (!tid) return;
+  // Auto-create Free Agents team if no teams exist and head_coach creates a player
+  const ensureFreeAgentsTeam = async (): Promise<string | null> => {
+    const freeAgents = teams.find(t => (t as any).isSystem || t.name === "Agentes Libres" || t.name === "Free Agents");
+    if (freeAgents) return freeAgents.id;
+    if (!canManageRoster) return null;
+    try {
+      const res = await apiRequest("POST", "/api/teams", {
+        name: locale === "es" ? "Agentes Libres" : locale === "zh" ? "自由球员" : "Free Agents",
+        logo: "📋",
+        primaryColor: "bg-slate-500",
+      });
+      const created = await res.json();
+      await qc.invalidateQueries({ queryKey: ["/api/teams"] });
+      return created.id as string;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleCreatePlayer = async () => {
+    let tid = newPlayerTeamId || defaultTeamId;
+    if (!tid) {
+      // No teams exist — auto-create Free Agents
+      const freeAgentsId = await ensureFreeAgentsTeam();
+      if (!freeAgentsId) return;
+      tid = freeAgentsId;
+    }
     const def = createDefaultPlayer(tid);
     const payload = {
       ...def,
@@ -161,19 +191,19 @@ export default function Personnel() {
     };
     createPlayerMutation.mutate(payload as any, {
       onSuccess: async (created: PlayerProfile) => {
-        // head_coach creates directly as canonical — no separate step needed
-        if (isHeadCoach) {
-          try {
-            const res = await apiRequest("POST", `/api/players/${created.id}/canonical`);
-            if (!res.ok) console.error("canonical promotion failed", res.status);
-          } catch (e) {
-            console.error("canonical promotion error", e);
-          }
-          await qc.invalidateQueries({ queryKey: ["/api/players"] });
-        }
         setShowNewPlayer(false);
         setNewPlayerName("");
         setNewPlayerNumber("");
+        // head_coach creates directly as canonical
+        if (isHeadCoach) {
+          try {
+            await apiRequest("POST", `/api/players/${created.id}/canonical`);
+          } catch (e) {
+            console.error("canonical promotion error", e);
+          }
+          // Re-fetch AFTER canonical is set so isCanonical is correct
+          await qc.invalidateQueries({ queryKey: ["/api/players"] });
+        }
       },
     });
   };
@@ -198,6 +228,10 @@ export default function Personnel() {
   };
 
   const handleDeleteTeam = (teamId: string) => {
+    const team = teams.find(t => t.id === teamId);
+    const isFreeAgents = (team as any)?.isSystem ||
+      team?.name === "Agentes Libres" || team?.name === "Free Agents" || team?.name === "自由球员";
+    if (isFreeAgents) return; // protected
     if (pendingDeleteTeam !== teamId) { setPendingDeleteTeam(teamId); return; }
     deleteTeamMutation.mutate(teamId);
     setPendingDeleteTeam(null);
@@ -240,7 +274,11 @@ export default function Personnel() {
               size="sm"
               variant="outline"
               className="text-xs font-bold h-9 rounded-lg"
-              onClick={() => { setShowNewPlayer(true); setNewPlayerTeamId(teams[0]?.id ?? ""); }}
+              onClick={() => {
+                setShowNewPlayer(true);
+                setNewPlayerTeamId(defaultTeamId);
+                setExpandedTeamId(defaultTeamId || null);
+              }}
             >
               {L.addCanonical}
             </Button>
@@ -298,13 +336,17 @@ export default function Personnel() {
                 onKeyDown={(e) => e.key === "Enter" && handleCreatePlayer()}
               />
             </div>
-            {teams.length > 1 && (
+            {teams.length >= 1 && (
               <select
                 value={newPlayerTeamId}
                 onChange={(e) => setNewPlayerTeamId(e.target.value)}
                 className="w-full h-10 rounded-lg border border-border bg-background text-sm px-3"
               >
-                {teams.map((t) => (
+                {[...teams].sort((a, b) => {
+                  const aFA = (a as any).isSystem || a.name === "Agentes Libres" || a.name === "Free Agents" || a.name === "自由球员";
+                  const bFA = (b as any).isSystem || b.name === "Agentes Libres" || b.name === "Free Agents" || b.name === "自由球员";
+                  return aFA ? -1 : bFA ? 1 : 0;
+                }).map((t) => (
                   <option key={t.id} value={t.id}>{t.logo} {t.name}</option>
                 ))}
               </select>
@@ -349,7 +391,25 @@ export default function Personnel() {
 
         {/* Teams + players */}
         {teams.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-12">{L.noTeams}</p>
+          <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center space-y-3">
+            <p className="text-sm font-semibold text-muted-foreground">
+              {locale === "es"
+                ? "Sin equipos — crea uno para organizar las fichas"
+                : locale === "zh"
+                ? "暂无球队，请先创建一个"
+                : "No teams yet — create one to organise profiles"}
+            </p>
+            {canManageRoster && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-lg text-xs font-bold"
+                onClick={() => setShowNewTeam(true)}
+              >
+                {locale === "es" ? "+ Crear equipo rival" : locale === "zh" ? "+ 创建队伍" : "+ Create rival team"}
+              </Button>
+            )}
+          </div>
         ) : (
           teams.map((team) => {
             const players = playersByTeam(team.id);
@@ -376,7 +436,7 @@ export default function Personnel() {
                     </div>
                     <ChevronRight className={cn("w-4 h-4 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
                   </button>
-                  {isHeadCoach && (
+                  {isHeadCoach && !((team as any).isSystem || team.name === "Agentes Libres" || team.name === "Free Agents" || team.name === "自由球员") && (
                     pendingDeleteTeam === team.id ? (
                       <div className="flex items-center gap-1 pr-3">
                         <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] rounded-lg" onClick={() => setPendingDeleteTeam(null)}>
@@ -439,6 +499,11 @@ export default function Personnel() {
                               </div>
                               <p className="text-xs text-muted-foreground">
                                 #{player.number || "—"} · {(player.inputs as any)?.position || "—"}
+                                {!player.teamId && (
+                                  <span className="ml-1 text-amber-600 dark:text-amber-400 font-semibold">
+                                    · {locale === "es" ? "Sin equipo" : locale === "zh" ? "无队伍" : "No team"}
+                                  </span>
+                                )}
                               </p>
                             </div>
 
@@ -470,7 +535,7 @@ export default function Personnel() {
                               >
                                 <ChevronRight className="w-4 h-4" />
                               </Button>
-                              {isPendingDel ? (
+                              {isPendingDel && canManageRoster ? (
                                 <div className="flex items-center gap-1">
                                   <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] rounded-lg" onClick={() => setPendingDelete(null)}>
                                     {L.cancel}
@@ -480,14 +545,16 @@ export default function Personnel() {
                                   </Button>
                                 </div>
                               ) : (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-destructive"
-                                  onClick={() => setPendingDelete(player.id)}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
+                                canManageRoster ? (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-destructive"
+                                    onClick={() => setPendingDelete(player.id)}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                ) : null
                               )}
                             </div>
                           </div>
@@ -500,6 +567,112 @@ export default function Personnel() {
             );
           })
         )}
+
+        {(() => {
+          const unassigned = allPlayers.filter(p => !p.teamId || !teams.find(t => t.id === p.teamId));
+          if (unassigned.length === 0) return null;
+          return (
+            <div className="rounded-xl border border-dashed border-amber-500/30 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-amber-500/5">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">📋</span>
+                  <div>
+                    <p className="text-sm font-black text-foreground">
+                      {locale === "es" ? "Sin equipo asignado" : locale === "zh" ? "未分配队伍" : "Unassigned"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {unassigned.length} {locale === "es" ? "jugadoras" : locale === "zh" ? "名球员" : "players"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-amber-500/20 divide-y divide-border">
+                {unassigned.map((player) => {
+                  const isCanonical = (player as any).isCanonical ?? (player as any).is_canonical ?? false;
+                  const isPendingDel = pendingDelete === player.id;
+                  return (
+                    <div key={player.id} className="px-4 py-3 flex items-center gap-3 bg-background">
+                      <div className="relative shrink-0">
+                        <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-amber-500/40 ring-offset-2 ring-offset-background">
+                          <BasketballPlaceholderAvatar size={40} />
+                        </div>
+                        {isCanonical && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                            <Star className="w-2.5 h-2.5 text-primary-foreground" />
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-extrabold text-foreground truncate">{player.name || "—"}</p>
+                          {!isCanonical && (
+                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">
+                              ⚗ {locale === "es" ? "Solo práctica" : locale === "zh" ? "仅练习" : "Practice only"}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                          {locale === "es" ? "⚠ Sin equipo asignado" : locale === "zh" ? "⚠ 未分配队伍" : "⚠ No team assigned"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {teams.length > 0 && canManageRoster && (
+                          <select
+                            className="h-7 rounded-lg border border-border bg-background text-[11px] px-2 font-semibold text-foreground"
+                            defaultValue=""
+                            onChange={async (e) => {
+                              const newTeamId = e.target.value;
+                              if (!newTeamId) return;
+                              try {
+                                await apiRequest("PATCH", `/api/players/${player.id}`, { teamId: newTeamId });
+                                await qc.invalidateQueries({ queryKey: ["/api/players"] });
+                              } catch (err) {
+                                console.error("assign team failed", err);
+                              }
+                            }}
+                          >
+                            <option value="">{locale === "es" ? "Asignar equipo" : locale === "zh" ? "分配队伍" : "Assign team"}</option>
+                            {teams.map(t => (
+                              <option key={t.id} value={t.id}>{t.logo} {t.name}</option>
+                            ))}
+                          </select>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setLocation(`/coach/player/${player.id}`)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                        {canManageRoster && (
+                          isPendingDel ? (
+                            <div className="flex items-center gap-1">
+                              <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] rounded-lg" onClick={() => setPendingDelete(null)}>
+                                {L.cancel}
+                              </Button>
+                              <Button size="sm" className="h-7 px-2 text-[10px] font-bold rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                                onClick={() => { deletePlayerMutation.mutate(player.id); setPendingDelete(null); }}>
+                                {L.confirmDelete}
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive transition-colors"
+                              onClick={() => setPendingDelete(player.id)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
       </main>
       <ModuleNav />
     </div>

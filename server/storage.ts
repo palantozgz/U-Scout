@@ -264,12 +264,19 @@ export class DatabaseStorage implements IStorage {
 
   async createPlayer(player: InsertPlayer): Promise<Player> {
     const [created] = await db.insert(players).values(player).returning();
-    return created;
+    // Fetch again with is_canonical included (not in Drizzle schema)
+    const rows = await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE id = ${created.id}`);
+    const arr = (rows as any).rows ?? (rows as unknown as any[]);
+    return (arr[0] ?? created) as Player;
   }
 
   async updatePlayer(id: string, updates: Partial<InsertPlayer>): Promise<Player | undefined> {
     const [updated] = await db.update(players).set(updates).where(eq(players.id, id)).returning();
-    return updated;
+    if (!updated) return undefined;
+    // Fetch again with is_canonical included
+    const rows = await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE id = ${id}`);
+    const arr = (rows as any).rows ?? (rows as unknown as any[]);
+    return (arr[0] ?? updated) as Player;
   }
 
   async deletePlayer(id: string): Promise<void> {

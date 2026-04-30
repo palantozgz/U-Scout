@@ -60,7 +60,15 @@ export interface ClubPayload {
 export function useClub(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: clubQueryKey,
-    queryFn: async (): Promise<ClubPayload> => (await apiRequest("GET", "/api/club")).json(),
+    queryFn: async (): Promise<ClubPayload> => {
+      const raw = await (await apiRequest("GET", "/api/club")).json();
+      if (!raw?.club) throw new Error(raw?.error ?? "club_load_failed");
+      return {
+        club: raw.club,
+        members: Array.isArray(raw.members) ? raw.members : [],
+        pendingInvitations: Array.isArray(raw.pendingInvitations) ? raw.pendingInvitations : [],
+      };
+    },
     networkMode: "offlineFirst",
     staleTime: 5 * 60 * 1000,
     enabled: options?.enabled !== false,
