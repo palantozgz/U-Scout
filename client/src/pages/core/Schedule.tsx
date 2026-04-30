@@ -486,7 +486,11 @@ export default function Schedule() {
     const baseTitle = (opts?.overrideTemplate ? opts.overrideTemplate.title : createTitle).trim();
     const title = baseTitle || t(ACTIVITY_TYPE_CONFIG[createSessionType].labelKey);
     const startsIso = new Date(`${createDate}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`).toISOString();
-    const endsIso = createEndTime ? new Date(`${createDate}T${createEndTime}`).toISOString() : null;
+    const endsIso = createEndTime
+      ? new Date(`${createDate}T${createEndTime}`).toISOString()
+      : durationMins && durationMins > 0
+        ? new Date(new Date(`${createDate}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`).getTime() + durationMins * 60000).toISOString()
+        : null;
     const constraints = {
       target_attendance: targetAttendance.trim() ? Number(targetAttendance) : undefined,
       max_capacity: maxCapacity.trim() ? Number(maxCapacity) : undefined,
