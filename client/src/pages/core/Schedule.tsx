@@ -1032,6 +1032,7 @@ export default function Schedule() {
   };
 
   useEffect(() => {
+    if (staffView !== "planner") return;
     const todayStr = new Date().toLocaleDateString("sv");
     let attempts = 0;
     const tryScroll = () => {
@@ -1044,7 +1045,7 @@ export default function Schedule() {
       }
     };
     window.setTimeout(tryScroll, 300);
-  }, []);
+  }, [staffView]);
 
   const fmtWeekRange = (start: Date) => {
     const end = new Date(start);
@@ -2164,21 +2165,6 @@ export default function Schedule() {
                                                   <Copy className="w-4 h-4" />
                                                   {t("schedule_template_save")}
                                                 </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                {days.flatMap((dd) =>
-                                                  slotDefs.map((ss) => (
-                                                    <DropdownMenuItem
-                                                      key={`move-${ev.id}-${dd.toISOString()}-${ss.key}`}
-                                                      onClick={() => moveSessionToSlot(ev, dd, ss.hour)}
-                                                    >
-                                                      <Clock className="w-4 h-4" />
-                                                      {t("schedule_move_to").replace(
-                                                        "{slot}",
-                                                        `${new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(dd)} ${t(ss.labelKey as any)}`,
-                                                      )}
-                                                    </DropdownMenuItem>
-                                                  )),
-                                                )}
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem
                                                   onClick={() => setCancelTarget(ev)}
