@@ -241,7 +241,7 @@ export async function registerRoutes(
       const teamId = req.query.teamId as string | undefined;
       const club = await storage.getClubForUser(req.user!.id);
       if (!club) return res.status(404).json({ error: "Club not found" });
-      const result = await storage.getPlayers(teamId, club.id);
+      const result = await storage.getPlayers(teamId, club.id, req.user!.id);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch players" });

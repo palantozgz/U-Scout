@@ -69,7 +69,7 @@ export interface IStorage {
   updateTeam(id: string, updates: Partial<InsertTeam>): Promise<Team | undefined>;
   deleteTeam(id: string): Promise<void>;
 
-  getPlayers(teamId?: string, clubId?: string): Promise<Player[]>;
+  getPlayers(teamId?: string, clubId?: string, viewerUserId?: string): Promise<Player[]>;
   getPlayer(id: string): Promise<Player | undefined>;
   createPlayer(player: InsertPlayer): Promise<Player>;
   updatePlayer(id: string, updates: Partial<InsertPlayer>): Promise<Player | undefined>;
@@ -271,7 +271,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(teams).where(eq(teams.id, id));
   }
 
-  async getPlayers(teamId?: string, clubId?: string): Promise<Player[]> {
+  async getPlayers(teamId?: string, clubId?: string, viewerUserId?: string): Promise<Player[]> {
     if (!clubId) {
       const rows = teamId
         ? await db.execute(sql`SELECT *,
@@ -300,7 +300,7 @@ export class DatabaseStorage implements IStorage {
                 created_by_user_id as "createdByUserId",
                 created_by_user_id as "createdByCoachId"
               FROM players
-              WHERE (is_canonical = true OR created_by_user_id IN (${sql.join(userIds.map((id) => sql`${id}`), sql`,`)}))
+              WHERE (is_canonical = true OR created_by_user_id ${viewerUserId ? sql`= ${viewerUserId}` : sql`IN (${sql.join(userIds.map((id) => sql`${id}`), sql`,`)})`})
                 AND team_id = ${teamId}`
             : sql`SELECT *,
                 is_canonical as "isCanonical",
@@ -318,7 +318,7 @@ export class DatabaseStorage implements IStorage {
                 created_by_user_id as "createdByUserId",
                 created_by_user_id as "createdByCoachId"
               FROM players
-              WHERE (is_canonical = true OR created_by_user_id IN (${sql.join(userIds.map((id) => sql`${id}`), sql`,`)}))`
+              WHERE (is_canonical = true OR created_by_user_id ${viewerUserId ? sql`= ${viewerUserId}` : sql`IN (${sql.join(userIds.map((id) => sql`${id}`), sql`,`)})`})`
             : sql`SELECT *,
                 is_canonical as "isCanonical",
                 team_id as "teamId",
