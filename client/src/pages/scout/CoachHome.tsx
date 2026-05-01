@@ -207,12 +207,15 @@ export default function CoachHome() {
       .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0] ?? null;
   }, [weekEvents]);
 
-  // My pending: canonical players where I haven't submitted yet
+  // My pending: canonical players where I haven't submitted yet AND not already published
   const myPendingCount = useMemo(() => {
     const filmPlayers = filmRoomData?.players ?? [];
-    const canonicalIds = new Set(allPlayers.filter((p) => p.isCanonical).map((p) => p.id));
-    // Count canonical players with no submitted version from me
-    return Math.max(0, canonicalIds.size - filmPlayers.filter((fp) => fp.hasSubmittedMine).length);
+    const submittedIds = new Set(filmPlayers.filter((fp) => fp.hasSubmittedMine).map((fp) => (fp as any).player?.id).filter(Boolean));
+    const canonicalPlayers = allPlayers.filter((p) => (p as any).isCanonical ?? (p as any).is_canonical);
+    // Pending = canonical, not published, and not submitted to Film Room
+    return canonicalPlayers.filter((p) =>
+      !(p as any).published && !submittedIds.has(p.id)
+    ).length;
   }, [allPlayers, filmRoomData]);
 
   // Discrepancies in Film Room
