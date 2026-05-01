@@ -131,6 +131,8 @@ export interface RenderedInstruction {
 }
 
 export interface RenderedAlert {
+  key: string;
+  triggerKey: string;
   text: string;
   triggerCue: string;
   mechanismType: string;
@@ -457,7 +459,7 @@ function renderSituationLabel(id: string, locale: Locale): string {
   return labels[id]?.[locale] ?? id;
 }
 
-/** Same text as `renderReport` uses for each situation card’s description. */
+/** Same text as `renderReport` uses for each situation card's description. */
 export function renderSituationDescription(
   sit: RankedSituation,
   ctx: RenderContext,
@@ -1355,6 +1357,8 @@ function renderAlerts(
   ctx: RenderContext,
 ): RenderedAlert[] {
   return alerts.map((a) => ({
+    key: a.key,
+    triggerKey: a.triggerKey,
     text: renderAlertText(a.key, inputs, ctx),
     triggerCue: renderTriggerCue(a.triggerKey, inputs, ctx),
     mechanismType: a.mechanismType,
