@@ -11,6 +11,7 @@ import { useClub } from "@/lib/club-api";
 import { getStoredRosterSignature, rosterSignature, setStoredRosterSignature } from "@/lib/clubRosterSeen";
 import { usePlayerTeams } from "@/lib/player-home";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
+import { apiRequest } from "@/lib/queryClient";
 import {
   useScheduleParticipantsForEvents,
   useThisWeekScheduleEvents,
@@ -155,7 +156,7 @@ export default function Home() {
   useEffect(() => {
     void queryClient.prefetchQuery({
       queryKey: clubQueryKey,
-      queryFn: async () => (await fetch("/api/club")).json(),
+      queryFn: async () => { const r = await apiRequest("GET", "/api/club"); return r.json(); },
       staleTime: 5 * 60 * 1000,
     });
   }, [queryClient]);

@@ -129,9 +129,11 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/teams", requireAuth, async (_req, res) => {
+  app.get("/api/teams", requireAuth, async (req, res) => {
     try {
-      const result = await storage.getTeams();
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      const result = await storage.getTeams(club.id);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch teams" });
@@ -177,7 +179,9 @@ export async function registerRoutes(
   app.get("/api/players", requireAuth, async (req, res) => {
     try {
       const teamId = req.query.teamId as string | undefined;
-      const result = await storage.getPlayers(teamId);
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      const result = await storage.getPlayers(teamId, club.id);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch players" });
@@ -435,8 +439,11 @@ export async function registerRoutes(
     try {
       const coachId = req.user!.id;
 
+      const club = await storage.getClubForUser(coachId);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+
       // Get all canonical players
-      const allPlayers = await storage.getPlayers();
+      const allPlayers = await storage.getPlayers(undefined, club.id);
       const canonicalPlayers = allPlayers.filter((p: any) => p.is_canonical);
 
       // For each canonical player, get all submitted versions
@@ -508,6 +515,26 @@ export async function registerRoutes(
       await storage.publishPlayerReport(playerId, req.user!.id);
       // Clear scout versions (merge complete)
       await storage.mergeAndClearScoutVersions(playerId);
+
+      // Auto-assign report to all active club players
+      const club = await storage.getClubForUser(req.user!.id);
+      if (club) {
+        const members = await storage.listClubMembers(club.id);
+        const activePlayers = members.filter((m) => m.role === "player" && m.status === "active");
+        await Promise.all(
+          activePlayers.map(async (m) => {
+            try {
+              await storage.createScoutingReportAssignmentIfNotExists({
+                userId: m.userId,
+                playerId,
+                createdBy: req.user!.id,
+              });
+            } catch {
+              // ignore per-user failures (e.g., unique constraint)
+            }
+          }),
+        );
+      }
       res.status(204).send();
     } catch (err) {
       res.status(500).json({ error: "Failed to publish to Game Plan" });
@@ -690,15 +717,14 @@ export async function registerRoutes(
       const token = req.params.token as string;
       const inv = await storage.getInvitationByToken(token);
       if (!inv) return res.status(404).json({ error: "Invalid invitation" });
-      if (inv.usedBy) {
-        return res.status(409).json({ error: "Invitation already used" });
-      }
       const now = new Date();
       if (inv.expiresAt < now) {
         return res.status(410).json({ error: "Invitation expired" });
       }
 
       const userId = req.user!.id;
+      const claimed = await storage.markInvitationUsedIfUnused(inv.id, userId);
+      if (!claimed) return res.status(409).json({ error: "Invitation already used" });
       const existing = await storage.getTeamMember(userId, inv.teamId);
       if (!existing) {
         await storage.upsertTeamMember({
@@ -710,7 +736,6 @@ export async function registerRoutes(
           displayName: "",
         });
       }
-      await storage.markInvitationUsed(inv.id, userId);
 
       res.json({ ok: true, teamId: inv.teamId, role: inv.role });
     } catch (err) {
@@ -941,13 +966,14 @@ export async function registerRoutes(
       const token = req.params.token as string;
       const inv = await storage.getClubInvitationByToken(token);
       if (!inv) return res.status(404).json({ error: "Invalid invitation" });
-      if (inv.usedBy) return res.status(409).json({ error: "Invitation already used" });
       const now = new Date();
       if (inv.expiresAt < now) return res.status(410).json({ error: "Invitation expired" });
 
       const userId = req.user!.id;
       const email = req.user!.email || "";
 
+      const claimed = await storage.markClubInvitationUsedIfUnused(inv.id, userId);
+      if (!claimed) return res.status(409).json({ error: "Invitation already used" });
       const existing = await storage.getClubMemberByClubAndUser(inv.clubId, userId);
       if (!existing) {
         await storage.createClubMember({
@@ -962,7 +988,6 @@ export async function registerRoutes(
           joinedAt: new Date(),
         });
       }
-      await storage.markClubInvitationUsed(inv.id, userId);
 
       res.json({ ok: true, clubId: inv.clubId, role: inv.role });
     } catch (err) {

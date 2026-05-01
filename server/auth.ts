@@ -9,6 +9,7 @@
 
 import type { Request, Response, NextFunction } from "express";
 import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "./supabaseAdmin";
 
 const supabaseUrl     = process.env.VITE_SUPABASE_URL!;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY!;
@@ -32,14 +33,50 @@ function safeRole(raw: unknown): string {
 // Privileged roles that require server-side verification (future: DB lookup).
 const PRIVILEGED_ROLES = ["head_coach", "master"];
 
-function resolveRole(metaRole: unknown, userId: string): string {
-  const r = safeRole(metaRole);
-  // For now: accept privileged roles from metadata but log them for audit.
-  // TODO next session: verify against user_roles table in DB.
-  if (PRIVILEGED_ROLES.includes(r)) {
-    console.log(`[auth] privileged role "${r}" claimed by userId=${userId} via metadata`);
+async function fetchPrivilegedRoleFromDb(userId: string): Promise<string | null> {
+  const admin = getSupabaseAdmin();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) {
+    console.log(`[auth] user_roles lookup error for userId=${userId}: ${error.message}`);
+    return null;
   }
-  return r;
+  const r = safeRole((data as any)?.role);
+  return PRIVILEGED_ROLES.includes(r) ? r : null;
+}
+
+async function resolveRole(metaRole: unknown, userId: string): Promise<string> {
+  const meta = safeRole(metaRole);
+
+  // "head_coach" / "master" can ONLY come from user_roles (server-controlled).
+  const dbPriv = await fetchPrivilegedRoleFromDb(userId);
+  if (dbPriv) return dbPriv;
+
+  // If metadata claims privileged but DB doesn't, downgrade + log attempt.
+  if (PRIVILEGED_ROLES.includes(meta)) {
+    console.log(`[auth] privileged role "${meta}" claimed by userId=${userId} via metadata but no user_roles row`);
+    return "coach";
+  }
+
+  // "player" / "coach" may come from user_metadata.
+  return meta;
+}
+
+export async function grantRole(userId: string, role: string, grantedBy: string) {
+  const admin = getSupabaseAdmin();
+  if (!admin) throw new Error("supabase_admin_unavailable");
+  const r = safeRole(role);
+  const { data, error } = await admin
+    .from("user_roles")
+    .upsert({ user_id: userId, role: r, granted_by: grantedBy }, { onConflict: "user_id" })
+    .select("user_id, role")
+    .single();
+  if (error) throw error;
+  return data as { user_id: string; role: string };
 }
 
 // Extend Express Request to include user
@@ -78,7 +115,7 @@ export async function requireAuth(
   req.user = {
     id: user.id,
     email: user.email ?? "",
-    role: resolveRole(user.user_metadata?.role, user.id),
+    role: await resolveRole(user.user_metadata?.role, user.id),
     fullName: fullNameFromUserMetadata(user),
   };
 
@@ -107,7 +144,7 @@ export async function optionalAuth(
     req.user = {
       id: user.id,
       email: user.email ?? "",
-      role: resolveRole(user.user_metadata?.role, user.id),
+      role: await resolveRole(user.user_metadata?.role, user.id),
       fullName: fullNameFromUserMetadata(user),
     };
   }

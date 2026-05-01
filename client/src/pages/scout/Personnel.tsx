@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, Plus, Star, FlaskConical, ChevronRight, Trash2, X } from "lucide-react";
 import { ModuleNav } from "@/pages/core/ModuleNav";
@@ -187,6 +187,11 @@ export default function Personnel() {
       return null;
     }
   };
+
+  useEffect(() => {
+    if (!isHeadCoach || teamsLoading || teams.length > 0) return;
+    void ensureFreeAgentsTeam();
+  }, [isHeadCoach, teamsLoading, teams.length]);
 
   const handleCreatePlayer = async () => {
     let tid = newPlayerTeamId || defaultTeamId;
@@ -424,7 +429,11 @@ export default function Personnel() {
             )}
           </div>
         ) : (
-          teams.map((team) => {
+          [...teams].sort((a, b) => {
+            const aFA = (a as any).isSystem || a.name === "Agentes Libres" || a.name === "Free Agents" || a.name === "自由球员";
+            const bFA = (b as any).isSystem || b.name === "Agentes Libres" || b.name === "Free Agents" || b.name === "自由球员";
+            return aFA ? 1 : bFA ? -1 : 0;
+          }).map((team) => {
             const players = playersByTeam(team.id);
             const isExpanded = expandedTeamId === team.id;
             return (

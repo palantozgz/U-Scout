@@ -2066,16 +2066,16 @@ export default function Schedule() {
                             <div
                               key={d.toISOString()}
                               ref={(el) => {
-                                landscapeDayRefs.current[d.toISOString().slice(0, 10)] = el;
+                                landscapeDayRefs.current[d.toLocaleDateString("sv")] = el;
                               }}
                               className={[
-                                "text-center",
+                                "text-center rounded-lg px-0.5 pb-1",
                                 (() => {
-                                  const dk = d.toISOString().slice(0, 10);
+                                  const dk = d.toLocaleDateString("sv");
                                   const isTodayLs = dk === new Date().toLocaleDateString("sv");
                                   const isHighLs = highlightDayKey === dk;
-                                  if (isTodayLs) return "border-2 border-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.15)] rounded-lg";
-                                  if (isHighLs) return "ring-2 ring-primary/60 rounded-lg";
+                                  if (isTodayLs) return "border-2 border-primary bg-primary/5 shadow-[0_0_0_3px_hsl(var(--primary)/0.12)]";
+                                  if (isHighLs) return "ring-2 ring-primary/60";
                                   return "";
                                 })(),
                               ].join(" ")}
@@ -2088,12 +2088,12 @@ export default function Schedule() {
                               </p>
                               <div className="mt-1 flex items-center justify-center gap-1 flex-wrap">
                                 {(() => {
-                                  const dayKey = d.toISOString().slice(0, 10);
+                                  const dayKey = d.toLocaleDateString("sv");
                                   const daySessions = (plannerWeekQ.data ?? []).filter((s) => new Date(s.starts_at).toLocaleDateString("sv") === dayKey);
                                   const chips: string[] = [];
                                   if (daySessions.length === 0) chips.push("schedule_insight_no_sessions");
                                   if (daySessions.length >= 3) chips.push("schedule_insight_overloaded");
-                                  const todayKey = new Date().toISOString().slice(0, 10);
+                                  const todayKey = new Date().toLocaleDateString("sv");
                                   if (dayKey === todayKey && pendingResponses > 0) chips.push("schedule_insight_low_attendance_risk");
                                   return chips.slice(0, 2).map((k) => (
                                     <span
@@ -2124,8 +2124,9 @@ export default function Schedule() {
                                   return ts >= slotStart.getTime() && ts < slotEnd.getTime();
                                 });
 
+                                const isCellToday = d.toLocaleDateString('sv') === new Date().toLocaleDateString('sv');
                                 return (
-                                  <div key={`${slot.key}-${d.toISOString()}`} className="space-y-1">
+                                  <div key={`${slot.key}-${d.toLocaleDateString('sv')}`} className={['space-y-1 rounded-lg px-0.5 py-0.5', isCellToday ? 'bg-primary/5' : ''].join(' ')}>
                                     {inSlot.length > 0 ? (
                                       inSlot.map((ev) => (
                                         <div

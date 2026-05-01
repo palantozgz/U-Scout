@@ -63,13 +63,13 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
 
-  getTeams(): Promise<Team[]>;
+  getTeams(clubId?: string): Promise<Team[]>;
   getTeam(id: string): Promise<Team | undefined>;
   createTeam(team: InsertTeam): Promise<Team>;
   updateTeam(id: string, updates: Partial<InsertTeam>): Promise<Team | undefined>;
   deleteTeam(id: string): Promise<void>;
 
-  getPlayers(teamId?: string): Promise<Player[]>;
+  getPlayers(teamId?: string, clubId?: string): Promise<Player[]>;
   getPlayer(id: string): Promise<Player | undefined>;
   createPlayer(player: InsertPlayer): Promise<Player>;
   updatePlayer(id: string, updates: Partial<InsertPlayer>): Promise<Player | undefined>;
@@ -78,12 +78,14 @@ export interface IStorage {
   createInvitation(row: InsertInvitation): Promise<Invitation>;
   getInvitationByToken(token: string): Promise<Invitation | undefined>;
   markInvitationUsed(id: string, userId: string): Promise<void>;
+  markInvitationUsedIfUnused(id: string, userId: string): Promise<boolean>;
 
   upsertTeamMember(row: InsertTeamMember): Promise<TeamMember>;
   getTeamMember(userId: string, teamId: string): Promise<TeamMember | undefined>;
   getPrimaryTeamMemberForUser(userId: string): Promise<(TeamMember & { team: Team }) | undefined>;
 
   createScoutingReportAssignment(row: InsertScoutingReportAssignment): Promise<ScoutingReportAssignment>;
+  createScoutingReportAssignmentIfNotExists(row: InsertScoutingReportAssignment): Promise<void>;
   listScoutingReportsForUser(userId: string): Promise<
     Array<{
       assignmentId: string;
@@ -137,6 +139,7 @@ export interface IStorage {
   getClubInvitationById(id: string): Promise<ClubInvitation | undefined>;
   listActiveClubInvitations(clubId: string): Promise<ClubInvitation[]>;
   markClubInvitationUsed(id: string, userId: string): Promise<void>;
+  markClubInvitationUsedIfUnused(id: string, userId: string): Promise<boolean>;
   deleteClubInvitation(id: string): Promise<void>;
 
   getAssignmentStatsForUsers(userIds: string[]): Promise<Map<string, { count: number; lastAt: Date | null }>>;
@@ -210,6 +213,14 @@ function rowToMatch(row: Record<string, unknown>): LeagueMatch {
 }
 
 export class DatabaseStorage implements IStorage {
+  private async getActiveClubUserIds(clubId: string): Promise<string[]> {
+    const rows = await db
+      .select({ uid: clubMembers.userId })
+      .from(clubMembers)
+      .where(and(eq(clubMembers.clubId, clubId), eq(clubMembers.status, "active")));
+    return rows.map((r) => r.uid);
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -225,7 +236,9 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getTeams(): Promise<Team[]> {
+  async getTeams(clubId?: string): Promise<Team[]> {
+    // NOTE: teams do not have a club_id column. Without a migration, we treat
+    // rival teams as non-sensitive global reference data.
     return db.select().from(teams);
   }
 
@@ -248,10 +261,26 @@ export class DatabaseStorage implements IStorage {
     await db.delete(teams).where(eq(teams.id, id));
   }
 
-  async getPlayers(teamId?: string): Promise<Player[]> {
+  async getPlayers(teamId?: string, clubId?: string): Promise<Player[]> {
+    if (!clubId) {
+      const rows = teamId
+        ? await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE team_id = ${teamId}`)
+        : await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players`);
+      const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
+      return arr as Player[];
+    }
+
+    const userIds = await this.getActiveClubUserIds(clubId);
+    if (!userIds.length) return [];
+    const inList = sql.join(userIds.map((id) => sql`${id}`), sql`,`);
+
     const rows = teamId
-      ? await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE team_id = ${teamId}`)
-      : await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players`);
+      ? await db.execute(
+          sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE created_by_user_id IN (${inList}) AND team_id = ${teamId}`,
+        )
+      : await db.execute(
+          sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE created_by_user_id IN (${inList})`,
+        );
     const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
     return arr as Player[];
   }
@@ -295,6 +324,17 @@ export class DatabaseStorage implements IStorage {
 
   async markInvitationUsed(id: string, userId: string): Promise<void> {
     await db.update(invitations).set({ usedBy: userId }).where(eq(invitations.id, id));
+  }
+
+  async markInvitationUsedIfUnused(id: string, userId: string): Promise<boolean> {
+    const rows = await db.execute(sql`
+      UPDATE invitations
+      SET used_by = ${userId}
+      WHERE id = ${id} AND used_by IS NULL
+      RETURNING id
+    `);
+    const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
+    return Array.isArray(arr) && arr.length > 0;
   }
 
   async upsertTeamMember(row: InsertTeamMember): Promise<TeamMember> {
@@ -344,6 +384,14 @@ export class DatabaseStorage implements IStorage {
   ): Promise<ScoutingReportAssignment> {
     const [created] = await db.insert(scoutingReportAssignments).values(row).returning();
     return created;
+  }
+
+  async createScoutingReportAssignmentIfNotExists(row: InsertScoutingReportAssignment): Promise<void> {
+    await db.execute(sql`
+      INSERT INTO scouting_report_assignments (user_id, player_id, created_by)
+      VALUES (${row.userId}, ${row.playerId}, ${row.createdBy ?? null})
+      ON CONFLICT (user_id, player_id) DO NOTHING
+    `);
   }
 
   async listScoutingReportsForUser(userId: string): Promise<
@@ -583,6 +631,17 @@ export class DatabaseStorage implements IStorage {
 
   async markClubInvitationUsed(id: string, userId: string): Promise<void> {
     await db.update(clubInvitations).set({ usedBy: userId }).where(eq(clubInvitations.id, id));
+  }
+
+  async markClubInvitationUsedIfUnused(id: string, userId: string): Promise<boolean> {
+    const rows = await db.execute(sql`
+      UPDATE club_invitations
+      SET used_by = ${userId}
+      WHERE id = ${id} AND used_by IS NULL
+      RETURNING id
+    `);
+    const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
+    return Array.isArray(arr) && arr.length > 0;
   }
 
   async deleteClubInvitation(id: string): Promise<void> {

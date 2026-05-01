@@ -324,199 +324,316 @@ export default function ReportSlidesV1({
               transform: `translateX(-${(slide * 100) / TOTAL_SLIDES}%)`,
             }}
           >
-            {/* ════════════════════════════════
-                SLIDE 1 — Quién es
-            ════════════════════════════════ */}
+            {/* ════ SLIDE 1 — Who are they? ════ */}
             <div
-              className="flex flex-col items-center overflow-y-auto px-5 pb-10 pt-5"
+              className="flex flex-col overflow-y-auto px-6 pb-10 pt-6"
               style={{ width: `${100 / TOTAL_SLIDES}%` }}
             >
               {/* Avatar */}
-              <div className="relative mb-5 mt-3">
-                <div className="relative h-28 w-28">
-                  {photo ? (
-                    <>
-                      <div className="absolute inset-0 scale-110 rounded-full bg-primary/20 blur-2xl" aria-hidden />
-                      <img
-                        src={player.imageUrl!}
-                        alt={player.name ?? ""}
-                        className="relative h-28 w-28 rounded-full border-2 border-primary/20 object-cover shadow-lg ring-4 ring-primary/10"
-                      />
-                    </>
-                  ) : (
-                    <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted shadow-md">
-                      <Suspense fallback={<div className="h-28 w-28 rounded-full bg-muted" />}>
-                        <BasketballPlaceholderAvatar size={112} />
+              <div className="flex justify-center mb-5">
+                <div className="relative">
+                  <div className="w-24 h-24 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-2 ring-border">
+                    {photo ? (
+                      <img src={player.imageUrl!} alt={player.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Suspense fallback={<div className="w-full h-full bg-muted" />}>
+                        <BasketballPlaceholderAvatar size={96} />
                       </Suspense>
-                    </div>
-                  )}
+                    )}
+                  </div>
                   {jerseyNumber && (
-                    <div className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-primary shadow-md">
-                      <span className="text-[11px] font-black leading-none text-primary-foreground">
-                        {jerseyNumber}
-                      </span>
+                    <div className="absolute -bottom-1 -right-1 min-w-[26px] h-[26px] rounded-full bg-primary flex items-center justify-center px-1">
+                      <span className="text-[11px] font-black text-primary-foreground">{jerseyNumber}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Name + position */}
-              <div className="flex items-center justify-center gap-2">
-                <h1 className="text-center text-2xl font-black tracking-tight text-foreground">
-                  {player.name?.trim() || t("dashboard_unnamed_player")}
-                </h1>
-                {(() => {
-                  const form = player.inputs?.recentForm ?? (player.scoutingInputs as any)?.recentForm;
-                  if (!form || form === "stable") return null;
-                  return (
-                    <span
-                      className={`text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        form === "hot"
-                          ? "bg-orange-500/15 text-orange-500 dark:text-orange-400"
-                          : "bg-sky-500/15 text-sky-500 dark:text-sky-400"
-                      }`}
-                    >
-                      {form === "hot" ? "🔥 HOT" : "🧊 COLD"}
-                    </span>
-                  );
-                })()}
-              </div>
-              {position && (
-                <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
-                  {position}
-                </span>
-              )}
+              {/* Name */}
+              <h1 className="text-[26px] font-black text-center text-foreground leading-tight mb-1">
+                {player.name || "—"}
+              </h1>
 
-              {/* Archetype card */}
-              <div className="relative mt-5 w-full rounded-2xl border border-primary/20 bg-primary/6 px-5 py-4 text-center">
-                {coachMode && (
-                  <button
-                    type="button"
-                    className="absolute right-2 top-2 rounded p-2 text-muted-foreground/40 hover:text-muted-foreground"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={() => openArchetypeSheet(report.identity.archetypeLabel)}
-                  >
-                    <MoreVertical className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <p className="mb-1 text-[8px] font-black uppercase tracking-[0.25em] text-primary/50">
-                  {t("archetype")}
-                </p>
-                <p className="text-2xl font-black italic leading-tight text-foreground">
-                  {report.identity.archetypeLabel}
-                </p>
-                {subAlt && (
-                  <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.15em] text-primary/40">
-                    {t("subarchetype")} {subAlt.label}
-                  </p>
-                )}
+              {/* Archetype badge */}
+              <div className="flex justify-center mb-3">
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary/30 bg-primary/8"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => openArchetypeSheet(report.identity.archetypeLabel)}
+                >
+                  <span className="text-[11px] font-black uppercase tracking-[0.15em] text-primary">
+                    {report.identity.archetypeLabel}
+                  </span>
+                  {position && (
+                    <>
+                      <span className="text-primary/40">·</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-primary/70">{position}</span>
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* Tagline */}
-              <p className="mt-3 text-center text-xs italic leading-relaxed text-muted-foreground/60">
+              <p className="text-center text-[13px] italic text-muted-foreground/70 leading-relaxed mb-5 px-2">
                 {report.identity.tagline}
               </p>
 
-              {/* Threat level */}
-              <div className="mt-5 w-full">
-                <ThreatLevel level={report.identity.dangerLevel ?? 1} />
+              {/* Threat Card — matches Figma exactly */}
+              <div className={cn(
+                "rounded-2xl border border-border/50 overflow-hidden mb-5",
+                report.identity.dangerLevel >= 4 ? "border-red-500/20" :
+                report.identity.dangerLevel >= 3 ? "border-orange-500/20" : "border-border/40"
+              )}>
+                <div className="flex">
+                  {/* Accent bar */}
+                  <div className={cn("w-1 shrink-0",
+                    report.identity.dangerLevel >= 4 ? "bg-red-500" :
+                    report.identity.dangerLevel >= 3 ? "bg-orange-500" :
+                    report.identity.dangerLevel >= 2 ? "bg-yellow-400" : "bg-muted"
+                  )} />
+                  <div className="flex-1 px-4 py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/50 mb-1">
+                          THREAT LEVEL
+                        </p>
+                        <p className={cn("text-[18px] font-black leading-none",
+                          report.identity.dangerLevel >= 4 ? "text-red-500 dark:text-red-400" :
+                          report.identity.dangerLevel >= 3 ? "text-orange-500 dark:text-orange-400" :
+                          report.identity.dangerLevel >= 2 ? "text-yellow-600 dark:text-yellow-400" :
+                          "text-muted-foreground"
+                        )}>
+                          {report.identity.dangerLevel >= 5 ? "ELITE" :
+                           report.identity.dangerLevel >= 4 ? "HIGH" :
+                           report.identity.dangerLevel >= 3 ? "DANGEROUS" :
+                           report.identity.dangerLevel >= 2 ? "MODERATE" : "LOW"}
+                        </p>
+                      </div>
+                      <p className="text-[12px] text-muted-foreground/70 leading-snug text-right max-w-[180px]">
+                        {(report.identity as any).threat}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Top situations list */}
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-3">
+                  TOP SITUATIONS
+                </p>
+                <div className="space-y-2">
+                  {topSituations.map((sit, idx) => {
+                    const colors = situationColors(sit.id);
+                    const barW = Math.round(Math.min(sit.score, 1) * 100);
+                    return (
+                      <div key={sit.id} className="flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[12px] font-black text-foreground truncate">{sit.label}</p>
+                            <p className={cn("text-[9px] font-bold uppercase shrink-0 ml-2", colors.text)}>
+                              {sit.tier === "primary" ? "PRIMARY" : "SECONDARY"}
+                            </p>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-muted/40 overflow-hidden">
+                            <div
+                              className={cn("h-full rounded-full", colors.border.replace("border-l-", "bg-"))}
+                              style={{ width: `${barW}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* ════════════════════════════════
-                SLIDE 2 — Qué hará
-            ════════════════════════════════ */}
+            {/* ════ SLIDE 2 — What will they do? ════ */}
             <div
-              className="flex flex-col overflow-y-auto px-4 pb-10 pt-5"
+              className="flex flex-col overflow-y-auto px-6 pb-10 pt-4"
               style={{ width: `${100 / TOTAL_SLIDES}%` }}
             >
-              <div className="space-y-3">
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-1">
+                {locale === "es" ? "¿QUÉ HARÁ?" : locale === "zh" ? "她会怎么做？" : "WHAT WILL THEY DO?"}
+              </p>
+              <h2 className="text-[20px] font-black text-foreground mb-3">{player.name || "—"}</h2>
+              <div className="h-px bg-border/40 mb-4" />
+              <div className="space-y-4">
                 {topSituations.map((sit, idx) => {
                   const colors = situationColors(sit.id);
+                  const barW = Math.round(Math.min(sit.score, 1) * 100);
                   return (
-                    <SituationCard
-                      key={sit.id}
-                      sit={sit}
-                      colors={colors}
-                      coachMode={coachMode}
-                      rank={idx + 1}
-                      onKebab={() => openSituationSheet(sit.id, sit.description)}
-                    />
+                    <div key={sit.id} className={cn(
+                      "rounded-2xl border border-border/30 border-l-[4px] overflow-hidden",
+                      colors.border
+                    )}>
+                      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+                        {/* Big rank number */}
+                        <span className={cn("text-[32px] font-black tabular-nums leading-none opacity-15 shrink-0 select-none mt-0.5", colors.text)}>
+                          {String(idx + 1).padStart(2, "0")}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          {/* Title + badge */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="text-[15px] font-black text-foreground flex-1 truncate">{sit.label}</p>
+                            {coachMode && (
+                              <button
+                                type="button"
+                                className="shrink-0 p-1.5 -mr-1 text-muted-foreground/40 hover:text-muted-foreground"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={() => openSituationSheet(sit.id, sit.description)}
+                              >
+                                <MoreVertical className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          <div className={cn("inline-flex items-center px-2 py-0.5 rounded-full mb-2", colors.bg)}>
+                            <span className={cn("text-[9px] font-black uppercase tracking-wider", colors.text)}>
+                              {sit.tier === "primary" ? "PRIMARY" : sit.tier === "secondary" ? "SECONDARY" : "SITUATIONAL"}
+                            </span>
+                          </div>
+                          {/* Description */}
+                          <p className="text-[13px] leading-snug text-foreground/80 mb-3">{sit.description}</p>
+                          {/* Frequency bar */}
+                          <div className="h-1.5 w-full rounded-full bg-muted/35 overflow-hidden">
+                            <div
+                              className={cn("h-full rounded-full", colors.border.replace("border-l-", "bg-"))}
+                              style={{ width: `${barW}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* ════════════════════════════════
-                SLIDE 3 — Qué hago yo
-            ════════════════════════════════ */}
+            {/* ════ SLIDE 3 — What do I do? ════ */}
             <div
-              className="flex flex-col overflow-y-auto px-4 pb-10 pt-5"
+              className="flex flex-col overflow-y-auto px-6 pb-10 pt-4"
               style={{ width: `${100 / TOTAL_SLIDES}%` }}
             >
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-1">
+                {locale === "es" ? "¿QUÉ HAGO YO?" : locale === "zh" ? "我该怎么做？" : "WHAT DO I DO?"}
+              </p>
+              <h2 className="text-[20px] font-black text-foreground mb-3">{player.name || "—"}</h2>
+              <div className="h-px bg-border/40 mb-4" />
+
               <div className="space-y-3">
-                {(["deny", "force"] as const).map((type) => {
-                  const instr = report.defense[type];
-                  if (!instr) return null;
-                  return (
-                    <DefenseCard
-                      key={type}
-                      type={type}
-                      label={instr.label}
-                      instruction={instr.instruction}
-                      coachMode={coachMode}
-                      onKebab={() =>
-                        openDefenseSheet(type, instr.instruction, instr.alternatives)
-                      }
-                    />
-                  );
-                })}
+                {/* DENY */}
+                {report.defense.deny && (
+                  <div className={cn("rounded-2xl border border-border/30 overflow-hidden", DENY_CLASSES.bg)}>
+                    <div className="border-l-[4px] border-red-500 px-4 pt-4 pb-3">
+                      <p className={cn("text-[10px] font-black uppercase tracking-[0.25em] mb-1.5", DENY_CLASSES.text)}>
+                        {report.defense.deny.label}
+                      </p>
+                      <p className="text-[18px] font-black text-foreground leading-tight mb-3">
+                        {report.defense.deny.instruction}
+                      </p>
+                      {(report.defense.deny as any).when && (
+                        <div className="space-y-1 mb-3">
+                          <div className="flex gap-2">
+                            <span className="text-[11px] font-black text-muted-foreground/50 w-10 shrink-0">When:</span>
+                            <span className="text-[11px] text-foreground/75 leading-snug">{(report.defense.deny as any).when}</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <span className="text-[11px] font-black text-muted-foreground/50 w-10 shrink-0">How:</span>
+                            <span className="text-[11px] text-foreground/75 leading-snug">{(report.defense.deny as any).how}</span>
+                          </div>
+                          {(report.defense.deny as any).why && (
+                            <div className="flex gap-2">
+                              <span className="text-[11px] font-black text-muted-foreground/50 w-10 shrink-0">Why:</span>
+                              <span className="text-[11px] text-foreground/75 leading-snug">{(report.defense.deny as any).why}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {coachMode && report.defense.deny.alternatives?.length > 0 && (
+                        <button
+                          type="button"
+                          className={cn("text-[11px] font-bold float-right", DENY_CLASSES.text)}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => openDefenseSheet("deny", report.defense.deny.instruction, report.defense.deny.alternatives)}
+                        >
+                          {report.defense.deny.alternatives.length} alternatives ›
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* FORCE */}
+                {report.defense.force && (
+                  <div className={cn("rounded-2xl border border-border/30 overflow-hidden", FORCE_CLASSES.bg)}>
+                    <div className="border-l-[4px] border-amber-500 px-4 pt-4 pb-3">
+                      <p className={cn("text-[10px] font-black uppercase tracking-[0.25em] mb-1.5", FORCE_CLASSES.text)}>
+                        {report.defense.force.label}
+                      </p>
+                      <p className="text-[18px] font-black text-foreground leading-tight mb-3">
+                        {report.defense.force.instruction}
+                      </p>
+                      {(report.defense.force as any).when && (
+                        <div className="space-y-1 mb-3">
+                          <div className="flex gap-2">
+                            <span className="text-[11px] font-black text-muted-foreground/50 w-10 shrink-0">When:</span>
+                            <span className="text-[11px] text-foreground/75 leading-snug">{(report.defense.force as any).when}</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <span className="text-[11px] font-black text-muted-foreground/50 w-10 shrink-0">How:</span>
+                            <span className="text-[11px] text-foreground/75 leading-snug">{(report.defense.force as any).how}</span>
+                          </div>
+                        </div>
+                      )}
+                      {coachMode && report.defense.force.alternatives?.length > 0 && (
+                        <button
+                          type="button"
+                          className={cn("text-[11px] font-bold float-right", FORCE_CLASSES.text)}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => openDefenseSheet("force", report.defense.force.instruction, report.defense.force.alternatives)}
+                        >
+                          {report.defense.force.alternatives.length} alternatives ›
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ALLOW */}
                 {motorOutput.defense.allow.winner.key !== "none" && (
-                  <DefenseCard
-                    type="allow"
-                    label={report.defense.allow.label}
-                    instruction={report.defense.allow.instruction}
-                    coachMode={coachMode}
-                    onKebab={() =>
-                      openDefenseSheet("allow", report.defense.allow.instruction, report.defense.allow.alternatives)
-                    }
-                  />
+                  <div className={cn("rounded-2xl border border-border/30 overflow-hidden", ALLOW_CLASSES.bg)}>
+                    <div className="border-l-[4px] border-emerald-500 px-4 pt-4 pb-3">
+                      <p className={cn("text-[10px] font-black uppercase tracking-[0.25em] mb-1.5", ALLOW_CLASSES.text)}>
+                        {report.defense.allow.label}
+                      </p>
+                      <p className="text-[18px] font-black text-foreground leading-tight mb-2">
+                        {report.defense.allow.instruction}
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* AWARE */}
+              {/* ALSO WATCH / AWARE */}
               {topAlerts.length > 0 && (
                 <div className="mt-5">
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="h-px flex-1 bg-border/40" />
-                    <p className="text-[8px] font-black uppercase tracking-[0.25em] text-violet-500/70 dark:text-violet-400/70">
-                      {t("report_aware")}
-                    </p>
-                    <div className="h-px flex-1 bg-border/40" />
-                  </div>
-                  <div className="space-y-2.5">
+                  <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-3">
+                    ALSO WATCH
+                  </p>
+                  <div className="space-y-2">
                     {topAlerts.map((alert, idx) => (
                       <div
                         key={idx}
-                        className={cn(
-                          "rounded-2xl border border-border/50 border-l-[4px] px-4 py-3.5",
-                          AWARE_CLASSES.border,
-                          AWARE_CLASSES.bg,
-                        )}
+                        className={cn("rounded-xl border border-border/40 border-l-[3px] px-4 py-3", AWARE_CLASSES.border, AWARE_CLASSES.bg)}
                       >
-                        <div className="mb-1 flex items-center gap-2">
-                          <span className={cn("text-[9px] font-black uppercase tracking-[0.2em]", AWARE_CLASSES.text)}>
-                            {t("report_aware")}
-                          </span>
-                        </div>
-                        <p className="text-[15px] font-semibold leading-snug text-foreground/90">
-                          {alert.text}
+                        <p className={cn("text-[12px] font-black mb-1", AWARE_CLASSES.text)}>
+                          {alert.text.split(" — ")[0] ?? alert.text}
                         </p>
-                        {alert.triggerCue && (
-                          <p className="mt-1.5 text-[11px] italic text-muted-foreground/55">
-                            {alert.triggerCue}
-                          </p>
-                        )}
+                        <p className="text-[11px] text-muted-foreground/70 leading-snug">
+                          {alert.triggerCue ?? alert.text.split(" — ")[1] ?? ""}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -614,176 +731,6 @@ export default function ReportSlidesV1({
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-
-function ThreatLevel({ level }: { level: number }) {
-  const safe = Math.min(Math.max(level, 1), 5);
-  const configs = [
-    { label: "",            barColor: "bg-muted/40",       text: "text-muted-foreground" },
-    { label: "Low threat",  barColor: "bg-slate-400/60",  text: "text-slate-500 dark:text-slate-400" },
-    { label: "Moderate",    barColor: "bg-yellow-400/80", text: "text-yellow-600 dark:text-yellow-400" },
-    { label: "Dangerous",   barColor: "bg-orange-500",    text: "text-orange-500 dark:text-orange-400" },
-    { label: "High danger", barColor: "bg-red-500",       text: "text-red-500 dark:text-red-400" },
-    { label: "Elite threat",barColor: "bg-red-600",       text: "text-red-600 dark:text-red-300" },
-  ];
-  const cfg = configs[safe]!;
-  return (
-    <div className="flex w-full flex-col items-center gap-2.5 rounded-2xl border border-border/40 bg-muted/20 px-5 py-4">
-      <p className="text-[8px] font-black uppercase tracking-[0.25em] text-muted-foreground/40">
-        Threat level
-      </p>
-      <div className="flex w-full max-w-[180px] gap-1.5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className={cn("h-2 flex-1 rounded-full transition-colors", i < safe ? cfg.barColor : "bg-muted/40")}
-          />
-        ))}
-      </div>
-      <span className={cn("text-[11px] font-black uppercase tracking-[0.2em]", cfg.text)}>
-        {cfg.label}
-      </span>
-    </div>
-  );
-}
-
-function SituationCard({
-  sit,
-  colors,
-  coachMode,
-  rank,
-  onKebab,
-}: {
-  sit: { id: string; label: string; score: number; tier: "primary" | "secondary" | "situational"; description: string };
-  colors: { border: string; text: string; bg: string };
-  coachMode: boolean;
-  rank: number;
-  onKebab: () => void;
-}) {
-  // Barra de frecuencia visual basada en score
-  const barWidth = Math.round(Math.min(sit.score, 1) * 100);
-  const tierLabel = sit.tier === "primary" ? "PRIMARY" : sit.tier === "secondary" ? "SECONDARY" : "SITUATIONAL";
-
-  return (
-    <div className={cn("rounded-2xl border border-border/50 border-l-[4px] px-4 py-4", colors.border, colors.bg)}>
-      {/* Header row */}
-      <div className="mb-2 flex items-center gap-2">
-        <span className={cn("text-xs font-black tabular-nums opacity-25", colors.text)}>
-          #{rank}
-        </span>
-        <span className={cn("flex-1 text-[10px] font-black uppercase tracking-[0.15em]", colors.text)}>
-          {sit.label}
-        </span>
-        {/* Tier badge */}
-        <span className={cn(
-          "rounded px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider opacity-70",
-          colors.text,
-          colors.bg.replace("/8", "/20"),
-        )}>
-          {tierLabel}
-        </span>
-        {coachMode && (
-          <button
-            type="button"
-            className="shrink-0 rounded p-2 -m-1 text-muted-foreground/40 hover:text-muted-foreground"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={onKebab}
-          >
-            <MoreVertical className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-
-      {/* Description */}
-      <p className="text-[15px] leading-snug text-foreground/85">{sit.description}</p>
-
-      {/* Frequency bar */}
-      <div className="mt-3 space-y-1">
-        <div className="h-1 w-full overflow-hidden rounded-full bg-muted/40">
-          <div
-            className={cn("h-full rounded-full transition-all", colors.border.replace("border-l-", "bg-").replace("/60", ""))}
-            style={{ width: `${barWidth}%` }}
-          />
-        </div>
-        {coachMode && (
-          <p className={cn("text-right text-[9px] font-bold tabular-nums opacity-40", colors.text)}>
-            {barWidth}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-const DEFENSE_ICON = {
-  deny: (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
-      <circle cx="12" cy="12" r="9" /><line x1="5" y1="5" x2="19" y2="19" />
-    </svg>
-  ),
-  force: (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
-      <path d="M5 12h14M13 6l6 6-6 6" />
-    </svg>
-  ),
-  allow: (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  ),
-};
-
-const DEFENSE_CLASSES_MAP = {
-  deny:  DENY_CLASSES,
-  force: FORCE_CLASSES,
-  allow: ALLOW_CLASSES,
-};
-
-function DefenseCard({
-  type,
-  label,
-  instruction,
-  coachMode = false,
-  onKebab,
-}: {
-  type: "deny" | "force" | "allow";
-  label: string;
-  instruction: string;
-  coachMode?: boolean;
-  onKebab: () => void;
-}) {
-  const cls = DEFENSE_CLASSES_MAP[type];
-  return (
-    <div className={cn(
-      "rounded-2xl border border-border/50 border-l-[4px] px-4 py-4",
-      cls.border, cls.bg,
-    )}>
-      {/* Label row */}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className={cn("opacity-80", cls.text)}>{DEFENSE_ICON[type]}</span>
-          <span className={cn("text-[10px] font-black uppercase tracking-[0.25em]", cls.text)}>
-            {label}
-          </span>
-        </div>
-        {coachMode && (
-          <button
-            type="button"
-            className="shrink-0 rounded p-2 -m-1 text-muted-foreground/40 hover:text-muted-foreground"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={onKebab}
-          >
-            <MoreVertical className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-      {/* Instruction */}
-      <p className="text-[16px] font-semibold leading-snug text-foreground/90">
-        {instruction}
-      </p>
-    </div>
-  );
-}
-
 function situationColors(id: string): { border: string; text: string; bg: string } {
   if (id.startsWith("iso"))  return { border: "border-l-orange-500", text: "text-orange-500 dark:text-orange-400", bg: "bg-orange-500/8" };
   if (id.startsWith("pnr"))  return { border: "border-l-blue-500",   text: "text-blue-500 dark:text-blue-400",    bg: "bg-blue-500/8"   };

@@ -18,10 +18,9 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/lib/motor-v2.1.ts` — motor base
 - `client/src/lib/reportTextRenderer.ts` — texto EN/ES/ZH con gender
 - `client/src/lib/mock-data.ts` — playerInputToMotorInputs, clubRowToMotorContext
-- `client/src/pages/scout/ReportSlidesV1.tsx` — 3 slides
+- `client/src/pages/scout/ReportSlidesV1.tsx` — 3 slides (rediseño Figma pendiente de aplicar)
 - `client/src/pages/scout/ReportViewV4.tsx` — shell coach_review
 - `client/src/pages/scout/PlayerEditor.tsx` — editor inputs jugador
-- `client/src/pages/scout/Dashboard.tsx` — lista equipos/jugadores
 - `server/routes.ts` — rutas API Express
 - `server/storage.ts` — acceso Supabase
 - `scripts/calibrate-motor.ts` — 66 perfiles (100% / 551 checks)
@@ -52,151 +51,89 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 4. `ReportSlidesV1.tsx` + `ReportViewV4.tsx` → UI
 
 ## Flujo de navegación
-Dashboard → PlayerEditor → ReportViewV4 → Proponer/Publicar
+Personnel → PlayerEditor → MyScout → FilmRoom → GamePlan
 
 ---
 
-## Estado actual — sesión 27 abr 2026 (cierre)
+## Estado sesión 1 mayo 2026 — CIERRE
 
-### Últimos commits
-- `feat: liga tab real, cascade deletes, landscape audit, navigate fixes`
-- `fix: TestMode eliminado, myPendingCount corregido, FilmRoom+GamePlan landscape`
+### Último commit
+`fix: Mi Club crash, Schedule ends_at, RLS policies, flow U Scout sandbox/canonical, Personnel/MyScout visibility, auth resolveRole, planner timezone, matches Bearer token`
 
-### U Scout — estado final de sesión
-**Rutas activas (App.tsx):**
-- `/coach` → CoachHome
-- `/coach/player/:id` → PlayerEditor
-- `/coach/scout/:id/preview` → ReportSlidesV1
+### Bugs resueltos esta sesión ✅
+- Mi Club crash `Array.isArray` guard en `matchesQ` filters — el crash era `(matchesQ.data ?? []).filter` cuando `matchesQ.data` era un objeto truthy no-array. Fix: `(Array.isArray(matchesQ.data) ? matchesQ.data : []).filter`
+- Schedule `ends_at` calculado desde `durationMins` como fallback cuando no hay hora de fin
+- RLS Supabase: políticas `allow_all` en `schedule_events`, `schedule_participants`, `wellness_entries`
+- `matchesQ` queryFn y mutations usan `apiRequest` con Bearer (ya no `fetch` sin auth)
+- Partidos Mi Club: formulario separado `<input type="date">` + `<input type="time">`, hora por defecto 12:00
+- Planner Schedule: timezone fix con `toLocaleDateString("sv")` en todos los filtros de día
+- Planner Schedule: auto-scroll a hoy con retry loop (hasta 15 intentos × 100ms)
+- Planner Schedule: remarcado visual hoy con `border-2 border-primary`
+- Planner Schedule: `useCreateScheduleEvent.onSettled` invalida `["schedule","events"]` completo con `exact:false`
+- Flow U Scout sandbox privado: `MyScout` solo muestra fichas sandbox propias (excluye canónicas)
+- `Personnel`: head_coach no ve sandbox de otros coaches; filtro tanto en `playersByTeam` como en `unassigned`
+- `hasReport` usa `player.inputs` / `player.scoutingInputs` con `Object.keys(inp).length > 3`
+- `canManageRoster` solo `isHeadCoach` (quitado `operationsAccess` del perfil auth que siempre era false)
+- Botón "Make official" visible para head_coach en cualquier ficha sandbox (propias o ajenas)
+- `server/auth.ts`: `resolveRole()` con logging de roles privilegiados (`head_coach`/`master`)
+- `client/src/lib/club-api.ts`: `useClub` queryFn sanitiza respuesta — lanza error si no hay `club`, normaliza `members`/`pendingInvitations` a arrays
+
+### 🔴 RIESGOS ACTIVOS (seguridad — sesión dedicada pendiente)
+- **P0** Privilege escalation: `user_metadata.role` confiado en servidor → cualquier usuario puede autopromocionar a `head_coach`/`master`. `resolveRole()` solo loguea, no bloquea. Fix real: tabla `user_roles` en Supabase server-controlled.
+- **P0** Endpoints sin scope de org: `/api/teams` devuelve todos los equipos a cualquier usuario autenticado. `/api/players` sin filtro por club.
+- **P0** `is_canonical` vs `isCanonical` mismatch: servidor devuelve `is_canonical` (snake_case), código cliente a veces lee `isCanonical` (camelCase). Film Room puede mostrar/ocultar jugadoras incorrectamente.
+- **P1** Race condition invitaciones: doble accept concurrent puede pasar ambos "unused" checks antes de marcar usada.
+- **P1** Operaciones destructivas no transaccionales: publish/merge/clear pueden dejar estado inconsistente en fallo parcial.
+
+### 🟡 PENDIENTE PRÓXIMA SESIÓN (prioridad orden)
+1. **ReportSlidesV1 rediseño Figma**: prompt completo generado en sesión 1may. Estructura Figma leída via `get_metadata` (nodos 1:2 Slide1, 1:43 Slide2, 1:101 Slide3). Cambios: Slide 1 con Threat Card barra lateral izquierda + TOP SITUATIONS lista con barras; Slide 2 con número `01/02/03` grande + badge tier PRIMARY/SECONDARY + barra frecuencia; Slide 3 con `When:/How:/Why:` en DENY/FORCE + "N alternatives ›" link + ALSO WATCH separador. Campos `when/how/why` pueden no existir en tipo actual → usar `(report.defense.deny as any).when`.
+2. **Seguridad P0**: tabla `user_roles` server-controlled, scope org en endpoints `/api/teams` y `/api/players`.
+3. **Audit visual completo**: tokens semánticos en todas las pantallas (sin `bg-white`, `bg-slate-*`, hex hardcoded). Temas Gamenight/Office/Oldschool funcionando.
+4. **Figma MCP**: `get_metadata` funciona (probado sesión 1may). `get_design_context` falla por límite plan Starter. NO intentar Figma MCP salvo que Pablo lo pida explícitamente.
+5. **TestMode.tsx**: archivo sin ruta activa — eliminar en limpieza.
+6. **Audit general**: flows end-to-end, responsive 375px, touch targets 44px.
+
+---
+
+## U Scout — rutas activas (1 mayo 2026)
+- `/coach` → CoachHome (4 contenedores + alertas smart)
+- `/coach/personnel` → Personnel (fichas canónicas + sandbox + equipos)
+- `/coach/my-scout` → MyScout (solo fichas sandbox propias del coach)
+- `/coach/quick-scout/:id` → QuickScout (wizard adaptativo 7 ramas)
+- `/coach/player/:id` → PlayerEditor (editor completo)
+- `/coach/film-room` → FilmRoom (revisión colectiva anti-bias)
+- `/coach/game-plan` → GamePlan (publicados al roster)
 - `/coach/scout/:id/review` → ReportViewV4
-- `/coach/club` → ClubManagement
-- `/coach/my-scout` → MyScout
-- `/coach/film-room` → FilmRoom
-- `/coach/game-plan` → GamePlan
-- `/coach/personnel` → Personnel
-- `/settings` → Settings
+- `/coach/scout/:id/preview` → ReportSlidesV1
+- `/coach/club` → ClubManagement (4 tabs: Club/Liga/Equipo/Stats)
+- `/settings` → Settings (3 temas: Gamenight/Office/Oldschool)
 
 **Rutas eliminadas:** `/coach/editor`, `/coach/reports`, `/coach/team/:id`, `/coach/test`
 
-**Mi Club — 4 tabs:**
-- Club: nombre, logo, liga/género/nivel/edad
-- Liga: CRUD de partidos real (league_matches tabla en Supabase)
-- Equipo: staff + jugadoras del club (miembros reales, no Personnel)
-- Estadísticas: stats de actividad del club
+## Flow U Scout (workflow correcto)
+```
+head_coach/badge → Personnel → crear ficha CANÓNICA → aparece en Film Room
+cualquier coach  → MyScout  → crear ficha SANDBOX  → privada, solo visible a ese coach
+coach            → PlayerEditor → rellenar inputs → guardar scout version
+coach            → MyScout → "→ Film Room" → submit version
+Film Room        → ver versiones → detectar discrepancias → elegir versión final
+head_coach       → Game Plan → publicar a jugadoras
+```
 
-**Personnel — funciones:**
-- Crear/borrar equipos (con confirmación)
-- Crear fichas canónicas (head_coach) o de práctica (coaches)
-- Promover ficha a oficial con tooltip explicativo
-- Borrar fichas individuales con confirmación
-- Badge ⚗ Solo práctica para fichas no canónicas
-
-**Supabase schema (todo via SQL, no schema.ts):**
-- `players.is_canonical` boolean
-- `player_scout_versions` tabla
-- `league_matches` tabla
-- CASCADE en players→teams, report_approvals→players, report_overrides→players, player_scout_versions→players
-
-**TestMode.tsx:** archivo preservado pero sin ruta activa. Se eliminará en limpieza futura.
-
-**Pendiente siguiente sesión:**
-- ReportViewV4 → rediseño slides (vertical scroll → 3 slides)
-- PlayerEditor audit de secciones y headers
-- Capacitor / TestFlight (bloqueado por Apple Developer Account)
-- Stats badges en reports (cuando Pi esté activa)
-
-### U Scout — nuevo workflow (sprints 1–3)
-**Arquitectura de 4 contenedores aprobada e implementada:**
-- `/coach` → CoachHome rediseñado: alertas smart + Personnel + separador WORKFLOW + MY SCOUT → FILM ROOM → GAME PLAN
-- `/coach/personnel` → Personnel.tsx: fichas canónicas (head_coach) + modo sandbox (coaches normales)
-- `/coach/my-scout` → MyScout.tsx: mis fichas, botón → Film Room solo si isCanonical + tiene report
-- `/coach/film-room` → FilmRoom.tsx: stub (Sprint 4)
-- `/coach/game-plan` → GamePlan.tsx: stub (Sprint 5)
-
-**Schema añadido (SQL Supabase, no schema.ts):**
+## Schema Supabase (fuera de schema.ts)
 - `players.is_canonical` boolean DEFAULT false
-- `player_scout_versions` tabla: (player_id, coach_id, inputs JSONB, status, submitted_at)
-- Datos de experimentos limpiados (DELETE FROM players/approvals/overrides)
+- `player_scout_versions` (player_id, coach_id, inputs JSONB, status, submitted_at)
+- `league_matches` (club_id, rival_name, match_date, location, match_type)
+- `schedule_events`, `schedule_participants`, `wellness_entries` — RLS con `allow_all` aplicado
+- CASCADE: players→teams, report_*→players, player_scout_versions→players
 
-**Backend añadido (storage.ts + routes.ts):**
-- `POST /api/players/:id/canonical` — promover a canónica (head_coach/master)
-- `PUT /api/players/:id/scout-version` — guardar versión coach
-- `POST /api/players/:id/scout-version/submit` — enviar al Film Room
-- `GET /api/players/:id/scout-versions` — listar versiones (anti-bias: solo si ya enviaste)
-
-**PlayerProfile en mock-data.ts:**
-- `isCanonical?: boolean`
-- `createdByCoachId?: string`
-
-**Hotfixes:**
-- Schedule.tsx: `clubQ.data.club.` → `clubQ.data.club?.` (2 puntos)
-- ModuleHeader.tsx: MARK_SIZE 120→88, HEADER_PT 1.25→0.75rem (todos los módulos)
-- Home.tsx cards: eliminado `uppercase` CSS (solo U Core mantiene mayúsculas)
-
-**Nombres finales EN/ES/ZH:**
+## Nombres EN/ES/ZH
 | Menú | EN | ES | ZH |
 |------|----|----|----|
 | Infraestructura | Personnel | Plantilla | 球员档案 |
 | Mi trabajo | My Scout | Mi Scout | 我的报告 |
 | Trabajo grupo | Film Room | Sala de análisis | 集体分析 |
 | Publicado | Game Plan | Plan de juego | 比赛方案 |
-
-**Sprints completados:**
-- Sprint 4 ✅ Film Room UI — vista colectiva, anti-bias lock, panel discrepancias, → Game Plan
-- Sprint 5 ✅ Game Plan UI — lista publicados, badge emerald, ↩ Retirar (head_coach)
-
-**Fixes navegación legacy (27 abr):**
-- Rutas `/coach/editor`, `/coach/reports`, `/coach/team/:id` eliminadas de App.tsx
-- `CoachDashboard` (Dashboard.tsx) desconectado del router — archivo preservado pero sin rutas activas
-- Todos los `onBack` y `setLocation` que apuntaban a `/coach/editor` redirigen a `/coach/my-scout`
-- PlayerEditor back → `/coach/my-scout`
-- ReportViewV4 back → `/coach/my-scout`
-- ReportSlidesV1 back → `/coach/my-scout`
-
-**Fixes Mi Club:**
-- Tab Equipo → sección Jugadoras restaurada como lista de miembros del club con rol player (no link a Personnel)
-- Crash `q.data.members` undefined → todos los accesos con `?.` en ClubManagement.tsx
-- Crash `clubQ.data.club` undefined → Schedule.tsx corregido
-
-**Personnel mejorado:**
-- Gestión de equipos: `+ Nuevo equipo` + borrado con confirmación
-- Badge sandbox → pill ⚗ Solo práctica (más claro visualmente)
-- Botón Hacer oficial → tooltip explicativo + subtexto
-- Botón doble `+` corregido en Personnel y MyScout
-
-**Pendiente:**
-- Sprint 6: Stats badges (cuando Pi esté activa)
-- Offline approve-en-hold
-- Capacitor / TestFlight prep (bloqueado por Apple Developer Account)
-
-### Sesión anterior (25 abr)
-- `perf: i18n lazy loading + React.lazy — bundle 509→268 KB gzip`
-- `perf: remove framer-motion, lazy BasketballAvatar — 268→229 KB gzip`
-- `perf: prefetch club data on Home mount + staleTime 5min`
-- `fix: mobile responsive audit — 17 fixes across 6 files`
-- `fix: invitation flow — auto-accept after login, persist token through auth`
-- `fix: hide owner kebab in ClubManagement MemberRow`
-- `fix: bloque 2 — race condition sessions, landscape padding, safe-area, timezone wellness, expiry warning invitaciones`
-
-### Bundle ✅
-- **229.49 KB gzip** — objetivo <300 KB cumplido
-- Margen para U Stats completo: ~265 KB estimado
-
-### Motor ✅
-- Calibración: 100% (551/551, 66 perfiles)
-- Quality eval: 100% (46/46, 10 perfiles)
-
-### U Stats DB ✅
-- Schema completo en Supabase (tablas stats_*)
-- Seed: WCBA (competitionId=56, seasonId=2092) + 18 equipos
-- Blueprint: `STATS_BLUEPRINT.md` · Evaluador: `EVAL_BLUEPRINT.md`
-
-### Raspberry Pi
-- Comprada (Pi 5 8GB, ~1939 CNY) — en tránsito
-- Uso: WCBA scraper + Telegram bot + Tailscale SSH
-
-### Club INNER MONGOLIA
-- Club ID: `4bca3aa8-9062-4709-9d29-9e2313308f1a`
-- Miembros: Pablo (owner) + Luffy + Yuming + Javier + Mario (coach)
 
 ---
 
@@ -207,146 +144,20 @@ Dashboard → PlayerEditor → ReportViewV4 → Proponer/Publicar
 - **U Stats** — DB lista, collector pendiente Pi
 Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 
----
+### Bundle
+- **229 KB gzip** — objetivo <300 KB cumplido
 
-## PLAN PRE-TESTFLIGHT
+### Motor
+- Calibración: 100% (551/551, 66 perfiles)
+- Quality eval: 100% (46/46, 10 perfiles)
 
-### ✅ BLOQUE 0 — Bundle
-- 509 → 229 KB gzip
+### Club INNER MONGOLIA
+- Club ID: `4bca3aa8-9062-4709-9d29-9e2313308f1a`
+- Miembros: Pablo (owner) + Luffy + Yuming + Javier + Mario (coach)
 
-### ✅ BLOQUE 2 — Bugs bloqueantes (completado)
-- 2A ✅ Race condition "no sessions" en Home player
-- 2B ✅ HomeCards landscape:py-2.5
-- 2C ✅ Safe-area padding en main Home
-- 2D ✅ todayKey() timezone-aware
-- 2E ✅ Expiry warning en invitaciones (<2 días → amber)
-- 2F ✅ isSelf check en MemberRow variant="player" (ya estaba OK)
-- Stats card falsa — POSPUESTO (en diseño Figma)
-- Schedule localStorage → server persistence — POSPUESTO (Fase 2B)
-
----
-
-## Estado sesión 1 mayo 2026 — BUGS ACTIVOS
-
-### 🔴 CRÍTICO — Mi Club crash
-- Error: `(intermediate value).filter is not a function` en ClubManagement.tsx línea 838
-- El código en disco ES CORRECTO (`Array.isArray` guard en queryFn, `?? []` en filters)
-- El error persiste SOLO con el usuario real de Pablo (datos específicos del club)
-- Hipótesis: `matchesQ.data` recibe un objeto `{error:...}` antes de que el guard actúe, O los datos del club tienen una forma inesperada
-- DIAGNÓSTICO PENDIENTE: ejecutar en consola del browser (F12) en `/coach/club`:
-  ```javascript
-  window.__origFilter = Array.prototype.filter;
-  Array.prototype.filter = function(...args) {
-    if (!Array.isArray(this)) {
-      console.error('FILTER ON NON-ARRAY:', typeof this, JSON.stringify(this).slice(0,200), new Error().stack);
-    }
-    return window.__origFilter.apply(this, args);
-  };
-  ```
-  Esto dirá EXACTAMENTE qué objeto no es array. Pegar output y arreglar.
-
-### 🔴 CRÍTICO — Schedule 403 al crear evento
-- Error: `POST /rest/v1/schedule_events HTTP/2 403`
-- Causa: Supabase RLS sin políticas INSERT
-- Fix pendiente: ejecutar SQL en Supabase:
-  ```sql
-  CREATE POLICY "allow_all" ON schedule_events FOR ALL USING (true) WITH CHECK (true);
-  CREATE POLICY "allow_all" ON schedule_participants FOR ALL USING (true) WITH CHECK (true);
-  CREATE POLICY "allow_all" ON wellness_entries FOR ALL USING (true) WITH CHECK (true);
-  ```
-
-### 🔴 CRÍTICO — PlayerEditor no sigue colores del tema visual
-- El editor abre con estilos incorrectos (hardcoded en lugar de CSS variables del tema)
-- Pendiente audit CSS en PlayerEditor.tsx
-
-### 🟡 IMPORTANTE — QuickScout no guarda inputs al motor
-- El wizard guarda solo `isoFrequency` y poco más
-- Fix implementado en código: `handleFinish` ejecuta motor y guarda `defensivePlan` etc.
-- Pendiente verificar que el fix funciona end-to-end
-
-### 🟡 IMPORTANTE — Ficha canónica badge "Solo práctica"
-- A veces persiste tras crear ficha canónica
-- Fix implementado: `createPlayer` y `updatePlayer` re-fetchen con `is_canonical`
-- Fallback `is_canonical` añadido en Personnel y MyScout
-- Pendiente verificar en browser real
-
-### ℹ️ INFO — Cambios en disco sin commit
-- `client/src/pages/scout/ClubManagement.tsx` — queryClient antes de mutations, Array.isArray guard
-- `client/src/pages/scout/Personnel.tsx` — canManageRoster, Free Agents, delete permissions, unassigned section
-- `client/src/pages/scout/QuickScout.tsx` — motor execution en handleFinish
-- `server/storage.ts` — createPlayer/updatePlayer re-fetch con isCanonical
-- HACER COMMIT cuando Mi Club crash esté resuelto
-
----
-
-## U Scout — arquitectura actual (1 mayo 2026)
-
-### Rutas activas
-- `/coach` → CoachHome (4 contenedores + alertas smart)
-- `/coach/personnel` → Personnel (fichas canónicas + sandbox + equipos)
-- `/coach/my-scout` → MyScout (mis fichas + QuickScout entry)
-- `/coach/quick-scout/:id` → QuickScout (wizard adaptativo 7 ramas)
-- `/coach/player/:id` → PlayerEditor (editor completo)
-- `/coach/film-room` → FilmRoom (revisión colectiva anti-bias)
-- `/coach/game-plan` → GamePlan (publicados al roster)
-- `/coach/scout/:id/review` → ReportViewV4
-- `/coach/scout/:id/preview` → ReportSlidesV1
-- `/coach/club` → ClubManagement (4 tabs: Club/Liga/Equipo/Stats)
-
-### Rutas eliminadas
-- `/coach/editor`, `/coach/reports`, `/coach/team/:id`, `/coach/test` — todas eliminadas
-
-### Schema Supabase (fuera de schema.ts)
-- `players.is_canonical` boolean DEFAULT false
-- `player_scout_versions` (player_id, coach_id, inputs JSONB, status, submitted_at)
-- `league_matches` (club_id, rival_name, match_date, location, match_type)
-- `schedule_events`, `schedule_participants`, `wellness_entries` — tablas creadas, RLS sin políticas
-- CASCADE: players→teams, report_*→players, player_scout_versions→players
-
-### Nombres EN/ES/ZH
-| Menú | EN | ES | ZH |
-|------|----|----|----|
-| Infraestructura | Personnel | Plantilla | 球员档案 |
-| Mi trabajo | My Scout | Mi Scout | 我的报告 |
-| Trabajo grupo | Film Room | Sala de análisis | 集体分析 |
-| Publicado | Game Plan | Plan de juego | 比赛方案 |
-
----
-
-### ✅ BLOQUE 1 — U Scout features incompletas (completado 27 abr)
-- 1A ✅ Approval workflow UI — stage 1/2/3 en ReportViewV4 (draft → approved → published)
-- 1B ✅ Discrepancias — badge amber en Dashboard + detalle de items en conflicto en ReportViewV4
-- 1C ✅ Hot/Cold streaks — `recentForm` en PlayerInput, selector en PlayerEditor, badge en slide 1
-- 1D ✅ Redirect post-PlayerEditor (ya estaba implementado)
-- 1E ✅ Swipe hint ReportSlidesV1 (ya estaba implementado)
-- 1F ✅ Textos imperativos renderer (ya estaba implementado)
-- NOTA: flujo nivel 2 "visible al staff" requiere schema change — pendiente Fase 2
-
-### hotfix (27 abr)
-- Home.tsx crash — `clubData.club` sin optional chaining en 3 puntos (showClubActivityDot, useEffect roster, clubId)
-
-### ✅ BLOQUE 3 — Offline system (completado 27 abr)
-- Queue de mutations offline PlayerEditor: ya existía en queryClient.ts (enqueueOfflinePlayerMutation + flushOfflinePlayerMutations)
-- Indicador visual OfflineBanner: `client/src/components/OfflineBanner.tsx` — banner fijo top, amber pulse, desaparece al reconectar
-- WellnessEntry offline — POSPUESTO (requiere queue separada, bajo impacto TestFlight)
-
-### BLOQUE 4 — Figma (1 mayo)
-- File: https://www.figma.com/design/odswsQA5XDEgULEDh2UMZi
-- Temas + iconos defensivos
-
-### BLOQUE 5 — Evaluador multi-juez
-- DeepSeek: platform.deepseek.com (móvil chino — primero)
-- Gemini: aistudio.google.com (gratis, sin SMS)
-- Anthropic + OpenAI: requieren SMS español
-
-### BLOQUE 6 — U Stats UI
-- POST /api/stats/ingest Railway + Stats Home + Opponent Report
-
-### BLOQUE 7 — Limpieza
-- Eliminar archivos basura, reorganizar carpetas
-
-### CUANDO LLEGUE APPLE DEVELOPER ACCOUNT
-- Xcode + `npx cap sync && npx cap open ios` → TestFlight
+### Raspberry Pi
+- Comprada (Pi 5 8GB) — en tránsito
+- Uso: WCBA scraper + Telegram bot + Tailscale SSH
 
 ---
 
@@ -356,8 +167,6 @@ Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 - Coherencia visual entre módulos
 - Iconos: Figma obligatorio, nunca SVG desde código
 - Scope Scout: solo matchup 1-on-1, sin defensa colectiva
-
----
 
 ## Reglas entrega código
 - NUNCA "añade estas líneas aquí"
@@ -371,8 +180,6 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/calibrate-motor.ts
 cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-motor-quality.ts
 cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts --judge deepseek --fast
 ```
-
----
 
 ## Terminología
 - DENY/FORCE/ALLOW: instrucciones defensivas slide 3
