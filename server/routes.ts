@@ -473,8 +473,17 @@ export async function registerRoutes(
       if (role !== "head_coach" && role !== "master") {
         return res.status(403).json({ error: "Only head_coach or master can mark canonical" });
       }
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
       const player = await storage.getPlayer(playerId);
       if (!player) return res.status(404).json({ error: "Player not found" });
+      // Verify player belongs to this club by checking if the player's team belongs to the club.
+      const playerTeam = (player as any).teamId
+        ? (await storage.getTeams(club.id)).find((t: any) => t.id === (player as any).teamId)
+        : null;
+      if (!playerTeam) {
+        return res.status(403).json({ error: "Player does not belong to your club" });
+      }
       await storage.setPlayerCanonical(playerId, true);
       res.status(204).send();
     } catch (err) {
