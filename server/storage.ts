@@ -301,7 +301,9 @@ export class DatabaseStorage implements IStorage {
             team_id as "teamId",
             created_by_user_id as "createdByUserId",
             created_by_user_id as "createdByCoachId"
-          FROM players WHERE created_by_user_id IN (${inList}) AND team_id = ${teamId}`,
+          FROM players
+          WHERE (is_canonical = true OR created_by_user_id IN (${inList}))
+            AND team_id = ${teamId}`,
         )
       : await db.execute(
           sql`SELECT *,
@@ -309,7 +311,8 @@ export class DatabaseStorage implements IStorage {
             team_id as "teamId",
             created_by_user_id as "createdByUserId",
             created_by_user_id as "createdByCoachId"
-          FROM players WHERE created_by_user_id IN (${inList})`,
+          FROM players
+          WHERE (is_canonical = true OR created_by_user_id IN (${inList}))`,
         );
     const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
     return arr as Player[];
