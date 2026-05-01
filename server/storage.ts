@@ -291,28 +291,41 @@ export class DatabaseStorage implements IStorage {
     }
 
     const userIds = await this.getActiveClubUserIds(clubId);
-    if (!userIds.length) return [];
-    const inList = sql.join(userIds.map((id) => sql`${id}`), sql`,`);
-
     const rows = teamId
       ? await db.execute(
-          sql`SELECT *,
-            is_canonical as "isCanonical",
-            team_id as "teamId",
-            created_by_user_id as "createdByUserId",
-            created_by_user_id as "createdByCoachId"
-          FROM players
-          WHERE (is_canonical = true OR created_by_user_id IN (${inList}))
-            AND team_id = ${teamId}`,
+          userIds.length > 0
+            ? sql`SELECT *,
+                is_canonical as "isCanonical",
+                team_id as "teamId",
+                created_by_user_id as "createdByUserId",
+                created_by_user_id as "createdByCoachId"
+              FROM players
+              WHERE (is_canonical = true OR created_by_user_id IN (${sql.join(userIds.map((id) => sql`${id}`), sql`,`)}))
+                AND team_id = ${teamId}`
+            : sql`SELECT *,
+                is_canonical as "isCanonical",
+                team_id as "teamId",
+                created_by_user_id as "createdByUserId",
+                created_by_user_id as "createdByCoachId"
+              FROM players
+              WHERE is_canonical = true AND team_id = ${teamId}`,
         )
       : await db.execute(
-          sql`SELECT *,
-            is_canonical as "isCanonical",
-            team_id as "teamId",
-            created_by_user_id as "createdByUserId",
-            created_by_user_id as "createdByCoachId"
-          FROM players
-          WHERE (is_canonical = true OR created_by_user_id IN (${inList}))`,
+          userIds.length > 0
+            ? sql`SELECT *,
+                is_canonical as "isCanonical",
+                team_id as "teamId",
+                created_by_user_id as "createdByUserId",
+                created_by_user_id as "createdByCoachId"
+              FROM players
+              WHERE (is_canonical = true OR created_by_user_id IN (${sql.join(userIds.map((id) => sql`${id}`), sql`,`)}))`
+            : sql`SELECT *,
+                is_canonical as "isCanonical",
+                team_id as "teamId",
+                created_by_user_id as "createdByUserId",
+                created_by_user_id as "createdByCoachId"
+              FROM players
+              WHERE is_canonical = true`,
         );
     const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
     return arr as Player[];
