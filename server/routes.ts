@@ -456,11 +456,8 @@ export async function registerRoutes(
       if (!player) return res.status(404).json({ error: "Player not found" });
       // Unpublish from players table
       await storage.unpublishPlayerReport(playerId);
-      // Re-create a submitted scout version for the retiring coach so the
-      // player reappears in Film Room without needing to re-submit from scratch.
-      const inp = (player as any).scoutingInputs ?? (player as any).inputs ?? {};
-      await storage.upsertScoutVersion(playerId, req.user!.id, inp);
-      await storage.submitScoutVersion(playerId, req.user!.id);
+      // Clear all scout versions and approvals so every coach starts fresh in MyScout
+      await storage.mergeAndClearScoutVersions(playerId);
       res.status(204).send();
     } catch (err) {
       res.status(500).json({ error: "Failed to unpublish report" });

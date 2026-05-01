@@ -39,7 +39,9 @@ export default function MyScout() {
 
   const canonicalPlayers: PlayerProfile[] = allPlayers.filter((p) => {
     const isCanonical = (p as any).isCanonical ?? (p as any).is_canonical ?? false;
-    return isCanonical;
+    // Published players are in Game Plan — no longer pending work in MyScout
+    const isPublished = (p as any).published === true;
+    return isCanonical && !isPublished;
   });
 
   const sandboxPlayers: PlayerProfile[] = allPlayers.filter((p) => {

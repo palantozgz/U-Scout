@@ -37,13 +37,19 @@ export default function GamePlan() {
 
   const handleRetire = async (playerId: string) => {
     setRetiringId(playerId);
+    // Optimistic: quitar de Game Plan inmediatamente
+    qc.setQueryData<typeof allPlayers>(["/api/players"], (old) =>
+      old ? old.map((p) => p.id === playerId ? { ...p, published: false } : p) : old
+    );
+    setConfirmRetireId(null);
     try {
       await apiRequest("POST", `/api/players/${playerId}/unpublish`);
-      await qc.invalidateQueries({ queryKey: ["/api/players"] });
-      await qc.invalidateQueries({ queryKey: ["/api/film-room"] });
+    } catch (err) {
+      console.error("retire failed", err);
     } finally {
       setRetiringId(null);
-      setConfirmRetireId(null);
+      qc.invalidateQueries({ queryKey: ["/api/players"] });
+      qc.invalidateQueries({ queryKey: ["/api/film-room"] });
     }
   };
 
@@ -182,7 +188,7 @@ export default function GamePlan() {
                       {isPendingConfirm ? (
                         <div className="flex items-center gap-2 w-full">
                           <p className="text-[11px] text-muted-foreground flex-1">
-                            {es ? "¿Retirar del roster?" : zh ? "确认撤回？" : "Retire from roster?"}
+                            {es ? "¿Reiniciar ficha? El staff rehará sus informes." : zh ? "重新开始？教练团队将重新填写。" : "Restart scouting? Staff will redo their reports."}
                           </p>
                           <Button
                             size="sm"
@@ -200,8 +206,8 @@ export default function GamePlan() {
                           >
                             <RotateCcw className="w-3 h-3 mr-1" />
                             {isRetiring
-                              ? (es ? "Retirando..." : zh ? "撤回中..." : "Retiring...")
-                              : (es ? "Retirar" : zh ? "撤回" : "Retire")}
+                              ? (es ? "Procesando..." : zh ? "处理中..." : "Processing...")
+                              : (es ? "Confirmar" : zh ? "确认" : "Confirm")}
                           </Button>
                         </div>
                       ) : (
@@ -216,7 +222,7 @@ export default function GamePlan() {
                             onClick={() => setConfirmRetireId(player.id)}
                           >
                             <RotateCcw className="w-3 h-3 mr-1" />
-                            {es ? "↩ Retirar" : zh ? "↩ 撤回" : "↩ Retire"}
+                            {es ? "↩ Reiniciar ficha" : zh ? "↩ 重新开始" : "↩ Restart scouting"}
                           </Button>
                         </>
                       )}
