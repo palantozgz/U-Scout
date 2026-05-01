@@ -4,7 +4,7 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth, type AppUserRole } from "@/lib/useAuth";
 import { computeCapabilities, readCoachBadges, useCapabilities } from "@/lib/capabilities";
 import { cn } from "@/lib/utils";
-import { ChevronRight, CalendarDays, BarChart3, Users, Target, BellDot, Activity } from "lucide-react";
+import { ChevronRight, CalendarDays, BarChart3, Users, Target, BellDot, Activity, ClipboardList } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { clubQueryKey } from "@/lib/club-api";
 import { useClub } from "@/lib/club-api";

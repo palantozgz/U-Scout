@@ -919,15 +919,10 @@ export class DatabaseStorage implements IStorage {
     // Called when head_coach publishes to Game Plan.
     // Deletes all per-coach versions — the canonical inputs are already
     // in players.inputs (set by head_coach during the merge/publish step).
-    await db.execute(sql`
-      DELETE FROM player_scout_versions WHERE player_id = ${playerId}
-    `);
-    await db.execute(sql`
-      UPDATE report_approvals SET coach_id = coach_id WHERE player_id = ${playerId}
-    `);
-    await db.execute(sql`
-      DELETE FROM report_overrides WHERE player_id = ${playerId}
-    `);
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`DELETE FROM player_scout_versions WHERE player_id = ${playerId}`);
+      await tx.execute(sql`DELETE FROM report_overrides WHERE player_id = ${playerId}`);
+    });
   }
 
   async listLeagueMatches(clubId: string): Promise<LeagueMatch[]> {
@@ -1029,11 +1024,10 @@ export class DatabaseStorage implements IStorage {
       if (!slidesByPlayer.has(row.playerId)) slidesByPlayer.set(row.playerId, new Set());
       slidesByPlayer.get(row.playerId)!.add(row.slideIndex);
     }
-    const fullSlides = [0, 1, 2, 3, 4];
     const statusFor = (pid: string): "none" | "partial" | "complete" => {
       const s = slidesByPlayer.get(pid) ?? new Set<number>();
       if (s.size === 0) return "none";
-      if (fullSlides.every((i) => s.has(i))) return "complete";
+      if (s.has(2)) return "complete";
       return "partial";
     };
     return playerIds.map((id) => ({

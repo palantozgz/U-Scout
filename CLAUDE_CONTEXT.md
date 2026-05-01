@@ -56,45 +56,41 @@ Personnel → PlayerEditor → MyScout → FilmRoom → GamePlan
 
 ---
 
-## Estado sesión 1 mayo 2026 (p4) — ACTUALIZADO fin de sesión
+## Estado sesión 1 mayo 2026 (p5 — FINAL) — ACTUALIZADO fin de sesión
 
-### Último commit pendiente de push
-`fix: optimistic updates en delete/submit/publish, DB limpiada de fichas publicadas sin scout versions`
+### Último commit
+`polish: Home usa Target para U Scout en staff y player view, coherente con ModuleNav`
 
-### Completado esta sesión ✅
-- **Player view**: PlayerTeamList rediseñado — equipos colapsables, primer equipo expandido por defecto, badge con pendientes
-- **Player view**: Dashboard/PlayerTeamView rediseñado — grid 2 columnas, cards 3:4, badges Nuevo/A medias/Visto ✓ en cada report
-- **GET /api/player/teams** y **GET /api/player/team/:teamId**: nuevos endpoints que devuelven players publicados agrupados por equipo rival
-- **viewStatus tracking**: simplificado (none por defecto), listo para conectar con view_log en próxima sesión
-- **Flow U Scout unificado**: MyScout → report → Film Room → Game Plan sin bypasses ni sistemas paralelos
-- **ReportViewV4**: eliminados botones Approve/Publish directos. Solo queda "→ Film Room" que llama a `POST /api/players/:id/scout-version/submit`
-- **GET /api/players/:id/scout-version/me**: nuevo endpoint que devuelve `{ submitted: boolean }` para el coach autenticado
-- **GET /api/players/:id/overrides**: nuevo endpoint que devuelve solo overrides del coach autenticado
-- **applyOverrides en ReportSlidesV1**: prop `overrides?: ReportOverride[]`, memo `finalReport`, overrides del coach aplicados en tiempo real en slides
-- **canAccessPersonnel**: limpio en `capabilities.ts` (solo head_coach/master), CoachHome usa `caps.canAccessPersonnel`
-- **Film Room publish**: cualquier coach puede publicar (sin restricción isHeadCoach)
-- **Unpublish restringido**: servidor exige head_coach/master en `POST /api/players/:id/unpublish`
-- **Unpublish → vuelve a Film Room**: recrea scout version submitted para el coach que retira
-- **Delete jugadora**: modal inteligente con aviso si tiene informe publicado, auto-unpublish antes de delete
-- **Delete equipo**: modal con 3 opciones (mover a Free Agents / borrar todo / cancelar), aviso si hay publicados
-- **GET /api/teams/:id/delete-info** y **GET /api/players/:id/delete-info**: preflights para los modales
-- **Optimistic updates**: delete jugadora, submit Film Room, publish Game Plan, delete equipo — respuesta visual instantánea
-- **Draft text**: "solo visible para ti" / "Only you can see this"
-- **DB limpiada**: fichas con `published=true` sin scout versions → unpublished via SQL Supabase
-- **serverOverridesToReportOverrides**: bug corregido (`"replace"` → `"approve_as_is"`)
+### Completado esta sesión ✅ (resumen completo)
+- **Flow U Scout unificado**: MyScout → report → overrides → Film Room → Game Plan (sin bypasses)
+- **ReportViewV4**: solo botón "→ Film Room", sin Approve/Publish directo
+- **MyScout**: equipos colapsables, fichas publicadas ocultas (ya están en Game Plan)
+- **Game Plan**: "Reiniciar ficha" (antes "Retire") borra scout versions, vuelve a MyScout limpio
+- **Contador pendientes CoachHome**: excluye fichas publicadas
+- **Player view**: PlayerTeamList + Dashboard rediseñados — equipos colapsables, grid 2 col, cards 3:4, badges Nuevo/A medias/Visto
+- **GET /api/player/teams** + **GET /api/player/team/:teamId**: endpoints nuevos para jugadoras
+- **Delete modales**: avisos inteligentes con info publicación para jugadora y equipo
+- **Optimistic updates**: delete, submit, publish, retire — respuesta instantánea
+- **Iconos coherentes**: `Target` para U Scout en Home + ModuleNav (antes `ClipboardList` confundía con Schedule)
+- **Schedule grid**: kebabs eliminados, tap directo abre editor en portrait y landscape
+- **GET /api/players/:id/scout-version/me**: endpoint nuevo
+- **applyOverrides en ReportSlidesV1**: overrides del coach en tiempo real
+- **canAccessPersonnel**: limpio en capabilities.ts
+- **DB limpiada**: fichas published sin scout versions → SQL Supabase
 
 ### 🔴 RIESGOS ACTIVOS
-- **P1** submit `→ Film Room` — pendiente confirmar en Railway tras push de hoy
-- **P1** Operaciones destructivas no transaccionales: publish/merge/clear en scout versions pueden dejar estado inconsistente en fallo parcial
+- **P1** Operaciones destructivas no transaccionales (publish/merge/clear)
+- **P1** viewStatus jugadora hardcoded a "none" — badges Nuevo/Visto no son reales aún
 
 ### 🟡 PENDIENTE PRÓXIMA SESIÓN (orden prioridad)
-1. **Verificar flow completo en producción**: MyScout → View report → → Film Room → publicar → Game Plan → Retirar
-2. **Bundle size**: i18n lazy + code splitting React.lazy (objetivo <300KB gzip para TestFlight — actualmente 229KB ✅ pero revisar tras cambios)
-3. **Jugadora: ver report via ReportSlidesV1**: actualmente usa `Profile.tsx` (scroll largo). Conectar a `/player/report/:id` con ReportSlidesV1 (PlayerTeamList + Dashboard ya rediseñados ✅)
-4. **Limpieza capabilities.ts**: `readCoachBadges()`, `CoachBadges` type e `isPhysicalTrainer` son código muerto
-5. **Touch targets ReportSlidesV1**: flechas usan `p-2` = 32px, mínimo mobile es 44px
-6. **Wellness standalone**: jugadora sin acceso directo al check-in
-7. **Notificación jugadora**: sin badge/push cuando llega informe nuevo
+1. **Verificar flow end-to-end en producción** post-deploy
+2. **Jugadora: conectar tap → ReportSlidesV1** (actualmente va a Profile.tsx scroll largo)
+3. **viewStatus real**: conectar con `player_slide_views` para badges Visto/Parcial/Nuevo
+4. **TestFlight prep**: ver prompt adjunto en sección de abajo
+5. **Limpieza capabilities.ts**: código muerto (`readCoachBadges`, `CoachBadges`, `isPhysicalTrainer`)
+6. **Touch targets ReportSlidesV1**: flechas 32px → 44px mínimo
+7. **Wellness standalone jugadora**: acceso directo sin pasar por /schedule
+8. **Notificación jugadora**: badge/push cuando llega informe nuevo
 
 ---
 
@@ -206,3 +202,136 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts --jud
 - bash_tool corre en Linux y NO puede acceder al filesystem del Mac — usar siempre Filesystem MCP para leer/escribir archivos del repo
 - Filesystem MCP es de solo lectura para Claude en esta configuración (write disponible vía Filesystem:write_file)
 - Figma MCP: `get_metadata` funciona en plan Starter; `get_design_context` falla por límite de llamadas — no usar salvo petición explícita
+
+---
+
+## TestFlight prep — checklist y prompt Cursor
+
+### Estado actual Capacitor
+- `capacitor.config.ts` — appId: `com.ucore.app`, webDir: `dist/public`
+- iOS platform añadido: `ios/` en repo
+- Xcode: NO instalado · Apple Developer Account: NO ($99/año — pendiente)
+- Comando de retomar: `npx cap sync && npx cap open ios`
+- Bundle actual: ~229KB gzip — dentro del objetivo <300KB
+
+### Checklist TestFlight (a completar en próxima sesión)
+
+**Infra ($) — hacer antes de tocar código:**
+- [ ] Contratar Apple Developer Program ($99/año)
+- [ ] Instalar Xcode en el Mac
+- [ ] Crear App ID `com.ucore.app` en Apple Developer portal
+- [ ] Crear certificado de distribución y provisioning profile
+
+**Código — Cursor puede hacer esto:**
+- [ ] `npx cap sync` — sincronizar web build con iOS
+- [ ] Iconos de app: 1024x1024 PNG sin transparencia (todas las tallas via Capacitor Assets)
+- [ ] Splash screen: configurar en `capacitor.config.ts`
+- [ ] `Info.plist`: NSCameraUsageDescription, NSPhotoLibraryUsageDescription si se usa cámara
+- [ ] Deep links / Universal Links: configurar si se usan (actualmente no)
+- [ ] Bundle version: `CFBundleVersion` y `CFBundleShortVersionString` en Info.plist
+- [ ] Safe area insets: verificar `env(safe-area-inset-*)` en todas las pantallas
+- [ ] Orientación bloqueada: portrait only en `AppDelegate.swift`
+- [ ] Push notifications: configurar APNs si se quieren notificaciones nativas
+- [ ] Haptic feedback: revisar que `Haptics` plugin esté instalado y funcione
+- [ ] WKWebView cookies: verificar que Supabase auth persiste entre sesiones en iOS
+- [ ] Network security: ATS (App Transport Security) — Railway usa HTTPS → OK
+- [ ] Code signing en Xcode: Team, Bundle ID, provisioning profile
+- [ ] Archive + Upload to App Store Connect
+- [ ] TestFlight: añadir testers internos (hasta 100 sin review)
+
+**UX mínima para TestFlight:**
+- [ ] Touch targets ≥44px en toda la app (actualmente ReportSlidesV1 flechas = 32px)
+- [ ] No hay modals/dialogs que rompan en iOS (verificar z-index y scroll)
+- [ ] Teclado no oculta inputs en formularios (usar `@capacitor/keyboard`)
+- [ ] Pull-to-refresh nativo o desactivado explicitamente
+- [ ] Error states en todas las pantallas (no pantallas en blanco)
+
+### Prompt Cursor — TestFlight prep
+
+```
+TestFlight preparation audit and fixes for U Core iOS app.
+Stack: React + Vite + Capacitor. App ID: com.ucore.app.
+Do NOT touch schema.ts, storage.ts, Profile.tsx.
+
+READ FIRST:
+- capacitor.config.ts
+- ios/App/App/Info.plist (if exists)
+- package.json (check @capacitor/* versions)
+
+STEP 1 — Audit capacitor.config.ts
+Verify:
+  appId: "com.ucore.app"
+  appName: "U Core"
+  webDir: "dist/public"
+  server.androidScheme: "https"
+Add if missing:
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 1500,
+      launchAutoHide: true,
+      backgroundColor: "#FAF8F5",
+      androidSplashResourceName: "splash",
+      showSpinner: false,
+    },
+    StatusBar: {
+      style: "Light",
+      backgroundColor: "#FAF8F5",
+    },
+    Keyboard: {
+      resize: "body",
+      resizeOnFullScreen: true,
+    },
+  }
+
+STEP 2 — package.json: verify Capacitor packages
+Check that these are installed, add if missing:
+  @capacitor/core, @capacitor/ios, @capacitor/cli
+  @capacitor/splash-screen, @capacitor/status-bar, @capacitor/keyboard
+  @capacitor/haptics (optional but useful)
+If missing: npm install <package> && npx cap sync
+
+STEP 3 — Touch targets audit
+Search all .tsx files in client/src for:
+  - Buttons/links with h-7 or h-8 (28px or 32px) that are primary actions
+  - p-1 or p-2 on icon-only buttons
+For each found, report: file, line, current class, suggested fix (h-11 min = 44px).
+Do NOT auto-fix — just report.
+
+STEP 4 — Safe area audit
+Search client/src for hardcoded bottom padding (pb-16, pb-20) that should use
+safe area insets on iOS. Report files that use fixed bottom padding without
+`env(safe-area-inset-bottom)`.
+
+STEP 5 — iOS keyboard handling
+In client/src/main.tsx or the app entry point, add:
+import { Keyboard } from '@capacitor/keyboard';
+// Only run on native
+if ((window as any).Capacitor?.isNativePlatform?.()) {
+  Keyboard.setAccessoryBarVisible({ isVisible: true });
+}
+
+STEP 6 — Info.plist additions
+In ios/App/App/Info.plist add if missing:
+  <key>NSCameraUsageDescription</key>
+  <string>Used for uploading club and player photos</string>
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>Used for selecting club and player photos</string>
+  <key>UIViewControllerBasedStatusBarAppearance</key>
+  <false/>
+
+STEP 7 — Orientation lock
+In ios/App/App/AppDelegate.swift, add portrait-only lock:
+func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+    return .portrait
+}
+
+STEP 8 — Build test
+Run: npm run build
+Report any build errors. Do NOT run npx cap sync (user will do this).
+
+After all steps: output a summary of:
+1. Changes made
+2. Issues found (touch targets, safe areas)
+3. What the user must do manually (Xcode, Apple Developer, certificates)
+4. Exact commands to run in order to open Xcode and archive
+```
