@@ -239,7 +239,12 @@ export class DatabaseStorage implements IStorage {
   async getTeams(clubId?: string): Promise<Team[]> {
     if (clubId) {
       const rows = await db.execute(
-        sql`SELECT * FROM teams WHERE club_id = ${clubId} ORDER BY is_system ASC, created_at ASC`,
+        sql`SELECT *,
+          primary_color as "primaryColor",
+          is_system as "isSystem",
+          club_id as "clubId",
+          created_at as "createdAt"
+        FROM teams WHERE club_id = ${clubId} ORDER BY is_system ASC, created_at ASC`,
       );
       const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
       return arr as Team[];
@@ -269,8 +274,18 @@ export class DatabaseStorage implements IStorage {
   async getPlayers(teamId?: string, clubId?: string): Promise<Player[]> {
     if (!clubId) {
       const rows = teamId
-        ? await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE team_id = ${teamId}`)
-        : await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players`);
+        ? await db.execute(sql`SELECT *,
+            is_canonical as "isCanonical",
+            team_id as "teamId",
+            created_by_user_id as "createdByUserId",
+            created_by_user_id as "createdByCoachId"
+          FROM players WHERE team_id = ${teamId}`)
+        : await db.execute(sql`SELECT *,
+            is_canonical as "isCanonical",
+            team_id as "teamId",
+            created_by_user_id as "createdByUserId",
+            created_by_user_id as "createdByCoachId"
+          FROM players`);
       const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
       return arr as Player[];
     }
@@ -281,17 +296,32 @@ export class DatabaseStorage implements IStorage {
 
     const rows = teamId
       ? await db.execute(
-          sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE created_by_user_id IN (${inList}) AND team_id = ${teamId}`,
+          sql`SELECT *,
+            is_canonical as "isCanonical",
+            team_id as "teamId",
+            created_by_user_id as "createdByUserId",
+            created_by_user_id as "createdByCoachId"
+          FROM players WHERE created_by_user_id IN (${inList}) AND team_id = ${teamId}`,
         )
       : await db.execute(
-          sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE created_by_user_id IN (${inList})`,
+          sql`SELECT *,
+            is_canonical as "isCanonical",
+            team_id as "teamId",
+            created_by_user_id as "createdByUserId",
+            created_by_user_id as "createdByCoachId"
+          FROM players WHERE created_by_user_id IN (${inList})`,
         );
     const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
     return arr as Player[];
   }
 
   async getPlayer(id: string): Promise<Player | undefined> {
-    const rows = await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE id = ${id}`);
+    const rows = await db.execute(sql`SELECT *,
+      is_canonical as "isCanonical",
+      team_id as "teamId",
+      created_by_user_id as "createdByUserId",
+      created_by_user_id as "createdByCoachId"
+    FROM players WHERE id = ${id}`);
     const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
     return arr[0] as Player | undefined;
   }
@@ -299,7 +329,12 @@ export class DatabaseStorage implements IStorage {
   async createPlayer(player: InsertPlayer): Promise<Player> {
     const [created] = await db.insert(players).values(player).returning();
     // Fetch again with is_canonical included (not in Drizzle schema)
-    const rows = await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE id = ${created.id}`);
+    const rows = await db.execute(sql`SELECT *,
+      is_canonical as "isCanonical",
+      team_id as "teamId",
+      created_by_user_id as "createdByUserId",
+      created_by_user_id as "createdByCoachId"
+    FROM players WHERE id = ${created.id}`);
     const arr = (rows as any).rows ?? (rows as unknown as any[]);
     return (arr[0] ?? created) as Player;
   }
@@ -308,7 +343,12 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db.update(players).set(updates).where(eq(players.id, id)).returning();
     if (!updated) return undefined;
     // Fetch again with is_canonical included
-    const rows = await db.execute(sql`SELECT *, is_canonical as "isCanonical" FROM players WHERE id = ${id}`);
+    const rows = await db.execute(sql`SELECT *,
+      is_canonical as "isCanonical",
+      team_id as "teamId",
+      created_by_user_id as "createdByUserId",
+      created_by_user_id as "createdByCoachId"
+    FROM players WHERE id = ${id}`);
     const arr = (rows as any).rows ?? (rows as unknown as any[]);
     return (arr[0] ?? updated) as Player;
   }

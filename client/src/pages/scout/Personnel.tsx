@@ -33,7 +33,8 @@ export default function Personnel() {
   const { data: teams = [], isLoading: teamsLoading } = useTeams();
 
   // Ensure there's always a valid default team — use first team or create Free Agents
-  const defaultTeamId = teams[0]?.id ?? "";
+  const freeAgentsTeam = teams.find(t => Boolean((t as any).is_system));
+  const defaultTeamId = freeAgentsTeam?.id ?? teams[0]?.id ?? "";
   const { data: allPlayers = [] } = usePlayers();
   const createPlayerMutation = useCreatePlayer();
   const deletePlayerMutation = useDeletePlayer();
@@ -297,8 +298,8 @@ export default function Personnel() {
               className="text-xs font-bold h-9 rounded-lg"
               onClick={() => {
                 setShowNewPlayer(true);
-                setNewPlayerTeamId(defaultTeamId);
-                setExpandedTeamId(defaultTeamId || null);
+                setNewPlayerTeamId(freeAgentsTeam?.id ?? defaultTeamId);
+                setExpandedTeamId((freeAgentsTeam?.id ?? defaultTeamId) || null);
               }}
             >
               {L.addCanonical}
@@ -322,7 +323,11 @@ export default function Personnel() {
               size="sm"
               variant="outline"
               className="mt-2 text-xs font-bold h-8 rounded-lg border-amber-500/40 text-amber-700 dark:text-amber-400"
-              onClick={() => { setShowNewPlayer(true); setNewPlayerTeamId(teams[0]?.id ?? ""); }}
+              onClick={() => {
+                setShowNewPlayer(true);
+                setNewPlayerTeamId(freeAgentsTeam?.id ?? defaultTeamId);
+                setExpandedTeamId((freeAgentsTeam?.id ?? defaultTeamId) || null);
+              }}
             >
               <FlaskConical className="w-3 h-3 mr-1" /> {L.addSandbox}
             </Button>

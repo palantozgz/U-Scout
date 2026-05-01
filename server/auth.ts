@@ -34,19 +34,20 @@ function safeRole(raw: unknown): string {
 const PRIVILEGED_ROLES = ["head_coach", "master"];
 
 async function fetchPrivilegedRoleFromDb(userId: string): Promise<string | null> {
-  const admin = getSupabaseAdmin();
-  if (!admin) return null;
-  const { data, error } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) {
-    console.log(`[auth] user_roles lookup error for userId=${userId}: ${error.message}`);
+  try {
+    const { db } = await import("./db");
+    const { sql } = await import("drizzle-orm");
+    const rows = await db.execute(
+      sql`SELECT role FROM user_roles WHERE user_id = ${userId} LIMIT 1`,
+    );
+    const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
+    if (!arr || arr.length === 0) return null;
+    const r = safeRole((arr[0] as any)?.role);
+    return PRIVILEGED_ROLES.includes(r) ? r : null;
+  } catch (e) {
+    console.log(`[auth] user_roles drizzle lookup error for userId=${userId}:`, e);
     return null;
   }
-  const r = safeRole((data as any)?.role);
-  return PRIVILEGED_ROLES.includes(r) ? r : null;
 }
 
 async function resolveRole(metaRole: unknown, userId: string): Promise<string> {
