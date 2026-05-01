@@ -574,6 +574,29 @@ export default function Personnel() {
                                   </p>
                                 </div>
                               )}
+                              {Boolean((team as any).is_system) && canManageRoster && teams.filter(t => !Boolean((t as any).is_system)).length > 0 && (
+                                <select
+                                  className="h-7 rounded-lg border border-border bg-background text-[11px] px-2 font-semibold text-foreground"
+                                  defaultValue=""
+                                  onChange={async (e) => {
+                                    const newTeamId = e.target.value;
+                                    if (!newTeamId) return;
+                                    try {
+                                      await apiRequest("PATCH", `/api/players/${player.id}`, { teamId: newTeamId });
+                                      await qc.invalidateQueries({ queryKey: ["/api/players"] });
+                                    } catch (err) {
+                                      console.error("assign team failed", err);
+                                    }
+                                  }}
+                                >
+                                  <option value="">
+                                    {locale === "es" ? "Mover a equipo" : locale === "zh" ? "移至队伍" : "Move to team"}
+                                  </option>
+                                  {teams.filter(t => !Boolean((t as any).is_system)).map(t => (
+                                    <option key={t.id} value={t.id}>{t.logo} {t.name}</option>
+                                  ))}
+                                </select>
+                              )}
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -614,123 +637,6 @@ export default function Personnel() {
             );
           })
         )}
-
-        {(() => {
-          const unassigned = allPlayers.filter(p => {
-            if (p.teamId && teams.find(t => t.id === p.teamId)) return false;
-            // Head coach sees canonical profiles from all coaches, but NOT other coaches' sandbox
-            if (isHeadCoach) {
-              const isCanonical = (p as any).isCanonical ?? (p as any).is_canonical ?? false;
-              if (isCanonical) return true;
-              return p.createdByCoachId === profile?.id;
-            }
-            const isCanonical = (p as any).isCanonical ?? (p as any).is_canonical ?? false;
-            if (isCanonical) return true;
-            return p.createdByCoachId === profile?.id;
-          });
-          if (unassigned.length === 0) return null;
-          return (
-            <div className="rounded-xl border border-dashed border-amber-500/30 overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-amber-500/5">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">📋</span>
-                  <div>
-                    <p className="text-sm font-black text-foreground">
-                      {locale === "es" ? "Sin equipo asignado" : locale === "zh" ? "未分配队伍" : "Unassigned"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {unassigned.length} {locale === "es" ? "jugadoras" : locale === "zh" ? "名球员" : "players"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="border-t border-amber-500/20 divide-y divide-border">
-                {unassigned.map((player) => {
-                  const isCanonical = (player as any).isCanonical ?? (player as any).is_canonical ?? false;
-                  const isPendingDel = pendingDelete === player.id;
-                  return (
-                    <div key={player.id} className="px-4 py-3 flex items-center gap-3 bg-background">
-                      <div className="relative shrink-0">
-                        <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-amber-500/40 ring-offset-2 ring-offset-background">
-                          <BasketballPlaceholderAvatar size={40} />
-                        </div>
-                        {isCanonical && (
-                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                            <Star className="w-2.5 h-2.5 text-primary-foreground" />
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-extrabold text-foreground truncate">{player.name || "—"}</p>
-                          {!isCanonical && (
-                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">
-                              ⚗ {locale === "es" ? "Solo práctica" : locale === "zh" ? "仅练习" : "Practice only"}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
-                          {locale === "es" ? "⚠ Sin equipo asignado" : locale === "zh" ? "⚠ 未分配队伍" : "⚠ No team assigned"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {teams.length > 0 && canManageRoster && (
-                          <select
-                            className="h-7 rounded-lg border border-border bg-background text-[11px] px-2 font-semibold text-foreground"
-                            defaultValue=""
-                            onChange={async (e) => {
-                              const newTeamId = e.target.value;
-                              if (!newTeamId) return;
-                              try {
-                                await apiRequest("PATCH", `/api/players/${player.id}`, { teamId: newTeamId });
-                                await qc.invalidateQueries({ queryKey: ["/api/players"] });
-                              } catch (err) {
-                                console.error("assign team failed", err);
-                              }
-                            }}
-                          >
-                            <option value="">{locale === "es" ? "Asignar equipo" : locale === "zh" ? "分配队伍" : "Assign team"}</option>
-                            {teams.map(t => (
-                              <option key={t.id} value={t.id}>{t.logo} {t.name}</option>
-                            ))}
-                          </select>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setLocation(`/coach/player/${player.id}`)}
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                        {canManageRoster && (
-                          isPendingDel ? (
-                            <div className="flex items-center gap-1">
-                              <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] rounded-lg" onClick={() => setPendingDelete(null)}>
-                                {L.cancel}
-                              </Button>
-                              <Button size="sm" className="h-7 px-2 text-[10px] font-bold rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                                onClick={() => { deletePlayerMutation.mutate(player.id); setPendingDelete(null); }}>
-                                {L.confirmDelete}
-                              </Button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive transition-colors"
-                              onClick={() => setPendingDelete(player.id)}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
       </main>
       <ModuleNav />
     </div>

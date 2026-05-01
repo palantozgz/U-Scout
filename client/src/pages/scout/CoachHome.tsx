@@ -115,6 +115,9 @@ export default function CoachHome() {
   const caps = useCapabilities();
 
   const isHeadCoach = profile?.role === "head_coach" || profile?.role === "master";
+  const canAccessPersonnel = profile?.role === "head_coach" ||
+    profile?.role === "master" ||
+    Boolean((profile as any)?.operationsAccess);
 
   // ── Localised strings ──────────────────────────────────────────────────────
   const L = {
@@ -271,23 +274,27 @@ export default function CoachHome() {
           />
         </div>
 
-        {/* ── PERSONNEL (separated) ── */}
-        <NavCard
-          icon={<Users className="w-8 h-8" strokeWidth={2} />}
-          title={L.personnel}
-          sub={isHeadCoach ? L.personnelSub : L.sandboxBanner}
-          onClick={() => setLocation("/coach/personnel")}
-          testId="coach-home-personnel"
-        />
+        {canAccessPersonnel && (
+          <>
+            {/* ── PERSONNEL (separated) ── */}
+            <NavCard
+              icon={<Users className="w-8 h-8" strokeWidth={2} />}
+              title={L.personnel}
+              sub={isHeadCoach ? L.personnelSub : L.sandboxBanner}
+              onClick={() => setLocation("/coach/personnel")}
+              testId="coach-home-personnel"
+            />
 
-        {/* ── SEPARATOR ── */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-[9px] font-black tracking-widest text-muted-foreground/40 uppercase shrink-0">
-            {L.workflow}
-          </span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
+            {/* ── SEPARATOR ── */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-[9px] font-black tracking-widest text-muted-foreground/40 uppercase shrink-0">
+                {L.workflow}
+              </span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+          </>
+        )}
 
         {/* ── MY SCOUT ── */}
         {/* Flow indicator — encima del primer card del workflow */}
