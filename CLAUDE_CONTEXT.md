@@ -21,10 +21,11 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/pages/scout/ReportSlidesV1.tsx` — 3 slides
 - `client/src/pages/scout/ReportViewV4.tsx` — shell coach_review con OverridePanel
 - `client/src/pages/scout/PlayerEditor.tsx` — editor inputs jugador
-- `client/src/pages/scout/QuickScout.tsx` — wizard 3-5 pasos por situación (ISO/PnR/Post/Spot/Trans/OffBall)
+- `client/src/pages/scout/QuickScout.tsx` — wizard 3-5 pasos por situación
 - `client/src/pages/core/Schedule.tsx` — god file ~228KB (U Schedule)
 - `client/src/pages/core/Stats.tsx` — U Stats (tabs Season/Games, esperando Pi)
 - `client/src/lib/stats-api.ts` — hooks usePlayerSeasonStats + useGameLog
+- `client/src/lib/motor-icons.ts` — mapa situationId/defenseKey/awareKey → LucideIcon
 - `client/src/pages/player/WellnessStandalone.tsx` — wellness jugadora /player/wellness
 - `server/routes.ts` — rutas API Express
 - `server/storage.ts` — acceso Supabase
@@ -33,7 +34,7 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `scripts/eval-report-llm.ts` — evaluador multi-juez (pendiente API keys, falta 6ª dimensión)
 
 ## i18n — arquitectura lazy
-- `client/src/lib/i18n-core.ts` — runtime lazy: EN estático, ES/ZH async
+- `client/src/lib/i18n-core.ts` — runtime lazy: EN estático, ES/ZH async — VERIFICADO lazy correcto
 - `client/src/lib/i18n.ts` — re-export shim
 - `client/src/lib/locales/en|es|zh.ts` — chunks lazy
 - Todas las claves wellness_* existen en los 3 locales
@@ -53,9 +54,9 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ## Arquitectura 4 capas U Scout
 1. `motor-v4.ts` → scores + candidatos
-2. `reportTextRenderer.ts` → texto EN/ES/ZH
+2. `reportTextRenderer.ts` → texto EN/ES/ZH (RenderedAlert tiene key+triggerKey)
 3. `overrideEngine.ts` → overrides + discrepancias
-4. `ReportSlidesV1.tsx` + `ReportViewV4.tsx` → UI
+4. `ReportSlidesV1.tsx` + `ReportViewV4.tsx` → UI con iconos Lucide via motor-icons.ts
 
 ## Flujo de navegación (staff)
 ```
@@ -76,45 +77,68 @@ head_coach       → Game Plan → puede RETIRAR → vuelve a MyScout
 
 ---
 
-## Estado app — 1 mayo 2026 (sesión p9 — ACTUAL)
+## Estado app — 1 mayo 2026 (sesión p9+p10 — ACTUAL)
 
 ### Fixes aplicados y deployados ✅
 1. P0 — viewStatus tracking: POST fire-and-forget en ReportSlidesV1 (solo player mode)
 2. P1 — onBack jugadora: vuelve a /player/team/:teamId via window.history.state.fromTeamId
-3. P1 — ownership PATCH /api/players/:id: coach solo edita sus sandboxes; operationsAccess puede editar canónicas ajenas
-4. P1 — PlayerEditor back: respeta window.history.state.from; Personnel pasa { from: "/coach/personnel" }
+3. P1 — ownership PATCH /api/players/:id: coach solo edita sus sandboxes
+4. P1 — PlayerEditor back: respeta window.history.state.from
 5. P1 — hasReportInputs: amplía a indirectsFrequency + perimeterThreats
-6. P1 — Touch targets: p-1→p-3 backs en MyScout/FilmRoom/GamePlan; h-7/h-8→h-10/h-11 botones acción
+6. P1 — Touch targets: p-1→p-3 backs, h-7/h-8→h-10/h-11 botones, chevrons p-2→p-3
 7. P2 — Personnel conteo: doble fallback isCanonical ?? is_canonical
-8. P2 — GamePlan retire: navega a /coach/my-scout tras retirar
-9. P2 — QuickScout back: step 0 respeta window.history.state.from ?? /coach/my-scout
-10. P1 — cache logout: clearAllLocalCache() en queryClient.ts; llamada en handleSignOut
-11. P1 — overrides en jugadora: PlayerReportV4Route carga y pasa overrides via useQuery
-12. P1 — Wellness standalone: /player/wellness → WellnessStandalone.tsx; Home player apunta ahí
-13. P1 — PlayerTeamList 1 tap: navegación directa a /player/team/:teamId
-14. P2 — Personnel guard URL directa: useEffect redirect a /coach si !canManageRoster
+8. P2 — GamePlan retire: navega a /coach/my-scout
+9. P2 — QuickScout back: respeta window.history.state.from
+10. P1 — cache logout: clearAllLocalCache() en handleSignOut
+11. P1 — overrides en jugadora: PlayerReportV4Route carga y pasa overrides
+12. P1 — Wellness standalone: /player/wellness → WellnessStandalone.tsx
+13. P1 — PlayerTeamList 1 tap: navegación directa
+14. P2 — Personnel guard URL directa: redirect a /coach
 15. P1 — Stats ingest endpoint: POST /api/stats/ingest con Bearer STATS_INGEST_KEY
-16. i18n wellness keys: todas las wellness_* keys en en/es/zh
+16. i18n wellness keys: todas en en/es/zh
+17. motor-icons.ts: mapa situationId/defenseKey/awareKey → LucideIcon
+18. ReportSlidesV1: iconos Lucide en situaciones (slide 2) y DENY/FORCE/ALLOW/AWARE (slide 3)
+19. BasketballPlaceholderAvatar: -28KB gzip (JPEG base64 → SVG puro)
+20. queryKey + userId: usePlayers/useTeams/useClub scoped por usuario
+21. RenderedAlert: tipo completo con key+triggerKey (elimina as any en ReportSlidesV1)
 
-### Bundle
-- ~229KB gzip — objetivo <300KB ✅
+### Bundle — estado real y objetivo correcto
+```
+TOTAL BUNDLE: ~532KB gzip (suma de todos los chunks)
+INITIAL CHUNK (lo que bloquea el primer render): ~150-160KB gzip
+  - vendor-react no está separado: entra en index junto con supabase etc.
+
+OBJETIVO CORRECTO para apps React profesionales:
+  - Initial chunk (bloquea primer render): < 100KB gzip  ← esto importa para TTI
+  - Total bundle: 400-600KB gzip es normal para este stack
+  - Apple NO rechaza por bundle size — rechaza por crashes/APIs/privacidad
+
+INTERVENCIONES AUDITADAS (1 mayo 2026):
+  - manualChunks (B): EMPEORÓ (+21KB) porque modulepreload suma todos los vendors → REVERTIDO
+  - i18n lazy (D): ya estaba correcto, sin cambios
+  - Profile preload (C): no había preload, sin cambios
+  - Motor server-side (A): mayor ganancia posible (~45-65KB total) — requiere decisión Pablo
+
+PRÓXIMA ACCIÓN DE BUNDLE:
+  Separar el initial chunk real: mover Supabase init + providers fuera del entry,
+  cargarlos solo después del primer render (bootstrap pattern).
+  Ganancia estimada en initial chunk: -40-60KB (Supabase 50KB gzip sale del initial).
+  TOTAL no baja mucho, pero TTI (tiempo hasta login visible) sí mejora significativamente.
+```
 
 ### 🔴 RIESGOS ACTIVOS
-- P1 queryKey de usePlayers/useTeams/useClub sin userId — cache cross-user en QA multi-cuenta
-- P1 Touch targets chevrons ReportSlidesV1: p-2 (~36px) — Apple exige 44px
-- P2 Schedule scroll List→Planner: recentrar en hoy al cambiar tab (no verificado post-fix)
+- P1 queryKey fix aplicado pero no verificado en producción con multi-cuenta
+- P2 Schedule scroll List→Planner: recentrar en hoy al cambiar tab (no verificado)
 - P2 readCoachBadges + isPhysicalTrainer hardcodeados a false — código muerto
 
 ### 🟡 PENDIENTE PRÓXIMA SESIÓN (orden prioridad)
-1. QA producción — verificar 5 flujos clave en Railway
-2. Fix chevrons p-2→p-3 en ReportSlidesV1 (1 prompt Cursor)
-3. Fix queryKey + userId en mock-data.ts (1 prompt Cursor)
-4. U Stats features — opponent report, importar plantillas a Personnel, standings WCBA
-5. U Schedule — revisar kebab/tap behavior
-6. TestFlight prep — contratar Apple Developer ($99) + Xcode
-7. Iconos app — diseñar en Figma (1024x1024 PNG sin transparencia)
-8. Bundle measurement exacto post-fixes
-9. Limpiar código muerto — readCoachBadges, isPhysicalTrainer
+1. QA producción — verificar flujos clave en Railway tras deploy de hoy
+2. Decisión: mover motor a server-side (sesión completa, mayor ganancia bundle)
+3. Bootstrap pattern: separar Supabase init del initial chunk (mejora TTI)
+4. U Stats features — opponent report, importar plantillas a Personnel
+5. TestFlight: contratar Apple Developer ($99) + Xcode → npx cap sync
+6. Iconos app — diseñar en Figma (1024x1024 PNG sin transparencia) — Figma MCP resetea en junio
+7. U Schedule — kebab/tap behavior fix
 
 ---
 
@@ -188,6 +212,7 @@ Shell: client/src/pages/core/ModulePage.tsx + client/src/pages/core/ModuleNav.ts
 ### Motor
 - Calibración: 100% (551/551, 66 perfiles)
 - Quality eval: 100% (46/46, 10 perfiles)
+- motor-icons.ts: iconos Lucide por situationId, defenseKey, awareKey — reemplazables con SVG custom cuando Figma MCP esté disponible (junio)
 
 ### Club INNER MONGOLIA
 - Club ID: 4bca3aa8-9062-4709-9d29-9e2313308f1a
@@ -212,14 +237,14 @@ Shell: client/src/pages/core/ModulePage.tsx + client/src/pages/core/ModuleNav.ts
 - Implementado: UI Season/Games, tipos, endpoints GET stats/players + stats/games, POST stats/ingest
 - Schema actual: player_stats simple — suficiente para MVP con Pi
 - Pendiente Pi: añadir STATS_INGEST_KEY en Railway
-- Pendiente features: opponent report, standings WCBA, importar plantillas a Personnel, player trends
-- No implementar schema normalizado (stats_leagues, stats_boxscores) hasta tener datos reales
+- Pendiente features: opponent report, standings WCBA, importar plantillas a Personnel
+- No implementar schema normalizado hasta tener datos reales
 
 ## QuickScout — estado y decisión de producto
-- Existe y funciona: wizard 3-5 pasos por situación, mapea a PlayerInput, genera motor output
-- Problema de diseño: entrenadores revisan todos los campos igualmente en PlayerEditor, wizard no ahorra tiempo real
-- Decisión pendiente: evaluar si QuickScout tiene sentido como "primer contacto" o si refactorizar
-- No eliminar sin decisión consciente — sigue activo en /coach/quick-scout/:id
+- Existe y funciona: wizard 3-5 pasos por situación
+- Problema: entrenadores revisan todos los campos en PlayerEditor igualmente — wizard no ahorra tiempo real
+- Decisión pendiente: evaluar si tiene sentido como "primer contacto" o refactorizar
+- No eliminar sin decisión consciente
 
 ---
 
@@ -227,7 +252,7 @@ Shell: client/src/pages/core/ModulePage.tsx + client/src/pages/core/ModuleNav.ts
 - Máximo 3 outputs accionables por pantalla
 - Mobile-first: 375px portrait primero
 - Coherencia visual entre módulos
-- Iconos: Figma obligatorio, nunca SVG desde código sin referencia visual
+- Iconos: Figma obligatorio para iconos custom; Lucide como placeholder aceptable
 - Scope Scout: solo matchup 1-on-1, sin defensa colectiva
 
 ## Reglas entrega código
@@ -257,28 +282,29 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts --jud
 ## Notas de sesión (trampas conocidas)
 - Schedule.tsx está en client/src/pages/core/, NO en client/src/core/
 - bash_tool corre en Linux — NO puede acceder al filesystem del Mac. Usar Filesystem MCP
-- Filesystem MCP: write disponible via filesystem:write_file (lowercase, no Filesystem:write_file)
-- Figma MCP: get_metadata funciona en plan Starter; get_design_context falla por límite
+- Filesystem MCP write: usar filesystem:write_file (lowercase)
+- Figma MCP: límite mensual Starter agotado — resetea junio 2026
 - Cursor duplica handlers en routes.ts — verificar siempre post-edición
 - useCapabilities() sin membership ignora operationsAccess
-- getPlayers firma: (teamId?, clubId?, viewerUserId?) — siempre pasar viewerUserId en rutas de usuario
+- getPlayers firma: (teamId?, clubId?, viewerUserId?) — siempre pasar viewerUserId
+- manualChunks en Vite EMPEORA el bundle porque modulepreload suma todos los vendors — NO usar
 - zsh heredoc + JSX curly braces: usar Python scripts o ficheros temporales
 
 ---
 
 ## TestFlight — checklist
 
-### Bloqueantes externos ($ pendientes):
+### Bloqueantes externos:
 - [ ] Contratar Apple Developer Program ($99/año) — compra inminente
 - [ ] Instalar Xcode en el Mac
-- [ ] Crear App ID + cert + provisioning profile en Apple Developer portal
+- [ ] Crear App ID + cert + provisioning profile
 
 ### Código (listo cuando se compre Developer):
 - [x] Info.plist: NSCameraUsageDescription + NSPhotoLibraryUsageDescription
 - [x] Orientación portrait-only en Info.plist
-- [ ] Touch targets chevrons ReportSlidesV1: p-2 → p-3
+- [x] Touch targets ≥44px en todas las pantallas auditadas
 - [ ] npx cap sync tras build
-- [ ] Iconos app: 1024x1024 PNG sin transparencia (diseñar en Figma)
+- [ ] Iconos app: 1024x1024 PNG sin transparencia (Figma, junio)
 - [ ] Bundle version CFBundleVersion + CFBundleShortVersionString
 - [ ] WKWebView: Supabase auth persiste entre sesiones iOS
 - [ ] Safe area: pb-16/pb-20 → env(safe-area-inset-bottom) donde aplica
