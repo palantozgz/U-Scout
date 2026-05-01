@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useCapabilities } from "@/lib/capabilities";
-import { CalendarDays, ClipboardList, BarChart3, Home } from "lucide-react";
+import { Home, Target, CalendarDays, BarChart3 } from "lucide-react";
 import { useLocale } from "@/lib/i18n";
 
 type NavItem = {
@@ -18,7 +18,7 @@ function useModuleNavItems() {
   const { t } = useLocale();
   return useMemo<NavItem[]>(() => {
     const home = { key: "home", label: t("ucore_nav_home"), href: "/home", icon: <Home className="w-4 h-4" /> };
-    const scout = { key: "scout", label: t("ucore_nav_scout"), href: "/scout", icon: <ClipboardList className="w-4 h-4" /> };
+    const scout = { key: "scout", label: t("ucore_nav_scout"), href: "/scout", icon: <Target className="w-4 h-4" /> };
     const schedule = { key: "schedule", label: t("ucore_nav_schedule"), href: "/schedule", icon: <CalendarDays className="w-4 h-4" /> };
     const stats = { key: "stats", label: t("ucore_nav_stats"), href: "/stats", icon: <BarChart3 className="w-4 h-4" /> };
     return isPlayer ? [home, schedule, scout, stats] : [home, scout, schedule, stats];
