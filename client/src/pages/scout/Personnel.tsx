@@ -54,6 +54,21 @@ export default function Personnel() {
   const [newTeamName, setNewTeamName] = useState("");
   const [pendingDeleteTeam, setPendingDeleteTeam] = useState<string | null>(null);
 
+  const [deletePlayerInfo, setDeletePlayerInfo] = useState<{
+    playerId: string;
+    playerName: string;
+    published: boolean;
+    isCanonical: boolean;
+  } | null>(null);
+
+  const [deleteTeamInfo, setDeleteTeamInfo] = useState<{
+    teamId: string;
+    teamName: string;
+    playerCount: number;
+    publishedCount: number;
+    loading: boolean;
+  } | null>(null);
+
   const L = {
     en: {
       title: "Personnel",
@@ -238,6 +253,77 @@ export default function Personnel() {
       await qc.invalidateQueries({ queryKey: ["/api/players"] });
     } finally {
       setPromotingId(null);
+    }
+  };
+
+  const fetchDeletePlayerInfo = async (player: PlayerProfile) => {
+    try {
+      const res = await apiRequest("GET", `/api/players/${player.id}/delete-info`);
+      const info = await res.json();
+      setDeletePlayerInfo({
+        playerId: player.id,
+        playerName: player.name || "—",
+        published: info.published,
+        isCanonical: info.isCanonical,
+      });
+    } catch {
+      // fallback: show simple confirm
+      setDeletePlayerInfo({
+        playerId: player.id,
+        playerName: player.name || "—",
+        published: false,
+        isCanonical: false,
+      });
+    }
+  };
+
+  const fetchDeleteTeamInfo = async (team: Team) => {
+    setDeleteTeamInfo({ teamId: team.id, teamName: team.name, playerCount: 0, publishedCount: 0, loading: true });
+    try {
+      const res = await apiRequest("GET", `/api/teams/${team.id}/delete-info`);
+      const info = await res.json();
+      setDeleteTeamInfo({
+        teamId: team.id,
+        teamName: team.name,
+        playerCount: info.playerCount,
+        publishedCount: info.publishedCount,
+        loading: false,
+      });
+    } catch {
+      setDeleteTeamInfo(prev => prev ? { ...prev, loading: false } : null);
+    }
+  };
+
+  const confirmDeletePlayer = async () => {
+    if (!deletePlayerInfo) return;
+    deletePlayerMutation.mutate(deletePlayerInfo.playerId);
+    setDeletePlayerInfo(null);
+    setPendingDelete(null);
+  };
+
+  const confirmDeleteTeam = async (action: "move" | "delete") => {
+    if (!deleteTeamInfo) return;
+    const { teamId } = deleteTeamInfo;
+
+    // Optimistic: remove team from cache immediately
+    if (action === "delete") {
+      qc.setQueryData<PlayerProfile[]>(["/api/players"], (old) =>
+        old ? old.filter((p) => p.teamId !== teamId) : [],
+      );
+    }
+    qc.setQueryData<Team[]>(["/api/teams"], (old) =>
+      old ? old.filter((t) => t.id !== teamId) : [],
+    );
+    setDeleteTeamInfo(null);
+    setPendingDeleteTeam(null);
+
+    try {
+      await apiRequest("DELETE", `/api/teams/${teamId}?action=${action}`);
+    } catch (err) {
+      console.error("delete team failed", err);
+    } finally {
+      qc.invalidateQueries({ queryKey: ["/api/teams"] });
+      qc.invalidateQueries({ queryKey: ["/api/players"] });
     }
   };
 
@@ -484,24 +570,13 @@ export default function Personnel() {
                     <ChevronRight className={cn("w-4 h-4 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
                   </button>
                   {isHeadCoach && !Boolean((team as any).is_system) && (
-                    pendingDeleteTeam === team.id ? (
-                      <div className="flex items-center gap-1 pr-3">
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] rounded-lg" onClick={() => setPendingDeleteTeam(null)}>
-                          {locale === "es" ? "Cancelar" : "Cancel"}
-                        </Button>
-                        <Button size="sm" className="h-7 px-2 text-[10px] font-bold rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={() => handleDeleteTeam(team.id)}>
-                          {L.confirmDelete}
-                        </Button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="pr-4 pl-2 py-3 text-muted-foreground hover:text-destructive transition-colors"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteTeam(team.id); }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )
+                    <button
+                      type="button"
+                      className="pr-4 pl-2 py-3 text-muted-foreground hover:text-destructive transition-colors"
+                      onClick={(e) => { e.stopPropagation(); void fetchDeleteTeamInfo(team); }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   )}
                 </div>
 
@@ -514,7 +589,6 @@ export default function Personnel() {
                     ) : (
                       players.map((player) => {
                         const isCanonical = (player as any).isCanonical ?? (player as any).is_canonical ?? false;
-                        const isPendingDel = pendingDelete === player.id;
                         return (
                           <div key={player.id} className="px-4 py-3 flex items-center gap-3 bg-background">
                             {/* Avatar */}
@@ -605,27 +679,16 @@ export default function Personnel() {
                               >
                                 <ChevronRight className="w-4 h-4" />
                               </Button>
-                              {isPendingDel && canManageRoster ? (
-                                <div className="flex items-center gap-1">
-                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] rounded-lg" onClick={() => setPendingDelete(null)}>
-                                    {L.cancel}
-                                  </Button>
-                                  <Button size="sm" className="h-7 px-2 text-[10px] font-bold rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={() => { deletePlayerMutation.mutate(player.id); setPendingDelete(null); }}>
-                                    {L.confirmDelete}
-                                  </Button>
-                                </div>
-                              ) : (
-                                canManageRoster ? (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-destructive"
-                                    onClick={() => setPendingDelete(player.id)}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </Button>
-                                ) : null
-                              )}
+                              {canManageRoster ? (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-destructive"
+                                  onClick={() => void fetchDeletePlayerInfo(player)}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              ) : null}
                             </div>
                           </div>
                         );
@@ -639,6 +702,141 @@ export default function Personnel() {
         )}
       </main>
       <ModuleNav />
+
+      {/* ── Delete player modal ── */}
+      {deletePlayerInfo && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-6 sm:pb-0">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 space-y-4 shadow-xl">
+            <div className="space-y-1">
+              <p className="text-sm font-black text-foreground">
+                {locale === "es" ? "¿Borrar ficha?" : locale === "zh" ? "删除档案？" : "Delete profile?"}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                <span className="font-bold text-foreground">{deletePlayerInfo.playerName}</span>
+                {" — "}
+                {locale === "es" ? "esta acción no se puede deshacer." : locale === "zh" ? "此操作无法撤销。" : "this action cannot be undone."}
+              </p>
+            </div>
+
+            {deletePlayerInfo.published && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-3 py-2.5 space-y-0.5">
+                <p className="text-[11px] font-black text-amber-700 dark:text-amber-400">
+                  ⚠ {locale === "es" ? "Informe publicado" : locale === "zh" ? "报告已发布" : "Published report"}
+                </p>
+                <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
+                  {locale === "es"
+                    ? "Esta ficha tiene un informe visible para las jugadoras. Al borrarla se retirará automáticamente del Game Plan."
+                    : locale === "zh"
+                    ? "该档案有一份对球员可见的报告。删除时将自动从比赛方案中撤回。"
+                    : "This profile has a report visible to players. Deleting it will automatically retire it from Game Plan."}
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1 rounded-xl"
+                onClick={() => setDeletePlayerInfo(null)}
+              >
+                {locale === "es" ? "Cancelar" : locale === "zh" ? "取消" : "Cancel"}
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 rounded-xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                disabled={deletePlayerMutation.isPending}
+                onClick={() => void confirmDeletePlayer()}
+              >
+                {locale === "es" ? "Borrar ficha" : locale === "zh" ? "删除档案" : "Delete profile"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete team modal ── */}
+      {deleteTeamInfo && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-6 sm:pb-0">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 space-y-4 shadow-xl">
+            {deleteTeamInfo.loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <p className="text-sm font-black text-foreground">
+                    {locale === "es" ? "¿Borrar equipo?" : locale === "zh" ? "删除队伍？" : "Delete team?"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    <span className="font-bold text-foreground">{deleteTeamInfo.teamName}</span>
+                    {" · "}
+                    {deleteTeamInfo.playerCount}{" "}
+                    {locale === "es" ? "jugadoras" : locale === "zh" ? "名球员" : "players"}
+                  </p>
+                </div>
+
+                {deleteTeamInfo.publishedCount > 0 && (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-3 py-2.5 space-y-0.5">
+                    <p className="text-[11px] font-black text-amber-700 dark:text-amber-400">
+                      ⚠ {deleteTeamInfo.publishedCount}{" "}
+                      {locale === "es" ? "informe(s) publicado(s)" : locale === "zh" ? "份报告已发布" : "published report(s)"}
+                    </p>
+                    <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
+                      {locale === "es"
+                        ? "Se retirarán automáticamente del Game Plan al confirmar."
+                        : locale === "zh"
+                        ? "确认后将自动从比赛方案中撤回。"
+                        : "They will be automatically retired from Game Plan on confirm."}
+                    </p>
+                  </div>
+                )}
+
+                {deleteTeamInfo.playerCount > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold text-muted-foreground">
+                      {locale === "es" ? "¿Qué hacemos con las jugadoras?" : locale === "zh" ? "如何处理球员？" : "What should happen to the players?"}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full rounded-xl text-xs font-bold justify-start gap-2"
+                      onClick={() => void confirmDeleteTeam("move")}
+                    >
+                      📋 {locale === "es" ? "Mover a Free Agents y borrar equipo" : locale === "zh" ? "移至自由球员并删除队伍" : "Move players to Free Agents, delete team"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="w-full rounded-xl text-xs font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground justify-start gap-2"
+                      onClick={() => void confirmDeleteTeam("delete")}
+                    >
+                      🗑 {locale === "es" ? "Borrar equipo y todas sus fichas" : locale === "zh" ? "删除队伍及所有档案" : "Delete team and all its profiles"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="w-full rounded-xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                    onClick={() => void confirmDeleteTeam("delete")}
+                  >
+                    {locale === "es" ? "Borrar equipo" : locale === "zh" ? "删除队伍" : "Delete team"}
+                  </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full rounded-xl"
+                  onClick={() => setDeleteTeamInfo(null)}
+                >
+                  {locale === "es" ? "Cancelar" : locale === "zh" ? "取消" : "Cancel"}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

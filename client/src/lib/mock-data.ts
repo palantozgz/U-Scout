@@ -2266,8 +2266,21 @@ export function useUpdatePlayer() {
 
 export function useDeletePlayer() {
   const qc = useQueryClient();
-  return useMutation<void, Error, string>({
-    mutationFn: async (id) => { await apiRequest("DELETE", `/api/players/${id}`); },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/players"] }),
+  return useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/players/${id}`),
+    onMutate: async (id: string) => {
+      await qc.cancelQueries({ queryKey: ["/api/players"] });
+      const previous = qc.getQueryData<PlayerProfile[]>(["/api/players"]);
+      qc.setQueryData<PlayerProfile[]>(["/api/players"], (old) =>
+        old ? old.filter((p) => p.id !== id) : [],
+      );
+      return { previous };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.previous) qc.setQueryData(["/api/players"], ctx.previous);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["/api/players"] });
+    },
   });
 }

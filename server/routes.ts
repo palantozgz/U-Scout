@@ -179,9 +179,57 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/teams/:id/delete-info", requireAuth, async (req, res) => {
+    try {
+      const teamId = req.params.id as string;
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      const teamPlayers = await storage.getPlayers(teamId, club.id);
+      const publishedCount = teamPlayers.filter((p: any) => p.published).length;
+      res.json({
+        playerCount: teamPlayers.length,
+        publishedCount,
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load team info" });
+    }
+  });
+
   app.delete("/api/teams/:id", requireAuth, async (req, res) => {
     try {
-      await storage.deleteTeam((req.params.id as string));
+      if (!isHeadCoachOrMaster(req)) {
+        return res.status(403).json({ error: "Only head_coach or master can delete teams" });
+      }
+      const teamId = req.params.id as string;
+      const action = (req.query.action as string) ?? "move"; // "move" | "delete"
+
+      // Find all players in this team
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      const teamPlayers = await storage.getPlayers(teamId, club.id);
+
+      if (action === "delete") {
+        // Unpublish and delete all players in the team
+        for (const p of teamPlayers) {
+          if ((p as any).published) {
+            await storage.unpublishPlayerReport(p.id);
+          }
+          await storage.deletePlayer(p.id);
+        }
+      } else {
+        // "move": move players to Free Agents team
+        const allTeams = await storage.getTeams(club.id);
+        const freeAgents = allTeams.find((t: any) => t.isSystem || t.is_system);
+        if (freeAgents) {
+          for (const p of teamPlayers) {
+            await db.execute(
+              sql`UPDATE players SET team_id = ${freeAgents.id} WHERE id = ${p.id}`
+            );
+          }
+        }
+      }
+
+      await storage.deleteTeam(teamId);
       res.status(204).send();
     } catch (err) {
       res.status(500).json({ error: "Failed to delete team" });
@@ -240,9 +288,28 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/players/:id/delete-info", requireAuth, async (req, res) => {
+    try {
+      const player = await storage.getPlayer(req.params.id as string);
+      if (!player) return res.status(404).json({ error: "Not found" });
+      res.json({
+        published: Boolean((player as any).published),
+        isCanonical: Boolean((player as any).is_canonical),
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load player info" });
+    }
+  });
+
   app.delete("/api/players/:id", requireAuth, async (req, res) => {
     try {
-      await storage.deletePlayer((req.params.id as string));
+      const playerId = req.params.id as string;
+      // Auto-unpublish if published
+      const playerToDelete = await storage.getPlayer(playerId);
+      if (playerToDelete && (playerToDelete as any).published) {
+        await storage.unpublishPlayerReport(playerId);
+      }
+      await storage.deletePlayer(playerId);
       res.status(204).send();
     } catch (err) {
       res.status(500).json({ error: "Failed to delete player" });

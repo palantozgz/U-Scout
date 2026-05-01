@@ -102,11 +102,10 @@ export default function ReportViewV4({
         `/api/players/${encodeURIComponent(playerId)}/scout-version/submit`,
         { method: "POST" },
       );
-      await queryClient.invalidateQueries({ queryKey: scoutVersionMeQueryKey(playerId) });
-      await invalidatePlayerApprovalQueries(queryClient, playerId);
-      await queryClient.invalidateQueries({ queryKey: ["/api/film-room"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/players"] });
       setSentFlash(true);
+      queryClient.invalidateQueries({ queryKey: scoutVersionMeQueryKey(playerId) });
+      queryClient.invalidateQueries({ queryKey: ["/api/film-room"] });
+      void invalidatePlayerApprovalQueries(queryClient, playerId);
       if (navigateTimerRef.current) clearTimeout(navigateTimerRef.current);
       navigateTimerRef.current = setTimeout(() => {
         navigateTimerRef.current = null;
@@ -165,18 +164,18 @@ export default function ReportViewV4({
                     ? "已发送至集体分析 ✓"
                     : "Sent to Film Room ✓"
                 : es
-                  ? "Borrador — solo visible para el staff"
+                  ? "Borrador — solo visible para ti"
                   : zh
-                    ? "草稿 — 仅职员可见"
-                    : "Draft — only visible to staff"}
+                    ? "草稿 — 仅你可见"
+                    : "Draft — only visible to you"}
             </p>
             {!submittedToFilmRoom && (
               <p className="text-[10px] text-muted-foreground/60 leading-tight mt-0.5">
                 {es
-                  ? "Edita y envía a la sala cuando estés listo"
+                  ? "Solo tú la ves. Envíala a la sala cuando estés listo."
                   : zh
-                    ? "完成后发送到集体分析"
-                    : "Adjust overrides here, then send to Film Room"}
+                    ? "只有你能看到。完成后发送到集体分析。"
+                    : "Only you can see this. Send to Film Room when ready."}
               </p>
             )}
           </div>

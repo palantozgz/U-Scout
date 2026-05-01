@@ -248,12 +248,26 @@ export default function FilmRoom() {
 
   const handlePublish = async (playerId: string) => {
     setPublishingId(playerId);
+    // Optimistic: mark as published immediately in film-room cache
+    qc.setQueryData<{ players: FilmRoomEntry[] }>(["/api/film-room"], (old) => {
+      if (!old) return old;
+      return {
+        players: old.players.map((e) =>
+          e.player.id === playerId ? { ...e, isPublished: true } : e
+        ),
+      };
+    });
     try {
       await apiRequest("POST", `/api/players/${playerId}/game-plan`);
-      await qc.invalidateQueries({ queryKey: ["/api/film-room"] });
-      await qc.invalidateQueries({ queryKey: ["/api/players"] });
+    } catch (err) {
+      // Rollback on error
+      qc.invalidateQueries({ queryKey: ["/api/film-room"] });
+      console.error("publish failed", err);
     } finally {
       setPublishingId(null);
+      // Background refresh to sync real state
+      qc.invalidateQueries({ queryKey: ["/api/film-room"] });
+      qc.invalidateQueries({ queryKey: ["/api/players"] });
     }
   };
 
