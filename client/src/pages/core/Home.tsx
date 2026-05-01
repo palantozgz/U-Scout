@@ -4,7 +4,7 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth, type AppUserRole } from "@/lib/useAuth";
 import { computeCapabilities, readCoachBadges, useCapabilities } from "@/lib/capabilities";
 import { cn } from "@/lib/utils";
-import { ChevronRight, CalendarDays, BarChart3, Users, ClipboardList, BellDot, Activity } from "lucide-react";
+import { ChevronRight, CalendarDays, BarChart3, Users, Target, BellDot, Activity } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { clubQueryKey } from "@/lib/club-api";
 import { useClub } from "@/lib/club-api";
@@ -479,7 +479,7 @@ export default function Home() {
               <HomeCard
                 title={t("ucore_card_scout_title")}
                 subtitle={t("ucore_card_scout_sub_staff")}
-                icon={<ClipboardList className="w-9 h-9" strokeWidth={2} />}
+                icon={<Target className="w-9 h-9" strokeWidth={2} />}
                 onClick={() => setLocation("/scout")}
                 testId="ucore-home-card-scout"
               />
@@ -571,7 +571,7 @@ export default function Home() {
                     ? t("ucore_slot_reports_count").replace("{count}", String(newReportsCount ?? 0))
                     : t("ucore_card_scout_sub_player")
                 }
-                icon={<ClipboardList className="w-9 h-9" strokeWidth={2} />}
+                icon={<Target className="w-9 h-9" strokeWidth={2} />}
                 onClick={() => setLocation("/scout")}
                 testId="ucore-home-card-scout"
                 className="py-5"
