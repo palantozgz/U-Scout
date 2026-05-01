@@ -52,7 +52,7 @@ export function serverOverridesToReportOverrides(
       coachId: o.coachId,
       slide: o.slide,
       itemKey: o.itemKey,
-      action: o.action === "hide" ? "hide" : "replace",
+      action: o.action === "hide" ? "hide" : "approve_as_is",
     }));
 }
 

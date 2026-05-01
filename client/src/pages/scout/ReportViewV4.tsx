@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocale } from "@/lib/i18n";
 import {
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { OverridePanel } from "@/components/scout/OverridePanel";
 import ReportSlidesV1 from "@/pages/scout/ReportSlidesV1";
 import { usePlayer } from "@/lib/mock-data";
+import { type ReportOverride } from "@/lib/overrideEngine";
 
 export interface ReportViewV4Props {
   playerId: string;
@@ -48,13 +49,28 @@ export default function ReportViewV4({
   const { profile, user } = useAuth();
   const queryClient = useQueryClient();
   const { data: player, isLoading: playerLoading } = usePlayer(playerId);
-  const [isApproving, setIsApproving] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
 
   const { data: approvalData } = useApprovalStatus(playerId, {
     enabled: Boolean(playerId),
     coachReviewMode: mode === "coach_review",
   });
+
+  const coachId = profile?.id ?? user?.id ?? "";
+
+  const myOverrides: ReportOverride[] = useMemo(() => {
+    return (approvalData?.overrides ?? [])
+      .filter((o) => o.coachId === coachId)
+      .map((o) => ({
+        playerId,
+        coachId: o.coachId,
+        slide: o.slide,
+        itemKey: o.itemKey,
+        action: o.action === "hide" ? "hide" : "approve_as_is",
+      }));
+  }, [approvalData?.overrides, coachId, playerId]);
+
+  const [isApproving, setIsApproving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const handlePropose = async () => {
     setIsApproving(true);
@@ -228,11 +244,12 @@ export default function ReportViewV4({
   ) : undefined;
 
   return (
-    <ReportSlidesV1
-      playerId={playerId}
-      onBack={onBack}
-      coachMode={mode === "coach_review"}
-      bottomBar={approvalBar}
-    />
+      <ReportSlidesV1
+        playerId={playerId}
+        onBack={onBack}
+        coachMode={mode === "coach_review"}
+        bottomBar={approvalBar}
+        overrides={mode === "coach_review" ? myOverrides : undefined}
+      />
   );
 }

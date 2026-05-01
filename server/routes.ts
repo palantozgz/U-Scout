@@ -307,6 +307,26 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/players/:id/overrides", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const player = await storage.getPlayer(playerId);
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      const rows = await storage.listReportOverridesForPlayer(playerId);
+      const mine = rows
+        .filter((o) => o.coachId === req.user!.id)
+        .map((o) => ({
+          coachId: o.coachId,
+          slide: o.slide,
+          itemKey: o.itemKey,
+          action: o.action,
+        }));
+      res.json(mine);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load overrides" });
+    }
+  });
+
   app.post("/api/players/:id/overrides", requireAuth, async (req, res) => {
     try {
       const playerId = req.params.id as string;

@@ -21,6 +21,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { applyOverrides, type ReportOverride } from "@/lib/overrideEngine";
 
 const BasketballPlaceholderAvatar = lazy(() =>
   import("@/components/BasketballPlaceholderAvatar").then(m => ({
@@ -33,6 +34,7 @@ export interface ReportSlidesV1Props {
   onBack?: () => void;
   coachMode?: boolean;
   bottomBar?: React.ReactNode;
+  overrides?: ReportOverride[];
 }
 
 interface ActiveSheet {
@@ -57,6 +59,7 @@ export default function ReportSlidesV1({
   onBack,
   coachMode = false,
   bottomBar,
+  overrides,
 }: ReportSlidesV1Props) {
   const { t, locale } = useLocale();
   const { user } = useAuth();
@@ -110,6 +113,12 @@ export default function ReportSlidesV1({
     return renderReport(motorOutput, ctx);
   }, [motorOutput, locale, gender]);
 
+  const finalReport = useMemo(() => {
+    if (!report) return null;
+    if (!overrides || overrides.length === 0) return report;
+    return applyOverrides(report, overrides);
+  }, [report, overrides]);
+
   const situationRunnersUp = useMemo(() => {
     if (!motorOutput || !report) return [];
     const shownIds = new Set(report.situations.slice(0, 3).map((s) => s.id));
@@ -149,14 +158,14 @@ export default function ReportSlidesV1({
   }
 
   function openArchetypeSheet(current: string) {
-    if (!report) return;
+    if (!finalReport) return;
     setActiveSheet({
       title:
         locale === "es" ? "Alternativas de arquetipo"
         : locale === "zh" ? "原型备选"
         : "Archetype alternatives",
       current,
-      alternatives: report.identity.archetypeAlternatives.map((a) => ({
+      alternatives: finalReport.identity.archetypeAlternatives.map((a) => ({
         text: a.label,
         score: a.score,
       })),
@@ -209,7 +218,7 @@ export default function ReportSlidesV1({
       </div>
     );
   }
-  if (!report || !motorOutput) {
+  if (!finalReport || !motorOutput) {
     return (
       <div className="p-4 text-muted-foreground">
         {locale === "es" ? "No se pudo generar el informe."
@@ -220,9 +229,9 @@ export default function ReportSlidesV1({
   }
 
   const photo = isRealPhoto(player.imageUrl);
-  const subAlt = report.identity.archetypeAlternatives[0];
-  const topSituations = report.situations.slice(0, 3);
-  const topAlerts = report.alerts.slice(0, 2);
+  const subAlt = finalReport.identity.archetypeAlternatives[0];
+  const topSituations = finalReport.situations.slice(0, 3);
+  const topAlerts = finalReport.alerts.slice(0, 2);
   const hasPrev = slide > 0;
   const hasNext = slide < TOTAL_SLIDES - 1;
   const position = (player.inputs?.position ?? "").split("/")[0]?.trim() ?? "";
@@ -360,10 +369,10 @@ export default function ReportSlidesV1({
                   type="button"
                   className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary/30 bg-primary/8"
                   onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => openArchetypeSheet(report.identity.archetypeLabel)}
+                  onClick={() => openArchetypeSheet(finalReport.identity.archetypeLabel)}
                 >
                   <span className="text-[11px] font-black uppercase tracking-[0.15em] text-primary">
-                    {report.identity.archetypeLabel}
+                    {finalReport.identity.archetypeLabel}
                   </span>
                   {position && (
                     <>
@@ -376,21 +385,21 @@ export default function ReportSlidesV1({
 
               {/* Tagline */}
               <p className="text-center text-[13px] italic text-muted-foreground/70 leading-relaxed mb-5 px-2">
-                {report.identity.tagline}
+                {finalReport.identity.tagline}
               </p>
 
               {/* Threat Card — matches Figma exactly */}
               <div className={cn(
                 "rounded-2xl border border-border/50 overflow-hidden mb-5",
-                report.identity.dangerLevel >= 4 ? "border-red-500/20" :
-                report.identity.dangerLevel >= 3 ? "border-orange-500/20" : "border-border/40"
+                finalReport.identity.dangerLevel >= 4 ? "border-red-500/20" :
+                finalReport.identity.dangerLevel >= 3 ? "border-orange-500/20" : "border-border/40"
               )}>
                 <div className="flex">
                   {/* Accent bar */}
                   <div className={cn("w-1 shrink-0",
-                    report.identity.dangerLevel >= 4 ? "bg-red-500" :
-                    report.identity.dangerLevel >= 3 ? "bg-orange-500" :
-                    report.identity.dangerLevel >= 2 ? "bg-yellow-400" : "bg-muted"
+                    finalReport.identity.dangerLevel >= 4 ? "bg-red-500" :
+                    finalReport.identity.dangerLevel >= 3 ? "bg-orange-500" :
+                    finalReport.identity.dangerLevel >= 2 ? "bg-yellow-400" : "bg-muted"
                   )} />
                   <div className="flex-1 px-4 py-4">
                     <div className="flex items-start justify-between gap-3">
@@ -399,19 +408,19 @@ export default function ReportSlidesV1({
                           THREAT LEVEL
                         </p>
                         <p className={cn("text-[18px] font-black leading-none",
-                          report.identity.dangerLevel >= 4 ? "text-red-500 dark:text-red-400" :
-                          report.identity.dangerLevel >= 3 ? "text-orange-500 dark:text-orange-400" :
-                          report.identity.dangerLevel >= 2 ? "text-yellow-600 dark:text-yellow-400" :
+                          finalReport.identity.dangerLevel >= 4 ? "text-red-500 dark:text-red-400" :
+                          finalReport.identity.dangerLevel >= 3 ? "text-orange-500 dark:text-orange-400" :
+                          finalReport.identity.dangerLevel >= 2 ? "text-yellow-600 dark:text-yellow-400" :
                           "text-muted-foreground"
                         )}>
-                          {report.identity.dangerLevel >= 5 ? "ELITE" :
-                           report.identity.dangerLevel >= 4 ? "HIGH" :
-                           report.identity.dangerLevel >= 3 ? "DANGEROUS" :
-                           report.identity.dangerLevel >= 2 ? "MODERATE" : "LOW"}
+                          {finalReport.identity.dangerLevel >= 5 ? "ELITE" :
+                           finalReport.identity.dangerLevel >= 4 ? "HIGH" :
+                           finalReport.identity.dangerLevel >= 3 ? "DANGEROUS" :
+                           finalReport.identity.dangerLevel >= 2 ? "MODERATE" : "LOW"}
                         </p>
                       </div>
                       <p className="text-[12px] text-muted-foreground/70 leading-snug text-right max-w-[180px]">
-                        {(report.identity as any).threat}
+                        {(finalReport.identity as any).threat}
                       </p>
                     </div>
                   </div>
@@ -524,41 +533,41 @@ export default function ReportSlidesV1({
 
               <div className="space-y-3">
                 {/* DENY */}
-                {report.defense.deny && (
+                {finalReport.defense.deny && (
                   <div className={cn("rounded-2xl border border-border/30 overflow-hidden", DENY_CLASSES.bg)}>
                     <div className="border-l-[4px] border-red-500 px-4 pt-4 pb-3">
                       <p className={cn("text-[10px] font-black uppercase tracking-[0.25em] mb-1.5", DENY_CLASSES.text)}>
-                        {report.defense.deny.label}
+                        {finalReport.defense.deny.label}
                       </p>
                       <p className="text-[18px] font-black text-foreground leading-tight mb-3">
-                        {report.defense.deny.instruction}
+                        {finalReport.defense.deny.instruction}
                       </p>
-                      {(report.defense.deny as any).when && (
+                      {(finalReport.defense.deny as any).when && (
                         <div className="space-y-1 mb-3">
                           <div className="flex gap-2">
                             <span className="text-[11px] font-black text-muted-foreground/50 w-10 shrink-0">When:</span>
-                            <span className="text-[11px] text-foreground/75 leading-snug">{(report.defense.deny as any).when}</span>
+                            <span className="text-[11px] text-foreground/75 leading-snug">{(finalReport.defense.deny as any).when}</span>
                           </div>
                           <div className="flex gap-2">
                             <span className="text-[11px] font-black text-muted-foreground/50 w-10 shrink-0">How:</span>
-                            <span className="text-[11px] text-foreground/75 leading-snug">{(report.defense.deny as any).how}</span>
+                            <span className="text-[11px] text-foreground/75 leading-snug">{(finalReport.defense.deny as any).how}</span>
                           </div>
-                          {(report.defense.deny as any).why && (
+                          {(finalReport.defense.deny as any).why && (
                             <div className="flex gap-2">
                               <span className="text-[11px] font-black text-muted-foreground/50 w-10 shrink-0">Why:</span>
-                              <span className="text-[11px] text-foreground/75 leading-snug">{(report.defense.deny as any).why}</span>
+                              <span className="text-[11px] text-foreground/75 leading-snug">{(finalReport.defense.deny as any).why}</span>
                             </div>
                           )}
                         </div>
                       )}
-                      {coachMode && report.defense.deny.alternatives?.length > 0 && (
+                      {coachMode && finalReport.defense.deny.alternatives?.length > 0 && (
                         <button
                           type="button"
                           className={cn("text-[11px] font-bold float-right", DENY_CLASSES.text)}
                           onPointerDown={(e) => e.stopPropagation()}
-                          onClick={() => openDefenseSheet("deny", report.defense.deny.instruction, report.defense.deny.alternatives)}
+                          onClick={() => openDefenseSheet("deny", finalReport.defense.deny.instruction, finalReport.defense.deny.alternatives)}
                         >
-                          {report.defense.deny.alternatives.length} alternatives ›
+                          {finalReport.defense.deny.alternatives.length} alternatives ›
                         </button>
                       )}
                     </div>
@@ -566,35 +575,35 @@ export default function ReportSlidesV1({
                 )}
 
                 {/* FORCE */}
-                {report.defense.force && (
+                {finalReport.defense.force && (
                   <div className={cn("rounded-2xl border border-border/30 overflow-hidden", FORCE_CLASSES.bg)}>
                     <div className="border-l-[4px] border-amber-500 px-4 pt-4 pb-3">
                       <p className={cn("text-[10px] font-black uppercase tracking-[0.25em] mb-1.5", FORCE_CLASSES.text)}>
-                        {report.defense.force.label}
+                        {finalReport.defense.force.label}
                       </p>
                       <p className="text-[18px] font-black text-foreground leading-tight mb-3">
-                        {report.defense.force.instruction}
+                        {finalReport.defense.force.instruction}
                       </p>
-                      {(report.defense.force as any).when && (
+                      {(finalReport.defense.force as any).when && (
                         <div className="space-y-1 mb-3">
                           <div className="flex gap-2">
                             <span className="text-[11px] font-black text-muted-foreground/50 w-10 shrink-0">When:</span>
-                            <span className="text-[11px] text-foreground/75 leading-snug">{(report.defense.force as any).when}</span>
+                            <span className="text-[11px] text-foreground/75 leading-snug">{(finalReport.defense.force as any).when}</span>
                           </div>
                           <div className="flex gap-2">
                             <span className="text-[11px] font-black text-muted-foreground/50 w-10 shrink-0">How:</span>
-                            <span className="text-[11px] text-foreground/75 leading-snug">{(report.defense.force as any).how}</span>
+                            <span className="text-[11px] text-foreground/75 leading-snug">{(finalReport.defense.force as any).how}</span>
                           </div>
                         </div>
                       )}
-                      {coachMode && report.defense.force.alternatives?.length > 0 && (
+                      {coachMode && finalReport.defense.force.alternatives?.length > 0 && (
                         <button
                           type="button"
                           className={cn("text-[11px] font-bold float-right", FORCE_CLASSES.text)}
                           onPointerDown={(e) => e.stopPropagation()}
-                          onClick={() => openDefenseSheet("force", report.defense.force.instruction, report.defense.force.alternatives)}
+                          onClick={() => openDefenseSheet("force", finalReport.defense.force.instruction, finalReport.defense.force.alternatives)}
                         >
-                          {report.defense.force.alternatives.length} alternatives ›
+                          {finalReport.defense.force.alternatives.length} alternatives ›
                         </button>
                       )}
                     </div>
@@ -606,10 +615,10 @@ export default function ReportSlidesV1({
                   <div className={cn("rounded-2xl border border-border/30 overflow-hidden", ALLOW_CLASSES.bg)}>
                     <div className="border-l-[4px] border-emerald-500 px-4 pt-4 pb-3">
                       <p className={cn("text-[10px] font-black uppercase tracking-[0.25em] mb-1.5", ALLOW_CLASSES.text)}>
-                        {report.defense.allow.label}
+                        {finalReport.defense.allow.label}
                       </p>
                       <p className="text-[18px] font-black text-foreground leading-tight mb-2">
-                        {report.defense.allow.instruction}
+                        {finalReport.defense.allow.instruction}
                       </p>
                     </div>
                   </div>

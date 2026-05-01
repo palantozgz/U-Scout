@@ -21,6 +21,7 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/pages/scout/ReportSlidesV1.tsx` — 3 slides (rediseño Figma YA APLICADO)
 - `client/src/pages/scout/ReportViewV4.tsx` — shell coach_review
 - `client/src/pages/scout/PlayerEditor.tsx` — editor inputs jugador
+- `client/src/pages/core/Schedule.tsx` — god file 228KB (U Schedule)
 - `server/routes.ts` — rutas API Express
 - `server/storage.ts` — acceso Supabase
 - `scripts/calibrate-motor.ts` — 66 perfiles (100% / 551 checks)
@@ -55,26 +56,15 @@ Personnel → PlayerEditor → MyScout → FilmRoom → GamePlan
 
 ---
 
-## Estado sesión 1 mayo 2026 — ACTUALIZADO fin de sesión
+## Estado sesión 1 mayo 2026 (p2) — ACTUALIZADO fin de sesión
 
 ### Último commit
-`ee21d6e — fix: seguridad P0 user_roles+scope org, race condition invitaciones, auto-assign game plan, canonical players, Schedule timezone, Prep.Fisico locales, limpieza TestMode+codigo muerto`
+`fix: hasReport Primary/Secondary, Schedule scroll recentra en planner, kebab landscape simplificado`
 
 ### Bugs resueltos esta sesión ✅
-- **P0-1 Seguridad**: `resolveRole()` consulta tabla `user_roles` en DB. `head_coach`/`master` solo desde DB, no desde `user_metadata`. SQL ejecutado en Supabase: tabla `user_roles` creada + 7 usuarios insertados (Pablo=head_coach, resto=coach).
-- **P0-2 Seguridad**: `getPlayers(teamId?, clubId?)` filtra por `created_by_user_id IN (miembros club)` — sin subquery circular. `getTeams(clubId?)` devuelve todos los teams sin filtro (teams son datos de referencia, no sensibles).
-- **P0-3 Seguridad**: `/api/film-room` usa `getPlayers(undefined, club.id)` — scope de club aplicado.
-- **P0-4 Seguridad**: Race condition invitaciones resuelto. `markInvitationUsedIfUnused` + `markClubInvitationUsedIfUnused` — UPDATE atómico `WHERE used_by IS NULL`. Ambos handlers usan patrón `claimed = await...; if (!claimed) return 409`.
-- **Auto-asignación al publicar**: `POST /api/players/:id/game-plan` crea `ScoutingReportAssignment` para todas las jugadoras activas del club via `createScoutingReportAssignmentIfNotExists` (ON CONFLICT DO NOTHING).
-- **Jugadoras canónicas invisibles**: subquery circular en `getPlayers` corregida con query directa.
-- **Free Agents invisible**: `getTeams` ya no filtra por jugadoras existentes — equipos vacíos visibles.
-- **Personnel**: `useEffect` auto-crea Free Agents al montar si `teams.length === 0` e `isHeadCoach`. Free Agents siempre al final en render.
-- **Schedule landscape timezone**: `dayKey` y `todayKey` usan `toLocaleDateString("sv")` — corregido bug de "No sessions" falso positivo y marco "hoy" incorrecto.
-- **Schedule landscape hoy visual**: columna completa destacada — header `border-2 border-primary bg-primary/5` + celdas slot `bg-primary/5`.
-- **Home.tsx prefetch**: usa `apiRequest("GET", "/api/club")` con Bearer en lugar de `fetch()` directo.
-- **Limpieza**: `TestMode.tsx` eliminado (604 líneas huérfanas). `ThreatLevel`, `SituationCard`, `DefenseCard`, `DEFENSE_ICON`, `DEFENSE_CLASSES_MAP` eliminados de `ReportSlidesV1.tsx` (~180 líneas muertas).
-- **Prep. Físico locales**: badge `PREP` renombrado a "Prep. Físico" / "Phys. Trainer" / "体能教练" en los 3 locales. `operationsAccess` = preparador físico — misma cosa. `canManageWellness` ya usaba `hasOperationsAccess` correctamente.
-- **ReportSlidesV1 rediseño Figma**: YA APLICADO en commit anterior. `When:/How:/Why:`, número `01/02/03`, `ALSO WATCH`, barra frecuencia — todo implementado.
+- **hasReport MyScout**: lógica reemplazada — ya no usa `Object.keys(inp).length > 3`. Ahora evalúa `isoFrequency/pnrFrequency/postFrequency/transitionFrequency === "Primary" | "Secondary"`. Aplica en canonicalPlayers y sandboxPlayers.
+- **Schedule scroll List→Planner**: `useEffect` de `tryScroll` ahora depende de `[staffView]` y hace `return` si `staffView !== "planner"`. Recentra en hoy cada vez que el coach activa la vista planner.
+- **Schedule kebab landscape**: eliminados los 21 items "move to" (`days.flatMap(...)`) del `DropdownMenuContent` landscape. Menú ahora: edit / duplicate / template / cancel.
 
 ### 🔴 RIESGOS ACTIVOS
 - **P1** Operaciones destructivas no transaccionales: publish/merge/clear en scout versions pueden dejar estado inconsistente en fallo parcial. Bajo impacto real en uso actual.
@@ -134,11 +124,11 @@ head_coach       → Game Plan → publicar a jugadoras
 ---
 
 ## U CORE — módulos
-- **U Schedule** — `core/Schedule.tsx` (228 KB god file)
+- **U Schedule** — `client/src/pages/core/Schedule.tsx` (god file, Schedule.tsx en pages/core/ no en src/core/)
 - **U Wellness** — check-in jugadoras (embebido en Schedule)
 - **U Scout** — scouting defensivo 1-on-1 (módulo más avanzado)
 - **U Stats** — DB lista, collector pendiente Pi
-Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
+Shell: `client/src/pages/core/ModulePage.tsx` + `client/src/pages/core/ModuleNav.tsx`
 
 ### Bundle
 - **229 KB gzip** — objetivo <300 KB cumplido
@@ -192,3 +182,9 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts --jud
 - Hot/Cold/Stable: tendencia reciente jugador — campo `recentForm` en PlayerInput
 - trapResponse: reacción a blitz/hedge en PnR
 - pressureResponse: reacción a presión individual
+
+## Notas de sesión (trampas conocidas)
+- `Schedule.tsx` está en `client/src/pages/core/`, NO en `client/src/core/`
+- bash_tool corre en Linux y NO puede acceder al filesystem del Mac — usar siempre Filesystem MCP para leer/escribir archivos del repo
+- Filesystem MCP es de solo lectura para Claude en esta configuración (write disponible vía Filesystem:write_file)
+- Figma MCP: `get_metadata` funciona en plan Starter; `get_design_context` falla por límite de llamadas — no usar salvo petición explícita
