@@ -1320,5 +1320,89 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/player/teams", requireAuth, async (req, res) => {
+    try {
+      const uid = req.user!.id;
+      const club = await storage.getClubForUser(uid);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+
+      // Get all published players for this club
+      const allPlayers = await storage.getPlayers(undefined, club.id);
+      const published = allPlayers.filter((p: any) => p.published === true);
+
+      if (published.length === 0) {
+        return res.json({ teams: [] });
+      }
+
+      // Get teams to build grouping
+      const allTeams = await storage.getTeams(club.id);
+      const teamMap = new Map(allTeams.map((t: any) => [t.id, t]));
+
+      // Group by teamId
+      const byTeam = new Map<string, typeof published>();
+      for (const p of published) {
+        const tid = p.teamId ?? "unknown";
+        if (!byTeam.has(tid)) byTeam.set(tid, []);
+        byTeam.get(tid)!.push(p);
+      }
+
+      const teams = Array.from(byTeam.entries())
+        .map(([teamId, players]) => {
+          const team = teamMap.get(teamId);
+          return {
+            team: {
+              id: teamId,
+              name: team?.name ?? "Unknown",
+              logo: (team as any)?.logo ?? "🏀",
+            },
+            totalReports: players.length,
+            unseenCount: players.length, // simplified — no view tracking yet
+            reportsPending: players.length,
+          };
+        })
+        .sort((a, b) => a.team.name.localeCompare(b.team.name));
+
+      res.json({ teams });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load player teams" });
+    }
+  });
+
+  app.get("/api/player/team/:teamId", requireAuth, async (req, res) => {
+    try {
+      const uid = req.user!.id;
+      const teamId = req.params.teamId as string;
+      const club = await storage.getClubForUser(uid);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+
+      const allTeams = await storage.getTeams(club.id);
+      const team = allTeams.find((t: any) => t.id === teamId);
+      if (!team) return res.status(404).json({ error: "Team not found" });
+
+      const allPlayers = await storage.getPlayers(teamId, club.id);
+      const published = allPlayers.filter((p: any) => p.published === true);
+
+      const players = published.map((p: any) => ({
+        playerId: p.id,
+        name: p.name ?? "",
+        number: p.number ?? "",
+        imageUrl: p.imageUrl ?? "",
+        position: p.inputs?.position ?? p.scoutingInputs?.position ?? "",
+        viewStatus: "none" as const, // simplified — no view tracking yet
+      }));
+
+      res.json({
+        team: {
+          id: team.id,
+          name: team.name,
+          logo: (team as any).logo ?? "🏀",
+        },
+        players,
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load team players" });
+    }
+  });
+
   return httpServer;
 }

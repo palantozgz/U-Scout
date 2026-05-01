@@ -56,27 +56,41 @@ Personnel → PlayerEditor → MyScout → FilmRoom → GamePlan
 
 ---
 
-## Estado sesión 1 mayo 2026 (p2) — ACTUALIZADO fin de sesión
+## Estado sesión 1 mayo 2026 (p4) — ACTUALIZADO fin de sesión
 
-### Último commit
-`fix: hasReport Primary/Secondary, Schedule scroll recentra en planner, kebab landscape simplificado`
+### Último commit pendiente de push
+`fix: optimistic updates en delete/submit/publish, DB limpiada de fichas publicadas sin scout versions`
 
-### Bugs resueltos esta sesión ✅
-- **hasReport MyScout**: lógica reemplazada — ya no usa `Object.keys(inp).length > 3`. Ahora evalúa `isoFrequency/pnrFrequency/postFrequency/transitionFrequency === "Primary" | "Secondary"`. Aplica en canonicalPlayers y sandboxPlayers.
-- **Schedule scroll List→Planner**: `useEffect` de `tryScroll` ahora depende de `[staffView]` y hace `return` si `staffView !== "planner"`. Recentra en hoy cada vez que el coach activa la vista planner.
-- **Schedule kebab landscape**: eliminados los 21 items "move to" (`days.flatMap(...)`) del `DropdownMenuContent` landscape. Menú ahora: edit / duplicate / template / cancel.
+### Completado esta sesión ✅
+- **Flow U Scout unificado**: MyScout → report → Film Room → Game Plan sin bypasses ni sistemas paralelos
+- **ReportViewV4**: eliminados botones Approve/Publish directos. Solo queda "→ Film Room" que llama a `POST /api/players/:id/scout-version/submit`
+- **GET /api/players/:id/scout-version/me**: nuevo endpoint que devuelve `{ submitted: boolean }` para el coach autenticado
+- **GET /api/players/:id/overrides**: nuevo endpoint que devuelve solo overrides del coach autenticado
+- **applyOverrides en ReportSlidesV1**: prop `overrides?: ReportOverride[]`, memo `finalReport`, overrides del coach aplicados en tiempo real en slides
+- **canAccessPersonnel**: limpio en `capabilities.ts` (solo head_coach/master), CoachHome usa `caps.canAccessPersonnel`
+- **Film Room publish**: cualquier coach puede publicar (sin restricción isHeadCoach)
+- **Unpublish restringido**: servidor exige head_coach/master en `POST /api/players/:id/unpublish`
+- **Unpublish → vuelve a Film Room**: recrea scout version submitted para el coach que retira
+- **Delete jugadora**: modal inteligente con aviso si tiene informe publicado, auto-unpublish antes de delete
+- **Delete equipo**: modal con 3 opciones (mover a Free Agents / borrar todo / cancelar), aviso si hay publicados
+- **GET /api/teams/:id/delete-info** y **GET /api/players/:id/delete-info**: preflights para los modales
+- **Optimistic updates**: delete jugadora, submit Film Room, publish Game Plan, delete equipo — respuesta visual instantánea
+- **Draft text**: "solo visible para ti" / "Only you can see this"
+- **DB limpiada**: fichas con `published=true` sin scout versions → unpublished via SQL Supabase
+- **serverOverridesToReportOverrides**: bug corregido (`"replace"` → `"approve_as_is"`)
 
 ### 🔴 RIESGOS ACTIVOS
-- **P1** Operaciones destructivas no transaccionales: publish/merge/clear en scout versions pueden dejar estado inconsistente en fallo parcial. Bajo impacto real en uso actual.
+- **P1** submit `→ Film Room` no verificado en Railway post-deploy — pendiente confirmar que `GET /api/players/:id/scout-version/me` y el fix auto-create de scout version están en producción
+- **P1** Operaciones destructivas no transaccionales: publish/merge/clear en scout versions pueden dejar estado inconsistente en fallo parcial
 
 ### 🟡 PENDIENTE PRÓXIMA SESIÓN (orden prioridad)
-1. **Override UI en ReportViewV4**: `report_overrides` en DB y endpoint `POST /api/players/:id/overrides` existen, pero sin UI para que el coach haga hide/keep de situaciones antes de aprobar. Flujo Film Room → Game Plan incompleto.
-2. **Limpieza capabilities.ts**: `readCoachBadges()`, `CoachBadges` type e `isPhysicalTrainer` son código muerto — `canManageWellness` no los usa. Eliminar sin efecto.
-3. **Touch targets ReportSlidesV1**: flechas de navegación usan `p-2` = 32px, mínimo mobile es 44px.
-4. **`useCapabilities` sin membership real**: se llama sin `membership` en varios contextos. `canManageClub` puede ser false incorrectamente para coaches con `operationsAccess`.
-5. **Audit visual**: tokens hardcoded (`bg-emerald-600` en FilmRoom). Temas Gamenight/Office/Oldschool sin verificar end-to-end.
-6. **Wellness standalone**: jugadora no tiene acceso directo al check-in sin ir a `/schedule`.
-7. **Notificación jugadora**: sin badge/push cuando llega informe nuevo.
+1. **Verificar flow completo en producción**: MyScout → View report → → Film Room → publicar → Game Plan → Retirar
+2. **Bundle size**: i18n lazy + code splitting React.lazy (objetivo <300KB gzip para TestFlight — actualmente 229KB ✅ pero revisar tras cambios)
+3. **Jugadora: ver report via ReportSlidesV1**: actualmente usa `Profile.tsx` (scroll largo). Conectar a `/player/report/:id` con ReportSlidesV1
+4. **Limpieza capabilities.ts**: `readCoachBadges()`, `CoachBadges` type e `isPhysicalTrainer` son código muerto
+5. **Touch targets ReportSlidesV1**: flechas usan `p-2` = 32px, mínimo mobile es 44px
+6. **Wellness standalone**: jugadora sin acceso directo al check-in
+7. **Notificación jugadora**: sin badge/push cuando llega informe nuevo
 
 ---
 
@@ -97,12 +111,12 @@ Personnel → PlayerEditor → MyScout → FilmRoom → GamePlan
 
 ## Flow U Scout (workflow correcto)
 ```
-head_coach/badge → Personnel → crear ficha CANÓNICA → aparece en Film Room
-cualquier coach  → MyScout  → crear ficha SANDBOX  → privada, solo visible a ese coach
-coach            → PlayerEditor → rellenar inputs → guardar scout version
-coach            → MyScout → "→ Film Room" → submit version
-Film Room        → ver versiones → detectar discrepancias → elegir versión final
-head_coach       → Game Plan → publicar a jugadoras
+head_coach/badge → Personnel → crear ficha CANÓNICA
+cualquier coach  → MyScout  → edita su versión → View report → overrides → "→ Film Room"
+Film Room        → compara versiones → detecta discrepancias → X/Y enviados
+cualquier coach  → Game Plan → publica a jugadoras
+head_coach/badge → Game Plan → puede RETIRAR ficha (vuelve a Film Room)
+jugadoras        → leen el report en su UX
 ```
 
 ## Schema Supabase (fuera de schema.ts)
