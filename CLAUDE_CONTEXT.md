@@ -18,7 +18,7 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/lib/motor-v2.1.ts` — motor base
 - `client/src/lib/reportTextRenderer.ts` — texto EN/ES/ZH con gender
 - `client/src/lib/mock-data.ts` — playerInputToMotorInputs, clubRowToMotorContext
-- `client/src/pages/scout/ReportSlidesV1.tsx` — 3 slides (rediseño Figma pendiente de aplicar)
+- `client/src/pages/scout/ReportSlidesV1.tsx` — 3 slides (rediseño Figma YA APLICADO)
 - `client/src/pages/scout/ReportViewV4.tsx` — shell coach_review
 - `client/src/pages/scout/PlayerEditor.tsx` — editor inputs jugador
 - `server/routes.ts` — rutas API Express
@@ -55,43 +55,38 @@ Personnel → PlayerEditor → MyScout → FilmRoom → GamePlan
 
 ---
 
-## Estado sesión 1 mayo 2026 — CIERRE
+## Estado sesión 1 mayo 2026 — ACTUALIZADO fin de sesión
 
 ### Último commit
-`fix: Mi Club crash, Schedule ends_at, RLS policies, flow U Scout sandbox/canonical, Personnel/MyScout visibility, auth resolveRole, planner timezone, matches Bearer token`
+`ee21d6e — fix: seguridad P0 user_roles+scope org, race condition invitaciones, auto-assign game plan, canonical players, Schedule timezone, Prep.Fisico locales, limpieza TestMode+codigo muerto`
 
 ### Bugs resueltos esta sesión ✅
-- Mi Club crash `Array.isArray` guard en `matchesQ` filters — el crash era `(matchesQ.data ?? []).filter` cuando `matchesQ.data` era un objeto truthy no-array. Fix: `(Array.isArray(matchesQ.data) ? matchesQ.data : []).filter`
-- Schedule `ends_at` calculado desde `durationMins` como fallback cuando no hay hora de fin
-- RLS Supabase: políticas `allow_all` en `schedule_events`, `schedule_participants`, `wellness_entries`
-- `matchesQ` queryFn y mutations usan `apiRequest` con Bearer (ya no `fetch` sin auth)
-- Partidos Mi Club: formulario separado `<input type="date">` + `<input type="time">`, hora por defecto 12:00
-- Planner Schedule: timezone fix con `toLocaleDateString("sv")` en todos los filtros de día
-- Planner Schedule: auto-scroll a hoy con retry loop (hasta 15 intentos × 100ms)
-- Planner Schedule: remarcado visual hoy con `border-2 border-primary`
-- Planner Schedule: `useCreateScheduleEvent.onSettled` invalida `["schedule","events"]` completo con `exact:false`
-- Flow U Scout sandbox privado: `MyScout` solo muestra fichas sandbox propias (excluye canónicas)
-- `Personnel`: head_coach no ve sandbox de otros coaches; filtro tanto en `playersByTeam` como en `unassigned`
-- `hasReport` usa `player.inputs` / `player.scoutingInputs` con `Object.keys(inp).length > 3`
-- `canManageRoster` solo `isHeadCoach` (quitado `operationsAccess` del perfil auth que siempre era false)
-- Botón "Make official" visible para head_coach en cualquier ficha sandbox (propias o ajenas)
-- `server/auth.ts`: `resolveRole()` con logging de roles privilegiados (`head_coach`/`master`)
-- `client/src/lib/club-api.ts`: `useClub` queryFn sanitiza respuesta — lanza error si no hay `club`, normaliza `members`/`pendingInvitations` a arrays
+- **P0-1 Seguridad**: `resolveRole()` consulta tabla `user_roles` en DB. `head_coach`/`master` solo desde DB, no desde `user_metadata`. SQL ejecutado en Supabase: tabla `user_roles` creada + 7 usuarios insertados (Pablo=head_coach, resto=coach).
+- **P0-2 Seguridad**: `getPlayers(teamId?, clubId?)` filtra por `created_by_user_id IN (miembros club)` — sin subquery circular. `getTeams(clubId?)` devuelve todos los teams sin filtro (teams son datos de referencia, no sensibles).
+- **P0-3 Seguridad**: `/api/film-room` usa `getPlayers(undefined, club.id)` — scope de club aplicado.
+- **P0-4 Seguridad**: Race condition invitaciones resuelto. `markInvitationUsedIfUnused` + `markClubInvitationUsedIfUnused` — UPDATE atómico `WHERE used_by IS NULL`. Ambos handlers usan patrón `claimed = await...; if (!claimed) return 409`.
+- **Auto-asignación al publicar**: `POST /api/players/:id/game-plan` crea `ScoutingReportAssignment` para todas las jugadoras activas del club via `createScoutingReportAssignmentIfNotExists` (ON CONFLICT DO NOTHING).
+- **Jugadoras canónicas invisibles**: subquery circular en `getPlayers` corregida con query directa.
+- **Free Agents invisible**: `getTeams` ya no filtra por jugadoras existentes — equipos vacíos visibles.
+- **Personnel**: `useEffect` auto-crea Free Agents al montar si `teams.length === 0` e `isHeadCoach`. Free Agents siempre al final en render.
+- **Schedule landscape timezone**: `dayKey` y `todayKey` usan `toLocaleDateString("sv")` — corregido bug de "No sessions" falso positivo y marco "hoy" incorrecto.
+- **Schedule landscape hoy visual**: columna completa destacada — header `border-2 border-primary bg-primary/5` + celdas slot `bg-primary/5`.
+- **Home.tsx prefetch**: usa `apiRequest("GET", "/api/club")` con Bearer en lugar de `fetch()` directo.
+- **Limpieza**: `TestMode.tsx` eliminado (604 líneas huérfanas). `ThreatLevel`, `SituationCard`, `DefenseCard`, `DEFENSE_ICON`, `DEFENSE_CLASSES_MAP` eliminados de `ReportSlidesV1.tsx` (~180 líneas muertas).
+- **Prep. Físico locales**: badge `PREP` renombrado a "Prep. Físico" / "Phys. Trainer" / "体能教练" en los 3 locales. `operationsAccess` = preparador físico — misma cosa. `canManageWellness` ya usaba `hasOperationsAccess` correctamente.
+- **ReportSlidesV1 rediseño Figma**: YA APLICADO en commit anterior. `When:/How:/Why:`, número `01/02/03`, `ALSO WATCH`, barra frecuencia — todo implementado.
 
-### 🔴 RIESGOS ACTIVOS (seguridad — sesión dedicada pendiente)
-- **P0** Privilege escalation: `user_metadata.role` confiado en servidor → cualquier usuario puede autopromocionar a `head_coach`/`master`. `resolveRole()` solo loguea, no bloquea. Fix real: tabla `user_roles` en Supabase server-controlled.
-- **P0** Endpoints sin scope de org: `/api/teams` devuelve todos los equipos a cualquier usuario autenticado. `/api/players` sin filtro por club.
-- **P0** `is_canonical` vs `isCanonical` mismatch: servidor devuelve `is_canonical` (snake_case), código cliente a veces lee `isCanonical` (camelCase). Film Room puede mostrar/ocultar jugadoras incorrectamente.
-- **P1** Race condition invitaciones: doble accept concurrent puede pasar ambos "unused" checks antes de marcar usada.
-- **P1** Operaciones destructivas no transaccionales: publish/merge/clear pueden dejar estado inconsistente en fallo parcial.
+### 🔴 RIESGOS ACTIVOS
+- **P1** Operaciones destructivas no transaccionales: publish/merge/clear en scout versions pueden dejar estado inconsistente en fallo parcial. Bajo impacto real en uso actual.
 
-### 🟡 PENDIENTE PRÓXIMA SESIÓN (prioridad orden)
-1. **ReportSlidesV1 rediseño Figma**: prompt completo generado en sesión 1may. Estructura Figma leída via `get_metadata` (nodos 1:2 Slide1, 1:43 Slide2, 1:101 Slide3). Cambios: Slide 1 con Threat Card barra lateral izquierda + TOP SITUATIONS lista con barras; Slide 2 con número `01/02/03` grande + badge tier PRIMARY/SECONDARY + barra frecuencia; Slide 3 con `When:/How:/Why:` en DENY/FORCE + "N alternatives ›" link + ALSO WATCH separador. Campos `when/how/why` pueden no existir en tipo actual → usar `(report.defense.deny as any).when`.
-2. **Seguridad P0**: tabla `user_roles` server-controlled, scope org en endpoints `/api/teams` y `/api/players`.
-3. **Audit visual completo**: tokens semánticos en todas las pantallas (sin `bg-white`, `bg-slate-*`, hex hardcoded). Temas Gamenight/Office/Oldschool funcionando.
-4. **Figma MCP**: `get_metadata` funciona (probado sesión 1may). `get_design_context` falla por límite plan Starter. NO intentar Figma MCP salvo que Pablo lo pida explícitamente.
-5. **TestMode.tsx**: archivo sin ruta activa — eliminar en limpieza.
-6. **Audit general**: flows end-to-end, responsive 375px, touch targets 44px.
+### 🟡 PENDIENTE PRÓXIMA SESIÓN (orden prioridad)
+1. **Override UI en ReportViewV4**: `report_overrides` en DB y endpoint `POST /api/players/:id/overrides` existen, pero sin UI para que el coach haga hide/keep de situaciones antes de aprobar. Flujo Film Room → Game Plan incompleto.
+2. **Limpieza capabilities.ts**: `readCoachBadges()`, `CoachBadges` type e `isPhysicalTrainer` son código muerto — `canManageWellness` no los usa. Eliminar sin efecto.
+3. **Touch targets ReportSlidesV1**: flechas de navegación usan `p-2` = 32px, mínimo mobile es 44px.
+4. **`useCapabilities` sin membership real**: se llama sin `membership` en varios contextos. `canManageClub` puede ser false incorrectamente para coaches con `operationsAccess`.
+5. **Audit visual**: tokens hardcoded (`bg-emerald-600` en FilmRoom). Temas Gamenight/Office/Oldschool sin verificar end-to-end.
+6. **Wellness standalone**: jugadora no tiene acceso directo al check-in sin ir a `/schedule`.
+7. **Notificación jugadora**: sin badge/push cuando llega informe nuevo.
 
 ---
 
@@ -125,6 +120,7 @@ head_coach       → Game Plan → publicar a jugadoras
 - `player_scout_versions` (player_id, coach_id, inputs JSONB, status, submitted_at)
 - `league_matches` (club_id, rival_name, match_date, location, match_type)
 - `schedule_events`, `schedule_participants`, `wellness_entries` — RLS con `allow_all` aplicado
+- `user_roles` (user_id UUID PK, role TEXT, granted_by UUID, granted_at TIMESTAMPTZ) — server-controlled, RLS deny_all para clientes
 - CASCADE: players→teams, report_*→players, player_scout_versions→players
 
 ## Nombres EN/ES/ZH
@@ -153,7 +149,13 @@ Shell: `core/ModulePage.tsx` + `core/ModuleNav.tsx`
 
 ### Club INNER MONGOLIA
 - Club ID: `4bca3aa8-9062-4709-9d29-9e2313308f1a`
-- Miembros: Pablo (owner) + Luffy + Yuming + Javier + Mario (coach)
+- Pablo (b334e51a) = owner + head_coach
+- Javier (6c5b76ab) = coach
+- Samuel/Luffy (3db8ec31) = coach
+- Yuming (0d27576d) = coach
+- rodman91jym (1d72e00d) = coach
+- keitotm (3039a355) = coach
+- Mario (ccf99303) = coach
 
 ### Raspberry Pi
 - Comprada (Pi 5 8GB) — en tránsito
