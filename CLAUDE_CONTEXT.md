@@ -22,6 +22,8 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/pages/scout/ReportViewV4.tsx` — shell coach_review
 - `client/src/pages/scout/PlayerEditor.tsx` — editor inputs jugador
 - `client/src/pages/core/Schedule.tsx` — god file 228KB (U Schedule)
+- `client/src/pages/core/Stats.tsx` — U Stats módulo completo (tabs Season/Games)
+- `client/src/lib/stats-api.ts` — tipos PlayerSeasonStats + GameLog, hooks usePlayerSeasonStats + useGameLog
 - `server/routes.ts` — rutas API Express
 - `server/storage.ts` — acceso Supabase
 - `scripts/calibrate-motor.ts` — 66 perfiles (100% / 551 checks)
@@ -56,45 +58,43 @@ Personnel → PlayerEditor → MyScout → FilmRoom → GamePlan
 
 ---
 
-## Estado sesión 1 mayo 2026 (p5 — FINAL) — ACTUALIZADO fin de sesión
+## Estado sesión 1 mayo 2026 (p6 — FINAL)
 
 ### Último commit
-`polish: Home usa Target para U Scout en staff y player view, coherente con ModuleNav`
+`feat: U Stats module + P0 fixes (Dashboard nav, viewStatus threshold, mergeAndClear transaction, ClipboardList import)`
 
-### Completado esta sesión ✅ (resumen completo)
-- **Flow U Scout unificado**: MyScout → report → overrides → Film Room → Game Plan (sin bypasses)
-- **ReportViewV4**: solo botón "→ Film Room", sin Approve/Publish directo
-- **MyScout**: equipos colapsables, fichas publicadas ocultas (ya están en Game Plan)
-- **Game Plan**: "Reiniciar ficha" (antes "Retire") borra scout versions, vuelve a MyScout limpio
-- **Contador pendientes CoachHome**: excluye fichas publicadas
-- **Player view**: PlayerTeamList + Dashboard rediseñados — equipos colapsables, grid 2 col, cards 3:4, badges Nuevo/A medias/Visto
-- **GET /api/player/teams** + **GET /api/player/team/:teamId**: endpoints nuevos para jugadoras
-- **Delete modales**: avisos inteligentes con info publicación para jugadora y equipo
-- **Optimistic updates**: delete, submit, publish, retire — respuesta instantánea
-- **Iconos coherentes**: `Target` para U Scout en Home + ModuleNav (antes `ClipboardList` confundía con Schedule)
-- **Schedule grid**: kebabs eliminados, tap directo abre editor en portrait y landscape
-- **GET /api/players/:id/scout-version/me**: endpoint nuevo
-- **applyOverrides en ReportSlidesV1**: overrides del coach en tiempo real
-- **canAccessPersonnel**: limpio en capabilities.ts
-- **DB limpiada**: fichas published sin scout versions → SQL Supabase
+### Completado esta sesión ✅
+- **Audit completo**: UX, DB, TestFlight — 3 P0 / 7 P1 / 4 P2 identificados y documentados
+- **P0 fix**: Dashboard.tsx tap jugadora → `/player/report/:id` → ReportSlidesV1 (antes iba a Profile.tsx)
+- **P0 fix**: viewStatus threshold — `complete` ahora = slide 2 vista (antes requería las 5 slides 0-4)
+- **P0 fix**: ClipboardList importado en Home.tsx (error de runtime en player mode)
+- **P1 fix**: mergeAndClearScoutVersions envuelto en `db.transaction` — eliminado el UPDATE no-op de report_approvals
+- **Bug crítico eliminado**: Cursor duplicó `/api/player/teams` y `/api/player/team/:teamId` al final de routes.ts con implementaciones simplificadas (viewStatus hardcodeado "none", ignorando scouting_report_assignments). Duplicados eliminados — las implementaciones correctas con storage.listPlayerTeamsReportSummary y storage.listAssignedPlayersInTeamForUser quedan activas.
+- **U Stats módulo completo**:
+  - `Stats.tsx` — tabs Season (tabla ordenable + filas expandibles) / Games (dropdown jugadora + game log)
+  - Empty state "Esperando datos del scraper" (es/en/zh)
+  - Loading + error + retry states
+  - `stats-api.ts` — tipos + hooks usePlayerSeasonStats + useGameLog
+  - `GET /api/stats/players` — season averages club-scoped, numerics normalizados
+  - `GET /api/stats/games` — game log por playerName + season opcional
+  - Tabla `player_stats` creada en Supabase (raw SQL, no en schema.ts)
 
 ### 🔴 RIESGOS ACTIVOS
-- **P1** Operaciones destructivas no transaccionales (publish/merge/clear)
-- **P1** viewStatus jugadora hardcoded a "none" — badges Nuevo/Visto no son reales aún
+- **P1** Touch targets flechas ReportSlidesV1: `p-2` (~36px) — Apple exige 44px mínimo
+- **P1** hasReportInputs en MyScout: heurística frágil (solo chequea 4 frecuencias, falla con off-ball/catch&shoot)
 
 ### 🟡 PENDIENTE PRÓXIMA SESIÓN (orden prioridad)
-1. **Verificar flow end-to-end en producción** post-deploy
-2. **Jugadora: conectar tap → ReportSlidesV1** (actualmente va a Profile.tsx scroll largo)
-3. **viewStatus real**: conectar con `player_slide_views` para badges Visto/Parcial/Nuevo
-4. **TestFlight prep**: ver prompt adjunto en sección de abajo
-5. **Limpieza capabilities.ts**: código muerto (`readCoachBadges`, `CoachBadges`, `isPhysicalTrainer`)
-6. **Touch targets ReportSlidesV1**: flechas 32px → 44px mínimo
+1. **Verificar flow en producción** con cuenta coach + jugadora (tap ficha → ReportSlidesV1, badges viewStatus)
+2. **Touch targets**: flechas ReportSlidesV1 `p-2` → `p-3` (1 línea por flecha)
+3. **TestFlight prep**: contratar Apple Developer ($99) + instalar Xcode → ejecutar prompt Cursor de sección TestFlight
+4. **U Stats — entrada manual**: UI para insertar estadísticas mientras Pi/scraper no esté activo
+5. **Raspberry Pi scraper**: cuando llegue Pi 5, conectar scraper WCBA → player_stats vía API key interna
+6. **hasReportInputs**: ampliar check a catchAndShoot + offBall
 7. **Wellness standalone jugadora**: acceso directo sin pasar por /schedule
-8. **Notificación jugadora**: badge/push cuando llega informe nuevo
 
 ---
 
-## U Scout — rutas activas (1 mayo 2026)
+## U Scout — rutas activas
 - `/coach` → CoachHome (4 contenedores + alertas smart)
 - `/coach/personnel` → Personnel (fichas canónicas + sandbox + equipos)
 - `/coach/my-scout` → MyScout (solo fichas sandbox propias del coach)
@@ -106,6 +106,7 @@ Personnel → PlayerEditor → MyScout → FilmRoom → GamePlan
 - `/coach/scout/:id/preview` → ReportSlidesV1
 - `/coach/club` → ClubManagement (4 tabs: Club/Liga/Equipo/Stats)
 - `/settings` → Settings (3 temas: Gamenight/Office/Oldschool)
+- `/stats` → Stats (U Stats — tabs Season/Games)
 
 **Rutas eliminadas:** `/coach/editor`, `/coach/reports`, `/coach/team/:id`, `/coach/test`
 
@@ -116,13 +117,14 @@ cualquier coach  → MyScout  → edita su versión → View report → override
 Film Room        → compara versiones → detecta discrepancias → X/Y enviados
 cualquier coach  → Game Plan → publica a jugadoras
 head_coach/badge → Game Plan → puede RETIRAR ficha (vuelve a Film Room)
-jugadoras        → leen el report en su UX
+jugadoras        → /player/team/:teamId → tap card → /player/report/:id → ReportSlidesV1
 ```
 
 ## Schema Supabase (fuera de schema.ts)
 - `players.is_canonical` boolean DEFAULT false
 - `player_scout_versions` (player_id, coach_id, inputs JSONB, status, submitted_at)
 - `league_matches` (club_id, rival_name, match_date, location, match_type)
+- `player_stats` (club_id, player_name, team_name, season, game_date, rival_name, minutes, points, rebounds_*, assists, steals, blocks, turnovers, fouls_personal, fg_made/attempted, fg3_made/attempted, ft_made/attempted, plus_minus, source) — índices en club_id + season
 - `schedule_events`, `schedule_participants`, `wellness_entries` — RLS con `allow_all` aplicado
 - `user_roles` (user_id UUID PK, role TEXT, granted_by UUID, granted_at TIMESTAMPTZ) — server-controlled, RLS deny_all para clientes
 - CASCADE: players→teams, report_*→players, player_scout_versions→players
@@ -134,6 +136,7 @@ jugadoras        → leen el report en su UX
 | Mi trabajo | My Scout | Mi Scout | 我的报告 |
 | Trabajo grupo | Film Room | Sala de análisis | 集体分析 |
 | Publicado | Game Plan | Plan de juego | 比赛方案 |
+| Estadísticas | Stats | Stats | 统计 |
 
 ---
 
@@ -141,7 +144,7 @@ jugadoras        → leen el report en su UX
 - **U Schedule** — `client/src/pages/core/Schedule.tsx` (god file, Schedule.tsx en pages/core/ no en src/core/)
 - **U Wellness** — check-in jugadoras (embebido en Schedule)
 - **U Scout** — scouting defensivo 1-on-1 (módulo más avanzado)
-- **U Stats** — DB lista, collector pendiente Pi
+- **U Stats** — `client/src/pages/core/Stats.tsx` — UI completa, esperando scraper Pi para datos reales
 Shell: `client/src/pages/core/ModulePage.tsx` + `client/src/pages/core/ModuleNav.tsx`
 
 ### Bundle
@@ -164,6 +167,7 @@ Shell: `client/src/pages/core/ModulePage.tsx` + `client/src/pages/core/ModuleNav
 ### Raspberry Pi
 - Comprada (Pi 5 8GB) — en tránsito
 - Uso: WCBA scraper + Telegram bot + Tailscale SSH
+- Destino datos: tabla `player_stats` vía API key interna (endpoint pendiente de crear)
 
 ---
 
@@ -179,6 +183,7 @@ Shell: `client/src/pages/core/ModulePage.tsx` + `client/src/pages/core/ModuleNav
 - Siempre: archivo completo, O comando terminal, O prompt Cursor completo
 - `npm run check` después de cada cambio
 - Migrations destructivas: raw SQL Supabase, nunca `drizzle-kit push`
+- **Verificar siempre** que Cursor no duplica handlers en routes.ts al añadir endpoints nuevos
 
 ## Scripts
 ```bash
@@ -202,6 +207,7 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts --jud
 - bash_tool corre en Linux y NO puede acceder al filesystem del Mac — usar siempre Filesystem MCP para leer/escribir archivos del repo
 - Filesystem MCP es de solo lectura para Claude en esta configuración (write disponible vía Filesystem:write_file)
 - Figma MCP: `get_metadata` funciona en plan Starter; `get_design_context` falla por límite de llamadas — no usar salvo petición explícita
+- **Cursor duplica handlers**: al pedir añadir endpoints a routes.ts, Cursor tiende a duplicar los handlers existentes de /api/player/* con versiones simplificadas. Verificar siempre el final del archivo post-edición.
 
 ---
 
@@ -240,7 +246,7 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts --jud
 - [ ] TestFlight: añadir testers internos (hasta 100 sin review)
 
 **UX mínima para TestFlight:**
-- [ ] Touch targets ≥44px en toda la app (actualmente ReportSlidesV1 flechas = 32px)
+- [ ] Touch targets ≥44px en toda la app (ReportSlidesV1 flechas: `p-2` → `p-3`)
 - [ ] No hay modals/dialogs que rompan en iOS (verificar z-index y scroll)
 - [ ] Teclado no oculta inputs en formularios (usar `@capacitor/keyboard`)
 - [ ] Pull-to-refresh nativo o desactivado explicitamente
