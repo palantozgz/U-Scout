@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, enqueueOfflinePlayerMutation } from "./queryClient";
+import { useAuth } from "@/lib/useAuth";
 import {
   motor,
   motorOutputToPlanString,
@@ -2192,15 +2193,19 @@ export function generateProfile(
 // On success: invalidate queries and let React Query refetch.
 
 export function useTeams() {
+  const { user } = useAuth();
+  const userId = user?.id;
   return useQuery<Team[]>({
-    queryKey: ["/api/teams"],
+    queryKey: ["/api/teams", userId ?? "anon"],
     queryFn:  async () => (await apiRequest("GET", "/api/teams")).json(),
   });
 }
 
 export function usePlayers(teamId?: string) {
+  const { user } = useAuth();
+  const userId = user?.id;
   return useQuery<PlayerProfile[]>({
-    queryKey: ["/api/players", teamId],
+    queryKey: ["/api/players", userId ?? "anon", teamId],
     queryFn:  async () =>
       (await apiRequest("GET", teamId ? `/api/players?teamId=${teamId}` : "/api/players")).json(),
   });

@@ -6,6 +6,7 @@ import type {
   ClubLevel,
 } from "@shared/club-context";
 import { apiRequest } from "./queryClient";
+import { useAuth } from "@/lib/useAuth";
 
 export const clubQueryKey = ["/api/club"] as const;
 /** v3 — bump second segment when stats JSON shape changes (avoids stale persisted cache without auth fields). */
@@ -58,8 +59,10 @@ export interface ClubPayload {
 }
 
 export function useClub(options?: { enabled?: boolean }) {
+  const { user } = useAuth();
+  const userId = user?.id;
   return useQuery({
-    queryKey: clubQueryKey,
+    queryKey: [...clubQueryKey, userId ?? "anon"],
     queryFn: async (): Promise<ClubPayload> => {
       const raw = await (await apiRequest("GET", "/api/club")).json();
       if (!raw?.club) throw new Error(raw?.error ?? "club_load_failed");

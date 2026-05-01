@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react";
 import { generateMotorV4 } from "@/lib/motor-v4";
+import { SITUATION_ICONS, DEFENSE_ICONS, AWARE_ICONS } from "@/lib/motor-icons";
 import {
   renderReport,
   renderSituationDescription,
@@ -499,6 +500,7 @@ export default function ReportSlidesV1({
                         <div className="flex-1 min-w-0">
                           {/* Title + badge */}
                           <div className="flex items-center gap-2 mb-2">
+                            {(() => { const Icon = SITUATION_ICONS[sit.id]; return Icon ? <Icon className="w-4 h-4 shrink-0 text-muted-foreground/60" /> : null; })()}
                             <p className="text-[15px] font-black text-foreground flex-1 truncate">{sit.label}</p>
                             {coachMode && (
                               <button
@@ -549,9 +551,12 @@ export default function ReportSlidesV1({
                 {finalReport.defense.deny && (
                   <div className={cn("rounded-2xl border border-border/30 overflow-hidden", DENY_CLASSES.bg)}>
                     <div className="border-l-[4px] border-red-500 px-4 pt-4 pb-3">
-                      <p className={cn("text-[10px] font-black uppercase tracking-[0.25em] mb-1.5", DENY_CLASSES.text)}>
-                        {finalReport.defense.deny.label}
-                      </p>
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        {(() => { const Icon = DEFENSE_ICONS["deny"]; return Icon ? <Icon className="w-3.5 h-3.5 text-red-500" /> : null; })()}
+                        <p className={cn("text-[10px] font-black uppercase tracking-[0.25em]", DENY_CLASSES.text)}>
+                          {finalReport.defense.deny.label}
+                        </p>
+                      </div>
                       <p className="text-[18px] font-black text-foreground leading-tight mb-3">
                         {finalReport.defense.deny.instruction}
                       </p>
@@ -591,9 +596,12 @@ export default function ReportSlidesV1({
                 {finalReport.defense.force && (
                   <div className={cn("rounded-2xl border border-border/30 overflow-hidden", FORCE_CLASSES.bg)}>
                     <div className="border-l-[4px] border-amber-500 px-4 pt-4 pb-3">
-                      <p className={cn("text-[10px] font-black uppercase tracking-[0.25em] mb-1.5", FORCE_CLASSES.text)}>
-                        {finalReport.defense.force.label}
-                      </p>
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        {(() => { const Icon = DEFENSE_ICONS["force"]; return Icon ? <Icon className="w-3.5 h-3.5 text-amber-500" /> : null; })()}
+                        <p className={cn("text-[10px] font-black uppercase tracking-[0.25em]", FORCE_CLASSES.text)}>
+                          {finalReport.defense.force.label}
+                        </p>
+                      </div>
                       <p className="text-[18px] font-black text-foreground leading-tight mb-3">
                         {finalReport.defense.force.instruction}
                       </p>
@@ -627,9 +635,12 @@ export default function ReportSlidesV1({
                 {motorOutput.defense.allow.winner.key !== "none" && (
                   <div className={cn("rounded-2xl border border-border/30 overflow-hidden", ALLOW_CLASSES.bg)}>
                     <div className="border-l-[4px] border-emerald-500 px-4 pt-4 pb-3">
-                      <p className={cn("text-[10px] font-black uppercase tracking-[0.25em] mb-1.5", ALLOW_CLASSES.text)}>
-                        {finalReport.defense.allow.label}
-                      </p>
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        {(() => { const Icon = DEFENSE_ICONS["allow"]; return Icon ? <Icon className="w-3.5 h-3.5 text-emerald-500" /> : null; })()}
+                        <p className={cn("text-[10px] font-black uppercase tracking-[0.25em]", ALLOW_CLASSES.text)}>
+                          {finalReport.defense.allow.label}
+                        </p>
+                      </div>
                       <p className="text-[18px] font-black text-foreground leading-tight mb-2">
                         {finalReport.defense.allow.instruction}
                       </p>
@@ -650,9 +661,12 @@ export default function ReportSlidesV1({
                         key={idx}
                         className={cn("rounded-xl border border-border/40 border-l-[3px] px-4 py-3", AWARE_CLASSES.border, AWARE_CLASSES.bg)}
                       >
-                        <p className={cn("text-[12px] font-black mb-1", AWARE_CLASSES.text)}>
-                          {alert.text.split(" — ")[0] ?? alert.text}
-                        </p>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          {(() => { const Icon = AWARE_ICONS[(alert as any).key]; return Icon ? <Icon className="w-3.5 h-3.5 shrink-0 text-amber-500" /> : null; })()}
+                          <p className={cn("text-[12px] font-black", AWARE_CLASSES.text)}>
+                            {alert.text.split(" — ")[0] ?? alert.text}
+                          </p>
+                        </div>
                         <p className="text-[11px] text-muted-foreground/70 leading-snug">
                           {alert.triggerCue ?? alert.text.split(" — ")[1] ?? ""}
                         </p>
