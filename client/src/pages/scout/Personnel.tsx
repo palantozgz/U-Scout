@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, Plus, Star, FlaskConical, ChevronRight, Trash2, X } from "lucide-react";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
+import { useClub } from "@/lib/club-api";
+import { useCapabilities } from "@/lib/capabilities";
 import { useTeams, usePlayers, useCreatePlayer, useDeletePlayer, useCreateTeam, useDeleteTeam, createDefaultPlayer, type PlayerProfile, type Team } from "@/lib/mock-data";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
@@ -22,13 +24,29 @@ export default function Personnel() {
   const [, setLocation] = useLocation();
   const { locale } = useLocale();
   const { profile } = useAuth();
+  const clubQ = useClub();
+  const myMembership = useMemo(() => {
+    const members = clubQ.data?.members ?? [];
+    const mine = members.find((m) => m.userId === profile?.id);
+    if (!mine) return null;
+    return {
+      clubId: mine.clubId,
+      userId: mine.userId,
+      role: mine.role as "head_coach" | "coach" | "player",
+      status: mine.status as "active" | "pending" | "banned",
+      operationsAccess: Boolean((mine as any).operationsAccess),
+    };
+  }, [clubQ.data?.members, profile?.id]);
+
+  const caps = useCapabilities({ membership: myMembership });
+  const canCreateCanonical = caps.canCreateCanonical;
   const qc = useQueryClient();
 
   const isHeadCoach = profile?.role === "head_coach" || profile?.role === "master";
 
   // operationsAccess viene de la membresía del club, no del perfil auth.
   // Solo head_coach y master pueden gestionar el roster desde el perfil.
-  const canManageRoster = isHeadCoach;
+  const canManageRoster = caps.canAccessPersonnel;
 
   const { data: teams = [], isLoading: teamsLoading } = useTeams();
 
@@ -378,45 +396,38 @@ export default function Personnel() {
             >
               {L.newTeam}
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs font-bold h-9 rounded-lg"
-              onClick={() => {
-                setShowNewPlayer(true);
-                setNewPlayerTeamId(freeAgentsTeam?.id ?? defaultTeamId);
-                setExpandedTeamId((freeAgentsTeam?.id ?? defaultTeamId) || null);
-              }}
-            >
-              {L.addCanonical}
-            </Button>
+            {canCreateCanonical && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs font-bold h-9 rounded-lg"
+                onClick={() => {
+                  setShowNewPlayer(true);
+                  setNewPlayerTeamId(freeAgentsTeam?.id ?? defaultTeamId);
+                  setExpandedTeamId((freeAgentsTeam?.id ?? defaultTeamId) || null);
+                }}
+              >
+                {L.addCanonical}
+              </Button>
+            )}
           </div>
         )}
       </header>
 
       <main className="flex-1 px-4 py-4 landscape:py-2 space-y-4 max-w-md mx-auto w-full">
 
-        {/* Sandbox banner for non-head-coaches */}
-        {!isHeadCoach && (
+        {!canCreateCanonical && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 space-y-1">
             <p className="text-[11px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
-              {L.sandboxTitle}
+              {locale === "es" ? "Modo de consulta" : locale === "zh" ? "查看模式" : "View mode"}
             </p>
             <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 leading-snug">
-              {L.sandboxSub}
+              {locale === "es"
+                ? "Puedes ver y editar fichas canónicas. Solo el head coach puede crear nuevas fichas oficiales."
+                : locale === "zh"
+                ? "您可以查看和编辑标准档案。只有主教练可以创建新的官方档案。"
+                : "You can view and edit canonical profiles. Only the head coach can create new official profiles."}
             </p>
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-2 text-xs font-bold h-8 rounded-lg border-amber-500/40 text-amber-700 dark:text-amber-400"
-              onClick={() => {
-                setShowNewPlayer(true);
-                setNewPlayerTeamId(freeAgentsTeam?.id ?? defaultTeamId);
-                setExpandedTeamId((freeAgentsTeam?.id ?? defaultTeamId) || null);
-              }}
-            >
-              <FlaskConical className="w-3 h-3 mr-1" /> {L.addSandbox}
-            </Button>
           </div>
         )}
 

@@ -112,10 +112,9 @@ export default function CoachHome() {
   const { locale } = useLocale();
   const [, setLocation] = useLocation();
   const { profile } = useAuth();
-  const caps = useCapabilities();
 
   const isHeadCoach = profile?.role === "head_coach" || profile?.role === "master";
-  const canAccessPersonnel = caps.canAccessPersonnel;
+  // canAccessPersonnel computed below with membership-aware capabilities
 
   // ── Localised strings ──────────────────────────────────────────────────────
   const L = {
@@ -190,6 +189,21 @@ export default function CoachHome() {
 
   // ── Data for smart alerts ──────────────────────────────────────────────────
   const clubQ = useClub();
+  const myMembership = useMemo(() => {
+    const members = clubQ.data?.members ?? [];
+    const mine = members.find((m) => m.userId === profile?.id);
+    if (!mine) return null;
+    return {
+      clubId: mine.clubId,
+      userId: mine.userId,
+      role: mine.role as "head_coach" | "coach" | "player",
+      status: mine.status as "active" | "pending" | "banned",
+      operationsAccess: Boolean((mine as any).operationsAccess),
+    };
+  }, [clubQ.data?.members, profile?.id]);
+
+  const capsWithMembership = useCapabilities({ membership: myMembership });
+  const canAccessPersonnel = capsWithMembership.canAccessPersonnel;
   const clubId = clubQ.data?.club?.id;
   const { data: allPlayers = [] } = usePlayers();
   const { data: weekEvents = [] } = useThisWeekScheduleEvents({ clubId });

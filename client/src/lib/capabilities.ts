@@ -27,6 +27,8 @@ export type Capabilities = {
   canAccessReports: boolean;
   /** Only head_coach and master can access Personnel to create/manage canonical profiles. */
   canAccessPersonnel: boolean;
+  /** Only head_coach and master can promote/create canonical profiles. */
+  canCreateCanonical: boolean;
   canUsePlayerUX: boolean;
   /** Staff capability: can view/manage wellness operations. */
   canManageWellness: boolean;
@@ -92,7 +94,12 @@ export function computeCapabilities(input: {
   // Reports are coach/staff oriented in legacy U Scout; keep conservative.
   const canAccessReports = canViewCoachUI;
 
-  const canAccessPersonnel = realRole === "master" || realRole === "head_coach";
+  const canAccessPersonnel =
+    realRole === "master" ||
+    realRole === "head_coach" ||
+    (realRole === "coach" && Boolean(m?.operationsAccess) && m?.status === "active");
+
+  const canCreateCanonical = realRole === "master" || realRole === "head_coach";
 
   const canManageWellness = staffRole === "head_coach" || isPhysicalTrainer || hasOperationsAccess;
 
@@ -107,6 +114,7 @@ export function computeCapabilities(input: {
     canCreateEvent,
     canAccessReports,
     canAccessPersonnel,
+    canCreateCanonical,
     canUsePlayerUX,
     canManageWellness,
   };
