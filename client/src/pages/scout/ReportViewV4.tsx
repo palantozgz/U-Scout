@@ -6,7 +6,9 @@ import {
   invalidatePlayerApprovalQueries,
 } from "@/lib/approval-api";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/useAuth";
 import { Button } from "@/components/ui/button";
+import { OverridePanel } from "@/components/scout/OverridePanel";
 import ReportSlidesV1 from "@/pages/scout/ReportSlidesV1";
 import { usePlayer } from "@/lib/mock-data";
 
@@ -43,6 +45,7 @@ export default function ReportViewV4({
   onBack,
 }: ReportViewV4Props) {
   const { t, locale } = useLocale();
+  const { profile, user } = useAuth();
   const queryClient = useQueryClient();
   const { data: player, isLoading: playerLoading } = usePlayer(playerId);
   const [isApproving, setIsApproving] = useState(false);
@@ -165,6 +168,15 @@ export default function ReportViewV4({
           </div>
         );
       })()}
+
+      {stage !== 3 && (
+        <OverridePanel
+          playerId={playerId}
+          coachId={profile?.id ?? user?.id ?? ""}
+          locale={locale as "en" | "es" | "zh"}
+          onOverrideChange={() => void invalidatePlayerApprovalQueries(queryClient, playerId)}
+        />
+      )}
 
       {/* Action buttons */}
       <div className="flex items-center justify-end gap-2">
