@@ -62,6 +62,10 @@ Personnel → PlayerEditor → MyScout → FilmRoom → GamePlan
 `fix: optimistic updates en delete/submit/publish, DB limpiada de fichas publicadas sin scout versions`
 
 ### Completado esta sesión ✅
+- **Player view**: PlayerTeamList rediseñado — equipos colapsables, primer equipo expandido por defecto, badge con pendientes
+- **Player view**: Dashboard/PlayerTeamView rediseñado — grid 2 columnas, cards 3:4, badges Nuevo/A medias/Visto ✓ en cada report
+- **GET /api/player/teams** y **GET /api/player/team/:teamId**: nuevos endpoints que devuelven players publicados agrupados por equipo rival
+- **viewStatus tracking**: simplificado (none por defecto), listo para conectar con view_log en próxima sesión
 - **Flow U Scout unificado**: MyScout → report → Film Room → Game Plan sin bypasses ni sistemas paralelos
 - **ReportViewV4**: eliminados botones Approve/Publish directos. Solo queda "→ Film Room" que llama a `POST /api/players/:id/scout-version/submit`
 - **GET /api/players/:id/scout-version/me**: nuevo endpoint que devuelve `{ submitted: boolean }` para el coach autenticado
@@ -80,13 +84,13 @@ Personnel → PlayerEditor → MyScout → FilmRoom → GamePlan
 - **serverOverridesToReportOverrides**: bug corregido (`"replace"` → `"approve_as_is"`)
 
 ### 🔴 RIESGOS ACTIVOS
-- **P1** submit `→ Film Room` no verificado en Railway post-deploy — pendiente confirmar que `GET /api/players/:id/scout-version/me` y el fix auto-create de scout version están en producción
+- **P1** submit `→ Film Room` — pendiente confirmar en Railway tras push de hoy
 - **P1** Operaciones destructivas no transaccionales: publish/merge/clear en scout versions pueden dejar estado inconsistente en fallo parcial
 
 ### 🟡 PENDIENTE PRÓXIMA SESIÓN (orden prioridad)
 1. **Verificar flow completo en producción**: MyScout → View report → → Film Room → publicar → Game Plan → Retirar
 2. **Bundle size**: i18n lazy + code splitting React.lazy (objetivo <300KB gzip para TestFlight — actualmente 229KB ✅ pero revisar tras cambios)
-3. **Jugadora: ver report via ReportSlidesV1**: actualmente usa `Profile.tsx` (scroll largo). Conectar a `/player/report/:id` con ReportSlidesV1
+3. **Jugadora: ver report via ReportSlidesV1**: actualmente usa `Profile.tsx` (scroll largo). Conectar a `/player/report/:id` con ReportSlidesV1 (PlayerTeamList + Dashboard ya rediseñados ✅)
 4. **Limpieza capabilities.ts**: `readCoachBadges()`, `CoachBadges` type e `isPhysicalTrainer` son código muerto
 5. **Touch targets ReportSlidesV1**: flechas usan `p-2` = 32px, mínimo mobile es 44px
 6. **Wellness standalone**: jugadora sin acceso directo al check-in
