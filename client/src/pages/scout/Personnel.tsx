@@ -48,6 +48,13 @@ export default function Personnel() {
   // Solo head_coach y master pueden gestionar el roster desde el perfil.
   const canManageRoster = caps.canAccessPersonnel;
 
+  useEffect(() => {
+    if (canManageRoster) return;
+    setLocation("/coach");
+  }, [canManageRoster, setLocation]);
+
+  if (!canManageRoster) return null;
+
   const { data: teams = [], isLoading: teamsLoading } = useTeams();
 
   // Ensure there's always a valid default team — use first team or create Free Agents
@@ -573,7 +580,7 @@ export default function Personnel() {
                         <p className="text-xs text-muted-foreground">
                           {players.length} {locale === "zh" ? "名球员" : locale === "es" ? "jugadoras" : "players"}
                           {" · "}
-                          {players.filter((p) => (p as any).isCanonical).length}{" "}
+                          {players.filter((p) => (p as any).isCanonical ?? (p as any).is_canonical).length}{" "}
                           {locale === "zh" ? "官方" : locale === "es" ? "oficiales" : "official"}
                         </p>
                       </div>
@@ -686,7 +693,7 @@ export default function Personnel() {
                                 size="sm"
                                 variant="ghost"
                                 className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground"
-                                onClick={() => setLocation(`/coach/player/${player.id}`)}
+                                onClick={() => setLocation(`/coach/player/${player.id}`, { state: { from: "/coach/personnel" } })}
                               >
                                 <ChevronRight className="w-4 h-4" />
                               </Button>

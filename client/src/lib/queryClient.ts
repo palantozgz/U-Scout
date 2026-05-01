@@ -220,3 +220,11 @@ export async function flushOfflinePlayerMutations() {
 
 window.addEventListener("online", () => { flushOfflinePlayerMutations(); });
 if (navigator.onLine) { flushOfflinePlayerMutations(); }
+
+export function clearAllLocalCache() {
+  try { window.localStorage.removeItem("uscout-cache-v1"); } catch {}
+  try { window.localStorage.removeItem("uscout-offline-mutations-v1"); } catch {}
+  try { window.localStorage.removeItem("uscout-temp-real-map-v1"); } catch {}
+  try { window.localStorage.removeItem("uscout-dev-role-preview"); } catch {}
+  queryClient.clear();
+}

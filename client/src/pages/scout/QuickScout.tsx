@@ -203,7 +203,10 @@ export default function QuickScout({ playerId }: Props) {
 
   const goNext = () => setStep(s => s + 1);
   const goBack = () => {
-    if (step === 0) setLocation(`/coach/player/${playerId}`);
+    if (step === 0) {
+      const from = (window.history.state as any)?.from as string | undefined;
+      setLocation(from ?? "/coach/my-scout");
+    }
     else setStep(s => s - 1);
   };
 

@@ -1,25 +1,18 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
-import { Settings, ChevronRight } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
 import { usePlayerTeams } from "@/lib/player-home";
 import { UScoutLogo } from "@/components/UScoutLogo";
-import { cn } from "@/lib/utils";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 
 export default function PlayerTeamList() {
   const { locale } = useLocale();
   const [, setLocation] = useLocation();
   const { data, isLoading, isError } = usePlayerTeams();
-  const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({});
 
   const es = locale === "es";
   const zh = locale === "zh";
-
-  const toggleTeam = (teamId: string) => {
-    setExpandedTeams(prev => ({ ...prev, [teamId]: !prev[teamId] }));
-  };
 
   const title = es ? "Informes" : zh ? "报告" : "Reports";
   const tagline = es ? "Plataforma de scouting" : zh ? "球探平台" : "Scouting Platform";
@@ -75,8 +68,7 @@ export default function PlayerTeamList() {
           </div>
         )}
 
-        {!isLoading && !isError && data && data.teams.map((row, idx) => {
-          const isExpanded = expandedTeams[row.team.id] ?? idx === 0;
+        {!isLoading && !isError && data && data.teams.map((row) => {
           const pendingCount = row.reportsPending ?? row.unseenCount ?? 0;
 
           return (
@@ -84,7 +76,7 @@ export default function PlayerTeamList() {
               {/* Team header — tappable */}
               <button
                 type="button"
-                onClick={() => toggleTeam(row.team.id)}
+                onClick={() => setLocation(`/player/team/${row.team.id}`)}
                 className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-muted/30 transition-colors"
               >
                 <span className="text-2xl shrink-0">{row.team.logo}</span>
@@ -107,27 +99,7 @@ export default function PlayerTeamList() {
                     {pendingCount}
                   </span>
                 )}
-                <ChevronRight className={cn(
-                  "w-4 h-4 text-muted-foreground shrink-0 transition-transform",
-                  isExpanded && "rotate-90"
-                )} />
               </button>
-
-              {/* Player grid — shown when expanded */}
-              {isExpanded && (
-                <div className="border-t border-border px-3 pb-3 pt-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* We navigate to team detail page which shows the grid */}
-                    <button
-                      type="button"
-                      onClick={() => setLocation(`/player/team/${row.team.id}`)}
-                      className="col-span-2 text-center py-2 text-xs font-bold text-primary hover:underline"
-                    >
-                      {es ? "Ver todos los informes →" : zh ? "查看所有报告 →" : "View all reports →"}
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}

@@ -311,7 +311,7 @@ export default function Home() {
         title: t("home_wellness_today"),
         subtitle: wellnessSubmittedToday ? t("schedule_wellness_submitted") : t("schedule_wellness_pending"),
         icon: <Activity className="h-3.5 w-3.5" />,
-        href: "/schedule",
+        href: "/player/wellness",
         tone: wellnessSubmittedToday ? "emerald" : "amber",
       };
 

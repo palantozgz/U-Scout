@@ -1047,6 +1047,21 @@ export default function Schedule() {
     window.setTimeout(tryScroll, 300);
   }, [staffView]);
 
+  useEffect(() => {
+    if (staffView !== "list") return;
+    let attempts = 0;
+    const tryScroll = () => {
+      const el = document.querySelector(`[data-today="true"]`) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else if (attempts < 15) {
+        attempts++;
+        window.setTimeout(tryScroll, 100);
+      }
+    };
+    window.setTimeout(tryScroll, 300);
+  }, [staffView]);
+
   const fmtWeekRange = (start: Date) => {
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
@@ -1542,7 +1557,10 @@ export default function Schedule() {
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card p-4">
-                  <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                  <p
+                    className="text-[10px] font-black tracking-widest uppercase text-muted-foreground"
+                    data-today="true"
+                  >
                     {t("schedule_section_today")}
                   </p>
                   <div className="mt-3 space-y-2">

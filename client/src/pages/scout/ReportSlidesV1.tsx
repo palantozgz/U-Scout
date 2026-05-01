@@ -94,6 +94,19 @@ export default function ReportSlidesV1({
     } catch {}
   }, []);
 
+  useEffect(() => {
+    if (coachMode) return;
+    if (!user) return;
+    if (!playerId) return;
+    void fetch("/api/player/views", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId, slideIndex: slide }),
+    }).catch(() => {
+      // ignore
+    });
+  }, [slide, coachMode, playerId, user]);
+
   function showArrows() {
     setArrowsVisible(true);
     if (arrowTimer.current) clearTimeout(arrowTimer.current);
@@ -657,7 +670,7 @@ export default function ReportSlidesV1({
             onClick={() => goTo(slide - 1)}
             aria-label="Slide anterior"
             className={cn(
-              "absolute left-1 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center p-2 transition-opacity duration-500",
+              "absolute left-1 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center p-3 transition-opacity duration-500",
               hasPrev && arrowsVisible
                 ? "opacity-35 hover:opacity-70 pointer-events-auto"
                 : "opacity-0 pointer-events-none",
@@ -670,7 +683,7 @@ export default function ReportSlidesV1({
             onClick={() => goTo(slide + 1)}
             aria-label="Slide siguiente"
             className={cn(
-              "absolute right-1 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center p-2 transition-opacity duration-500",
+              "absolute right-1 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center p-3 transition-opacity duration-500",
               hasNext && arrowsVisible
                 ? "opacity-35 hover:opacity-70 pointer-events-auto"
                 : "opacity-0 pointer-events-none",

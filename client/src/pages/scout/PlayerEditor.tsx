@@ -578,6 +578,7 @@ export default function PlayerEditor() {
   const { t, locale } = useLocale();
   const [, params] = useRoute("/coach/player/:id");
   const [, setLocation] = useLocation();
+  const backOverride = (window.history.state as any)?.from as string | undefined;
   const search = useSearch();
   const isNew = params?.id === "new";
   const urlPlayerId = params?.id || "";
@@ -742,7 +743,8 @@ export default function PlayerEditor() {
             variant="ghost"
             size="sm"
             onClick={() => {
-              if (isNew) setLocation("/coach/my-scout");
+              if (backOverride) setLocation(backOverride);
+              else if (isNew) setLocation("/coach/my-scout");
               else setLocation(`/coach/scout/${getPlayerId()}/review`);
             }}
             className="-ml-2 gap-1.5 text-xs font-bold text-muted-foreground"

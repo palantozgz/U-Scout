@@ -19,7 +19,10 @@ function hasReportInputs(player: PlayerProfile): boolean {
     (i.isoFrequency === "Primary" || i.isoFrequency === "Secondary") ||
     (i.pnrFrequency === "Primary" || i.pnrFrequency === "Secondary") ||
     (i.postFrequency === "Primary" || i.postFrequency === "Secondary") ||
-    (i.transitionFrequency === "Primary" || i.transitionFrequency === "Secondary")
+    (i.transitionFrequency === "Primary" || i.transitionFrequency === "Secondary") ||
+    (i.catchAndShootFrequency === "Primary" || i.catchAndShootFrequency === "Secondary") ||
+    (i.indirectsFrequency === "Primary" || i.indirectsFrequency === "Secondary") ||
+    (i.perimeterThreats === "Primary" || i.perimeterThreats === "Secondary")
   );
 }
 
@@ -169,7 +172,7 @@ export default function MyScout() {
           <button
             type="button"
             onClick={() => setLocation("/coach")}
-            className="-ml-1 p-1 rounded-lg text-muted-foreground hover:text-foreground"
+            className="-ml-1 p-3 rounded-lg text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>

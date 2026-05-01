@@ -198,7 +198,7 @@ function FilmRoomCard({
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 h-8 rounded-lg text-xs font-bold"
+              className="flex-1 h-11 rounded-lg text-xs font-bold"
               onClick={() => onViewReport(player.id)}
             >
               {es ? "Ver informe" : zh ? "查看报告" : "View report"}
@@ -207,7 +207,7 @@ function FilmRoomCard({
               <Button
                 size="sm"
                 variant="default"
-                className="flex-1 h-8 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
+                className="flex-1 h-11 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
                 disabled={isPublishing}
                 onClick={() => onPublish(player.id)}
               >
@@ -277,7 +277,7 @@ export default function FilmRoom() {
         <button
           type="button"
           onClick={() => setLocation("/coach")}
-          className="-ml-1 p-1 rounded-lg text-muted-foreground hover:text-foreground"
+          className="-ml-1 p-3 rounded-lg text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>

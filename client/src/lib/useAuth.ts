@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase, signOut as supabaseSignOut } from "./supabase";
+import { clearAllLocalCache } from "./queryClient";
 
 export type AppUserRole = "master" | "head_coach" | "coach" | "player";
 
@@ -202,6 +203,7 @@ export function useAuth(): AuthState {
 
   const handleSignOut = useCallback(async () => {
     await supabaseSignOut();
+    clearAllLocalCache();
     writePreviewRole(null);
     setStore({ user: null, profile: null, loading: false, previewRole: null });
   }, []);

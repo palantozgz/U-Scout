@@ -280,6 +280,28 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.flatten() });
       }
+
+      const role = req.user!.role;
+      if (role === "player") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      if (role === "coach") {
+        const existingPlayer = await storage.getPlayer(req.params.id as string);
+        if (!existingPlayer) return res.status(404).json({ error: "Player not found" });
+        const isOwner = (existingPlayer as any).createdByUserId === req.user!.id ||
+                        (existingPlayer as any).created_by_user_id === req.user!.id;
+        if (!isOwner) {
+          const club = await storage.getClubForUser(req.user!.id);
+          const membership = club
+            ? await storage.getClubMemberByClubAndUser(club.id, req.user!.id)
+            : null;
+          const hasOpsAccess = Boolean(membership?.operationsAccess);
+          if (!hasOpsAccess) {
+            return res.status(403).json({ error: "Cannot edit another coach's player" });
+          }
+        }
+      }
+
       const player = await storage.updatePlayer((req.params.id as string), parsed.data);
       if (!player) return res.status(404).json({ error: "Player not found" });
       res.json(player);
@@ -1435,6 +1457,77 @@ export async function registerRoutes(
       res.json({ games: out });
     } catch (err) {
       res.status(500).json({ error: "Failed to load game log" });
+    }
+  });
+
+  // ── Stats ingest (Raspberry Pi only, Bearer STATS_INGEST_KEY) ─────────────
+  app.post("/api/stats/ingest", async (req, res) => {
+    try {
+      const key = req.headers.authorization?.replace("Bearer ", "");
+      const expected = process.env.STATS_INGEST_KEY;
+      if (!expected || key !== expected) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const clubId = (req.body as any)?.clubId ?? null;
+      const rows = Array.isArray(req.body) ? req.body : (req.body as any)?.rows;
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ error: "rows array required" });
+      }
+      if (!clubId) {
+        return res.status(400).json({ error: "clubId required" });
+      }
+
+      let inserted = 0;
+      for (const row of rows) {
+        const {
+          playerName,
+          teamName,
+          season,
+          gameDate,
+          rivalName,
+          minutes,
+          points,
+          reboundsTotal,
+          assists,
+          steals,
+          blocks,
+          turnovers,
+          foulsPersonal,
+          fgMade,
+          fgAttempted,
+          fg3Made,
+          fg3Attempted,
+          ftMade,
+          ftAttempted,
+          plusMinus,
+          source,
+        } = row;
+        if (!playerName || !teamName || !season) continue;
+        await db.execute(sql`
+          INSERT INTO player_stats
+            (club_id, player_name, team_name, season, game_date, rival_name,
+             minutes, points, rebounds_total, assists, steals, blocks,
+             turnovers, fouls_personal, fg_made, fg_attempted, fg3_made,
+             fg3_attempted, ft_made, ft_attempted, plus_minus, source)
+          VALUES
+            (${clubId}, ${playerName}, ${teamName}, ${season},
+             ${gameDate ?? null}, ${rivalName ?? null},
+             ${minutes ?? null}, ${points ?? null}, ${reboundsTotal ?? null},
+             ${assists ?? null}, ${steals ?? null}, ${blocks ?? null},
+             ${turnovers ?? null}, ${foulsPersonal ?? null},
+             ${fgMade ?? null}, ${fgAttempted ?? null},
+             ${fg3Made ?? null}, ${fg3Attempted ?? null},
+             ${ftMade ?? null}, ${ftAttempted ?? null},
+             ${plusMinus ?? null}, ${source ?? "pi"})
+          ON CONFLICT DO NOTHING
+        `);
+        inserted++;
+      }
+      res.json({ ok: true, inserted });
+    } catch (err) {
+      console.error("ingest error", err);
+      res.status(500).json({ error: "Ingest failed" });
     }
   });
 

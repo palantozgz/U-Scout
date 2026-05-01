@@ -42,6 +42,7 @@ export default function GamePlan() {
       old ? old.map((p) => p.id === playerId ? { ...p, published: false } : p) : old
     );
     setConfirmRetireId(null);
+    setLocation("/coach/my-scout");
     try {
       await apiRequest("POST", `/api/players/${playerId}/unpublish`);
     } catch (err) {
@@ -69,7 +70,7 @@ export default function GamePlan() {
         <button
           type="button"
           onClick={() => setLocation("/coach")}
-          className="-ml-1 p-1 rounded-lg text-muted-foreground hover:text-foreground"
+          className="-ml-1 p-3 rounded-lg text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -193,14 +194,14 @@ export default function GamePlan() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 px-2 text-[11px] rounded-lg"
+                            className="h-10 px-3 text-[11px] rounded-lg"
                             onClick={() => setConfirmRetireId(null)}
                           >
                             {es ? "Cancelar" : zh ? "取消" : "Cancel"}
                           </Button>
                           <Button
                             size="sm"
-                            className="h-7 px-2 text-[11px] font-bold rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                            className="h-10 px-3 text-[11px] font-bold rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                             disabled={isRetiring}
                             onClick={() => void handleRetire(player.id)}
                           >
@@ -218,7 +219,7 @@ export default function GamePlan() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 px-2 text-[11px] font-bold rounded-lg text-muted-foreground hover:text-destructive"
+                            className="h-10 px-3 text-[11px] font-bold rounded-lg text-muted-foreground hover:text-destructive"
                             onClick={() => setConfirmRetireId(player.id)}
                           >
                             <RotateCcw className="w-3 h-3 mr-1" />

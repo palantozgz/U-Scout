@@ -3,7 +3,7 @@ import { Switch, Route, useLocation, useRoute } from "wouter";
 import { migrateLegacyOnboarding, shouldOfferOnboarding } from "@/lib/onboarding-state";
 import OnboardingFlow from "@/pages/OnboardingFlow";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { ClubGenderProvider } from "@/lib/clubGenderContext";
 import { Toaster } from "@/components/ui/toaster";
 import { OfflineBanner } from "@/components/OfflineBanner";
@@ -13,6 +13,8 @@ import { useAuth } from "@/lib/useAuth";
 import { useLocale } from "@/lib/i18n";
 import Login from "@/pages/Login";
 import { useClub } from "@/lib/club-api";
+import { apiRequest } from "@/lib/queryClient";
+import { type ReportOverride } from "@/lib/overrideEngine";
 
 import { lazy, Suspense } from "react";
 
@@ -34,6 +36,7 @@ const Settings = lazy(() => import("@/pages/scout/Settings"));
 const PlayerHome = lazy(() => import("@/pages/player/PlayerHome"));
 const PlayerHomeSettingsStub = lazy(() => import("@/pages/player/PlayerHomeSettingsStub"));
 const PlayerTeamList = lazy(() => import("@/pages/player/PlayerTeamList"));
+const WellnessStandalone = lazy(() => import("@/pages/player/WellnessStandalone"));
 const PlayerTeamView = lazy(() =>
   import("@/pages/player/Dashboard").then(m => ({ default: m.PlayerTeamView })),
 );
@@ -81,9 +84,26 @@ function CoachScoutReportReview() {
 function PlayerReportV4Route() {
   const [, params] = useRoute("/player/report/:id");
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const id = params?.id;
+
+  const { data: overrides } = useQuery({
+    queryKey: ["/api/players", id, "overrides"],
+    queryFn: async () =>
+      (await apiRequest("GET", `/api/players/${id}/overrides`)).json() as Promise<ReportOverride[]>,
+    enabled: Boolean(id) && Boolean(user),
+    staleTime: 60_000,
+  });
+
+  const fromTeamId = (window.history.state as any)?.fromTeamId as string | undefined;
   if (!id) return null;
-  return <ReportSlidesV1 playerId={id} onBack={() => setLocation("/player")} />;
+  return (
+    <ReportSlidesV1
+      playerId={id}
+      onBack={() => setLocation(fromTeamId ? `/player/team/${fromTeamId}` : "/player")}
+      overrides={overrides ?? []}
+    />
+  );
 }
 
 function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
@@ -132,6 +152,7 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       {/* Player Mode — /player = equipos rivales primero; /player/reports = rejilla de informes */}
       <Route path="/player/reports" component={PlayerHome} />
       <Route path="/player/home-settings" component={PlayerHomeSettingsStub} />
+      <Route path="/player/wellness" component={WellnessStandalone} />
       <Route path="/player/teams">
         <RootRedirect to="/player" />
       </Route>

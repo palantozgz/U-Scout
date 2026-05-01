@@ -85,7 +85,7 @@ export function PlayerTeamView() {
                 <button
                   key={p.playerId}
                   type="button"
-                  onClick={() => setLocation(`/player/report/${p.playerId}`)}
+                  onClick={() => setLocation(`/player/report/${p.playerId}`, { state: { fromTeamId: teamId } })}
                   className={cn(
                     "bg-card border border-border rounded-2xl overflow-hidden",
                     "transition-all active:scale-[0.97] hover:border-primary/40 text-left",
