@@ -45,6 +45,7 @@ export default function Personnel() {
   const [newPlayerTeamId, setNewPlayerTeamId] = useState<string>("");
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [promotingId, setPromotingId] = useState<string | null>(null);
+  const [canonicalError, setCanonicalError] = useState<string | null>(null);
 
   const createTeamMutation = useCreateTeam();
   const deleteTeamMutation = useDeleteTeam();
@@ -171,7 +172,7 @@ export default function Personnel() {
 
   // Auto-create Free Agents team if no teams exist and head_coach creates a player
   const ensureFreeAgentsTeam = async (): Promise<string | null> => {
-    const freeAgents = teams.find(t => (t as any).isSystem || t.name === "Agentes Libres" || t.name === "Free Agents");
+    const freeAgents = teams.find(t => Boolean((t as any).is_system));
     if (freeAgents) return freeAgents.id;
     if (!canManageRoster) return null;
     try {
@@ -194,9 +195,9 @@ export default function Personnel() {
   }, [isHeadCoach, teamsLoading, teams.length]);
 
   const handleCreatePlayer = async () => {
+    setCanonicalError(null);
     let tid = newPlayerTeamId || defaultTeamId;
     if (!tid) {
-      // No teams exist — auto-create Free Agents
       const freeAgentsId = await ensureFreeAgentsTeam();
       if (!freeAgentsId) return;
       tid = freeAgentsId;
@@ -209,19 +210,22 @@ export default function Personnel() {
     };
     createPlayerMutation.mutate(payload as any, {
       onSuccess: async (created: PlayerProfile) => {
-        setShowNewPlayer(false);
-        setNewPlayerName("");
-        setNewPlayerNumber("");
-        // head_coach creates directly as canonical
         if (isHeadCoach) {
           try {
             await apiRequest("POST", `/api/players/${created.id}/canonical`);
           } catch (e) {
             console.error("canonical promotion error", e);
+            setCanonicalError(
+              locale === "es"
+                ? "Error al hacer la ficha oficial. Inténtalo de nuevo."
+                : "Failed to make profile official. Please retry.",
+            );
           }
-          // Re-fetch AFTER canonical is set so isCanonical is correct
           await qc.invalidateQueries({ queryKey: ["/api/players"] });
         }
+        setShowNewPlayer(false);
+        setNewPlayerName("");
+        setNewPlayerNumber("");
       },
     });
   };
@@ -247,8 +251,7 @@ export default function Personnel() {
 
   const handleDeleteTeam = (teamId: string) => {
     const team = teams.find(t => t.id === teamId);
-    const isFreeAgents = (team as any)?.isSystem ||
-      team?.name === "Agentes Libres" || team?.name === "Free Agents" || team?.name === "自由球员";
+    const isFreeAgents = Boolean((team as any)?.is_system);
     if (isFreeAgents) return; // protected
     if (pendingDeleteTeam !== teamId) { setPendingDeleteTeam(teamId); return; }
     deleteTeamMutation.mutate(teamId);
@@ -361,13 +364,18 @@ export default function Personnel() {
                 className="w-full h-10 rounded-lg border border-border bg-background text-sm px-3"
               >
                 {[...teams].sort((a, b) => {
-                  const aFA = (a as any).isSystem || a.name === "Agentes Libres" || a.name === "Free Agents" || a.name === "自由球员";
-                  const bFA = (b as any).isSystem || b.name === "Agentes Libres" || b.name === "Free Agents" || b.name === "自由球员";
-                  return aFA ? -1 : bFA ? 1 : 0;
+                  const aFA = Boolean((a as any).is_system);
+                  const bFA = Boolean((b as any).is_system);
+                  if (aFA && !bFA) return 1;
+                  if (!aFA && bFA) return -1;
+                  return a.name.localeCompare(b.name);
                 }).map((t) => (
                   <option key={t.id} value={t.id}>{t.logo} {t.name}</option>
                 ))}
               </select>
+            )}
+            {canonicalError && (
+              <p className="text-xs text-destructive font-semibold">{canonicalError}</p>
             )}
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" className="flex-1 rounded-lg" onClick={() => setShowNewPlayer(false)}>
@@ -430,12 +438,15 @@ export default function Personnel() {
           </div>
         ) : (
           [...teams].sort((a, b) => {
-            const aFA = (a as any).isSystem || a.name === "Agentes Libres" || a.name === "Free Agents" || a.name === "自由球员";
-            const bFA = (b as any).isSystem || b.name === "Agentes Libres" || b.name === "Free Agents" || b.name === "自由球员";
-            return aFA ? 1 : bFA ? -1 : 0;
+            const aFA = Boolean((a as any).is_system);
+            const bFA = Boolean((b as any).is_system);
+            if (aFA && !bFA) return 1;
+            if (!aFA && bFA) return -1;
+            return a.name.localeCompare(b.name);
           }).map((team) => {
             const players = playersByTeam(team.id);
             const isExpanded = expandedTeamId === team.id;
+            const isSystemTeam = Boolean((team as any).is_system);
             return (
               <div key={team.id} className="rounded-xl border border-border overflow-hidden">
                 <div className="flex items-center">
@@ -448,6 +459,15 @@ export default function Personnel() {
                       <span className="text-lg">{team.logo}</span>
                       <div className="text-left">
                         <p className="text-sm font-black text-foreground">{team.name}</p>
+                        {isSystemTeam && (
+                          <p className="text-[10px] text-muted-foreground/50 leading-tight">
+                            {locale === "es"
+                              ? "Contenedor — sin equipo asignado"
+                              : locale === "zh"
+                              ? "未分配容器"
+                              : "Container — unassigned"}
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {players.length} {locale === "zh" ? "名球员" : locale === "es" ? "jugadoras" : "players"}
                           {" · "}
@@ -458,7 +478,7 @@ export default function Personnel() {
                     </div>
                     <ChevronRight className={cn("w-4 h-4 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
                   </button>
-                  {isHeadCoach && !((team as any).isSystem || team.name === "Agentes Libres" || team.name === "Free Agents" || team.name === "自由球员") && (
+                  {isHeadCoach && !Boolean((team as any).is_system) && (
                     pendingDeleteTeam === team.id ? (
                       <div className="flex items-center gap-1 pr-3">
                         <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] rounded-lg" onClick={() => setPendingDeleteTeam(null)}>

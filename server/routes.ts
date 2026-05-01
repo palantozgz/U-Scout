@@ -1,6 +1,8 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
+import { db } from "./db";
 import { storage } from "./storage";
 import { insertTeamSchema, insertPlayerSchema, type Club } from "@shared/schema";
 import { patchClubBodySchema } from "@shared/club-context";
@@ -146,8 +148,18 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.flatten() });
       }
-      const team = await storage.createTeam(parsed.data);
-      res.status(201).json(team);
+      // Attach club_id so the team is scoped to this club
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+
+      // Use raw SQL to include club_id (not in Drizzle schema)
+      const rows = await db.execute(
+        sql`INSERT INTO teams (id, name, logo, primary_color, club_id, is_system)
+            VALUES (gen_random_uuid()::text, ${parsed.data.name}, ${parsed.data.logo ?? "🏀"}, ${parsed.data.primaryColor ?? "bg-orange-500"}, ${club.id}, false)
+            RETURNING *`,
+      );
+      const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
+      res.status(201).json(arr[0]);
     } catch (err) {
       res.status(500).json({ error: "Failed to create team" });
     }

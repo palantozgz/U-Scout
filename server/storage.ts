@@ -237,8 +237,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTeams(clubId?: string): Promise<Team[]> {
-    // NOTE: teams do not have a club_id column. Without a migration, we treat
-    // rival teams as non-sensitive global reference data.
+    if (clubId) {
+      const rows = await db.execute(
+        sql`SELECT * FROM teams WHERE club_id = ${clubId} ORDER BY is_system ASC, created_at ASC`,
+      );
+      const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
+      return arr as Team[];
+    }
     return db.select().from(teams);
   }
 
