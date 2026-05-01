@@ -1,5 +1,7 @@
-import { useState, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Send } from "lucide-react";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useLocale } from "@/lib/i18n";
 import {
   useApprovalStatus,
@@ -12,6 +14,7 @@ import { OverridePanel } from "@/components/scout/OverridePanel";
 import ReportSlidesV1 from "@/pages/scout/ReportSlidesV1";
 import { usePlayer } from "@/lib/mock-data";
 import { type ReportOverride } from "@/lib/overrideEngine";
+import { apiRequest } from "@/lib/queryClient";
 
 export interface ReportViewV4Props {
   playerId: string;
@@ -40,12 +43,17 @@ async function authedFetch(url: string, init: RequestInit) {
   return res;
 }
 
+function scoutVersionMeQueryKey(playerId: string) {
+  return ["scout-version-me", playerId] as const;
+}
+
 export default function ReportViewV4({
   playerId,
   mode,
   onBack,
 }: ReportViewV4Props) {
   const { t, locale } = useLocale();
+  const [, setLocation] = useLocation();
   const { profile, user } = useAuth();
   const queryClient = useQueryClient();
   const { data: player, isLoading: playerLoading } = usePlayer(playerId);
@@ -53,6 +61,14 @@ export default function ReportViewV4({
   const { data: approvalData } = useApprovalStatus(playerId, {
     enabled: Boolean(playerId),
     coachReviewMode: mode === "coach_review",
+  });
+
+  const { data: scoutMeData } = useQuery({
+    queryKey: scoutVersionMeQueryKey(playerId),
+    queryFn: async (): Promise<{ submitted: boolean }> =>
+      (await apiRequest("GET", `/api/players/${encodeURIComponent(playerId)}/scout-version/me`)).json(),
+    enabled: Boolean(playerId) && mode === "coach_review",
+    refetchInterval: mode === "coach_review" ? 30_000 : false,
   });
 
   const coachId = profile?.id ?? user?.id ?? "";
@@ -69,35 +85,39 @@ export default function ReportViewV4({
       }));
   }, [approvalData?.overrides, coachId, playerId]);
 
-  const [isApproving, setIsApproving] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sentFlash, setSentFlash] = useState(false);
+  const navigateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handlePropose = async () => {
-    setIsApproving(true);
-    try {
-      await authedFetch(`/api/players/${encodeURIComponent(playerId)}/approve`, {
-        method: "POST",
-      });
-      await invalidatePlayerApprovalQueries(queryClient, playerId);
-      if (onBack) onBack();
-    } catch (e) {
-      console.error("[ReportViewV4] approve failed", e);
-    } finally {
-      setIsApproving(false);
-    }
-  };
+  useEffect(() => {
+    return () => {
+      if (navigateTimerRef.current) clearTimeout(navigateTimerRef.current);
+    };
+  }, []);
 
-  const handlePublish = async () => {
-    setIsPublishing(true);
+  const handleSubmitToFilmRoom = async () => {
+    setIsSubmitting(true);
     try {
-      await authedFetch(`/api/players/${encodeURIComponent(playerId)}/publish`, {
-        method: "POST",
-      });
+      await authedFetch(
+        `/api/players/${encodeURIComponent(playerId)}/scout-version/submit`,
+        { method: "POST" },
+      );
+      await queryClient.invalidateQueries({ queryKey: scoutVersionMeQueryKey(playerId) });
       await invalidatePlayerApprovalQueries(queryClient, playerId);
+      await queryClient.invalidateQueries({ queryKey: ["/api/film-room"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/players"] });
+      setSentFlash(true);
+      if (navigateTimerRef.current) clearTimeout(navigateTimerRef.current);
+      navigateTimerRef.current = setTimeout(() => {
+        navigateTimerRef.current = null;
+        setSentFlash(false);
+        setLocation("/coach/film-room");
+      }, 900);
     } catch (e) {
-      console.error("[ReportViewV4] publish failed", e);
+      console.error("[ReportViewV4] submit to film room failed", e);
+      setSentFlash(false);
     } finally {
-      setIsPublishing(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -109,147 +129,105 @@ export default function ReportViewV4({
     );
   }
 
-  const approvalCount = approvalData?.approvals.length ?? 0;
-  const totalStaff = Math.max(approvalData?.totalStaff ?? 0, 1);
-  const canPublish = approvalCount >= 1;
-
-  const isPublished = approvalData?.isPublished ?? false;
-  const stage: 1 | 2 | 3 = isPublished ? 3 : approvalCount >= 1 ? 2 : 1;
-
   const es = locale === "es";
+  const zh = locale === "zh";
+  const isCanonicalProfile =
+    (player as any).is_canonical === true ||
+    (player as any).isCanonical === true;
 
-  const approvalBar = mode === "coach_review" ? (
-    <div className="px-4 py-3 space-y-2">
-      {/* Status strip */}
-      <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${
-        stage === 3
-          ? "bg-emerald-500/10 border border-emerald-500/20"
-          : stage === 2
-          ? "bg-blue-500/10 border border-blue-500/20"
-          : "bg-slate-500/10 border border-slate-500/20"
-      }`}>
-        <span className="text-base leading-none">
-          {stage === 3 ? "✅" : stage === 2 ? "👥" : "📋"}
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className={`text-[11px] font-black uppercase tracking-wider leading-tight ${
-            stage === 3 ? "text-emerald-600 dark:text-emerald-400"
-            : stage === 2 ? "text-blue-600 dark:text-blue-400"
-            : "text-slate-500 dark:text-slate-400"
-          }`}>
-            {stage === 3
-              ? (es ? "Publicado a jugadora" : "Published to player")
-              : stage === 2
-              ? (es ? `Aprobado · ${approvalCount}/${totalStaff} staff` : `Approved · ${approvalCount}/${totalStaff} staff`)
-              : (es ? "Borrador privado" : "Private draft")}
-          </p>
-          <p className="text-[10px] text-muted-foreground/60 leading-tight mt-0.5">
-            {stage === 3
-              ? (es ? "La jugadora puede ver este informe" : "Player can view this report")
-              : stage === 2
-              ? (es ? "Listo para publicar" : "Ready to publish")
-              : (es ? "Solo visible para el staff" : "Only visible to coaching staff")}
-          </p>
-        </div>
-        <span className="shrink-0 text-[10px] font-bold tabular-nums text-muted-foreground/50">
-          {approvalCount}/{totalStaff}
-        </span>
-      </div>
+  const serverSaysSubmitted = scoutMeData?.submitted === true;
+  const submittedToFilmRoom = sentFlash || serverSaysSubmitted;
 
-      {/* Discrepancy warning */}
-      {approvalData?.hasDiscrepancy && (() => {
-        // Find conflicting items: same slide+itemKey, different actions across coaches
-        const byKey = new Map<string, { coaches: string[]; actions: string[] }>();
-        for (const o of (approvalData.overrides ?? [])) {
-          const k = `${o.slide}:${o.itemKey}`;
-          if (!byKey.has(k)) byKey.set(k, { coaches: [], actions: [] });
-          byKey.get(k)!.coaches.push(o.coachId);
-          byKey.get(k)!.actions.push(o.action);
-        }
-        const conflicts = Array.from(byKey.entries())
-          .filter(([, v]) => new Set(v.actions).size > 1)
-          .map(([k]) => k.split(":")[1]);
-
-        return (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 space-y-1">
-            <p className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
-              ⚠ {t("report_discrepancy_banner")}
+  const approvalBar =
+    mode === "coach_review" ? (
+      <div className="px-4 py-3 space-y-2">
+        {/* Submission status */}
+        <div
+          className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${
+            submittedToFilmRoom
+              ? "bg-emerald-500/10 border-emerald-500/20"
+              : "bg-slate-500/10 border-slate-500/20"
+          }`}
+        >
+          <span className="text-base leading-none">{submittedToFilmRoom ? "✅" : "📋"}</span>
+          <div className="flex-1 min-w-0">
+            <p
+              className={`text-[11px] font-black uppercase tracking-wider leading-tight ${
+                submittedToFilmRoom
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-slate-500 dark:text-slate-400"
+              }`}
+            >
+              {submittedToFilmRoom
+                ? es
+                  ? "Enviado a la sala ✓"
+                  : zh
+                    ? "已发送至集体分析 ✓"
+                    : "Sent to Film Room ✓"
+                : es
+                  ? "Borrador — solo visible para el staff"
+                  : zh
+                    ? "草稿 — 仅职员可见"
+                    : "Draft — only visible to staff"}
             </p>
-            {conflicts.length > 0 && (
-              <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80 leading-snug">
-                {(locale === "es" ? "En conflicto: " : "Conflicting: ")}
-                {conflicts.join(", ")}
+            {!submittedToFilmRoom && (
+              <p className="text-[10px] text-muted-foreground/60 leading-tight mt-0.5">
+                {es
+                  ? "Edita y envía a la sala cuando estés listo"
+                  : zh
+                    ? "完成后发送到集体分析"
+                    : "Adjust overrides here, then send to Film Room"}
               </p>
             )}
           </div>
-        );
-      })()}
+        </div>
 
-      {stage !== 3 && (
         <OverridePanel
           playerId={playerId}
           coachId={profile?.id ?? user?.id ?? ""}
           locale={locale as "en" | "es" | "zh"}
           onOverrideChange={() => void invalidatePlayerApprovalQueries(queryClient, playerId)}
         />
-      )}
 
-      {/* Action buttons */}
-      <div className="flex items-center justify-end gap-2">
-        {stage === 3 ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-8 rounded-lg px-4 font-bold text-xs border-rose-300 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400"
-            onClick={() => {
-              void authedFetch(`/api/players/${encodeURIComponent(playerId)}/unpublish`, { method: "POST" })
-                .then(() => invalidatePlayerApprovalQueries(queryClient, playerId))
-                .catch(console.error);
-            }}
-          >
-            {es ? "Despublicar" : "Unpublish"}
-          </Button>
-        ) : (
-          <>
-            {stage === 2 && (
-              <Button
-                type="button"
-                size="sm"
-                variant="default"
-                className="h-8 rounded-lg px-4 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
-                onClick={() => void handlePublish()}
-                disabled={isPublishing}
-              >
-                {isPublishing ? t("saving") : (es ? "📤 Publicar a jugadora" : "📤 Publish to player")}
-              </Button>
-            )}
+        {isCanonicalProfile && (
+          <div className="flex items-center justify-end gap-2 pt-1">
             <Button
+              type="button"
               size="sm"
-              variant={stage === 1 ? "default" : "outline"}
-              className="h-8 rounded-lg px-4 font-bold text-xs"
-              onClick={() => void handlePropose()}
-              disabled={isApproving}
+              variant="default"
+              className="h-10 min-w-[8rem] rounded-xl px-4 font-bold text-sm bg-primary text-primary-foreground"
+              onClick={() => void handleSubmitToFilmRoom()}
+              disabled={isSubmitting || submittedToFilmRoom}
             >
-              {isApproving
-                ? t("report_sending")
-                : stage === 1
-                ? (es ? "✓ Aprobar informe" : "✓ Approve report")
-                : (es ? "Mi aprobación ✓" : "My approval ✓")}
+              <Send className="w-4 h-4 mr-2 shrink-0" />
+              {isSubmitting
+                ? es
+                  ? "Enviando..."
+                  : zh
+                    ? "发送中..."
+                    : "Sending..."
+                : submittedToFilmRoom || sentFlash
+                  ? es
+                    ? "Enviado ✓"
+                    : zh
+                      ? "已发送 ✓"
+                      : "Sent ✓"
+                  : es
+                    ? "→ Sala de análisis"
+                    : "→ Film Room"}
             </Button>
-          </>
+          </div>
         )}
       </div>
-    </div>
-  ) : undefined;
+    ) : undefined;
 
   return (
-      <ReportSlidesV1
-        playerId={playerId}
-        onBack={onBack}
-        coachMode={mode === "coach_review"}
-        bottomBar={approvalBar}
-        overrides={mode === "coach_review" ? myOverrides : undefined}
-      />
+    <ReportSlidesV1
+      playerId={playerId}
+      onBack={onBack}
+      coachMode={mode === "coach_review"}
+      bottomBar={approvalBar}
+      overrides={mode === "coach_review" ? myOverrides : undefined}
+    />
   );
 }

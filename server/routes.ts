@@ -381,10 +381,20 @@ export async function registerRoutes(
   app.post("/api/players/:id/unpublish", requireAuth, async (req, res) => {
     try {
       const playerId = req.params.id as string;
+      const role = req.user!.role;
+      if (role !== "head_coach" && role !== "master") {
+        return res.status(403).json({ error: "Only head_coach or master can retire reports" });
+      }
       const player = await storage.getPlayer(playerId);
       if (!player) return res.status(404).json({ error: "Player not found" });
-      const updated = await storage.unpublishPlayerReport(playerId);
-      res.json(updated);
+      // Unpublish from players table
+      await storage.unpublishPlayerReport(playerId);
+      // Re-create a submitted scout version for the retiring coach so the
+      // player reappears in Film Room without needing to re-submit from scratch.
+      const inp = (player as any).scoutingInputs ?? (player as any).inputs ?? {};
+      await storage.upsertScoutVersion(playerId, req.user!.id, inp);
+      await storage.submitScoutVersion(playerId, req.user!.id);
+      res.status(204).send();
     } catch (err) {
       res.status(500).json({ error: "Failed to unpublish report" });
     }
@@ -426,6 +436,18 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/players/:id/scout-version/me", requireAuth, async (req, res) => {
+    try {
+      const playerId = req.params.id as string;
+      const coachId = req.user!.id;
+      const version = await storage.getScoutVersion(playerId, coachId);
+      const submitted = Boolean(version && version.status !== "draft");
+      res.json({ submitted });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to check scout version" });
+    }
+  });
+
   // Submit this coach's version to Film Room
   app.post("/api/players/:id/scout-version/submit", requireAuth, async (req, res) => {
     try {
@@ -436,11 +458,14 @@ export async function registerRoutes(
       if (!(player as any).is_canonical) {
         return res.status(400).json({ error: "Player is not canonical — cannot submit to Film Room" });
       }
-      const version = await storage.getScoutVersion(playerId, coachId);
-      if (!version) return res.status(404).json({ error: "No scout version found for this coach" });
+      let version = await storage.getScoutVersion(playerId, coachId);
+      if (!version) {
+        // Auto-create a scout version from the player's current inputs so the
+        // coach can submit even if PlayerEditor autosave hasn't fired yet.
+        const inp = (player as any).scoutingInputs ?? (player as any).inputs ?? {};
+        version = await storage.upsertScoutVersion(playerId, coachId, inp);
+      }
       await storage.submitScoutVersion(playerId, coachId);
-      // Also upsert the report approval (existing flow)
-      await storage.upsertReportApproval(playerId, coachId);
       res.status(204).send();
     } catch (err) {
       res.status(500).json({ error: "Failed to submit scout version" });
@@ -536,10 +561,6 @@ export async function registerRoutes(
   app.post("/api/players/:id/game-plan", requireAuth, async (req, res) => {
     try {
       const playerId = req.params.id as string;
-      const role = req.user!.role;
-      if (role !== "head_coach" && role !== "master") {
-        return res.status(403).json({ error: "Only head_coach or master can publish to Game Plan" });
-      }
       const player = await storage.getPlayer(playerId);
       if (!player) return res.status(404).json({ error: "Player not found" });
 

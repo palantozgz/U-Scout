@@ -115,9 +115,7 @@ export default function CoachHome() {
   const caps = useCapabilities();
 
   const isHeadCoach = profile?.role === "head_coach" || profile?.role === "master";
-  const canAccessPersonnel = profile?.role === "head_coach" ||
-    profile?.role === "master" ||
-    Boolean((profile as any)?.operationsAccess);
+  const canAccessPersonnel = caps.canAccessPersonnel;
 
   // ── Localised strings ──────────────────────────────────────────────────────
   const L = {

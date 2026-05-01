@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ChevronRight, Users2, AlertTriangle, CheckCircle2, Send, Lock } from "lucide-react";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import { useLocale } from "@/lib/i18n";
-import { useAuth } from "@/lib/useAuth";
 import { useApprovalStatus } from "@/lib/approval-api";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -82,14 +81,12 @@ function DiscrepancyPanel({
 // ── Player card ───────────────────────────────────────────────────────────────
 function FilmRoomCard({
   entry,
-  isHeadCoach,
   locale,
   onViewReport,
   onPublish,
   isPublishing,
 }: {
   entry: FilmRoomEntry;
-  isHeadCoach: boolean;
   locale: string;
   onViewReport: (id: string) => void;
   onPublish: (id: string) => void;
@@ -97,6 +94,11 @@ function FilmRoomCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { player, submittedCount, hasDiscrepancy, isPublished, approvalCount, hasSubmittedMine } = entry;
+
+  const { data: approvalStatus } = useApprovalStatus(player.id, {
+    enabled: expanded && hasSubmittedMine,
+  });
+  const totalStaff = approvalStatus?.totalStaff ?? entry.submittedCount;
 
   const es = locale === "es";
   const zh = locale === "zh";
@@ -186,7 +188,7 @@ function FilmRoomCard({
                 {es ? "Staff aprobado:" : zh ? "已批准员工:" : "Staff approved:"}
               </span>
               <span className="font-black text-foreground">
-                {approvalCount}/{entry.submittedCount}
+                {approvalCount}/{totalStaff}
               </span>
             </div>
           )}
@@ -201,7 +203,7 @@ function FilmRoomCard({
             >
               {es ? "Ver informe" : zh ? "查看报告" : "View report"}
             </Button>
-            {isHeadCoach && !isPublished && hasSubmittedMine && (
+            {!isPublished && hasSubmittedMine && (
               <Button
                 size="sm"
                 variant="default"
@@ -231,10 +233,8 @@ function FilmRoomCard({
 export default function FilmRoom() {
   const [, setLocation] = useLocation();
   const { locale } = useLocale();
-  const { profile } = useAuth();
   const qc = useQueryClient();
 
-  const isHeadCoach = profile?.role === "head_coach" || profile?.role === "master";
   const [publishingId, setPublishingId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery<{ players: FilmRoomEntry[] }>({
@@ -314,7 +314,6 @@ export default function FilmRoom() {
           <FilmRoomCard
             key={entry.player.id}
             entry={entry}
-            isHeadCoach={isHeadCoach}
             locale={locale}
             onViewReport={(id) => setLocation(`/coach/scout/${id}/review`)}
             onPublish={handlePublish}

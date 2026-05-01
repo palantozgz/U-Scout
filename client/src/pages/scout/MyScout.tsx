@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Plus, Star, ChevronRight, Pencil, Send } from "lucide-react";
+import { ArrowLeft, Star, ChevronRight, Pencil } from "lucide-react";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
@@ -10,16 +10,23 @@ import { isRealPhoto } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiRequest } from "@/lib/queryClient";
-import { useQueryClient } from "@tanstack/react-query";
 
-type SubmitState = "idle" | "submitting" | "done" | "error";
+function hasReportInputs(player: PlayerProfile): boolean {
+  const inp = (player as any).inputs ?? (player as any).scoutingInputs;
+  if (!inp || typeof inp !== "object") return false;
+  const i = inp as Record<string, unknown>;
+  return (
+    (i.isoFrequency === "Primary" || i.isoFrequency === "Secondary") ||
+    (i.pnrFrequency === "Primary" || i.pnrFrequency === "Secondary") ||
+    (i.postFrequency === "Primary" || i.postFrequency === "Secondary") ||
+    (i.transitionFrequency === "Primary" || i.transitionFrequency === "Secondary")
+  );
+}
 
 export default function MyScout() {
   const [, setLocation] = useLocation();
   const { locale } = useLocale();
   const { profile } = useAuth();
-  const qc = useQueryClient();
 
   const { data: allPlayers = [], isLoading } = usePlayers();
   const { data: teams = [] } = useTeams();
@@ -29,7 +36,6 @@ export default function MyScout() {
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [newTeamId, setNewTeamId] = useState("");
-  const [submitStates, setSubmitStates] = useState<Record<string, SubmitState>>({});
 
   const canonicalPlayers: PlayerProfile[] = allPlayers.filter((p) => {
     const isCanonical = (p as any).isCanonical ?? (p as any).is_canonical ?? false;
@@ -45,6 +51,26 @@ export default function MyScout() {
 
   const [sandboxOpen, setSandboxOpen] = useState(canonicalPlayers.length === 0);
 
+  const teamsWithCanonical = useMemo(
+    () => teams.filter((team) => canonicalPlayers.some((p) => p.teamId === team.id)),
+    [teams, canonicalPlayers],
+  );
+
+  const [expandedByTeamId, setExpandedByTeamId] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (teamsWithCanonical.length === 0) return;
+    setExpandedByTeamId((prev) => {
+      const hasInit = teamsWithCanonical.some((t) => Object.prototype.hasOwnProperty.call(prev, t.id));
+      if (hasInit) return prev;
+      const next: Record<string, boolean> = {};
+      teamsWithCanonical.forEach((t, idx) => {
+        next[t.id] = idx === 0;
+      });
+      return next;
+    });
+  }, [teamsWithCanonical]);
+
   const teamName = (teamId: string) => teams.find((t) => t.id === teamId)?.name ?? "";
   const teamLogo = (teamId: string) => teams.find((t) => t.id === teamId)?.logo ?? "";
 
@@ -58,12 +84,12 @@ export default function MyScout() {
       number: "#",
       save: "Save",
       cancel: "Cancel",
-      sendToFilm: "→ Film Room",
-      sending: "Sending...",
-      sent: "Sent ✓",
       sandboxNote: "Sandbox — not eligible for Film Room",
       officialBadge: "Official",
       editReport: "Edit report",
+      viewReport: "View report",
+      fillProfile: "Fill profile",
+      playersCount: "{n} players",
     },
     es: {
       title: "Mi Scout",
@@ -74,12 +100,12 @@ export default function MyScout() {
       number: "#",
       save: "Guardar",
       cancel: "Cancelar",
-      sendToFilm: "→ Sala de análisis",
-      sending: "Enviando...",
-      sent: "Enviado ✓",
       sandboxNote: "Campo de pruebas — no apta para la Sala de análisis",
       officialBadge: "Oficial",
       editReport: "Editar informe",
+      viewReport: "Ver informe",
+      fillProfile: "Completar ficha",
+      playersCount: "{n} fichas",
     },
     zh: {
       title: "我的报告",
@@ -90,20 +116,21 @@ export default function MyScout() {
       number: "#",
       save: "保存",
       cancel: "取消",
-      sendToFilm: "→ 集体分析",
-      sending: "发送中...",
-      sent: "已发送 ✓",
       sandboxNote: "测试档案 — 无法进入集体分析",
       officialBadge: "官方",
       editReport: "编辑报告",
+      viewReport: "查看报告",
+      fillProfile: "完善档案",
+      playersCount: "{n} 名球员",
     },
   }[locale as "en" | "es" | "zh"] ?? {
     title: "My Scout", sub: "Your individual scouting reports", add: "+ Practice profile",
     noPlayers: "No profiles yet.", name: "Name", number: "#",
-    save: "Save", cancel: "Cancel", sendToFilm: "→ Film Room",
-    sending: "Sending...", sent: "Sent ✓",
+    save: "Save", cancel: "Cancel",
     sandboxNote: "Sandbox — not eligible for Film Room",
     officialBadge: "Official", editReport: "Edit report",
+    viewReport: "View report", fillProfile: "Fill profile",
+    playersCount: "{n} players",
   };
 
   const handleCreate = () => {
@@ -121,17 +148,6 @@ export default function MyScout() {
         },
       },
     );
-  };
-
-  const handleSendToFilmRoom = async (playerId: string) => {
-    setSubmitStates((s) => ({ ...s, [playerId]: "submitting" }));
-    try {
-      await apiRequest("POST", `/api/players/${playerId}/scout-version/submit`);
-      await qc.invalidateQueries({ queryKey: ["/api/players"] });
-      setSubmitStates((s) => ({ ...s, [playerId]: "done" }));
-    } catch {
-      setSubmitStates((s) => ({ ...s, [playerId]: "error" }));
-    }
   };
 
   if (isLoading) {
@@ -252,134 +268,126 @@ export default function MyScout() {
             </p>
           </div>
         ) : (
-          teams
-            .filter((team) => canonicalPlayers.some((p) => p.teamId === team.id))
-            .map((team) => (
-              <div key={team.id} className="space-y-2">
-                <div className="flex items-center gap-2 px-1 pt-2 pb-1">
-                  <span className="text-base">{team.logo}</span>
-                  <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/60">{team.name}</p>
-                </div>
-                {canonicalPlayers
-                  .filter((p) => p.teamId === team.id)
-                  .map((player) => {
-                    const isCanonical = (player as any).isCanonical ?? (player as any).is_canonical ?? false;
-                    const submitState = submitStates[player.id] ?? "idle";
-                    const inp = (player as any).inputs ?? (player as any).scoutingInputs;
-                    const hasReport = (() => {
-                      if (!inp || typeof inp !== "object") return false;
-                      const i = inp as Record<string, unknown>;
-                      // Must have at least one primary situation scouted
+          teamsWithCanonical.map((team) => {
+            const teamCanon = canonicalPlayers.filter((p) => p.teamId === team.id);
+            const expanded = expandedByTeamId[team.id] === true;
+
+            return (
+              <div key={team.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedByTeamId((prev) => ({ ...prev, [team.id]: !prev[team.id] }))
+                  }
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                >
+                  <span className="text-xl shrink-0" aria-hidden>
+                    {team.logo}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-foreground truncate">{team.name}</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                      {L.playersCount.replace("{n}", String(teamCanon.length))}
+                    </p>
+                  </div>
+                  <ChevronRight
+                    className={cn(
+                      "w-5 h-5 text-muted-foreground shrink-0 transition-transform",
+                      expanded && "rotate-90",
+                    )}
+                  />
+                </button>
+
+                {expanded && (
+                  <div className="border-t border-border px-3 pb-3 pt-2 space-y-2">
+                    {teamCanon.map((player) => {
+                      const isCanonical =
+                        (player as any).isCanonical ?? (player as any).is_canonical ?? false;
+                      const hasReport = hasReportInputs(player);
+
                       return (
-                        (i.isoFrequency === "Primary" || i.isoFrequency === "Secondary") ||
-                        (i.pnrFrequency === "Primary" || i.pnrFrequency === "Secondary") ||
-                        (i.postFrequency === "Primary" || i.postFrequency === "Secondary") ||
-                        (i.transitionFrequency === "Primary" || i.transitionFrequency === "Secondary")
-                      );
-                    })();
-
-                    return (
-                      <div key={player.id} className="rounded-xl border border-border bg-card overflow-hidden">
-                        <div className="flex items-center gap-3 px-4 py-3">
-                          <div className="relative shrink-0">
-                            {isRealPhoto(player.imageUrl)
-                              ? <img src={player.imageUrl} alt={player.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-border" />
-                              : <div className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-border"><BasketballPlaceholderAvatar size={44} /></div>
-                            }
-                            {isCanonical && (
-                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                                <Star className="w-2.5 h-2.5 text-primary-foreground" />
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="text-sm font-extrabold text-foreground truncate">{player.name || "—"}</p>
+                        <div
+                          key={player.id}
+                          className="rounded-xl border border-border bg-background overflow-hidden"
+                        >
+                          <div className="flex items-center gap-3 px-3 py-3">
+                            <div className="relative shrink-0">
+                              {isRealPhoto(player.imageUrl) ? (
+                                <img
+                                  src={player.imageUrl}
+                                  alt={player.name}
+                                  className="w-11 h-11 rounded-full object-cover ring-2 ring-border"
+                                />
+                              ) : (
+                                <div className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-border">
+                                  <BasketballPlaceholderAvatar size={44} />
+                                </div>
+                              )}
                               {isCanonical && (
-                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                                  {L.officialBadge}
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                                  <Star className="w-2.5 h-2.5 text-primary-foreground" />
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                              #{player.number || "—"} · {teamLogo(player.teamId)} {teamName(player.teamId)}
-                            </p>
-                            {!isCanonical && (
-                              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">{L.sandboxNote}</p>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-sm font-extrabold text-foreground truncate">
+                                  {player.name || "—"}
+                                </p>
+                                {isCanonical && (
+                                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                    {L.officialBadge}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                #{player.number || "—"} · {teamLogo(player.teamId)} {teamName(player.teamId)}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!hasReportInputs(player)) setLocation(`/coach/quick-scout/${player.id}`);
+                                else setLocation(`/coach/player/${player.id}`);
+                              }}
+                              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                              title={L.editReport}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="border-t border-border px-3 py-3 bg-muted/30">
+                            {hasReport ? (
+                              <Button
+                                type="button"
+                                className="w-full h-10 rounded-xl font-bold text-sm bg-primary text-primary-foreground shadow-sm flex items-center justify-between gap-2 pr-3"
+                                onClick={() => setLocation(`/coach/scout/${player.id}/review`)}
+                              >
+                                <span>{L.viewReport}</span>
+                                <ChevronRight className="w-5 h-5 shrink-0 opacity-90" />
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full h-9 rounded-xl text-xs font-bold border-border"
+                                onClick={() => setLocation(`/coach/player/${player.id}`)}
+                              >
+                                {L.fillProfile}
+                              </Button>
                             )}
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const inp = (player as any).inputs ?? (player as any).scoutingInputs;
-                              const hasReport = (() => {
-                                if (!inp || typeof inp !== "object") return false;
-                                const i = inp as Record<string, unknown>;
-                                // Must have at least one primary situation scouted
-                                return (
-                                  (i.isoFrequency === "Primary" || i.isoFrequency === "Secondary") ||
-                                  (i.pnrFrequency === "Primary" || i.pnrFrequency === "Secondary") ||
-                                  (i.postFrequency === "Primary" || i.postFrequency === "Secondary") ||
-                                  (i.transitionFrequency === "Primary" || i.transitionFrequency === "Secondary")
-                                );
-                              })();
-                              if (!hasReport) setLocation(`/coach/quick-scout/${player.id}`);
-                              else setLocation(`/coach/player/${player.id}`);
-                            }}
-                            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                            title={L.editReport}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
                         </div>
-
-                        {isCanonical && hasReport && (
-                          <div className="border-t border-border px-4 py-2.5 flex items-center justify-between bg-background/40">
-                            <div className="flex items-center gap-1.5">
-                              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-                              <span className="text-[11px] font-semibold text-muted-foreground">
-                                {submitState === "done"
-                                  ? L.sent
-                                  : submitState === "error"
-                                  ? (locale === "es" ? "Error — reintentar" : "Error — retry")
-                                  : locale === "es" ? "Listo para enviar" : "Ready to send"}
-                              </span>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant={submitState === "done" ? "outline" : "default"}
-                              className={cn(
-                                "h-7 px-3 text-[11px] font-black rounded-lg",
-                                submitState === "done" && "border-emerald-500/40 text-emerald-600 dark:text-emerald-400",
-                                submitState === "error" && "border-destructive/40 text-destructive",
-                              )}
-                              disabled={submitState === "submitting" || submitState === "done"}
-                              onClick={() => void handleSendToFilmRoom(player.id)}
-                            >
-                              <Send className="w-3 h-3 mr-1" />
-                              {submitState === "submitting" ? L.sending : submitState === "done" ? L.sent : L.sendToFilm}
-                            </Button>
-                          </div>
-                        )}
-
-                        {hasReport && (
-                          <div
-                            className="border-t border-border px-4 py-2 flex items-center gap-2 cursor-pointer hover:bg-muted/30 transition-colors"
-                            onClick={() => setLocation(`/coach/scout/${player.id}/review`)}
-                          >
-                            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60 flex-1">
-                              {locale === "es" ? "Ver informe" : locale === "zh" ? "查看报告" : "View report"}
-                            </span>
-                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            ))
+            );
+          })
         )}
 
         <button
@@ -406,19 +414,7 @@ export default function MyScout() {
           ) : (
             sandboxPlayers.map((player) => {
               const isCanonical = (player as any).isCanonical ?? (player as any).is_canonical ?? false;
-              const submitState = submitStates[player.id] ?? "idle";
-              const inp = (player as any).inputs ?? (player as any).scoutingInputs;
-              const hasReport = (() => {
-                if (!inp || typeof inp !== "object") return false;
-                const i = inp as Record<string, unknown>;
-                // Must have at least one primary situation scouted
-                return (
-                  (i.isoFrequency === "Primary" || i.isoFrequency === "Secondary") ||
-                  (i.pnrFrequency === "Primary" || i.pnrFrequency === "Secondary") ||
-                  (i.postFrequency === "Primary" || i.postFrequency === "Secondary") ||
-                  (i.transitionFrequency === "Primary" || i.transitionFrequency === "Secondary")
-                );
-              })();
+              const hasReport = hasReportInputs(player);
 
               return (
                 <div key={player.id} className="rounded-xl border border-border bg-card overflow-hidden">
@@ -457,19 +453,7 @@ export default function MyScout() {
                     <button
                       type="button"
                       onClick={() => {
-                        const inp = (player as any).inputs ?? (player as any).scoutingInputs;
-                        const hasReport = (() => {
-                          if (!inp || typeof inp !== "object") return false;
-                          const i = inp as Record<string, unknown>;
-                          // Must have at least one primary situation scouted
-                          return (
-                            (i.isoFrequency === "Primary" || i.isoFrequency === "Secondary") ||
-                            (i.pnrFrequency === "Primary" || i.pnrFrequency === "Secondary") ||
-                            (i.postFrequency === "Primary" || i.postFrequency === "Secondary") ||
-                            (i.transitionFrequency === "Primary" || i.transitionFrequency === "Secondary")
-                          );
-                        })();
-                        if (!hasReport) setLocation(`/coach/quick-scout/${player.id}`);
+                        if (!hasReportInputs(player)) setLocation(`/coach/quick-scout/${player.id}`);
                         else setLocation(`/coach/player/${player.id}`);
                       }}
                       className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
@@ -479,46 +463,27 @@ export default function MyScout() {
                     </button>
                   </div>
 
-                  {isCanonical && hasReport && (
-                    <div className="border-t border-border px-4 py-2.5 flex items-center justify-between bg-background/40">
-                      <div className="flex items-center gap-1.5">
-                        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="text-[11px] font-semibold text-muted-foreground">
-                          {submitState === "done"
-                            ? L.sent
-                            : submitState === "error"
-                            ? (locale === "es" ? "Error — reintentar" : "Error — retry")
-                            : locale === "es" ? "Listo para enviar" : "Ready to send"}
-                        </span>
-                      </div>
+                  <div className="border-t border-border px-4 py-3 bg-background/40">
+                    {hasReport ? (
                       <Button
-                        size="sm"
-                        variant={submitState === "done" ? "outline" : "default"}
-                        className={cn(
-                          "h-7 px-3 text-[11px] font-black rounded-lg",
-                          submitState === "done" && "border-emerald-500/40 text-emerald-600 dark:text-emerald-400",
-                          submitState === "error" && "border-destructive/40 text-destructive",
-                        )}
-                        disabled={submitState === "submitting" || submitState === "done"}
-                        onClick={() => void handleSendToFilmRoom(player.id)}
+                        type="button"
+                        className="w-full h-10 rounded-xl font-bold text-sm bg-primary text-primary-foreground shadow-sm flex items-center justify-between gap-2 pr-3"
+                        onClick={() => setLocation(`/coach/scout/${player.id}/review`)}
                       >
-                        <Send className="w-3 h-3 mr-1" />
-                        {submitState === "submitting" ? L.sending : submitState === "done" ? L.sent : L.sendToFilm}
+                        <span>{L.viewReport}</span>
+                        <ChevronRight className="w-5 h-5 shrink-0 opacity-90" />
                       </Button>
-                    </div>
-                  )}
-
-                  {hasReport && (
-                    <div
-                      className="border-t border-border px-4 py-2 flex items-center gap-2 cursor-pointer hover:bg-muted/30 transition-colors"
-                      onClick={() => setLocation(`/coach/scout/${player.id}/review`)}
-                    >
-                      <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60 flex-1">
-                        {locale === "es" ? "Ver informe" : locale === "zh" ? "查看报告" : "View report"}
-                      </span>
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />
-                    </div>
-                  )}
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-9 rounded-xl text-xs font-bold border-border"
+                        onClick={() => setLocation(`/coach/player/${player.id}`)}
+                      >
+                        {L.fillProfile}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               );
             })
@@ -529,4 +494,3 @@ export default function MyScout() {
     </div>
   );
 }
-
