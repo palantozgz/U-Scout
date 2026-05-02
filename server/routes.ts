@@ -9,6 +9,7 @@ import { patchClubBodySchema } from "@shared/club-context";
 import { requireAuth } from "./auth";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { lookupAuthBasicsByUserIds, mergeAuthWithSession } from "./authUserLookup";
+import { registerStatsIngest } from "./stats-ingest";
 
 function publicAppOrigin(req: Request): string {
   const env = process.env.APP_PUBLIC_URL ?? process.env.VITE_APP_URL;
@@ -1530,6 +1531,8 @@ export async function registerRoutes(
       res.status(500).json({ error: "Ingest failed" });
     }
   });
+
+  registerStatsIngest(app);
 
   return httpServer;
 }
