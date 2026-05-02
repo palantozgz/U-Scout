@@ -5,7 +5,7 @@ import { logger } from '../logger';
 
 export async function syncStandings(): Promise<void> {
   const { competitionId, seasonId } = config.wcba;
-  const res = await wcbaClient.get('/datahub/cbamatch/rank/teamrankfirst', { params: { competitionId, seasonId } });
+  const res = await wcbaClient.get('/datahub/cbamatch/rank/matchoutrank', { params: { competitionId, seasonId } });
   const rows: any[] = res.data?.data ?? [];
   if (rows.length === 0) { logger.warn('Standings: empty'); return; }
   const standings = rows.map((r: any) => ({
