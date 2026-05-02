@@ -130,16 +130,64 @@ PRÓXIMA ACCIÓN BUNDLE (post-TestFlight):
 - P2 Schedule scroll List→Planner: recentrar en hoy al cambiar tab (no verificado)
 - P2 readCoachBadges + isPhysicalTrainer hardcodeados a false — código muerto
 
-### 🟡 PENDIENTE PRÓXIMA SESIÓN (orden prioridad)
-1. QA producción — verificar flujos clave en Railway tras deploy de hoy
-2. UX/visual pass — Linear como referencia estética, cards, fuentes monoespaciadas para números
-3. ReportViewV4 → ReportSlidesV1: rediseño de scroll vertical a 3 slides
-4. U Stats features — opponent report, importar plantillas a Personnel
-5. Wellness offline (P3): crear endpoint /api/wellness o cola separada para useUpsertWellnessEntry
-6. TestFlight: contratar Apple Developer ($99) + Xcode → npx cap sync
-7. Iconos app — diseñar en Figma (1024x1024 PNG sin transparencia) — Figma MCP resetea en junio
-8. U Schedule — kebab/tap behavior fix
-9. Motor server-side — decisión post-TestFlight
+### Estado sesión 2 mayo 2026
+
+**COMPLETADO HOY:**
+
+Bloque 1 — Performance:
+- vite.config.ts: manualChunks 3 buckets (react/supabase/tanstack)
+- App.tsx: Login/OnboardingFlow/JoinClub/Join → lazy
+- Initial chunk: 230KB → 100KB gzip ✅
+- Home.tsx: prefetch motor + players + teams en background al llegar al Home
+
+Bloque 2 — Offline:
+- usePlayers/usePlayer: offlineFirst + staleTime 10min + gcTime 7d
+- useUpdatePlayer/useCreatePlayer: cola offline conectada + optimistic cache
+- OfflineBanner: solo UI, correcto
+- GAP pendiente: wellness offline (P3, no bloqueante TestFlight)
+
+U Stats — Collector completo:
+- collector/ creado en repo con 12 archivos TypeScript
+- Sync: standings, schedule, boxscores, playerstats, pbp, phases
+- PBP enriquecido: scoreDifferential, leadChange, tie, momentumRun,
+  stintId, reboundType, assistedByExternalId
+- Shot zones calibradas con 2 partidos reales (12 tiros de referencia):
+  sistema coordenadas confirmado (cancha 28m×15m, aro Home x=0.0575)
+  bandSide añadido, shot_dist_m en metros
+- Bot Telegram: /status /sync /reboot /season /logs /errors /setseason /games /test
+  + alertas automáticas (sync failures, network silence, unmapped action codes)
+- server/stats-ingest.ts: endpoint POST /api/stats/ingest completo
+  maneja standings/schedule/boxscores/player_stats/pbp con upserts
+- supabase-stats-schema.sql: 9 tablas + índices + comentarios (listo para ejecutar)
+- PI-SETUP.md: guía completa de setup desde flash SSD hasta primer sync
+- STATS_INGEST_KEY generada y añadida en Railway ✅
+- Schema ejecutado en Supabase ✅
+- Git push a main ✅ (27 archivos, 3309 inserciones)
+
+Blueprint actualizado:
+- Filosofía de recolección: guardar todo, filtrar en output
+- Catálogo completo de métricas: eFG%, TS%, ORB%, PIE, lineup+/-,
+  lateral_bias, shot_spatial_entropy, shot_dist_std, momentum runs,
+  pace exacto desde PBP, score differential distribution
+- Arquitectura de navegación UI: EQUIPOS/JUGADORAS toggle,
+  cross-nav bidireccional, buscador con filtros client-side
+- Shot chart calibrado documentado con resultados de verificación
+
+**PENDIENTE INMEDIATO (cuando llegue a casa con la Pi):**
+1. Flash SSD con Raspberry Pi Imager (https://www.raspberrypi.com/software/)
+2. Conectar SSD a Pi → SSH → npm install && npm run build en collector/
+3. Rellenar .env con STATS_INGEST_KEY + TELEGRAM keys
+4. pm2 start + verificar con /test en Telegram
+
+**PENDIENTE PRÓXIMAS SESIONES:**
+- Endpoint GET /api/stats/* (standings, players, team, player/:id)
+  para que la UI pueda consumir los datos
+- UI de U Stats: Stats.tsx redesign con las pantallas del blueprint
+- Wellness offline P3
+- ReportViewV4 → 3 slides
+- UX/visual pass (Linear como referencia)
+- hasReport fix en MyScout
+- Schedule kebab/tap behavior
 
 ### Offline — estado 2 mayo 2026
 ```

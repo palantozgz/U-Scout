@@ -30,11 +30,8 @@ async function runNightlySync(): Promise<void> {
     await syncStandings();
     await syncNewBoxscores(finished.map(g => g.gameId), matchIdMap);
 
-    const phases = await fetchPhases();
-    for (const phase of phases) {
-      const maxRound = Math.max(...phase.rounds);
-      await syncPlayerStats(phase.phaseId, maxRound);
-    }
+    const { maxRound } = await fetchPhases();
+    await syncPlayerStats(maxRound);
 
     await syncNewPBP(finished.map(g => g.gameId));
     pbpSynced = finished.length;
