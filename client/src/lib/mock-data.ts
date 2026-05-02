@@ -2208,6 +2208,9 @@ export function usePlayers(teamId?: string) {
     queryKey: ["/api/players", userId ?? "anon", teamId],
     queryFn:  async () =>
       (await apiRequest("GET", teamId ? `/api/players?teamId=${teamId}` : "/api/players")).json(),
+    networkMode: "offlineFirst",
+    staleTime:   1000 * 60 * 10,   // 10 min — serve cache offline
+    gcTime:      1000 * 60 * 60 * 24 * 7,
   });
 }
 
@@ -2216,6 +2219,9 @@ export function usePlayer(id: string) {
     queryKey: ["/api/players", id],
     queryFn:  async () => (await apiRequest("GET", `/api/players/${id}`)).json(),
     enabled:  !!id && id !== "new",
+    networkMode: "offlineFirst",
+    staleTime:   1000 * 60 * 10,   // 10 min — serve cache offline
+    gcTime:      1000 * 60 * 60 * 24 * 7,
   });
 }
 
@@ -2254,6 +2260,18 @@ export function useCreatePlayer() {
       qc.invalidateQueries({ queryKey: ["/api/players"] });
       qc.setQueryData(["/api/players", created.id], created);
     },
+    onError: (_err, player) => {
+      if (!navigator.onLine) {
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        enqueueOfflinePlayerMutation({
+          id: `q-${tempId}`,
+          kind: "create",
+          tempId,
+          teamId: (player as any).teamId ?? "",
+          payload: player,
+        });
+      }
+    },
   });
 }
 
@@ -2265,6 +2283,23 @@ export function useUpdatePlayer() {
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ["/api/players"] });
       qc.setQueryData(["/api/players", updated.id], updated);
+    },
+    onError: (_err, { id, updates }) => {
+      if (!navigator.onLine) {
+        // Optimistic cache update so the coach sees their changes immediately
+        qc.setQueryData<PlayerProfile>(["/api/players", id], (old) =>
+          old ? { ...old, ...updates } : undefined
+        );
+        qc.setQueryData<PlayerProfile[]>(["/api/players"], (old) =>
+          old ? old.map((p) => p.id === id ? { ...p, ...updates } : p) : old
+        );
+        enqueueOfflinePlayerMutation({
+          id: `q-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          kind: "update",
+          playerId: id,
+          updates,
+        });
+      }
     },
   });
 }

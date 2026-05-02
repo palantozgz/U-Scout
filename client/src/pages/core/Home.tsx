@@ -154,10 +154,27 @@ export default function Home() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    // Prefetch club data (existing)
     void queryClient.prefetchQuery({
       queryKey: clubQueryKey,
       queryFn: async () => { const r = await apiRequest("GET", "/api/club"); return r.json(); },
       staleTime: 5 * 60 * 1000,
+    });
+
+    // Prefetch U Scout JS chunks in background — motor loads before user navigates there
+    void import("@/lib/mock-data");
+    void import("@/lib/motor-v4");
+
+    // Prefetch players + teams data in parallel — cache warm before entering U Scout
+    void queryClient.prefetchQuery({
+      queryKey: ["/api/players"],
+      queryFn: async () => (await apiRequest("GET", "/api/players")).json(),
+      staleTime: 10 * 60 * 1000,
+    });
+    void queryClient.prefetchQuery({
+      queryKey: ["/api/teams"],
+      queryFn: async () => (await apiRequest("GET", "/api/teams")).json(),
+      staleTime: 10 * 60 * 1000,
     });
   }, [queryClient]);
   const realCaps = useMemo(

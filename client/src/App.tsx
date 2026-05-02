@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Switch, Route, useLocation, useRoute } from "wouter";
 import { migrateLegacyOnboarding, shouldOfferOnboarding } from "@/lib/onboarding-state";
-import OnboardingFlow from "@/pages/OnboardingFlow";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { ClubGenderProvider } from "@/lib/clubGenderContext";
@@ -11,16 +10,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/lib/useAuth";
 import { useLocale } from "@/lib/i18n";
-import Login from "@/pages/Login";
 import { useClub } from "@/lib/club-api";
 import { apiRequest } from "@/lib/queryClient";
 import { type ReportOverride } from "@/lib/overrideEngine";
-
-import { lazy, Suspense } from "react";
-
 import { UCoreBootSplash } from "@/components/branding/UScoutBrand";
-import JoinClub from "@/pages/JoinClub";
-import JoinPage from "@/pages/Join";
+
+const OnboardingFlow = lazy(() => import("@/pages/OnboardingFlow"));
+const Login = lazy(() => import("@/pages/Login"));
+const JoinClub = lazy(() => import("@/pages/JoinClub"));
+const JoinPage = lazy(() => import("@/pages/Join"));
 
 const CoachHome = lazy(() => import("@/pages/scout/CoachHome"));
 const ClubManagement = lazy(() => import("@/pages/scout/ClubManagement"));

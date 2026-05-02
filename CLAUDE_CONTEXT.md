@@ -102,28 +102,27 @@ head_coach       → Game Plan → puede RETIRAR → vuelve a MyScout
 20. queryKey + userId: usePlayers/useTeams/useClub scoped por usuario
 21. RenderedAlert: tipo completo con key+triggerKey (elimina as any en ReportSlidesV1)
 
-### Bundle — estado real y objetivo correcto
+### Bundle — estado sesión 2 mayo 2026
 ```
-TOTAL BUNDLE: ~532KB gzip (suma de todos los chunks)
-INITIAL CHUNK (lo que bloquea el primer render): ~150-160KB gzip
-  - vendor-react no está separado: entra en index junto con supabase etc.
+MEDIDO POST-BUILD:
+  - Initial chunk (index): 100KB gzip  ← OBJETIVO CUMPLIDO (era 230KB)
+  - vendor-react:     63KB gzip (carga paralela, no bloquea)
+  - vendor-supabase:  51KB gzip (carga paralela)
+  - vendor-query:     12KB gzip (carga paralela)
+  - Total bundle:    ~532KB gzip (sin cambio — correcto para este stack)
 
-OBJETIVO CORRECTO para apps React profesionales:
-  - Initial chunk (bloquea primer render): < 100KB gzip  ← esto importa para TTI
-  - Total bundle: 400-600KB gzip es normal para este stack
-  - Apple NO rechaza por bundle size — rechaza por crashes/APIs/privacidad
+INTERVENCIONES APLICADAS (2 mayo 2026):
+  - vite.config.ts: manualChunks con 3 buckets grandes (react, supabase, tanstack)
+  - App.tsx: Login/OnboardingFlow/JoinClub/Join → lazy
+  REGLA: manualChunks con pocos buckets GRANDES funciona.
+          manualChunks con muchos chunks pequeños EMPEORA (modulepreload suma todos).
 
-INTERVENCIONES AUDITADAS (1 mayo 2026):
-  - manualChunks (B): EMPEORÓ (+21KB) porque modulepreload suma todos los vendors → REVERTIDO
-  - i18n lazy (D): ya estaba correcto, sin cambios
-  - Profile preload (C): no había preload, sin cambios
-  - Motor server-side (A): mayor ganancia posible (~45-65KB total) — requiere decisión Pablo
-
-PRÓXIMA ACCIÓN DE BUNDLE:
-  Separar el initial chunk real: mover Supabase init + providers fuera del entry,
-  cargarlos solo después del primer render (bootstrap pattern).
-  Ganancia estimada en initial chunk: -40-60KB (Supabase 50KB gzip sale del initial).
-  TOTAL no baja mucho, pero TTI (tiempo hasta login visible) sí mejora significativamente.
+PRÓXIMA ACCIÓN BUNDLE (post-TestFlight):
+  Motor server-side (motor-v2.1.ts + motor-v4.ts + mock-data.ts):
+  - Ganancia estimada: -50KB gzip del initial chunk → bajaría a ~50KB
+  - BLOQUEANTE: rompe offline para coaches (motor corre client-side hoy)
+  - Requiere cachear output calculado en lugar de inputs
+  - DECISIÓN PENDIENTE — no antes de TestFlight
 ```
 
 ### 🔴 RIESGOS ACTIVOS
@@ -133,12 +132,30 @@ PRÓXIMA ACCIÓN DE BUNDLE:
 
 ### 🟡 PENDIENTE PRÓXIMA SESIÓN (orden prioridad)
 1. QA producción — verificar flujos clave en Railway tras deploy de hoy
-2. Decisión: mover motor a server-side (sesión completa, mayor ganancia bundle)
-3. Bootstrap pattern: separar Supabase init del initial chunk (mejora TTI)
+2. UX/visual pass — Linear como referencia estética, cards, fuentes monoespaciadas para números
+3. ReportViewV4 → ReportSlidesV1: rediseño de scroll vertical a 3 slides
 4. U Stats features — opponent report, importar plantillas a Personnel
-5. TestFlight: contratar Apple Developer ($99) + Xcode → npx cap sync
-6. Iconos app — diseñar en Figma (1024x1024 PNG sin transparencia) — Figma MCP resetea en junio
-7. U Schedule — kebab/tap behavior fix
+5. Wellness offline (P3): crear endpoint /api/wellness o cola separada para useUpsertWellnessEntry
+6. TestFlight: contratar Apple Developer ($99) + Xcode → npx cap sync
+7. Iconos app — diseñar en Figma (1024x1024 PNG sin transparencia) — Figma MCP resetea en junio
+8. U Schedule — kebab/tap behavior fix
+9. Motor server-side — decisión post-TestFlight
+
+### Offline — estado 2 mayo 2026
+```
+IMPLEMENTADO Y FUNCIONA:
+  - networkMode offlineFirst: queryClient.ts (global) + usePlayers/usePlayer (explícito)
+  - staleTime 10min + gcTime 7d en usePlayers/usePlayer → jugadora ve report sin conexión
+  - Cola offline players: enqueueOfflinePlayerMutation en useUpdatePlayer/useCreatePlayer onError
+  - Flush automático en window.online event
+  - clearAllLocalCache() en logout limpia todo
+  - Motor client-side → coach puede generar report sin conexión ✅
+
+GAP CONOCIDO — P3:
+  - wellness.ts usa Supabase directo (no apiRequest) → useUpsertWellnessEntry no tiene cola offline
+  - Fix: endpoint POST /api/wellness + mover a apiRequest, o cola offline separada
+  - No bloqueante TestFlight
+```
 
 ---
 
