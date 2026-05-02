@@ -6,10 +6,14 @@ import { fetchPhases } from './phases';
 
 export interface WCBAGame {
   gameId: number; matchId: number;
-  phaseId: number; roundId: number;
-  homeTeamId: number; homeTeamName: string;
-  awayTeamId: number; awayTeamName: string;
-  scheduledAt: string | null; status: number;
+  phaseId: number; phaseIdNew: number; phaseName: string;
+  roundId: number;
+  homeTeamId: number; homeTeamName: string; homeLogo: string;
+  awayTeamId: number; awayTeamName: string; awayLogo: string;
+  homeScore: number | null; awayScore: number | null;
+  scheduledAt: string | null; gameDate: string | null;
+  status: number; fieldOrder: number;
+  seasonId: number;
 }
 
 export async function syncSchedule(): Promise<WCBAGame[]> {
@@ -21,28 +25,51 @@ export async function syncSchedule(): Promise<WCBAGame[]> {
     for (const roundId of phase.rounds) {
       try {
         const res = await wcbaClient.get('/datahub/cbamatch/games/matchschedules', {
-          params: { competitionId, seasonId, phaseId: phase.phaseId, roundId },
-        });
-        const rows: any[] = res.data?.data ?? [];
-        for (const r of rows) {
-          all.push({
-            gameId:       Number(r.gameId),
-            matchId:      Number(r.matchId ?? r.id ?? 0),
-            phaseId:      phase.phaseId,
+          params: {
+            competitionId,
+            seasonId,
+            phaseId: phase.phaseId,
             roundId,
-            homeTeamId:   Number(r.homeTeamId),
-            homeTeamName: r.homeTeamName ?? '',
-            awayTeamId:   Number(r.awayTeamId ?? r.guestTeamId ?? 0),
-            awayTeamName: r.awayTeamName ?? r.guestTeamName ?? '',
-            scheduledAt:  r.gameTime ?? r.scheduledAt ?? null,
-            status:       Number(r.gameStatus ?? r.status ?? 0),
-          });
+            teamId: '',      // ← clave: teamId vacío es requerido
+          },
+        });
+
+        const dates: any[] = res.data?.data ?? [];
+        for (const dateGroup of dates) {
+          const games: any[] = dateGroup.games ?? [];
+          for (const g of games) {
+            all.push({
+              gameId:       Number(g.gameId),
+              matchId:      Number(g.matchId ?? 0),
+              phaseId:      phase.phaseId,
+              phaseIdNew:   Number(g.phaseIdNew ?? phase.phaseId),
+              phaseName:    g.phaseNameNew ?? phase.phaseName,
+              roundId,
+              homeTeamId:   Number(g.homeId ?? 0),
+              homeTeamName: g.homeName ?? '',
+              homeLogo:     g.homeLogo ?? '',
+              awayTeamId:   Number(g.awayId ?? 0),
+              awayTeamName: g.awayName ?? '',
+              awayLogo:     g.awayLogo ?? '',
+              homeScore:    g.homeScore != null ? Number(g.homeScore) : null,
+              awayScore:    g.awayScore != null ? Number(g.awayScore) : null,
+              scheduledAt:  g.gameTime ? `${g.gameDate}T${g.gameTime}` : null,
+              gameDate:     g.gameDate ?? null,
+              status:       Number(g.gameStatus ?? 0),
+              fieldOrder:   Number(g.fieldOrder ?? 0),
+              seasonId,
+            });
+          }
         }
-        if (rows.length > 0) {
-          logger.info('Round fetched', { phaseId: phase.phaseId, roundId, games: rows.length });
+
+        if (dates.length > 0) {
+          const gamesInRound = dates.reduce((s: number, d: any) => s + (d.games?.length ?? 0), 0);
+          if (gamesInRound > 0) {
+            logger.info('Round fetched', { phaseId: phase.phaseId, roundId, games: gamesInRound });
+          }
         }
       } catch (err: any) {
-        if (err.response?.status === 500) continue; // round not played yet
+        if (err.response?.status === 500) continue;
         logger.warn('Round failed', { phaseId: phase.phaseId, roundId, error: err.message });
       }
     }
@@ -57,7 +84,7 @@ export async function syncSchedule(): Promise<WCBAGame[]> {
 
 export async function checkActiveGame(): Promise<{ gameId: number } | null> {
   try {
-    const res = await wcbaClient.get('/datahub/cbamatch/games/lastlymatch', {
+    const res = await wcbaClient.get('/datahub/cbamatch/games/lastlymatchschedule', {
       params: { competitionId: config.wcba.competitionId, seasonId: config.wcba.seasonId },
     });
     const g = res.data?.data;
