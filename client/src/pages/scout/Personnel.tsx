@@ -103,6 +103,7 @@ export default function Personnel() {
   const L = {
     en: {
       title: "Personnel",
+      backNav: "Back",
       headCoachSub: "Official rival roster — canonical profiles only",
       sandboxTitle: "⚗️ Sandbox mode",
       sandboxSub: "Profiles you create here are private and cannot be sent to Film Room. Only head coaches can create canonical profiles.",
@@ -114,6 +115,7 @@ export default function Personnel() {
       sandboxLabel: "Practice only",
       addCanonical: "+ New official profile",
       addSandbox: "+ Add practice profile",
+      importWcba: "⬇ Import WCBA",
       noTeams: "No teams yet. Create a team first from the editor.",
       canonical: "Official",
       sandbox: "Sandbox",
@@ -128,6 +130,7 @@ export default function Personnel() {
     },
     es: {
       title: "Plantilla",
+      backNav: "Volver",
       headCoachSub: "Roster rival oficial — solo fichas canónicas",
       sandboxTitle: "⚗️ Modo campo de pruebas",
       sandboxSub: "Las fichas que crees aquí son privadas y no pueden enviarse a la Sala de análisis. Solo los head coaches pueden crear fichas canónicas.",
@@ -139,6 +142,7 @@ export default function Personnel() {
       sandboxLabel: "Solo práctica",
       addCanonical: "+ Nueva ficha oficial",
       addSandbox: "+ Añadir ficha de prueba",
+      importWcba: "⬇ Importar WCBA",
       noTeams: "Sin equipos. Crea un equipo primero desde el editor.",
       canonical: "Oficial",
       sandbox: "Prueba",
@@ -153,6 +157,7 @@ export default function Personnel() {
     },
     zh: {
       title: "球员档案",
+      backNav: "返回",
       headCoachSub: "官方对手名单 — 仅限标准档案",
       sandboxTitle: "⚗️ 测试模式",
       sandboxSub: "此处创建的档案为私人档案，无法发送至集体分析。只有主教练可以创建标准档案。",
@@ -164,6 +169,7 @@ export default function Personnel() {
       sandboxLabel: "仅练习",
       addCanonical: "+ 新建官方档案",
       addSandbox: "+ 添加练习档案",
+      importWcba: "⬇ 导入WCBA",
       noTeams: "暂无球队，请先在编辑器中创建球队。",
       canonical: "官方",
       sandbox: "测试",
@@ -178,6 +184,7 @@ export default function Personnel() {
     },
   }[locale as "en" | "es" | "zh"] ?? {
     title: "Personnel",
+    backNav: "Back",
     headCoachSub: "Official rival roster — canonical profiles only",
     sandboxTitle: "⚗️ Sandbox mode",
     sandboxSub: "Profiles you create here are private and cannot be sent to Film Room. Only head coaches can create canonical profiles.",
@@ -189,6 +196,7 @@ export default function Personnel() {
     sandboxLabel: "Practice only",
     addCanonical: "+ New official profile",
     addSandbox: "+ Add practice profile",
+    importWcba: "⬇ Import WCBA",
     noTeams: "No teams yet.",
     canonical: "Official",
     sandbox: "Sandbox",
@@ -439,54 +447,57 @@ export default function Personnel() {
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
-      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 space-y-3 max-w-md mx-auto w-full">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={() => setLocation("/coach")}
-            className="-ml-1 p-1 rounded-lg text-muted-foreground hover:text-foreground"
+            className="-ml-1 p-1 rounded-lg text-muted-foreground hover:text-foreground shrink-0"
+            aria-label={L.backNav}
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-lg font-black text-foreground tracking-tight">{L.title}</h1>
+          <h1 className="text-lg font-black text-foreground tracking-tight truncate min-w-0">{L.title}</h1>
         </div>
         {isHeadCoach && (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-xs font-bold h-9 rounded-lg"
-              onClick={() => setShowNewTeam(true)}
-            >
-              {L.newTeam}
-            </Button>
-            {canCreateCanonical && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
               <Button
                 size="sm"
-                variant="outline"
-                className="text-xs font-bold h-9 rounded-lg"
-                onClick={() => {
-                  setShowNewPlayer(true);
-                  setNewPlayerTeamId(freeAgentsTeam?.id ?? defaultTeamId);
-                  setExpandedTeamId((freeAgentsTeam?.id ?? defaultTeamId) || null);
-                }}
+                variant="ghost"
+                className="text-xs font-bold h-10 rounded-lg w-full justify-center px-2 whitespace-normal text-center leading-snug"
+                onClick={() => setShowNewTeam(true)}
               >
-                {L.addCanonical}
+                {L.newTeam}
               </Button>
-            )}
+              {canCreateCanonical && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs font-bold h-10 rounded-lg w-full justify-center px-2 whitespace-normal text-center leading-snug border-2"
+                  onClick={() => {
+                    setShowNewPlayer(true);
+                    setNewPlayerTeamId(freeAgentsTeam?.id ?? defaultTeamId);
+                    setExpandedTeamId((freeAgentsTeam?.id ?? defaultTeamId) || null);
+                  }}
+                >
+                  {L.addCanonical}
+                </Button>
+              )}
+            </div>
             <Button
               size="sm"
-              variant="ghost"
-              className="text-xs font-bold h-9 rounded-lg"
+              variant="secondary"
+              className="text-xs font-bold h-10 rounded-lg w-full justify-center px-3 shadow-sm"
               onClick={() => {
                 setShowImportTeam(true);
                 setImportResult(null);
                 void handleFetchStatsTeams();
               }}
             >
-              {locale === "es" ? "⬇ Importar WCBA" : locale === "zh" ? "⬇ 导入WCBA" : "⬇ Import WCBA"}
+              {L.importWcba}
             </Button>
-          </div>
+          </>
         )}
       </header>
 
