@@ -1660,7 +1660,7 @@ export async function registerRoutes(
       JOIN stats_games sg ON sg.id = pb.game_id
       JOIN stats_players sp ON sp.external_id = pb.player_external_id
       LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
-      WHERE sg.status = 4
+      WHERE sg.status = 4 AND sg.season_id = ${seasonId}
       GROUP BY sp.external_id, sp.name_zh, sp.name_en, st.name_zh
       HAVING COUNT(DISTINCT pb.game_id) >= 5
       ORDER BY value DESC
