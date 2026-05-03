@@ -106,14 +106,12 @@ async function handleSchedule(rows: any[], seasonId: number, competitionId: numb
   const valid = rows.filter(r => r.gameId);
   if (valid.length === 0) return 0;
 
-  // 1. Collect unique teams
   const teamMap = new Map<number, string>();
   for (const r of valid) {
     if (r.homeTeamId) teamMap.set(Number(r.homeTeamId), r.homeTeamName ?? '');
     if (r.awayTeamId) teamMap.set(Number(r.awayTeamId), r.awayTeamName ?? '');
   }
 
-  // 2. Upsert teams + collect internal ids via RETURNING
   const internalIdMap = new Map<number, number>();
   const teamEntries = Array.from(teamMap.entries());
   for (const entry of teamEntries) {
@@ -123,7 +121,6 @@ async function handleSchedule(rows: any[], seasonId: number, competitionId: numb
     if (internalId) internalIdMap.set(extId, internalId);
   }
 
-  // 3. Upsert games
   let count = 0;
   for (const r of valid) {
     const homeId = r.homeTeamId ? (internalIdMap.get(Number(r.homeTeamId)) ?? null) : null;
@@ -166,6 +163,45 @@ async function handleBoxscores(rows: any[], seasonId: number): Promise<number> {
         away_q3 = ${r.awayQ3 ?? null}, away_q4 = ${r.awayQ4 ?? null},
         status = ${r.status ?? 4}, updated_at = NOW()
       WHERE id = ${gameInternalId}
+    `);
+    count++;
+  }
+  return count;
+}
+
+async function handlePlayerBoxscores(rows: any[]): Promise<number> {
+  if (rows.length === 0) return 0;
+  let count = 0;
+  for (const r of rows) {
+    if (!r.gameId || !r.playerExternalId) continue;
+    const game = await db.execute(sql`SELECT id FROM stats_games WHERE external_game_id = ${r.gameId} LIMIT 1`);
+    const gameInternalId = game?.rows?.[0]?.id;
+    if (!gameInternalId) continue;
+    await db.execute(sql`
+      INSERT INTO stats_player_boxscores (
+        game_id, player_external_id, team_external_id, team_type,
+        is_start_lineup, minutes, pts,
+        off_reb, def_reb, reb, ast, stl, blk, tov, fouls,
+        fgm, fga, tpm, tpa, ftm, fta, plus_minus
+      ) VALUES (
+        ${gameInternalId}, ${String(r.playerExternalId)}, ${r.teamExternalId ?? null}, ${r.teamType ?? null},
+        ${r.isStartLineUp ?? false}, ${r.minutes ?? '00:00'}, ${r.pts ?? 0},
+        ${r.offReb ?? 0}, ${r.defReb ?? 0}, ${r.reb ?? 0},
+        ${r.ast ?? 0}, ${r.stl ?? 0}, ${r.blk ?? 0}, ${r.tov ?? 0}, ${r.fouls ?? 0},
+        ${r.fgm ?? 0}, ${r.fga ?? 0}, ${r.tpm ?? 0}, ${r.tpa ?? 0},
+        ${r.ftm ?? 0}, ${r.fta ?? 0}, ${r.plusMinus ?? 0}
+      )
+      ON CONFLICT (game_id, player_external_id) DO UPDATE SET
+        pts = EXCLUDED.pts, off_reb = EXCLUDED.off_reb, def_reb = EXCLUDED.def_reb,
+        reb = EXCLUDED.reb, ast = EXCLUDED.ast, stl = EXCLUDED.stl,
+        blk = EXCLUDED.blk, tov = EXCLUDED.tov, fouls = EXCLUDED.fouls,
+        fgm = EXCLUDED.fgm, fga = EXCLUDED.fga,
+        tpm = EXCLUDED.tpm, tpa = EXCLUDED.tpa,
+        ftm = EXCLUDED.ftm, fta = EXCLUDED.fta,
+        plus_minus = EXCLUDED.plus_minus,
+        minutes = EXCLUDED.minutes,
+        is_start_lineup = EXCLUDED.is_start_lineup,
+        updated_at = NOW()
     `);
     count++;
   }
@@ -345,6 +381,9 @@ export function registerStatsIngest(app: Express): void {
           break;
         case "boxscores":
           recordsProcessed = await handleBoxscores(data, seasonId);
+          break;
+        case "player_boxscores":
+          recordsProcessed = await handlePlayerBoxscores(data);
           break;
         case "player_stats":
           recordsProcessed = await handlePlayerStats(data, seasonId);
