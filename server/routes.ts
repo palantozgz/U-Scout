@@ -1534,5 +1534,83 @@ export async function registerRoutes(
     return res.json({ ok: true, created, skipped, total: statPlayers.length });
   });
 
+  // ─── GET /api/stats/players — promedios temporada desde player_boxscores ────
+  app.get("/api/stats/players", requireAuth, async (_req, res) => {
+    const rows = await db.execute(sql`
+      SELECT
+        sp.name_zh                                    AS "playerName",
+        sp.name_en                                    AS "playerNameEn",
+        st.name_zh                                    AS "teamName",
+        '2024-25'                                     AS season,
+        COUNT(DISTINCT pb.game_id)::int               AS games,
+        ROUND(AVG(pb.minutes::float)::numeric, 1)     AS mpg,
+        ROUND(AVG(pb.pts)::numeric, 1)                AS ppg,
+        ROUND(AVG(pb.reb)::numeric, 1)                AS rpg,
+        ROUND(AVG(pb.ast)::numeric, 1)                AS apg,
+        ROUND(AVG(pb.stl)::numeric, 1)                AS spg,
+        ROUND(AVG(pb.blk)::numeric, 1)                AS bpg,
+        ROUND(AVG(pb.tov)::numeric, 1)                AS topg,
+        CASE WHEN SUM(pb.fga) > 0
+          THEN ROUND((SUM(pb.fgm)::float / SUM(pb.fga) * 100)::numeric, 1)
+          ELSE NULL END                               AS "fgPct",
+        CASE WHEN SUM(pb.tpa) > 0
+          THEN ROUND((SUM(pb.tpm)::float / SUM(pb.tpa) * 100)::numeric, 1)
+          ELSE NULL END                               AS "fg3Pct",
+        CASE WHEN SUM(pb.fta) > 0
+          THEN ROUND((SUM(pb.ftm)::float / SUM(pb.fta) * 100)::numeric, 1)
+          ELSE NULL END                               AS "ftPct"
+      FROM stats_player_boxscores pb
+      JOIN stats_games sg ON sg.id = pb.game_id
+      JOIN stats_players sp ON sp.external_id = pb.player_external_id
+      LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
+      WHERE sg.status = 4
+      GROUP BY sp.external_id, sp.name_zh, sp.name_en, st.name_zh
+      HAVING COUNT(DISTINCT pb.game_id) > 0
+      ORDER BY ppg DESC
+    `);
+    const players = (rows as any).rows ?? [];
+    return res.json({ players });
+  });
+
+  // ─── GET /api/stats/games — game log por jugadora ─────────────────────────
+  app.get("/api/stats/games", requireAuth, async (req, res) => {
+    const playerName = String(req.query.playerName ?? "").trim();
+    if (!playerName) return res.json({ games: [] });
+
+    const rows = await db.execute(sql`
+      SELECT
+        pb.id::text                                   AS id,
+        sp.name_zh                                    AS "playerName",
+        st.name_zh                                    AS "teamName",
+        '2024-25'                                     AS season,
+        sg.scheduled_at::date                         AS "gameDate",
+        rival.name_zh                                 AS "rivalName",
+        pb.minutes                                    AS minutes,
+        pb.pts                                        AS points,
+        pb.reb                                        AS "reboundsTotal",
+        pb.ast                                        AS assists,
+        pb.stl                                        AS steals,
+        pb.blk                                        AS blocks,
+        pb.tov                                        AS turnovers,
+        pb.plus_minus                                 AS "plusMinus"
+      FROM stats_player_boxscores pb
+      JOIN stats_games sg ON sg.id = pb.game_id
+      JOIN stats_players sp ON sp.external_id = pb.player_external_id
+      LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
+      LEFT JOIN stats_teams rival ON rival.id = (
+        CASE
+          WHEN pb.team_type = 'Home' THEN sg.away_team_id
+          ELSE sg.home_team_id
+        END
+      )
+      WHERE (sp.name_zh = ${playerName} OR sp.name_en = ${playerName})
+        AND sg.status = 4
+      ORDER BY sg.scheduled_at DESC
+      LIMIT 50
+    `);
+    const games = (rows as any).rows ?? [];
+    return res.json({ games });
+  });
+
   return httpServer;
 }
