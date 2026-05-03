@@ -24,7 +24,18 @@ function requireIngestKey(req: Request, res: Response, next: () => void) {
   next();
 }
 
-// ─── Upsert helpers ────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function upsertTeamGetId(extId: number, name: string, competitionId: number): Promise<number | null> {
+  const res = await db.execute(sql`
+    INSERT INTO stats_teams (external_id, name_zh, competition_id)
+    VALUES (${extId}, ${name}, ${competitionId})
+    ON CONFLICT (external_id) DO UPDATE SET name_zh = EXCLUDED.name_zh, updated_at = NOW()
+    RETURNING id
+  `);
+  const row = (res as any).rows?.[0];
+  return row ? Number(row.id) : null;
+}
 
 async function upsertPlayer(p: any): Promise<void> {
   const teamRow = p.teamId ? await db.execute(sql`
@@ -102,29 +113,17 @@ async function handleSchedule(rows: any[], seasonId: number, competitionId: numb
     if (r.awayTeamId) teamMap.set(Number(r.awayTeamId), r.awayTeamName ?? '');
   }
 
-  // 2. Batch upsert teams
+  // 2. Upsert teams + collect internal ids via RETURNING
+  const internalIdMap = new Map<number, number>();
   const teamEntries = Array.from(teamMap.entries());
   for (const entry of teamEntries) {
     const extId = entry[0];
     const name = entry[1];
-    await db.execute(sql`
-      INSERT INTO stats_teams (external_id, name_zh, competition_id)
-      VALUES (${extId}, ${name}, ${competitionId})
-      ON CONFLICT (external_id) DO UPDATE SET name_zh = EXCLUDED.name_zh, updated_at = NOW()
-    `);
+    const internalId = await upsertTeamGetId(extId, name, competitionId);
+    if (internalId) internalIdMap.set(extId, internalId);
   }
 
-  // 3. Load internal id map in one query
-  const teamIds = Array.from(teamMap.keys());
-  const teamRows = await db.execute(sql`
-    SELECT id, external_id FROM stats_teams WHERE external_id = ANY(${teamIds}::int[])
-  `);
-  const internalIdMap = new Map<number, number>();
-  for (const row of (teamRows as any).rows ?? []) {
-    internalIdMap.set(Number(row.external_id), Number(row.id));
-  }
-
-  // 4. Batch upsert games
+  // 3. Upsert games
   let count = 0;
   for (const r of valid) {
     const homeId = r.homeTeamId ? (internalIdMap.get(Number(r.homeTeamId)) ?? null) : null;
@@ -142,8 +141,6 @@ async function handleSchedule(rows: any[], seasonId: number, competitionId: numb
       )
       ON CONFLICT (external_game_id) DO UPDATE SET
         status = EXCLUDED.status,
-        home_score = COALESCE(stats_games.home_score, EXCLUDED.home_score),
-        away_score = COALESCE(stats_games.away_score, EXCLUDED.away_score),
         scheduled_at = COALESCE(EXCLUDED.scheduled_at, stats_games.scheduled_at),
         updated_at = NOW()
     `);
@@ -274,12 +271,7 @@ async function handleRoster(rosters: any[]): Promise<number> {
     const { teamId, teamName, seasonId, players } = roster;
     if (!teamId || !Array.isArray(players)) continue;
 
-    await db.execute(sql`
-      INSERT INTO stats_teams (external_id, name_zh, competition_id)
-      VALUES (${teamId}, ${teamName ?? ''}, 56)
-      ON CONFLICT (external_id) DO UPDATE SET
-        name_zh = EXCLUDED.name_zh, updated_at = NOW()
-    `);
+    await upsertTeamGetId(Number(teamId), teamName ?? '', 56);
 
     for (const p of players) {
       if (!p.playerId) continue;

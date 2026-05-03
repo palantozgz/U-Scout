@@ -37,17 +37,27 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `scripts/eval-report-llm.ts` — evaluador multi-juez (pendiente API keys, falta 6ª dimensión)
 
 ## i18n — arquitectura lazy
-- `client/src/lib/i18n-core.ts` — runtime lazy: EN estático, ES/ZH async — VERIFICADO lazy correcto
+- `client/src/lib/i18n-core.ts` — runtime lazy: EN estático, ES/ZH async
 - `client/src/lib/i18n.ts` — re-export shim
 - `client/src/lib/locales/en|es|zh.ts` — chunks lazy
 - Todas las claves wellness_* existen en los 3 locales
 
-## Capacitor
+## Capacitor / Plataformas
 - `capacitor.config.ts` — appId: com.ucore.app, webDir: dist/public
 - iOS platform añadido: `ios/` en repo
 - Info.plist: NSCamera + NSPhotoLibrary añadidos. Portrait lock aplicado.
 - Xcode: NO instalado · Apple Developer Account: NO ($99/año — compra inminente)
-- Retomar: `npx cap sync && npx cap open ios`
+- Retomar iOS: `npx cap sync && npx cap open ios`
+
+### Decisiones de plataforma (pendientes)
+- **Android:** sí, post-TestFlight. Capacitor lo soporta nativamente — `npx cap add android`.
+  Trabajo mínimo porque la app ya es mobile-first. Prioridad alta tras iOS.
+- **iPad:** funciona técnicamente pero diseño portrait 375px queda mal en pantalla ancha.
+  Requiere layout adaptativo (sidebar, columnas). No prioritario — coaches usan móvil en banquillo.
+  Decisión pendiente, no antes de Android.
+- **Desktop:** la app ya funciona en navegador desktop (es web app). Diseño no optimizado
+  para pantallas anchas. U Stats sí se beneficiaría de vista desktop con más datos.
+  U Scout correcto en mobile-first. Decisión pendiente post-Android.
 
 ## NUNCA tocar
 - `Profile.tsx` · `schema.ts` · `migrations/`
@@ -105,43 +115,37 @@ head_coach       → Game Plan → puede RETIRAR → vuelve a MyScout
 20. RenderedAlert: tipo completo con key+triggerKey (elimina as any en ReportSlidesV1)
 
 ### Fixes sesión 3 mayo 2026 ✅
-21. Schema stats_* creado en Supabase: 10 tablas (stats_teams, stats_players, stats_games,
-    stats_boxscores, stats_season, stats_pbp, stats_standings, stats_roster_snapshots,
-    stats_insights_cache, stats_sync_log)
-22. collector/src/sync/roster.ts — nuevo sync plantillas via teamplayers endpoint
+21. Schema stats_* creado en Supabase: 10 tablas
+22. collector/src/sync/roster.ts — nuevo sync plantillas
 23. collector/src/ingest.ts — tipo 'roster' añadido
 24. collector/src/index.ts — syncRosters() en nightly sync
-25. server/stats-ingest.ts — handleRoster() + case 'roster' en switch
-26. collector/src/sync/schedule.ts — ingestChunked() chunks de 50 (resuelve 413)
-27. server/index.ts — limit 10mb + PORT env var + sin reusePort (resuelve healthcheck Railway)
-28. server/routes.ts — eliminado handler viejo /api/stats/ingest que causaba 400
+25. server/stats-ingest.ts — handleRoster() + handleSchedule() batch optimizado
+26. collector/src/sync/schedule.ts — ingestChunked() chunks de 50
+27. server/index.ts — limit 10mb + PORT env var + sin reusePort
+28. server/routes.ts — eliminado handler viejo /api/stats/ingest
+29. collector/src/client.ts — timeout ucoreClient 30s → 120s
 
 ### Bundle — estado sesión 2 mayo 2026
 ```
-MEDIDO POST-BUILD:
-  - Initial chunk (index): 100KB gzip  ← OBJETIVO CUMPLIDO (era 230KB)
-  - vendor-react:     63KB gzip (carga paralela, no bloquea)
-  - vendor-supabase:  51KB gzip (carga paralela)
-  - vendor-query:     12KB gzip (carga paralela)
-  - Total bundle:    ~532KB gzip (sin cambio — correcto para este stack)
-
-PRÓXIMA ACCIÓN BUNDLE (post-TestFlight):
-  Motor server-side: ganancia estimada -50KB gzip. BLOQUEANTE: rompe offline coaches.
-  DECISIÓN PENDIENTE — no antes de TestFlight.
+Initial chunk: 100KB gzip (era 230KB) ✅
+vendor-react: 63KB · vendor-supabase: 51KB · vendor-query: 12KB
+Total: ~532KB gzip
+PRÓXIMA ACCIÓN (post-TestFlight): motor server-side → -50KB más. DECISIÓN PENDIENTE.
 ```
 
 ### 🔴 RIESGOS ACTIVOS
 - P1 queryKey fix aplicado pero no verificado en producción con multi-cuenta
-- P2 Schedule scroll List→Planner: recentrar en hoy al cambiar tab (no verificado)
+- P2 Schedule scroll List→Planner: recentrar en hoy al cambiar tab
 - P2 readCoachBadges + isPhysicalTrainer hardcodeados a false — código muerto
 
 ### 🔴 PENDIENTE INMEDIATO
-1. Verificar primer sync completo (standings + schedule + roster → Supabase) — EN PROGRESO
-2. collector/src/sync/boxscores.ts: añadir playerdata?gameId=X para stats individuales por partido
+1. Verificar primer sync completo (standings + schedule + roster → Supabase)
+2. collector/src/sync/boxscores.ts: añadir playerdata?gameId=X — stats individuales por partido
+   Campos: offensiveRebound/defensiveRebound, isStartLineUp, positiveNegativeValue,
+   twoPoints/threePoints/foulShot "made-att (pct%)", minutes "MM:SS"
 3. POST /api/stats/import-team → importar equipo WCBA a Personnel con un clic
-4. Telegram Pi: bloqueado por GFW — pendiente VPN (Clash/sing-box)
-5. Scraping histórico: loop temporadas en index.ts
-   [2092, 1767, 1470, 1108, 873, 428, 253, 236, 228, 245, 189, 175]
+4. Telegram Pi: bloqueado por GFW — pendiente VPN
+5. Scraping histórico: loop temporadas [2092, 1767, 1470, 1108, 873, 428, 253, 236, 228, 245, 189, 175]
 
 ### 🔴 PENDIENTE PRÓXIMAS SESIONES
 - GET /api/stats/* endpoints para UI
@@ -154,12 +158,11 @@ PRÓXIMA ACCIÓN BUNDLE (post-TestFlight):
 ### Offline — estado 2 mayo 2026
 ```
 IMPLEMENTADO:
-  - networkMode offlineFirst + staleTime 10min + gcTime 7d en usePlayers/usePlayer
-  - Cola offline players: enqueueOfflinePlayerMutation en useUpdatePlayer/useCreatePlayer
-  - Flush automático en window.online event
+  - networkMode offlineFirst + staleTime 10min + gcTime 7d
+  - Cola offline players con flush en window.online
   - clearAllLocalCache() en logout
-  - Motor client-side → coach puede generar report sin conexión ✅
-GAP P3: wellness.ts usa Supabase directo → sin cola offline
+  - Motor client-side → coach genera report sin conexión ✅
+GAP P3: wellness sin cola offline
 ```
 
 ---
@@ -171,33 +174,29 @@ GAP P3: wellness.ts usa Supabase directo → sin cola offline
 - pm2 status: ucore-collector online
 - Telegram: BLOQUEADO por GFW — pendiente VPN
 - STATS_INGEST_KEY: configurada en .env Pi y en Railway ✅
-- GitHub: bloqueado por GFW a veces según red — usar SCP para actualizar archivos individuales
-  Comando SCP desde Mac: scp "ruta/archivo" pablo@192.168.1.59:~/ucore/collector/src/...
-- Comando deploy Pi: cd ~/ucore/collector && npm run build && pm2 restart ucore-collector
+- GitHub: bloqueado por GFW a veces — usar SCP para actualizar archivos individuales
+  SCP desde Mac: scp "ruta/archivo" pablo@192.168.1.59:~/ucore/collector/src/...
+- Deploy Pi: cd ~/ucore/collector && npm run build && pm2 restart ucore-collector
 
 ## API WCBA — endpoints completos confirmados
 ```
-matchoutrank?competitionId=56&seasonId=X          → standings ✅ scrapeado
+matchoutrank?competitionId=56&seasonId=X          → standings ✅
 matchschedules?competitionId=56&seasonId=X&phaseId=Y&roundId=Z&teamId=
-  CLAVE: teamId='' REQUERIDO — sin él devuelve 500
-  Respuesta: array de fechas con array de partidos (date-grouped) ✅ scrapeado
-teamplayers?seasonId=X&teamId=Y                   → roster completo ✅ scrapeado
-teamheader?competitionId=56&seasonId=X&teamId=Y   → cabecera equipo
-playerbasicpage?...                               → promedios temporada ✅ scrapeado
-hotspotdata?gameId=Y&periods=1&periods=2...       → shot chart ✅ (dentro de pbp.ts)
-/api/v2/game/:id/actions                          → PBP completo ✅ scrapeado
-playerdata?gameId=X                               → boxscore individual jugadora ❌ FALTA
-  Campos: offensiveRebound/defensiveRebound separados, isStartLineUp,
-  positiveNegativeValue, twoPoints/threePoints/foulShot "made-att (pct%)", minutes "MM:SS"
-matchinfoscores?matchId=X&gameId=Y                → score final + cuartos ✅ scrapeado
+  teamId='' REQUERIDO, respuesta date-grouped      → schedule ✅
+teamplayers?seasonId=X&teamId=Y                   → roster ✅
+playerbasicpage?...                               → promedios temporada ✅
+hotspotdata?gameId=Y&periods=1&periods=2...       → shot chart (en pbp.ts) ✅
+/api/v2/game/:id/actions                          → PBP completo ✅
+playerdata?gameId=X                               → boxscore individual ❌ FALTA
+matchinfoscores?matchId=X&gameId=Y                → score final + cuartos ✅
 lastlymatchschedule?competitionId=56&seasonId=X   → último partido activo
 phasemenus?seasonId=X                             → phaseIds
 matchmenusschedule?competitionId=56&seasonId=X&phaseId=Y → roundIds
 ```
 
-## Temporadas WCBA disponibles
+## Temporadas WCBA
 ```
-2092 (2025-2026 activa), 1767, 1470, 1108, 873, 428, 253, 236, 228, 245, 189, 175
+2092 (activa), 1767, 1470, 1108, 873, 428, 253, 236, 228, 245, 189, 175
 ```
 
 ## Schema Supabase stats_* (creado 3 mayo 2026)
@@ -206,55 +205,52 @@ stats_teams, stats_players (external_id TEXT), stats_games, stats_boxscores,
 stats_season, stats_pbp, stats_standings, stats_roster_snapshots,
 stats_insights_cache, stats_sync_log
 ```
-NOTA: stats_players.external_id es TEXT (playerId WCBA viene como string)
 
 ## Schema Supabase app (fuera de schema.ts)
 - `players.is_canonical` boolean DEFAULT false
 - `player_scout_versions` (player_id, coach_id, inputs JSONB, status, submitted_at)
 - `league_matches` (club_id, rival_name, match_date, location, match_type)
-- `player_stats` (legacy — schema simple para MVP antes de Pi)
+- `player_stats` (legacy MVP)
 - `schedule_events`, `schedule_participants`, `wellness_entries` — RLS allow_all
-- `user_roles` (user_id UUID PK, role TEXT) — server-controlled, RLS deny_all
+- `user_roles` — server-controlled, RLS deny_all
 
 ---
 
-## U Stats — diseño aprobado (sesión 3 mayo 2026)
+## U Stats — diseño aprobado (3 mayo 2026)
 
 ### Arquitectura Pi-heavy
-Pi calcula stats avanzadas nightly → stats_insights_cache → Railway sirve JSON pre-calculado
-Cliente solo renderiza, cero cálculo, cero joins complejos.
+Pi calcula nightly → stats_insights_cache → Railway sirve JSON → cliente solo renderiza.
 
-### Métricas jugadora (Pi pre-calcula)
-TS%, eFG%, TOV%, USG% estimado, percentiles vs liga por métrica,
-shot zones 14 zonas (FG%/frecuencia), clutch stats (Q4 diff≤5),
-últimos 5 partidos sparkline, hot zones, top connections (asistencias entre pares)
+### Métricas jugadora (Pi)
+TS%, eFG%, TOV%, USG%, percentiles vs liga, shot zones 14 zonas,
+clutch stats Q4 diff≤5, sparkline últimos 5 partidos, hot zones,
+conexiones asistencias entre pares
 
-### Métricas equipo (Pi pre-calcula)
-PACE, PPP, ORTG, DRTG, Net Rating, OReb%, DReb%, AST/TOV ratio,
-eFG% equipo, TS% equipo, FT Rate, puntos por zona (paint/mid/3P/FT%)
+### Métricas equipo (Pi)
+PACE, PPP, ORTG, DRTG, Net Rating, OReb%, DReb%, AST/TOV,
+eFG%, TS%, FT Rate, puntos por zona (paint/mid/3P/FT%)
 
-### Navegación U Stats aprobada
+### Navegación aprobada
 ```
 Liga      → Clasificación | Líderes
-Equipos   → Ficha (radar+stats) | Plantilla | Partidos
-Jugadoras → Ficha (radar+shot chart+tendencia) | Game log | Tendencia
+Equipos   → Ficha | Plantilla | Partidos
+Jugadoras → Ficha | Game log | Tendencia
 Comparador → Jugadora vs Jugadora | Equipo vs Equipo
 ```
 
 ### Gráficas aprobadas
-Radar perfil, shot chart hexagonal por zonas, tendencia sparkline últimos N partidos,
-distribución puntos por zona (donut), comparador lado a lado vs liga,
-grafo conexiones asistencias, score flow del partido (del PBP),
+Radar perfil, shot chart hexagonal, sparkline tendencia, donut puntos por zona,
+comparador vs liga, grafo conexiones asistencias, score flow (PBP),
 radar rebotes (前板/后板/篮板率)
 
 ### Import a U Scout
-Un clic por equipo → POST /api/stats/import-team → crea team canónico + jugadoras en players
-Nombre chino en DB, pinyin visible cuando locale=EN/ES (librería pinyin Node, pendiente)
+POST /api/stats/import-team → 1 clic → team canónico + jugadoras en players
+Nombre chino en DB, pinyin cuando locale=EN/ES (librería pinyin Node, pendiente)
 
-### Insights para U Scout (alimentan el report)
-1. Hot zone: "Dispara 42% desde lado derecho, FG% 58% (liga: 44%)" → FORCE direction
-2. Clutch scorer: stats Q4 con diff≤5 → isoDanger
-3. Tendencia reciente: últimos 3 partidos → threat level
+### Insights para U Scout
+1. Hot zone → FORCE direction
+2. Clutch scorer → isoDanger
+3. Tendencia reciente → threat level
 
 ---
 
@@ -267,18 +263,18 @@ Nombre chino en DB, pinyin visible cuando locale=EN/ES (librería pinyin Node, p
 - `/coach/film-room` → FilmRoom
 - `/coach/game-plan` → GamePlan
 - `/coach/scout/:id/review` → ReportViewV4
-- `/coach/scout/:id/preview` → ReportSlidesV1 (coach mode)
+- `/coach/scout/:id/preview` → ReportSlidesV1 (coach)
 - `/coach/club` → ClubManagement
 - `/settings` → Settings
 - `/stats` → Stats (U Stats)
 - `/player` → PlayerTeamList
 - `/player/team/:teamId` → Dashboard
-- `/player/report/:id` → ReportSlidesV1 (player mode)
+- `/player/report/:id` → ReportSlidesV1 (player)
 - `/player/wellness` → WellnessStandalone
 
 ---
 
-## Arquitectura permisos getPlayers (definitiva)
+## Arquitectura permisos getPlayers
 ```
 getPlayers(teamId?, clubId?, viewerUserId?)
   Con clubId + viewerUserId:
@@ -288,7 +284,7 @@ getPlayers(teamId?, clubId?, viewerUserId?)
 ## Arquitectura permisos Personnel
 - head_coach / master: acceso + crear canónicos + promover sandbox
 - coach con operationsAccess: ve Personnel, edita canónicos, NO crea ni promueve
-- coach sin badge: redirect a /coach si accede por URL directa
+- coach sin badge: redirect a /coach
 
 ---
 
@@ -316,47 +312,45 @@ getPlayers(teamId?, clubId?, viewerUserId?)
 ---
 
 ## U CORE — módulos
-- U Schedule — client/src/pages/core/Schedule.tsx (god file ~228KB)
-- U Wellness — embebido en Schedule (staff) + standalone /player/wellness
-- U Scout — scouting defensivo 1-on-1 (módulo más avanzado)
+- U Schedule — client/src/pages/core/Schedule.tsx (~228KB)
+- U Wellness — embebido en Schedule + standalone /player/wellness
+- U Scout — scouting defensivo 1-on-1
 - U Stats — client/src/pages/core/Stats.tsx
-Shell: client/src/pages/core/ModulePage.tsx + ModuleNav.tsx
+Shell: ModulePage.tsx + ModuleNav.tsx en client/src/pages/core/
 
 ### Motor
 - Calibración: 100% (551/551, 66 perfiles)
 - Quality eval: 100% (46/46, 10 perfiles)
-- motor-icons.ts: iconos Lucide — reemplazables con SVG custom (Figma, junio 2026)
+- motor-icons.ts: Lucide — reemplazable con SVG custom (Figma junio 2026)
 
 ---
 
-## Principios de producto U CORE
+## Principios de producto
 - Máximo 3 outputs accionables por pantalla
 - Mobile-first: 375px portrait primero
 - Coherencia visual entre módulos
-- Iconos: Figma obligatorio para iconos custom; Lucide como placeholder
+- Iconos: Figma obligatorio para custom; Lucide como placeholder
 - Scope Scout: solo matchup 1-on-1, sin defensa colectiva
 
 ## Reglas entrega código
 - NUNCA "añade estas líneas aquí"
-- Siempre: archivo completo, O comando terminal, O prompt Cursor completo
+- Siempre: archivo completo, O comando terminal, O prompt Cursor
 - npm run check después de cada cambio
 - Migrations destructivas: raw SQL Supabase, nunca drizzle-kit push
-- Verificar siempre que Cursor no duplica handlers en routes.ts
-- Capabilities requieren membership: pasar siempre myMembership de useClub().data.members
+- Verificar que Cursor no duplica handlers en routes.ts
+- Capabilities requieren membership: pasar myMembership de useClub().data.members
 
 ## Notas de sesión (trampas conocidas)
 - Schedule.tsx está en client/src/pages/core/, NO en client/src/core/
-- bash_tool corre en Linux — NO puede acceder al filesystem del Mac. Usar Filesystem MCP
-- Filesystem MCP write: usar filesystem:write_file (lowercase)
-- str_replace NO funciona con server/routes.ts — usar python3 script para ediciones
-- Figma MCP: límite mensual Starter agotado — resetea junio 2026
-- Cursor duplica handlers en routes.ts — verificar siempre post-edición
-- useCapabilities() sin membership ignora operationsAccess
+- bash_tool corre en Linux — NO puede acceder al Mac. Usar Filesystem MCP
+- Filesystem MCP write: filesystem:write_file (lowercase)
+- str_replace NO funciona con server/routes.ts — usar python3 script
+- Figma MCP: límite Starter agotado — resetea junio 2026
+- Cursor duplica handlers en routes.ts — verificar siempre
 - getPlayers firma: (teamId?, clubId?, viewerUserId?) — siempre pasar viewerUserId
-- manualChunks en Vite EMPEORA el bundle — NO usar muchos chunks pequeños
-- zsh heredoc + JSX curly braces: usar Python scripts o ficheros temporales
-- Railway healthcheck: usar PORT env var + sin reusePort en server.listen()
-- Pi GFW bloquea GitHub y Telegram — usar SCP para subir archivos individuales
+- Map iteration: usar Array.from(map.entries()) — tsconfig target no soporta for...of Map
+- Railway healthcheck: PORT env var + sin reusePort en server.listen()
+- Pi GFW bloquea GitHub y Telegram — SCP para archivos individuales
 
 ## Scripts
 ```bash
@@ -368,8 +362,8 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts --jud
 ## Terminología
 - DENY/FORCE/ALLOW: instrucciones defensivas slide 3
 - AWARE: alertas situacionales (max 2)
-- Runners-up: alternativas rankeadas por el motor
-- Override: decisión entrenador sobre output del motor
+- Runners-up: alternativas rankeadas por motor
+- Override: decisión entrenador sobre output motor
 - Discrepancia: dos entrenadores con opciones distintas
 - trapResponse: reacción a blitz/hedge en PnR
 - pressureResponse: reacción a presión individual
@@ -379,17 +373,17 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts --jud
 ## TestFlight — checklist
 
 ### Bloqueantes externos:
-- [ ] Contratar Apple Developer Program ($99/año) — compra inminente
-- [ ] Instalar Xcode en el Mac
-- [ ] Crear App ID + cert + provisioning profile
+- [ ] Apple Developer Program ($99/año) — compra inminente
+- [ ] Xcode en el Mac
+- [ ] App ID + cert + provisioning profile
 
-### Código (listo cuando se compre Developer):
-- [x] Info.plist: NSCameraUsageDescription + NSPhotoLibraryUsageDescription
-- [x] Orientación portrait-only en Info.plist
-- [x] Touch targets ≥44px en todas las pantallas auditadas
+### Código listo:
+- [x] Info.plist: NSCamera + NSPhotoLibrary
+- [x] Portrait-only
+- [x] Touch targets ≥44px
 - [ ] npx cap sync tras build
-- [ ] Iconos app: 1024x1024 PNG sin transparencia (Figma, junio)
-- [ ] Bundle version CFBundleVersion + CFBundleShortVersionString
-- [ ] WKWebView: Supabase auth persiste entre sesiones iOS
-- [ ] Safe area: pb-16/pb-20 → env(safe-area-inset-bottom) donde aplica
-- [ ] Code signing + Archive + Upload + TestFlight testers
+- [ ] Iconos 1024x1024 PNG (Figma junio)
+- [ ] Bundle version
+- [ ] WKWebView: Supabase auth persiste
+- [ ] Safe area: env(safe-area-inset-bottom)
+- [ ] Code signing + Archive + Upload
