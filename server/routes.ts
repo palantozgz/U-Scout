@@ -1463,5 +1463,63 @@ export async function registerRoutes(
 
   registerStatsIngest(app);
 
+  // ─── POST /api/stats/import-team ─────────────────────────────────────────
+  app.post("/api/stats/import-team", requireAuth, async (req, res) => {
+    const { statsTeamExternalId, targetTeamId, coachUserId } = req.body;
+    if (!statsTeamExternalId || !targetTeamId || !coachUserId) {
+      return res.status(400).json({ error: "statsTeamExternalId, targetTeamId, coachUserId required" });
+    }
+
+    // Resolve internal stats_teams id
+    const teamRow = await db.execute(
+      sql`SELECT id FROM stats_teams WHERE external_id = ${Number(statsTeamExternalId)} LIMIT 1`
+    );
+    const statsTeamId = (teamRow as any).rows?.[0]?.id;
+    if (!statsTeamId) return res.status(404).json({ error: "Stats team not found" });
+
+    // Fetch players from stats_players
+    const playersRow = await db.execute(
+      sql`SELECT external_id, name_zh, name_en, jersey_number, position, photo_url
+          FROM stats_players WHERE team_id = ${statsTeamId}`
+    );
+    const statPlayers: any[] = (playersRow as any).rows ?? [];
+    if (statPlayers.length === 0) return res.status(404).json({ error: "No players found for this team" });
+
+    // Check existing canonical players in target team to avoid duplicates
+    const existingRow = await db.execute(
+      sql`SELECT name FROM players WHERE team_id = ${targetTeamId} AND is_canonical = true`
+    );
+    const existingNames = new Set((existingRow as any).rows?.map((r: any) => r.name) ?? []);
+
+    const defaultInputs = {};
+    const defaultModel = {};
+    const defaultPlan = {};
+
+    let created = 0;
+    let skipped = 0;
+    for (const p of statPlayers) {
+      const name = p.name_zh ?? p.name_en ?? "Unknown";
+      if (existingNames.has(name)) { skipped++; continue; }
+      await db.execute(sql`
+        INSERT INTO players (
+          team_id, name, number, image_url,
+          inputs, internal_model, archetype, key_traits, defensive_plan,
+          created_by_user_id, published, is_canonical
+        ) VALUES (
+          ${targetTeamId}, ${name}, ${p.jersey_number ?? ""}, ${p.photo_url ?? ""},
+          ${JSON.stringify(defaultInputs)}::jsonb,
+          ${JSON.stringify(defaultModel)}::jsonb,
+          ${"Role Player"},
+          ${"{}"}::text[],
+          ${JSON.stringify(defaultPlan)}::jsonb,
+          ${coachUserId}, false, true
+        )
+      `);
+      created++;
+    }
+
+    return res.json({ ok: true, created, skipped, total: statPlayers.length });
+  });
+
   return httpServer;
 }
