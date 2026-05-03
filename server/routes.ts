@@ -1463,6 +1463,17 @@ export async function registerRoutes(
 
   registerStatsIngest(app);
 
+  app.get("/api/stats/teams", requireAuth, async (_req, res) => {
+    const rows = await db.execute(sql`
+      SELECT st.external_id as id, st.name_zh as name,
+             st.updated_at as "updatedAt",
+             '2024-25' as season
+      FROM stats_teams st
+      ORDER BY st.name_zh ASC
+    `);
+    return res.json({ teams: (rows as any).rows ?? [] });
+  });
+
   // ─── POST /api/stats/import-team ─────────────────────────────────────────
   app.post("/api/stats/import-team", requireAuth, async (req, res) => {
     const { statsTeamExternalId, targetTeamId, coachUserId } = req.body;
@@ -1480,7 +1491,8 @@ export async function registerRoutes(
     // Fetch players from stats_players
     const playersRow = await db.execute(
       sql`SELECT external_id, name_zh, name_en, jersey_number, position, photo_url
-          FROM stats_players WHERE team_id = ${statsTeamId}`
+          FROM stats_players WHERE team_id = ${statsTeamId}
+          ORDER BY jersey_number ASC NULLS LAST`
     );
     const statPlayers: any[] = (playersRow as any).rows ?? [];
     if (statPlayers.length === 0) return res.status(404).json({ error: "No players found for this team" });
@@ -1498,7 +1510,8 @@ export async function registerRoutes(
     let created = 0;
     let skipped = 0;
     for (const p of statPlayers) {
-      const name = p.name_zh ?? p.name_en ?? "Unknown";
+      // Prefer name_en (pinyin/romanized) for EN/ES locales; name_zh as fallback
+      const name = (p.name_en && p.name_en.trim()) ? p.name_en.trim() : (p.name_zh ?? "Unknown");
       if (existingNames.has(name)) { skipped++; continue; }
       await db.execute(sql`
         INSERT INTO players (
