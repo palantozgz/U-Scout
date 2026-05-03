@@ -24,14 +24,15 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/pages/scout/ReportViewV4.tsx` — shell coach_review con OverridePanel
 - `client/src/pages/scout/PlayerEditor.tsx` — editor inputs jugador
 - `client/src/pages/scout/Personnel.tsx` — gestión plantillas + import WCBA
-- `client/src/pages/scout/MyScout.tsx` — fichas coach (canónicas + sandbox)
+- `client/src/pages/scout/MyScout.tsx` — fichas coach (canónicas + sandbox) + StatsMiniChip ✅
 - `client/src/pages/core/Schedule.tsx` — god file ~228KB (U Schedule)
-- `client/src/pages/core/Stats.tsx` — U Stats (Season + Games tabs actuales)
-- `client/src/lib/stats-api.ts` — hooks usePlayerSeasonStats + useGameLog
-- `client/src/components/LandscapeHint.tsx` — componente rotate hint ✅ creado
+- `client/src/pages/core/Stats.tsx` — U Stats: 3 tabs Liga|Jugadoras|Equipos ✅
+- `client/src/lib/stats-api.ts` — hooks: usePlayerSeasonStats, useGameLog, useSeasons, useStandings, useLeaders ✅
+- `client/src/components/LandscapeHint.tsx` — componente rotate hint ✅
 - `server/routes.ts` — rutas API Express
 - `server/stats-ingest.ts` — ingest endpoint Pi → Railway → Supabase
 - `collector/src/sync/pbp.ts` — mapeo action_codes WCBA real (completo)
+- `collector/src/sync/boxscores.ts` — syncPlayerBoxscore via /playerdata
 
 ## i18n — arquitectura lazy
 - `client/src/lib/i18n-core.ts` — runtime lazy: EN estático, ES/ZH async
@@ -39,8 +40,7 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ## Tailwind v4
 - NO hay tailwind.config.js — usa `@theme inline` en `client/src/index.css`
-- Animaciones custom se añaden en index.css: `--animate-spin-slow: spin 3s linear infinite;`
-- `animate-spin-slow` ya añadido por Cursor ✅
+- Animaciones custom se añaden en index.css
 
 ## NUNCA tocar
 - `Profile.tsx` · `schema.ts` · `migrations/`
@@ -48,70 +48,147 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ---
 
-## Estado app — 3 mayo 2026 (sesión p13 — CIERRE)
+## Estado app — 3 mayo 2026 (sesión p14 — CIERRE)
 
 ### Completado esta sesión ✅
-1. Fix Railway build: `esbuild` movido de devDependencies → dependencies
-2. Fix standings: `matchoutrank` → `teamrankfirst` (endpoint WCBA movido)
-3. Fix roster: mismo fix + timeout 120s en ucoreClient
-4. Fix scores a 0: `home/away.teamScore` en matchinfoscores
-5. boxscores.ts: cuartos desde `home.periodScores "Q1;Q2;Q3;Q4"`
-6. `syncPlayerBoxscore` via `/datahub/cbamatch/games/player/playerdata?gameId=X`
-7. `stats_player_boxscores` tabla creada + handler en stats-ingest.ts
-8. `stats_pbp` FK `stats_pbp_team_id_fkey` eliminada (team_id es external ID)
-9. PBP action_codes WCBA reales — mapa completo de ~50 códigos
-10. `GET /api/stats/players` — promedios temporada on-demand
-11. `GET /api/stats/games` — game log por jugadora
-12. `GET /api/stats/teams` — lista equipos con updatedAt alias
-13. `GET /api/stats/standings` — clasificación con rank/W-L/PPG/OPPG ✅
-14. `GET /api/stats/leaders` — top 15 por stat con season scope ✅
-15. `POST /api/stats/import-team` — importa roster WCBA → players tabla
-16. Personnel: botón Import WCBA + modal con selector/aviso temporada
-17. `LandscapeHint.tsx` componente creado ✅
-18. Schedule: `useLongPress` hook añadido (tap=detalle, long-press=editar) ✅
-19. `docs/ustats-ux-spec.md` — spec completa U Stats aprobada ✅
+1. `GET /api/stats/player-link?name=X` → match nombre → externalId + ppg/rpg/apg
+2. `GET /api/stats/seasons` → temporadas con datos disponibles (DISTINCT season_id WHERE status=4)
+3. `GET /api/stats/leaders` extendido con `fgPct` (SUM-based, ORDER BY value DESC NULLS LAST)
+4. `stats-ingest.ts` fix crítico: `updated_at = NOW()` eliminado de ON CONFLICT en `handlePlayerBoxscores` — la tabla NO tiene esa columna → causaba player_boxscores = 0 en silencio. Fix desplegado en Railway.
+5. `Stats.tsx` reescrito completo: 3 tabs Liga|Jugadoras|Equipos, SeasonPicker (Sheet bottom), deep link `?tab=`, segment Clasificación|Líderes, team filter + sort chips en Jugadoras, Equipos con NET rating
+6. `stats-api.ts` ampliado: useSeasons, useStandings, useLeaders, StandingsRow, LeaderRow
+7. `StatsMiniChip` en MyScout.tsx — chip PPG/RPG/APG entre nombre y botones, solo fichas canónicas, navega a `/stats?tab=jugadoras&player=EXTERNAL_ID`
+8. `useStatsLink` hook en MyScout.tsx usando `apiRequest` (Bearer JWT) — no fetch puro
+9. Personnel fix importación WCBA (prompt Cursor preparado, pendiente ejecutar): quitar selector "Import into team", auto-crear equipo con nombre WCBA, fix aviso nombres en chino
 
-### Estado sync al cierre sesión p13
+### Estado sync al cierre sesión p14
 ```
-stats_teams:       18 ✅
-stats_games:      224 ✅
-stats_standings:   18 ✅
-stats_players:    307 ✅
-home_score/away_score: 223 partidos ✅
-stats_player_boxscores: EN CURSO (sync corriendo ~3h, partido por partido)
-stats_pbp:             EN CURSO (sync corriendo, 498 eventos/partido confirmados)
+stats_teams:            18 ✅
+stats_games:           224 ✅
+stats_standings:        18 ✅
+stats_players:         307 ✅
+stats_pbp:          ~9.600 (sync corriendo esta noche, ~19 partidos de 224)
+stats_player_boxscores:  0 → FIX DESPLEGADO, se llenará en próximo sync nocturno
 ```
 
-### Al iniciar próxima sesión — verificar PRIMERO:
+### Al iniciar próxima sesión — verificar PRIMERO
 ```sql
 SELECT
   (SELECT COUNT(*) FROM stats_player_boxscores) as player_boxscores,
-  (SELECT COUNT(*) FROM stats_pbp) as pbp_eventos,
-  (SELECT COUNT(*) FROM stats_games WHERE home_score > 0) as con_score;
+  (SELECT COUNT(*) FROM stats_pbp) as pbp_eventos;
 ```
-Cuando pbp > 50.000 → Stats.tsx mostrará datos reales automáticamente.
+- Si `player_boxscores > 500` → fix funcionó, hay datos reales para Stats.tsx tab Jugadoras
+- Si `player_boxscores = 0` → sync nocturno aún no corrió o hay otro problema, revisar logs Pi
 
-### 🔴 OBJETIVO PRÓXIMA SESIÓN — U Stats Fase 1
-Ver `docs/ustats-ux-spec.md` para spec completa aprobada.
-Implementar en este orden:
-1. `GET /api/stats/player-link?name=X` → match nombre → externalId + 3 stats
-2. `GET /api/stats/seasons` → temporadas con datos disponibles
-3. Stats.tsx refactor: 3 tabs (Liga | Jugadoras | Equipos) + SeasonPicker header
-4. `StatsPlayerSheet` — ficha jugadora con game log + LandscapeHint
-5. `StatsMiniChip` en MyScout.tsx para link a stats individuales
-6. Deep link `/stats?tab=jugadoras&player=EXTERNAL_ID`
+### PENDIENTE al inicio próxima sesión
+Mandar este prompt a Cursor (Personnel fix importación WCBA — preparado en sesión p14):
+```
+In client/src/pages/scout/Personnel.tsx, make the following changes to the Import WCBA flow:
+
+1. Remove the state variable `importTargetTeamId` and its setter entirely.
+   Also remove the second <select> (value={importTargetTeamId}, "Import into team…").
+
+2. Replace the entire handleImportTeam function with:
+
+  const handleImportTeam = async () => {
+    if (!selectedStatsTeamId || !profile?.id) return;
+    setImportLoading(true);
+    setImportResult(null);
+    try {
+      const selectedTeam = statsTeams.find((t) => t.id === selectedStatsTeamId);
+      const teamName = selectedTeam?.name ?? "WCBA Team";
+      let targetTeamId: string;
+      const existing = teams.find(
+        (t) => t.name.trim().toLowerCase() === teamName.trim().toLowerCase() && !Boolean((t as any).is_system)
+      );
+      if (existing) {
+        targetTeamId = existing.id;
+      } else {
+        const res = await apiRequest("POST", "/api/teams", {
+          name: teamName,
+          logo: "🏀",
+          primaryColor: "bg-orange-500",
+        });
+        const created = await res.json();
+        await qc.invalidateQueries({ queryKey: ["/api/teams"] });
+        targetTeamId = created.id as string;
+      }
+      const importRes = await apiRequest("POST", "/api/stats/import-team", {
+        statsTeamExternalId: selectedStatsTeamId,
+        targetTeamId,
+        coachUserId: profile.id,
+      });
+      const data = await importRes.json();
+      setImportResult({ created: data.created, skipped: data.skipped });
+      await qc.invalidateQueries({ queryKey: ["/api/players"] });
+    } catch (err) {
+      console.error("Import failed", err);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+3. Update Import button: disabled={!selectedStatsTeamId || importLoading}
+   (remove the || !importTargetTeamId part)
+
+4. Replace amber warning banner with:
+   <div className="rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2 space-y-0.5">
+     <p className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+       {locale === "es" ? "Temporada 2024-25" : locale === "zh" ? "2024-25赛季" : "Season 2024-25"}
+     </p>
+     <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
+       {locale === "es"
+         ? "Datos sincronizados · Nombres oficiales WCBA en chino."
+         : locale === "zh"
+         ? "数据已同步 · 显示官方WCBA中文名称。"
+         : "Data synced · Names shown in official WCBA Chinese."}
+     </p>
+   </div>
+
+5. Run: npm run check. Report exact output.
+```
+
+### 🔴 OBJETIVO PRÓXIMA SESIÓN — U Stats Fase 2
+1. Personnel fix (prompt arriba) — ejecutar primero si no se hizo
+2. `StatsPlayerSheet` — ficha jugadora: game log + sparkline + LandscapeHint para shot chart
+3. Deep link completo: `/stats?tab=jugadoras&player=EXTERNAL_ID` → abre StatsPlayerSheet directa
+4. `GET /api/stats/player/:id` — endpoint ficha individual (game log + métricas avanzadas)
 
 ### 🔴 RIESGOS ACTIVOS
-- P1 hasReport — verificar con datos reales primero, puede no ser bug
+- P1 `player_boxscores = 0` — fix desplegado, verificar en próxima sesión con SQL arriba
 - P1 Schedule scroll List→Planner: no recentra en hoy (pendiente)
-- P2 queryKey fix no verificado multi-cuenta
+- P2 hasReport — verificar con datos reales cuando boxscores estén disponibles
 
-### 🔴 PENDIENTE SESIONES FUTURAS
+### 🔴 BACKLOG COMPLETO (ordenado por prioridad)
+
+#### U Stats
+- Fase 2: `StatsPlayerSheet` (game log + sparkline) — PRÓXIMA SESIÓN
+- Fase 2: `GET /api/stats/player/:id` endpoint
+- Fase 3: `StatsTeamSheet` + PACE/ORTG/DRTG
+- Fase 3: `StatsRadar` recharts 6 ejes (portrait behind tap)
+- Fase 3: Shot chart landscape (SVG/canvas, hexbin)
+- Fase 4: `StatsComparator` landscape split view
+- Bubble chart liga (freq vs eficiencia, referencia elradardelscout.com)
 - Scraping histórico temporadas [1767, 1470, 1108, 873, 428, 253...]
-- ReportViewV4 → 3 slides
-- Telegram Pi: bloqueado GFW
-- U Stats Fase 2: StatsTeamSheet + radar + shot chart landscape
-- U Stats Fase 3: comparador landscape split view
+
+#### Personnel — gestión de temporadas (diseño aprobado, implementación pendiente)
+- **"Borrar todo" manual**: opción para el head_coach de borrar TODOS los equipos y fichas canónicas de una vez, antes de importar una nueva temporada/liga. Acción destructiva con confirmación explícita de doble paso. El coach decide cuándo hacerlo, nunca automático.
+- **Migración asistida entre temporadas**: al importar nueva temporada, buscar coincidencias por `name_zh` exacto entre fichas existentes y roster nuevo. Coincidencias → marcar "migradas" (conservan datos de scouting). Nuevas → crear vacías. Ausentes → marcar "inactivas" (NO borrar nunca automáticamente). UI con switch de temporada en Personnel.
+- **"Importar liga completa"**: botón que itere todos los equipos WCBA de una vez (sesión separada, afecta backend).
+- **Nombres WCBA**: `stats_teams` solo tiene `name_zh` (chino oficial, NO hay `name_en`). El aviso en el modal de importación debe decir "nombres oficiales WCBA en chino". `stats_players` sí tiene `name_en` (pinyin).
+
+#### U Scout
+- PlayerEditor: auditoría completa de campos (section headers → field-by-field)
+- ReportViewV4 → diseño 3 slides
+- `backup/motor-v2.1-pre-20260405` → merge a main (verificar estabilidad primero)
+
+#### Platform
+- Favicon U Scout logo
+- Club logo: upload imagen real (reemplazar emoji picker)
+- "Simple vs Pro" mode para usuarios amateur
+- Iconos output: diseñar en Figma con referencias reales de acción — NUNCA generar SVG sin referencias
+- Branding: SVG paths separados en Figma → Rive morph animation
+- Telegram Pi: bloqueado GFW (pendiente solución)
 - TestFlight: Apple Developer ($99/año) + Xcode
 
 ---
@@ -150,6 +227,7 @@ FOLDEF/FOLOFF/FOLUSM/FOLTEC=foul, FDRAWN=foul_drawn, FOLOFN=foul
 TNOPAS/TNOBHD/TNOOFF/TNOSTL/TOTLTO/TNODDR/TNOTRV/TNO3SC/TNO24S/TNOBCT/TNOOTH/TNOOBD=turnover
 TMOLEG/TMOILL=timeout, STRTPD=period_start, ENDPD=period_end
 JUBSUC/JUBFAL=jumpball
+⚠ Unmapped no críticos: 3PASBK/3PMSBK (tiros bloqueados 3P), TNOOBD, FOLTEC (ya mapeado como foul)
 ```
 
 ## Temporadas WCBA
@@ -159,11 +237,16 @@ JUBSUC/JUBFAL=jumpball
 
 ## Schema Supabase stats_*
 ```
-stats_teams (18), stats_players (307), stats_games (224)
-stats_standings (18), stats_player_boxscores (~3000 en curso)
-stats_pbp (~100k en curso), stats_roster_snapshots
-stats_insights_cache (vacío — Pi-heavy calcs pendientes)
-stats_sync_log (historial syncs)
+stats_teams (18)            — external_id, name_zh, logo_url, competition_id (NO name_en)
+stats_players (307)         — external_id, name_zh, name_en, team_id, jersey_number, position
+stats_games (224)           — external_game_id, season_id, home/away scores, status
+stats_standings (18)        — rank, wins, losses, win_pct, pts_per_game, pts_against_per_game
+stats_player_boxscores (0)  — game_id, player_external_id, pts/reb/ast/stl/blk/tov/min/fg/3p/ft
+  ⚠ NO tiene columna updated_at — el ON CONFLICT nunca debe referenciarla (bug ya corregido)
+stats_pbp (~9.600)          — game_id, sequence, event_type, shot_x/y/made, etc.
+stats_roster_snapshots      — snapshots diarios de roster
+stats_insights_cache        — vacío, calcs Pi-heavy pendientes
+stats_sync_log              — historial syncs
 CONSTRAINT eliminada: stats_pbp_team_id_fkey (team_id es external ID de API)
 ```
 
@@ -173,14 +256,14 @@ GET  /api/stats/teams          → lista equipos con updatedAt ✅
 GET  /api/stats/players        → promedios temporada (ppg/rpg/apg/spg/bpg/topg/fg%/3p%/ft%) ✅
 GET  /api/stats/games          → game log por jugadora (?playerName=X) ✅
 GET  /api/stats/standings      → clasificación (?seasonId=2092) ✅
-GET  /api/stats/leaders        → top 15 por stat (?stat=ppg&seasonId=2092) ✅
+GET  /api/stats/leaders        → top 15 por stat (?stat=ppg|rpg|apg|spg|bpg|fgPct&seasonId) ✅
+GET  /api/stats/player-link    → match nombre → { externalId, ppg, rpg, apg } ✅
+GET  /api/stats/seasons        → DISTINCT season_id WHERE status=4 ORDER BY DESC ✅
 POST /api/stats/import-team    → importa roster WCBA → players tabla ✅
 POST /api/stats/ingest         → ingest Pi → Supabase (auth: STATS_INGEST_KEY) ✅
 
 PENDIENTES:
-GET  /api/stats/player-link    → match nombre → externalId + 3 stats
-GET  /api/stats/seasons        → temporadas con datos disponibles
-GET  /api/stats/player/:id     → ficha individual con métricas avanzadas
+GET  /api/stats/player/:id     → ficha individual con game log + métricas avanzadas
 GET  /api/stats/team/:id       → ficha equipo con PACE/ORTG/DRTG
 ```
 
@@ -188,29 +271,19 @@ GET  /api/stats/team/:id       → ficha equipo con PACE/ORTG/DRTG
 
 ## U Stats — spec UX aprobada (ver docs/ustats-ux-spec.md)
 
-### Decisiones aprobadas
-1. SeasonPicker: en header de Stats entry, discreto `"2024-25 ▾"`
-2. Shot chart: landscape-only + LandscapeHint en portrait ✅ componente listo
-3. Comparador: desde dentro de ficha (Comparar con...) — NO vista separada
-4. Gráficas: sparkline siempre, radar + shot chart behind tap
-5. Integración MyScout ↔ U Stats: chip discreto con 3 stats → deep link a ficha
+### Componentes implementados ✅
+- `LandscapeHint.tsx` — con `useIsLandscape()` hook
+- `Stats.tsx` — 3 tabs Liga|Jugadoras|Equipos + SeasonPicker + deep link ?tab=
+- `StatsMiniChip` — inline en MyScout.tsx, solo fichas canónicas, usa apiRequest (Bearer)
 
-### Componentes creados
-- `LandscapeHint.tsx` ✅ — con `useIsLandscape()` hook
-
-### Componentes pendientes (en orden)
-- `SeasonPicker` — dropdown temporada header
-- `StatsPlayerSheet` — ficha jugadora (game log + radar landscape + shot chart)
+### Componentes pendientes (en orden de prioridad)
+- `StatsPlayerSheet` — ficha jugadora (game log + sparkline + radar landscape + shot chart)
 - `StatsTeamSheet` — ficha equipo
-- `StatsMiniChip` — chip 3 stats para MyScout link
 - `StatsRadar` — radar 6 ejes recharts
 - `StatsComparator` — split view landscape
 
 ### Deep link
-`/stats?tab=jugadoras&player=EXTERNAL_ID` → Stats.tsx detecta param → abre StatsPlayerSheet directa
-
-### Anti-mistap MyScout ↔ Stats
-El chip StatsMiniChip está ENTRE nombre y botones acción. Color neutro (muted). Tap lleva a Stats player sheet — recoverable con back.
+`/stats?tab=jugadoras&player=EXTERNAL_ID` → Stats.tsx detecta param → abrirá StatsPlayerSheet (pendiente)
 
 ---
 
@@ -225,13 +298,14 @@ El chip StatsMiniChip está ENTRE nombre y botones acción. Color neutro (muted)
 
 ## Notas de sesión (trampas conocidas)
 - bash_tool corre en Linux — NO puede acceder al Mac. Usar Filesystem MCP
-- filesystem:write_file (lowercase) para escribir en Mac
+- filesystem:write_file (lowercase, parámetro "content") para escribir en Mac
 - Filesystem:edit_file (mayúscula) para edits quirúrgicos
 - Cursor duplica handlers en routes.ts — verificar siempre
 - Map iteration: usar Array.from(map.entries())
 - Pi GFW bloquea GitHub y Telegram — SCP para archivos individuales
 - stats_pbp.team_id = external ID de API (FK eliminada)
 - `sql.raw()` solo para allowlist de expresiones fijas (leaders stat expr)
+- stats_player_boxscores NO tiene updated_at — nunca usar en ON CONFLICT
 
 ## Scripts
 ```bash

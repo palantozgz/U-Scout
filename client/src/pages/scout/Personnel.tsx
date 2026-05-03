@@ -99,7 +99,6 @@ export default function Personnel() {
   const [importResult, setImportResult] = useState<{ created: number; skipped: number } | null>(null);
   const [statsTeams, setStatsTeams] = useState<Array<{ id: number; name: string; season: string; updatedAt: string }>>([]);
   const [selectedStatsTeamId, setSelectedStatsTeamId] = useState<number | null>(null);
-  const [importTargetTeamId, setImportTargetTeamId] = useState<string>("");
 
   const L = {
     en: {
@@ -388,16 +387,37 @@ export default function Personnel() {
   };
 
   const handleImportTeam = async () => {
-    if (!selectedStatsTeamId || !importTargetTeamId || !profile?.id) return;
+    if (!selectedStatsTeamId || !profile?.id) return;
     setImportLoading(true);
     setImportResult(null);
     try {
-      const res = await apiRequest("POST", "/api/stats/import-team", {
+      const selectedTeam = statsTeams.find((t) => t.id === selectedStatsTeamId);
+      const teamName = selectedTeam?.name ?? "WCBA Team";
+
+      // Find or create a local team with this name
+      let targetTeamId: string;
+      const existing = teams.find(
+        (t) => t.name.trim().toLowerCase() === teamName.trim().toLowerCase() && !Boolean((t as any).is_system),
+      );
+      if (existing) {
+        targetTeamId = existing.id;
+      } else {
+        const res = await apiRequest("POST", "/api/teams", {
+          name: teamName,
+          logo: "🏀",
+          primaryColor: "bg-orange-500",
+        });
+        const created = await res.json();
+        await qc.invalidateQueries({ queryKey: ["/api/teams"] });
+        targetTeamId = created.id as string;
+      }
+
+      const importRes = await apiRequest("POST", "/api/stats/import-team", {
         statsTeamExternalId: selectedStatsTeamId,
-        targetTeamId: importTargetTeamId,
+        targetTeamId,
         coachUserId: profile.id,
       });
-      const data = await res.json();
+      const data = await importRes.json();
       setImportResult({ created: data.created, skipped: data.skipped });
       await qc.invalidateQueries({ queryKey: ["/api/players"] });
     } catch (err) {
@@ -605,12 +625,10 @@ export default function Personnel() {
                   </p>
                   <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
                     {locale === "es"
-                      ? `Datos sincronizados el ${new Date(statsTeams[0]?.updatedAt ?? Date.now()).toLocaleDateString("es-ES")}`
-                      : `Data synced ${new Date(statsTeams[0]?.updatedAt ?? Date.now()).toLocaleDateString("en-GB")}`}
-                    {" · "}
-                    {locale === "es"
-                      ? "Los nombres en chino se muestran en pinyin en vistas EN/ES."
-                      : "Chinese names shown in pinyin in EN/ES views."}
+                      ? `Datos sincronizados · Los nombres se muestran en chino (nombres oficiales WCBA).`
+                      : locale === "zh"
+                        ? `数据已同步 · 显示官方WCBA中文名称。`
+                        : `Data synced · Names shown in official WCBA Chinese.`}
                   </p>
                 </div>
 
@@ -625,22 +643,6 @@ export default function Personnel() {
                   {statsTeams.map((t) => (
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
-                </select>
-
-                <select
-                  value={importTargetTeamId}
-                  onChange={(e) => setImportTargetTeamId(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-border bg-background text-sm px-3"
-                >
-                  <option value="">
-                    {locale === "es" ? "Importar en equipo…" : locale === "zh" ? "导入至球队…" : "Import into team…"}
-                  </option>
-                  {teams.filter(t => !Boolean((t as any).is_system)).map((t) => (
-                    <option key={t.id} value={t.id}>{t.logo} {t.name}</option>
-                  ))}
-                  <option value={freeAgentsTeam?.id ?? ""}>
-                    {locale === "es" ? "📋 Free Agents" : locale === "zh" ? "📋 自由球员" : "📋 Free Agents"}
-                  </option>
                 </select>
 
                 {importResult && (
@@ -658,7 +660,7 @@ export default function Personnel() {
                   <Button
                     size="sm"
                     className="flex-1 rounded-lg font-bold"
-                    disabled={!selectedStatsTeamId || !importTargetTeamId || importLoading}
+                    disabled={!selectedStatsTeamId || importLoading}
                     onClick={() => void handleImportTeam()}
                   >
                     {importLoading
