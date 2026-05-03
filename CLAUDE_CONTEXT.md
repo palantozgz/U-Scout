@@ -130,7 +130,7 @@ PRÓXIMA ACCIÓN BUNDLE (post-TestFlight):
 - P2 Schedule scroll List→Planner: recentrar en hoy al cambiar tab (no verificado)
 - P2 readCoachBadges + isPhysicalTrainer hardcodeados a false — código muerto
 
-### Estado sesión 2 mayo 2026
+### Estado sesión 2 mayo 2026 (actualizado al cierre)
 
 **COMPLETADO HOY:**
 
@@ -138,54 +138,66 @@ Bloque 1 — Performance:
 - vite.config.ts: manualChunks 3 buckets (react/supabase/tanstack)
 - App.tsx: Login/OnboardingFlow/JoinClub/Join → lazy
 - Initial chunk: 230KB → 100KB gzip ✅
-- Home.tsx: prefetch motor + players + teams en background al llegar al Home
+- Home.tsx: prefetch motor + players + teams en background
 
 Bloque 2 — Offline:
 - usePlayers/usePlayer: offlineFirst + staleTime 10min + gcTime 7d
-- useUpdatePlayer/useCreatePlayer: cola offline conectada + optimistic cache
-- OfflineBanner: solo UI, correcto
-- GAP pendiente: wellness offline (P3, no bloqueante TestFlight)
+- useUpdatePlayer/useCreatePlayer: cola offline conectada
+- GAP pendiente: wellness offline (P3)
 
-U Stats — Collector completo:
-- collector/ creado en repo con 12 archivos TypeScript
-- Sync: standings, schedule, boxscores, playerstats, pbp, phases
-- PBP enriquecido: scoreDifferential, leadChange, tie, momentumRun,
-  stintId, reboundType, assistedByExternalId
-- Shot zones calibradas con 2 partidos reales (12 tiros de referencia):
-  sistema coordenadas confirmado (cancha 28m×15m, aro Home x=0.0575)
-  bandSide añadido, shot_dist_m en metros
-- Bot Telegram: /status /sync /reboot /season /logs /errors /setseason /games /test
-  + alertas automáticas (sync failures, network silence, unmapped action codes)
-- server/stats-ingest.ts: endpoint POST /api/stats/ingest completo
-  maneja standings/schedule/boxscores/player_stats/pbp con upserts
-- supabase-stats-schema.sql: 9 tablas + índices + comentarios (listo para ejecutar)
-- PI-SETUP.md: guía completa de setup desde flash SSD hasta primer sync
-- STATS_INGEST_KEY generada y añadida en Railway ✅
-- Schema ejecutado en Supabase ✅
-- Git push a main ✅ (27 archivos, 3309 inserciones)
+Raspberry Pi 5 — INSTALADA Y CORRIENDO:
+- OS: Raspberry Pi OS Lite 64-bit en SSD externo
+- IP local: 192.168.1.59
+- SSH: pablo@192.168.1.59
+- Node 20 + PM2 instalados
+- Collector clonado en ~/ucore/collector
+- pm2 start ucore-collector — corriendo
+- Telegram: BLOQUEADO por GFW — pendiente VPN en la Pi
+- STATS_INGEST_KEY configurada en .env de la Pi y en Railway ✅
 
-Blueprint actualizado:
-- Filosofía de recolección: guardar todo, filtrar en output
-- Catálogo completo de métricas: eFG%, TS%, ORB%, PIE, lineup+/-,
-  lateral_bias, shot_spatial_entropy, shot_dist_std, momentum runs,
-  pace exacto desde PBP, score differential distribution
-- Arquitectura de navegación UI: EQUIPOS/JUGADORAS toggle,
-  cross-nav bidireccional, buscador con filtros client-side
-- Shot chart calibrado documentado con resultados de verificación
+API WCBA — endpoints confirmados y funcionando:
+- phasemenus?seasonId=X → phaseIds con matchId por temporada
+- matchmenusschedule?competitionId=56&seasonId=X&phaseId=Y → roundIds reales (ej: 27173...)
+- matchschedules?competitionId=56&seasonId=X&phaseId=Y&roundId=Z&teamId= → gameIds
+  CLAVE: teamId='' (vacío) es REQUERIDO — sin él devuelve 500
+  Respuesta: array de fechas con array de partidos dentro (date-grouped)
+- matchinfoscores?matchId=X&gameId=Y → boxscore completo ✅
+- hotspotdata?gameId=Y&periods=1&periods=2... → shot chart ✅
+- matchoutrank?competitionId=56&seasonId=X → standings ✅
+- lastlymatchschedule?competitionId=56&seasonId=X → último partido / current phase+round
 
-**PENDIENTE INMEDIATO (cuando llegue a casa con la Pi):**
-1. Flash SSD con Raspberry Pi Imager (https://www.raspberrypi.com/software/)
-2. Conectar SSD a Pi → SSH → npm install && npm run build en collector/
-3. Rellenar .env con STATS_INGEST_KEY + TELEGRAM keys
-4. pm2 start + verificar con /test en Telegram
+Temporadas disponibles para scraping histórico:
+  2092 (2025-2026), 1767 (2024-2025), 1470 (2023-2024),
+  1108 (2022-2023), 873 (2021-2022), 428 (2020-2021),
+  253 (2019-2020), 236 (2018-2019), 228 (2017-2018),
+  245 (2016-2017), 189 (2015-2016), 175 (2014-2015)
+
+Collector — estado del código:
+- schedule.ts: CORREGIDO con teamId='' y parse date-grouped
+- phases.ts: CORREGIDO con phasemenus + matchmenusschedule real
+- standings.ts: CORREGIDO con matchoutrank
+- pbp.ts: correcto, pendiente de probar con gameIds reales
+- shot zones: calibradas ✅
+- ingest endpoint Railway: 401 — deploy con STATS_INGEST_KEY pendiente de verificar
+
+Schemas:
+- supabase-stats-schema.sql: ejecutado en Supabase ✅
+- server/stats-ingest.ts: deployado en Railway ✅
+
+**PENDIENTE INMEDIATO (esta noche):**
+1. Verificar que pm2 restart cogió el último código (schedule fix con teamId='')
+2. Verificar Railway deploy con STATS_INGEST_KEY — debería resolver el 401
+3. Ver logs del primer sync exitoso: standings + games + pbp
+4. Scraping histórico: añadir loop de temporadas en index.ts
+   (iterar seasonIds: [2092, 1767, 1470, 1108, 873, 428, 253, 236, 228, 245, 189, 175])
+5. Telegram en Pi: instalar VPN (Clash/sing-box) para desbloquear api.telegram.org
 
 **PENDIENTE PRÓXIMAS SESIONES:**
-- Endpoint GET /api/stats/* (standings, players, team, player/:id)
-  para que la UI pueda consumir los datos
+- GET /api/stats/* endpoints para que la UI consuma datos
 - UI de U Stats: Stats.tsx redesign con las pantallas del blueprint
 - Wellness offline P3
 - ReportViewV4 → 3 slides
-- UX/visual pass (Linear como referencia)
+- UX/visual pass
 - hasReport fix en MyScout
 - Schedule kebab/tap behavior
 

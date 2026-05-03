@@ -8,6 +8,7 @@ import { syncNewBoxscores } from './sync/boxscores';
 import { syncPlayerStats } from './sync/playerstats';
 import { syncNewPBP, syncPBP } from './sync/pbp';
 import { fetchPhases } from './sync/phases';
+import { syncRosters } from './sync/roster';
 import { wcbaClient } from './client';
 
 let lastNightlySync = 'never';
@@ -28,6 +29,8 @@ async function runNightlySync(): Promise<void> {
     gamesTotal = games.length;
 
     await syncStandings();
+    await syncRosters();
+
     await syncNewBoxscores(finished.map(g => g.gameId), matchIdMap);
 
     const { maxRound } = await fetchPhases();
@@ -86,16 +89,9 @@ async function main(): Promise<void> {
   initBot();
   setupBotCommands(runNightlySync, getStatus, undefined, () => `Partidos: ${gamesTotal} total, PBP: ${pbpSynced}`, testApi);
 
-  // Nightly 03:00 CST = 19:00 UTC
   cron.schedule(config.cron.nightly, () => { void runNightlySync(); });
-
-  // Live poll
   cron.schedule(`*/${config.cron.livePollMinutes} * * * *`, () => { void pollLiveGame(); });
-
-  // Daily status 08:00 CST = 00:00 UTC
   cron.schedule('0 0 * * *', () => { void sendDailyStatus({ lastSync: lastNightlySync, gamesTotal, pbpSynced }); });
-
-  // Network silence check cada 30 min
   cron.schedule('*/30 * * * *', () => { checkNetworkSilence(); });
 
   logger.info('Collector running', { nightly: config.cron.nightly });

@@ -38,7 +38,6 @@ async function upsertTeam(t: any): Promise<void> {
 }
 
 async function upsertPlayer(p: any): Promise<void> {
-  // Resolve team internal id
   const teamRow = p.teamId ? await db.execute(sql`
     SELECT id FROM stats_teams WHERE external_id = ${p.teamId} LIMIT 1
   `) : null;
@@ -47,7 +46,7 @@ async function upsertPlayer(p: any): Promise<void> {
   await db.execute(sql`
     INSERT INTO stats_players (external_id, name_zh, name_en, team_id, is_foreign, jersey_number, position)
     VALUES (
-      ${p.playerId}, ${p.playerName ?? ''}, ${p.playerNameEn ?? null},
+      ${String(p.playerId)}, ${p.playerName ?? ''}, ${p.playerNameEn ?? null},
       ${teamInternalId}, ${p.isForeign ?? false},
       ${p.jersey ?? null}, ${p.position ?? null}
     )
@@ -107,7 +106,6 @@ async function handleSchedule(rows: any[], seasonId: number, competitionId: numb
   let count = 0;
   for (const r of rows) {
     if (!r.gameId) continue;
-    // Upsert teams
     if (r.homeTeamId) await db.execute(sql`
       INSERT INTO stats_teams (external_id, name_zh, competition_id)
       VALUES (${r.homeTeamId}, ${r.homeTeamName ?? ''}, ${competitionId})
@@ -171,7 +169,7 @@ async function handlePlayerStats(rows: any[], seasonId: number): Promise<number>
   for (const r of rows) {
     if (!r.playerId) continue;
     await upsertPlayer(r);
-    const player = await db.execute(sql`SELECT id FROM stats_players WHERE external_id = ${r.playerId} LIMIT 1`);
+    const player = await db.execute(sql`SELECT id FROM stats_players WHERE external_id = ${String(r.playerId)} LIMIT 1`);
     const playerInternalId = player?.rows?.[0]?.id;
     const team = r.teamId ? await db.execute(sql`SELECT id FROM stats_teams WHERE external_id = ${r.teamId} LIMIT 1`) : null;
     const teamInternalId = team?.rows?.[0]?.id ?? null;
@@ -183,7 +181,7 @@ async function handlePlayerStats(rows: any[], seasonId: number): Promise<number>
         fgm, fga, tpm, tpa, ftm, fta, eff,
         fg_pct, tp_pct, ft_pct
       ) VALUES (
-        ${playerInternalId}, ${r.playerId}, ${teamInternalId},
+        ${playerInternalId}, ${String(r.playerId)}, ${teamInternalId},
         ${seasonId}, ${r.phaseId ?? null},
         ${r.games ?? 0}, ${r.minutes ?? null},
         ${r.pts ?? null}, ${r.reb ?? null}, ${r.ast ?? null},
@@ -214,7 +212,6 @@ async function handlePBP(rows: any[]): Promise<number> {
   if (rows.length === 0) return 0;
   let count = 0;
 
-  // Batch: resolve game_id once per unique external_game_id
   const gameIds = Array.from(new Set(rows.map(r => r.gameId).filter(Boolean)));
   const gameMap = new Map<number, number>();
   for (const extId of gameIds) {
@@ -257,6 +254,72 @@ async function handlePBP(rows: any[]): Promise<number> {
   return count;
 }
 
+// ─── Roster ───────────────────────────────────────────────────────────────────
+async function handleRoster(rosters: any[]): Promise<number> {
+  let count = 0;
+  const today = new Date().toISOString().slice(0, 10);
+
+  for (const roster of rosters) {
+    const { teamId, teamName, seasonId, players } = roster;
+    if (!teamId || !Array.isArray(players)) continue;
+
+    await db.execute(sql`
+      INSERT INTO stats_teams (external_id, name_zh, competition_id)
+      VALUES (${teamId}, ${teamName ?? ''}, 56)
+      ON CONFLICT (external_id) DO UPDATE SET
+        name_zh = EXCLUDED.name_zh, updated_at = NOW()
+    `);
+
+    for (const p of players) {
+      if (!p.playerId) continue;
+
+      await db.execute(sql`
+        INSERT INTO stats_players (
+          external_id, name_zh, name_en, team_id,
+          is_foreign, jersey_number, position,
+          height_cm, weight_kg, birthday, photo_url,
+          veteran_years, country, ethnicity, season_id
+        )
+        SELECT
+          ${String(p.playerId)}, ${p.playerName ?? ''}, ${p.playerNameEn ?? null},
+          st.id,
+          ${p.isForeign ?? false}, ${p.jerseyNumber ?? null}, ${p.position ?? null},
+          ${p.heightCm ?? null}, ${p.weightKg ?? null},
+          ${p.birthday ? p.birthday : null}::date,
+          ${p.photoUrl ?? null},
+          ${p.veteranYears ?? null}, ${p.country ?? null},
+          ${p.ethnicity ?? null}, ${seasonId ?? null}
+        FROM stats_teams st WHERE st.external_id = ${teamId}
+        ON CONFLICT (external_id) DO UPDATE SET
+          name_zh       = EXCLUDED.name_zh,
+          team_id       = EXCLUDED.team_id,
+          jersey_number = EXCLUDED.jersey_number,
+          position      = EXCLUDED.position,
+          height_cm     = COALESCE(EXCLUDED.height_cm, stats_players.height_cm),
+          weight_kg     = COALESCE(EXCLUDED.weight_kg, stats_players.weight_kg),
+          birthday      = COALESCE(EXCLUDED.birthday,  stats_players.birthday),
+          photo_url     = COALESCE(EXCLUDED.photo_url, stats_players.photo_url),
+          veteran_years = EXCLUDED.veteran_years,
+          country       = EXCLUDED.country,
+          season_id     = EXCLUDED.season_id,
+          updated_at    = NOW()
+      `);
+
+      await db.execute(sql`
+        INSERT INTO stats_roster_snapshots
+          (season_id, team_external_id, player_external_id, player_name_zh, snapshot_date)
+        VALUES
+          (${seasonId}, ${teamId}, ${String(p.playerId)}, ${p.playerName ?? ''}, ${today}::date)
+        ON CONFLICT (season_id, team_external_id, player_external_id, snapshot_date)
+        DO NOTHING
+      `);
+
+      count++;
+    }
+  }
+  return count;
+}
+
 // ─── Registro del endpoint ─────────────────────────────────────────────────────
 export function registerStatsIngest(app: Express): void {
   app.post("/api/stats/ingest", requireIngestKey, async (req: Request, res: Response) => {
@@ -286,11 +349,13 @@ export function registerStatsIngest(app: Express): void {
         case "pbp":
           recordsProcessed = await handlePBP(data);
           break;
+        case "roster":
+          recordsProcessed = await handleRoster(data);
+          break;
         default:
           return res.status(400).json({ error: `Unknown ingest type: ${type}` });
       }
 
-      // Log sync
       await db.execute(sql`
         INSERT INTO stats_sync_log (sync_type, season_id, records_processed, status, finished_at)
         VALUES (${type}, ${seasonId ?? null}, ${recordsProcessed}, 'ok', NOW())
