@@ -16,6 +16,15 @@ export interface WCBAGame {
   seasonId: number;
 }
 
+const CHUNK_SIZE = 50;
+
+async function ingestChunked(type: string, seasonId: number, competitionId: number, rows: any[]): Promise<void> {
+  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+    const chunk = rows.slice(i, i + CHUNK_SIZE);
+    await ingest({ type: type as any, seasonId, competitionId, data: chunk });
+  }
+}
+
 export async function syncSchedule(): Promise<WCBAGame[]> {
   const { competitionId, seasonId } = config.wcba;
   const { phases } = await fetchPhases();
@@ -30,7 +39,7 @@ export async function syncSchedule(): Promise<WCBAGame[]> {
             seasonId,
             phaseId: phase.phaseId,
             roundId,
-            teamId: '',      // ← clave: teamId vacío es requerido
+            teamId: '',
           },
         });
 
@@ -77,7 +86,7 @@ export async function syncSchedule(): Promise<WCBAGame[]> {
 
   logger.info('Schedule complete', { totalGames: all.length });
   if (all.length > 0) {
-    await ingest({ type: 'schedule', seasonId, competitionId, data: all });
+    await ingestChunked('schedule', seasonId, competitionId, all);
   }
   return all;
 }
