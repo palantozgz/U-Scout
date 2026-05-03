@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { ArrowLeft, Star, ChevronRight, Pencil } from "lucide-react";
 import { ModuleNav } from "@/pages/core/ModuleNav";
@@ -10,6 +11,7 @@ import { isRealPhoto } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { apiRequest } from "@/lib/queryClient";
 
 function hasReportInputs(player: PlayerProfile): boolean {
   const inp = (player as any).inputs ?? (player as any).scoutingInputs;
@@ -26,8 +28,65 @@ function hasReportInputs(player: PlayerProfile): boolean {
   );
 }
 
+function useStatsLink(playerName: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["stats-player-link", playerName],
+    queryFn: async () => {
+      const r = await apiRequest(
+        "GET",
+        `/api/stats/player-link?name=${encodeURIComponent(playerName)}`,
+      );
+      return r.json() as Promise<{
+        externalId: string | null;
+        ppg: number;
+        rpg: number;
+        apg: number;
+      }>;
+    },
+    enabled,
+    staleTime: 1000 * 60 * 10,
+    retry: false,
+  });
+}
+
+function StatsMiniChip({
+  playerName,
+  onNavigate,
+}: {
+  playerName: string;
+  onNavigate: (externalId: string) => void;
+}) {
+  const { data, isLoading } = useStatsLink(playerName, !!playerName);
+  if (isLoading || !data?.externalId) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => onNavigate(data.externalId!)}
+      className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/40 border border-border/50 w-full text-left"
+    >
+      <div className="flex gap-3 text-xs font-black tabular-nums text-foreground">
+        <span>
+          {data.ppg.toFixed(1)}{" "}
+          <span className="font-normal text-muted-foreground">PPG</span>
+        </span>
+        <span>
+          {data.rpg.toFixed(1)}{" "}
+          <span className="font-normal text-muted-foreground">RPG</span>
+        </span>
+        <span>
+          {data.apg.toFixed(1)}{" "}
+          <span className="font-normal text-muted-foreground">APG</span>
+        </span>
+      </div>
+      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground ml-auto shrink-0" />
+    </button>
+  );
+}
+
 export default function MyScout() {
   const [, setLocation] = useLocation();
+  const navigateToStats = (externalId: string) =>
+    setLocation(`/stats?tab=jugadoras&player=${externalId}`);
   const { locale } = useLocale();
   const { profile } = useAuth();
 
@@ -363,6 +422,15 @@ export default function MyScout() {
                               <Pencil className="w-4 h-4" />
                             </button>
                           </div>
+
+                          {isCanonical && player.name && (
+                            <div className="px-3 pb-2">
+                              <StatsMiniChip
+                                playerName={player.name}
+                                onNavigate={navigateToStats}
+                              />
+                            </div>
+                          )}
 
                           <div className="border-t border-border px-3 py-3 bg-muted/30">
                             {hasReport ? (
