@@ -1,7 +1,7 @@
 import { ucoreClient } from './client';
 import { logger } from './logger';
 
-export type IngestType = 'standings' | 'schedule' | 'boxscores' | 'player_stats' | 'pbp' | 'shot_chart' | 'roster';
+export type IngestType = 'standings' | 'schedule' | 'boxscores' | 'player_boxscores' | 'player_stats' | 'pbp' | 'shot_chart' | 'roster';
 
 export interface IngestPayload {
   type: IngestType;

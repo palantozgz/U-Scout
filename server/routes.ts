@@ -1646,6 +1646,8 @@ export async function registerRoutes(
       spg: "AVG(pb.stl)",
       bpg: "AVG(pb.blk)",
       topg: "AVG(pb.tov)",
+      fgPct:
+        "(CASE WHEN SUM(pb.fga) > 0 THEN (SUM(pb.fgm)::float / SUM(pb.fga) * 100) ELSE NULL END)",
     };
     const statExpr = allowedStats[stat] ?? allowedStats["ppg"];
     const rows = await db.execute(sql`
@@ -1663,10 +1665,53 @@ export async function registerRoutes(
       WHERE sg.status = 4 AND sg.season_id = ${seasonId}
       GROUP BY sp.external_id, sp.name_zh, sp.name_en, st.name_zh
       HAVING COUNT(DISTINCT pb.game_id) >= 5
-      ORDER BY value DESC
+      ORDER BY value DESC NULLS LAST
       LIMIT 15
     `);
     return res.json({ leaders: (rows as any).rows ?? [], stat });
+  });
+
+  // ─── GET /api/stats/player-link ─────────────────────────────────────────────
+  app.get("/api/stats/player-link", requireAuth, async (req, res) => {
+    const name = String(req.query.name ?? "").trim();
+    if (!name) return res.json({ externalId: null });
+
+    const rows = await db.execute(sql`
+      SELECT
+        sp.external_id AS "externalId",
+        ROUND(AVG(pb.pts)::numeric, 1)  AS ppg,
+        ROUND(AVG(pb.reb)::numeric, 1)  AS rpg,
+        ROUND(AVG(pb.ast)::numeric, 1)  AS apg
+      FROM stats_players sp
+      LEFT JOIN stats_player_boxscores pb ON pb.player_external_id = sp.external_id
+      LEFT JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
+      WHERE sp.name_zh = ${name} OR sp.name_en = ${name}
+      GROUP BY sp.external_id
+      LIMIT 1
+    `);
+    const row = (rows as any).rows?.[0];
+    if (!row) return res.json({ externalId: null });
+    return res.json({
+      externalId: row.externalId,
+      ppg: Number(row.ppg ?? 0),
+      rpg: Number(row.rpg ?? 0),
+      apg: Number(row.apg ?? 0),
+    });
+  });
+
+  // ─── GET /api/stats/seasons ──────────────────────────────────────────────────
+  app.get("/api/stats/seasons", requireAuth, async (_req, res) => {
+    const rows = await db.execute(sql`
+      SELECT DISTINCT season_id AS "seasonId"
+      FROM stats_games
+      WHERE status = 4 AND season_id IS NOT NULL
+      ORDER BY season_id DESC
+    `);
+    const seasons = ((rows as any).rows ?? []).map((r: any) => ({
+      seasonId: r.seasonId,
+      label: r.seasonId === 2092 ? "2024-25" : String(r.seasonId),
+    }));
+    return res.json({ seasons });
   });
 
   return httpServer;

@@ -4,10 +4,8 @@ import { logger } from './logger';
 import { initBot, setupBotCommands, sendMessage, sendDailyStatus, recordSyncSuccess, recordSyncFailure, checkNetworkSilence } from './bot';
 import { syncStandings } from './sync/standings';
 import { syncSchedule, checkActiveGame } from './sync/schedule';
-import { syncNewBoxscores } from './sync/boxscores';
-import { syncPlayerStats } from './sync/playerstats';
+import { syncNewBoxscores, syncNewPlayerBoxscores } from './sync/boxscores';
 import { syncNewPBP, syncPBP } from './sync/pbp';
-import { fetchPhases } from './sync/phases';
 import { syncRosters } from './sync/roster';
 import { wcbaClient } from './client';
 
@@ -30,12 +28,8 @@ async function runNightlySync(): Promise<void> {
 
     await syncStandings();
     await syncRosters();
-
     await syncNewBoxscores(finished.map(g => g.gameId), matchIdMap);
-
-    const { maxRound } = await fetchPhases();
-    await syncPlayerStats(maxRound);
-
+    await syncNewPlayerBoxscores(finished.map(g => g.gameId));
     await syncNewPBP(finished.map(g => g.gameId));
     pbpSynced = finished.length;
 

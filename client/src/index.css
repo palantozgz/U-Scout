@@ -31,6 +31,8 @@
 
   --font-sans: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
+
+  --animate-spin-slow: spin 3s linear infinite;
 }
 
 :root {

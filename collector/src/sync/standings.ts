@@ -5,7 +5,7 @@ import { logger } from '../logger';
 
 export async function syncStandings(): Promise<void> {
   const { competitionId, seasonId } = config.wcba;
-  const res = await wcbaClient.get('/datahub/cbamatch/rank/matchoutrank', { params: { competitionId, seasonId } });
+  const res = await wcbaClient.get('/datahub/cbamatch/rank/teamrankfirst', { params: { competitionId, seasonId } });
   const rows: any[] = res.data?.data ?? [];
   if (rows.length === 0) { logger.warn('Standings: empty'); return; }
   const standings = rows.map((r: any) => ({
@@ -15,7 +15,7 @@ export async function syncStandings(): Promise<void> {
     winPct:    Number(r.wins ?? 0) / Math.max(Number(r.wins ?? 0) + Number(r.loses ?? 0), 1),
     ptsPerGame:       Number(r.pts ?? 0), ptsAgainstPerGame: Number(r.losePts ?? 0),
     goalDiff:  Number(r.goalDifference ?? 0), streak: Number(r.winLoss ?? 0),
-    last10Wins: Number(r.last10Win ?? 0), last10Losses: Number(r.last10Loses ?? 0),
+    last10Wins: Math.round(Number(r.last10Win ?? 0)), last10Losses: Math.round(Number(r.last10Loses ?? 0)),
     homeWins:  Number(r.homeWin ?? 0), homeLosses: Number(r.homeLoses ?? 0),
     awayWins:  Number(r.awayWin ?? 0), awayLosses: Number(r.awayLoses ?? 0),
   }));

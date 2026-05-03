@@ -60,3 +60,58 @@ export function useGameLog(playerName: string | null | undefined, season?: strin
   });
 }
 
+export interface StandingsRow {
+  teamExternalId: string;
+  teamName: string;
+  logoUrl: string | null;
+  rank: number;
+  wins: number;
+  losses: number;
+  winPct: number | null;
+  ppg: number | null;
+  oppg: number | null;
+  phaseName: string | null;
+}
+
+export interface LeaderRow {
+  externalId: string;
+  playerName: string;
+  playerNameEn: string | null;
+  teamName: string | null;
+  value: number | null;
+  games: number;
+}
+
+export function useSeasons() {
+  return useQuery({
+    queryKey: ["stats-seasons"],
+    queryFn: async () => {
+      const r = await apiRequest("GET", "/api/stats/seasons");
+      return r.json() as Promise<{ seasons: { seasonId: number; label: string }[] }>;
+    },
+    staleTime: 1000 * 60 * 60,
+  });
+}
+
+export function useStandings(seasonId: number) {
+  return useQuery({
+    queryKey: ["stats-standings", seasonId],
+    queryFn: async () => {
+      const r = await apiRequest("GET", `/api/stats/standings?seasonId=${seasonId}`);
+      return r.json() as Promise<{ standings: StandingsRow[] }>;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useLeaders(seasonId: number, stat: string) {
+  return useQuery({
+    queryKey: ["stats-leaders", seasonId, stat],
+    queryFn: async () => {
+      const r = await apiRequest("GET", `/api/stats/leaders?seasonId=${seasonId}&stat=${encodeURIComponent(stat)}`);
+      return r.json() as Promise<{ leaders: LeaderRow[]; stat: string }>;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+

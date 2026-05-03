@@ -200,8 +200,7 @@ async function handlePlayerBoxscores(rows: any[]): Promise<number> {
         ftm = EXCLUDED.ftm, fta = EXCLUDED.fta,
         plus_minus = EXCLUDED.plus_minus,
         minutes = EXCLUDED.minutes,
-        is_start_lineup = EXCLUDED.is_start_lineup,
-        updated_at = NOW()
+        is_start_lineup = EXCLUDED.is_start_lineup
     `);
     count++;
   }

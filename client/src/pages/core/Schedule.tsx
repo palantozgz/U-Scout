@@ -62,6 +62,20 @@ import {
   type ScheduleEvent,
 } from "@/lib/schedule";
 
+function useLongPress(onLongPress: () => void, ms = 500) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const start = () => {
+    timer.current = setTimeout(onLongPress, ms);
+  };
+  const cancel = () => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+  };
+  return { onMouseDown: start, onTouchStart: start, onMouseUp: cancel, onTouchEnd: cancel, onMouseLeave: cancel };
+}
+
 type AttendanceMode = "all_team" | "groups" | "signup" | "selected_players";
 type LoadWeight = "low" | "medium" | "high";
 type GroupSignupMode = "coach_assign" | "auto_signup";
@@ -223,6 +237,7 @@ export default function Schedule() {
   const [activeTab, setActiveTab] = useState<"schedule" | "wellness">("schedule");
   const [staffView, setStaffView] = useState<"list" | "planner">("list");
   const [createOpen, setCreateOpen] = useState(false);
+  const [sessionDetailEvent, setSessionDetailEvent] = useState<ScheduleEvent | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const isEditing = Boolean(editingSessionId);
   const [showAdvancedCreate, setShowAdvancedCreate] = useState(false);
@@ -970,6 +985,10 @@ export default function Schedule() {
     const end = new Date(start.getTime() + mins * 60000);
     setCreateEndTime(formatTimeHHMM(end.getHours(), end.getMinutes()));
     setUseCustomDateTime(true);
+  };
+
+  const openSessionDetail = (ev: ScheduleEvent) => {
+    setSessionDetailEvent(ev);
   };
 
   const startEditing = (ev: ScheduleEvent) => {
@@ -2000,10 +2019,10 @@ export default function Schedule() {
                                             const tags = (parsed.constraints?.tags ?? []).slice(0, 2) as string[];
                                             return (
                                               <div key={ev.id} className="flex items-stretch justify-between gap-2">
-                                                <button
-                                                  type="button"
+                                                <PlannerSessionCardButton
                                                   className="min-w-0 flex-1 text-left rounded-lg px-2 py-1.5 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-                                                  onClick={() => startEditing(ev)}
+                                                  onOpenDetail={() => openSessionDetail(ev)}
+                                                  onOpenEdit={() => startEditing(ev)}
                                                 >
                                                   <p className="text-sm font-extrabold text-foreground truncate">{ev.title}</p>
                                                   <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground truncate">
@@ -2022,7 +2041,7 @@ export default function Schedule() {
                                                       ))}
                                                     </div>
                                                   ) : null}
-                                                </button>
+                                                </PlannerSessionCardButton>
                                               </div>
                                             );
                                           })}
@@ -2123,18 +2142,18 @@ export default function Schedule() {
                                   <div key={`${slot.key}-${d.toLocaleDateString('sv')}`} className={['space-y-1 rounded-lg px-0.5 py-0.5', isCellToday ? 'bg-primary/5' : ''].join(' ')}>
                                     {inSlot.length > 0 ? (
                                       inSlot.map((ev) => (
-                                      <button
+                                      <PlannerSessionCardButton
                                       key={ev.id}
-                                      type="button"
-                                        onClick={() => startEditing(ev)}
-                                      className="w-full rounded-lg border border-border bg-background/40 px-2 py-2 text-left hover:bg-muted/20 active:scale-[0.98] transition-colors"
+                                        className="w-full rounded-lg border border-border bg-background/40 px-2 py-2 text-left hover:bg-muted/20 active:scale-[0.98] transition-colors"
+                                        onOpenDetail={() => openSessionDetail(ev)}
+                                        onOpenEdit={() => startEditing(ev)}
                                       >
                                       <p className="text-[11px] font-extrabold text-foreground truncate">{ev.title}</p>
                                       <p className="text-[10px] font-semibold text-muted-foreground truncate">
                                       {formatTime(ev.starts_at)}
                                       {ev.location ? ` · ${ev.location}` : ""}
                                       </p>
-                                      </button>
+                                      </PlannerSessionCardButton>
                                       ))
                                     ) : (
                                       <button
@@ -3791,6 +3810,64 @@ export default function Schedule() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={sessionDetailEvent !== null}
+        onOpenChange={(open) => {
+          if (!open) setSessionDetailEvent(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="pr-8">{sessionDetailEvent?.title ?? ""}</DialogTitle>
+          </DialogHeader>
+          {sessionDetailEvent ? (
+            <div className="space-y-3 text-sm">
+              <span className="inline-flex items-center rounded-full border border-border bg-background/40 px-2.5 py-1 text-[11px] font-bold text-foreground">
+                {t(ACTIVITY_TYPE_CONFIG[sessionDetailEvent.session_type].labelKey)}
+              </span>
+              <p className="text-muted-foreground font-medium">
+                {new Intl.DateTimeFormat(intlLocale, { weekday: "long", month: "short", day: "numeric" }).format(
+                  new Date(sessionDetailEvent.starts_at),
+                )}
+                {" · "}
+                {formatTime(sessionDetailEvent.starts_at)}
+                {sessionDetailEvent.ends_at ? ` – ${formatTime(sessionDetailEvent.ends_at)}` : ""}
+              </p>
+              {sessionDetailEvent.location?.trim() ? (
+                <p className="text-foreground font-semibold">{sessionDetailEvent.location}</p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">{t("schedule_location_tbd")}</p>
+              )}
+              {(() => {
+                const detailNotes = readConstraintsFromNotes(sessionDetailEvent.notes ?? null).notesClean?.trim();
+                return detailNotes ? (
+                  <p className="text-[13px] text-muted-foreground whitespace-pre-wrap">{detailNotes}</p>
+                ) : null;
+              })()}
+              {sessionDetailEvent.attendance_required !== false ? (
+                <p className="text-[11px] text-muted-foreground">{t("schedule_session_attendance_required")}</p>
+              ) : null}
+            </div>
+          ) : null}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setSessionDetailEvent(null)}>
+              {t("close")}
+            </Button>
+            {canCreateSession && sessionDetailEvent ? (
+              <Button
+                onClick={() => {
+                  const ev = sessionDetailEvent;
+                  setSessionDetailEvent(null);
+                  startEditing(ev);
+                }}
+              >
+                {t("schedule_edit")}
+              </Button>
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={Boolean(cancelTarget)} onOpenChange={(open) => { if (!open) setCancelTarget(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -4559,6 +4636,35 @@ function SparklineBars(props: {
         );
       })}
     </div>
+  );
+}
+
+function PlannerSessionCardButton(props: {
+  className?: string;
+  onOpenDetail: () => void;
+  onOpenEdit: () => void;
+  children: React.ReactNode;
+}) {
+  const suppressNextClickRef = useRef(false);
+  const longPress = useLongPress(() => {
+    suppressNextClickRef.current = true;
+    props.onOpenEdit();
+  }, 500);
+  return (
+    <button
+      type="button"
+      className={props.className}
+      {...longPress}
+      onClick={() => {
+        if (suppressNextClickRef.current) {
+          suppressNextClickRef.current = false;
+          return;
+        }
+        props.onOpenDetail();
+      }}
+    >
+      {props.children}
+    </button>
   );
 }
 

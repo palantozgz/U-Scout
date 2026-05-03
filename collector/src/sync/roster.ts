@@ -28,7 +28,7 @@ export interface TeamRoster {
 }
 
 async function fetchTeamIds(seasonId: number, competitionId: number): Promise<Array<{ teamId: number; teamName: string }>> {
-  const res = await wcbaClient.get('/datahub/cbamatch/rank/matchoutrank', {
+  const res = await wcbaClient.get('/datahub/cbamatch/rank/teamrankfirst', {
     params: { competitionId, seasonId },
   });
   const rows: any[] = res.data?.data ?? [];
