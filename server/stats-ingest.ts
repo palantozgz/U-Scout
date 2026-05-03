@@ -26,17 +26,6 @@ function requireIngestKey(req: Request, res: Response, next: () => void) {
 
 // ─── Upsert helpers ────────────────────────────────────────────────────────────
 
-async function upsertTeam(t: any): Promise<void> {
-  await db.execute(sql`
-    INSERT INTO stats_teams (external_id, name_zh, name_en, logo_url, competition_id)
-    VALUES (${t.teamId}, ${t.teamName ?? ''}, ${t.teamNameEn ?? null}, ${t.teamLogo ?? null}, ${t.competitionId ?? 56})
-    ON CONFLICT (external_id) DO UPDATE SET
-      name_zh = EXCLUDED.name_zh,
-      logo_url = COALESCE(EXCLUDED.logo_url, stats_teams.logo_url),
-      updated_at = NOW()
-  `);
-}
-
 async function upsertPlayer(p: any): Promise<void> {
   const teamRow = p.teamId ? await db.execute(sql`
     SELECT id FROM stats_teams WHERE external_id = ${p.teamId} LIMIT 1
@@ -103,23 +92,43 @@ async function handleStandings(rows: any[], seasonId: number, competitionId: num
 }
 
 async function handleSchedule(rows: any[], seasonId: number, competitionId: number): Promise<number> {
+  const valid = rows.filter(r => r.gameId);
+  if (valid.length === 0) return 0;
+
+  // 1. Collect unique teams
+  const teamMap = new Map<number, string>();
+  for (const r of valid) {
+    if (r.homeTeamId) teamMap.set(Number(r.homeTeamId), r.homeTeamName ?? '');
+    if (r.awayTeamId) teamMap.set(Number(r.awayTeamId), r.awayTeamName ?? '');
+  }
+
+  // 2. Batch upsert teams
+  const teamEntries = Array.from(teamMap.entries());
+  for (const entry of teamEntries) {
+    const extId = entry[0];
+    const name = entry[1];
+    await db.execute(sql`
+      INSERT INTO stats_teams (external_id, name_zh, competition_id)
+      VALUES (${extId}, ${name}, ${competitionId})
+      ON CONFLICT (external_id) DO UPDATE SET name_zh = EXCLUDED.name_zh, updated_at = NOW()
+    `);
+  }
+
+  // 3. Load internal id map in one query
+  const teamIds = Array.from(teamMap.keys());
+  const teamRows = await db.execute(sql`
+    SELECT id, external_id FROM stats_teams WHERE external_id = ANY(${teamIds}::int[])
+  `);
+  const internalIdMap = new Map<number, number>();
+  for (const row of (teamRows as any).rows ?? []) {
+    internalIdMap.set(Number(row.external_id), Number(row.id));
+  }
+
+  // 4. Batch upsert games
   let count = 0;
-  for (const r of rows) {
-    if (!r.gameId) continue;
-    if (r.homeTeamId) await db.execute(sql`
-      INSERT INTO stats_teams (external_id, name_zh, competition_id)
-      VALUES (${r.homeTeamId}, ${r.homeTeamName ?? ''}, ${competitionId})
-      ON CONFLICT (external_id) DO UPDATE SET name_zh = EXCLUDED.name_zh, updated_at = NOW()
-    `);
-    if (r.awayTeamId) await db.execute(sql`
-      INSERT INTO stats_teams (external_id, name_zh, competition_id)
-      VALUES (${r.awayTeamId}, ${r.awayTeamName ?? ''}, ${competitionId})
-      ON CONFLICT (external_id) DO UPDATE SET name_zh = EXCLUDED.name_zh, updated_at = NOW()
-    `);
-
-    const homeTeam = r.homeTeamId ? await db.execute(sql`SELECT id FROM stats_teams WHERE external_id = ${r.homeTeamId} LIMIT 1`) : null;
-    const awayTeam = r.awayTeamId ? await db.execute(sql`SELECT id FROM stats_teams WHERE external_id = ${r.awayTeamId} LIMIT 1`) : null;
-
+  for (const r of valid) {
+    const homeId = r.homeTeamId ? (internalIdMap.get(Number(r.homeTeamId)) ?? null) : null;
+    const awayId = r.awayTeamId ? (internalIdMap.get(Number(r.awayTeamId)) ?? null) : null;
     await db.execute(sql`
       INSERT INTO stats_games (
         external_game_id, match_id, season_id, competition_id,
@@ -128,11 +137,13 @@ async function handleSchedule(rows: any[], seasonId: number, competitionId: numb
       ) VALUES (
         ${r.gameId}, ${r.matchId ?? null}, ${seasonId}, ${competitionId},
         ${r.phaseId ?? null}, ${r.roundId ?? null},
-        ${homeTeam?.rows?.[0]?.id ?? null}, ${awayTeam?.rows?.[0]?.id ?? null},
+        ${homeId}, ${awayId},
         ${r.scheduledAt ?? null}, ${r.status ?? 0}
       )
       ON CONFLICT (external_game_id) DO UPDATE SET
         status = EXCLUDED.status,
+        home_score = COALESCE(stats_games.home_score, EXCLUDED.home_score),
+        away_score = COALESCE(stats_games.away_score, EXCLUDED.away_score),
         scheduled_at = COALESCE(EXCLUDED.scheduled_at, stats_games.scheduled_at),
         updated_at = NOW()
     `);

@@ -1,6 +1,8 @@
 # U Core — Contexto para Claude
 
 > Leer este archivo al inicio de cada sesión antes de proponer cualquier cambio.
+> Claude SIEMPRE actualiza este archivo al cierre de sesión usando filesystem:write_file.
+> Claude NUNCA pide a Pablo que edite este archivo manualmente.
 
 ---
 
@@ -28,6 +30,7 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/lib/motor-icons.ts` — mapa situationId/defenseKey/awareKey → LucideIcon
 - `client/src/pages/player/WellnessStandalone.tsx` — wellness jugadora /player/wellness
 - `server/routes.ts` — rutas API Express
+- `server/stats-ingest.ts` — ingest endpoint Pi → Railway → Supabase
 - `server/storage.ts` — acceso Supabase
 - `scripts/calibrate-motor.ts` — 66 perfiles (100% / 551 checks)
 - `scripts/eval-motor-quality.ts` — 10 perfiles calidad
@@ -77,9 +80,9 @@ head_coach       → Game Plan → puede RETIRAR → vuelve a MyScout
 
 ---
 
-## Estado app — 1 mayo 2026 (sesión p9+p10 — ACTUAL)
+## Estado app — 3 mayo 2026 (sesión p11 — ACTUAL)
 
-### Fixes aplicados y deployados ✅
+### Fixes aplicados y deployados ✅ (sesiones anteriores)
 1. P0 — viewStatus tracking: POST fire-and-forget en ReportSlidesV1 (solo player mode)
 2. P1 — onBack jugadora: vuelve a /player/team/:teamId via window.history.state.fromTeamId
 3. P1 — ownership PATCH /api/players/:id: coach solo edita sus sandboxes
@@ -94,13 +97,24 @@ head_coach       → Game Plan → puede RETIRAR → vuelve a MyScout
 12. P1 — Wellness standalone: /player/wellness → WellnessStandalone.tsx
 13. P1 — PlayerTeamList 1 tap: navegación directa
 14. P2 — Personnel guard URL directa: redirect a /coach
-15. P1 — Stats ingest endpoint: POST /api/stats/ingest con Bearer STATS_INGEST_KEY
-16. i18n wellness keys: todas en en/es/zh
-17. motor-icons.ts: mapa situationId/defenseKey/awareKey → LucideIcon
-18. ReportSlidesV1: iconos Lucide en situaciones (slide 2) y DENY/FORCE/ALLOW/AWARE (slide 3)
-19. BasketballPlaceholderAvatar: -28KB gzip (JPEG base64 → SVG puro)
-20. queryKey + userId: usePlayers/useTeams/useClub scoped por usuario
-21. RenderedAlert: tipo completo con key+triggerKey (elimina as any en ReportSlidesV1)
+15. i18n wellness keys: todas en en/es/zh
+16. motor-icons.ts: mapa situationId/defenseKey/awareKey → LucideIcon
+17. ReportSlidesV1: iconos Lucide en situaciones (slide 2) y DENY/FORCE/ALLOW/AWARE (slide 3)
+18. BasketballPlaceholderAvatar: -28KB gzip (JPEG base64 → SVG puro)
+19. queryKey + userId: usePlayers/useTeams/useClub scoped por usuario
+20. RenderedAlert: tipo completo con key+triggerKey (elimina as any en ReportSlidesV1)
+
+### Fixes sesión 3 mayo 2026 ✅
+21. Schema stats_* creado en Supabase: 10 tablas (stats_teams, stats_players, stats_games,
+    stats_boxscores, stats_season, stats_pbp, stats_standings, stats_roster_snapshots,
+    stats_insights_cache, stats_sync_log)
+22. collector/src/sync/roster.ts — nuevo sync plantillas via teamplayers endpoint
+23. collector/src/ingest.ts — tipo 'roster' añadido
+24. collector/src/index.ts — syncRosters() en nightly sync
+25. server/stats-ingest.ts — handleRoster() + case 'roster' en switch
+26. collector/src/sync/schedule.ts — ingestChunked() chunks de 50 (resuelve 413)
+27. server/index.ts — limit 10mb + PORT env var + sin reusePort (resuelve healthcheck Railway)
+28. server/routes.ts — eliminado handler viejo /api/stats/ingest que causaba 400
 
 ### Bundle — estado sesión 2 mayo 2026
 ```
@@ -111,18 +125,9 @@ MEDIDO POST-BUILD:
   - vendor-query:     12KB gzip (carga paralela)
   - Total bundle:    ~532KB gzip (sin cambio — correcto para este stack)
 
-INTERVENCIONES APLICADAS (2 mayo 2026):
-  - vite.config.ts: manualChunks con 3 buckets grandes (react, supabase, tanstack)
-  - App.tsx: Login/OnboardingFlow/JoinClub/Join → lazy
-  REGLA: manualChunks con pocos buckets GRANDES funciona.
-          manualChunks con muchos chunks pequeños EMPEORA (modulepreload suma todos).
-
 PRÓXIMA ACCIÓN BUNDLE (post-TestFlight):
-  Motor server-side (motor-v2.1.ts + motor-v4.ts + mock-data.ts):
-  - Ganancia estimada: -50KB gzip del initial chunk → bajaría a ~50KB
-  - BLOQUEANTE: rompe offline para coaches (motor corre client-side hoy)
-  - Requiere cachear output calculado en lugar de inputs
-  - DECISIÓN PENDIENTE — no antes de TestFlight
+  Motor server-side: ganancia estimada -50KB gzip. BLOQUEANTE: rompe offline coaches.
+  DECISIÓN PENDIENTE — no antes de TestFlight.
 ```
 
 ### 🔴 RIESGOS ACTIVOS
@@ -130,92 +135,126 @@ PRÓXIMA ACCIÓN BUNDLE (post-TestFlight):
 - P2 Schedule scroll List→Planner: recentrar en hoy al cambiar tab (no verificado)
 - P2 readCoachBadges + isPhysicalTrainer hardcodeados a false — código muerto
 
-### Estado sesión 2 mayo 2026 (actualizado al cierre)
+### 🔴 PENDIENTE INMEDIATO
+1. Verificar primer sync completo (standings + schedule + roster → Supabase) — EN PROGRESO
+2. collector/src/sync/boxscores.ts: añadir playerdata?gameId=X para stats individuales por partido
+3. POST /api/stats/import-team → importar equipo WCBA a Personnel con un clic
+4. Telegram Pi: bloqueado por GFW — pendiente VPN (Clash/sing-box)
+5. Scraping histórico: loop temporadas en index.ts
+   [2092, 1767, 1470, 1108, 873, 428, 253, 236, 228, 245, 189, 175]
 
-**COMPLETADO HOY:**
-
-Bloque 1 — Performance:
-- vite.config.ts: manualChunks 3 buckets (react/supabase/tanstack)
-- App.tsx: Login/OnboardingFlow/JoinClub/Join → lazy
-- Initial chunk: 230KB → 100KB gzip ✅
-- Home.tsx: prefetch motor + players + teams en background
-
-Bloque 2 — Offline:
-- usePlayers/usePlayer: offlineFirst + staleTime 10min + gcTime 7d
-- useUpdatePlayer/useCreatePlayer: cola offline conectada
-- GAP pendiente: wellness offline (P3)
-
-Raspberry Pi 5 — INSTALADA Y CORRIENDO:
-- OS: Raspberry Pi OS Lite 64-bit en SSD externo
-- IP local: 192.168.1.59
-- SSH: pablo@192.168.1.59
-- Node 20 + PM2 instalados
-- Collector clonado en ~/ucore/collector
-- pm2 start ucore-collector — corriendo
-- Telegram: BLOQUEADO por GFW — pendiente VPN en la Pi
-- STATS_INGEST_KEY configurada en .env de la Pi y en Railway ✅
-
-API WCBA — endpoints confirmados y funcionando:
-- phasemenus?seasonId=X → phaseIds con matchId por temporada
-- matchmenusschedule?competitionId=56&seasonId=X&phaseId=Y → roundIds reales (ej: 27173...)
-- matchschedules?competitionId=56&seasonId=X&phaseId=Y&roundId=Z&teamId= → gameIds
-  CLAVE: teamId='' (vacío) es REQUERIDO — sin él devuelve 500
-  Respuesta: array de fechas con array de partidos dentro (date-grouped)
-- matchinfoscores?matchId=X&gameId=Y → boxscore completo ✅
-- hotspotdata?gameId=Y&periods=1&periods=2... → shot chart ✅
-- matchoutrank?competitionId=56&seasonId=X → standings ✅
-- lastlymatchschedule?competitionId=56&seasonId=X → último partido / current phase+round
-
-Temporadas disponibles para scraping histórico:
-  2092 (2025-2026), 1767 (2024-2025), 1470 (2023-2024),
-  1108 (2022-2023), 873 (2021-2022), 428 (2020-2021),
-  253 (2019-2020), 236 (2018-2019), 228 (2017-2018),
-  245 (2016-2017), 189 (2015-2016), 175 (2014-2015)
-
-Collector — estado del código:
-- schedule.ts: CORREGIDO con teamId='' y parse date-grouped
-- phases.ts: CORREGIDO con phasemenus + matchmenusschedule real
-- standings.ts: CORREGIDO con matchoutrank
-- pbp.ts: correcto, pendiente de probar con gameIds reales
-- shot zones: calibradas ✅
-- ingest endpoint Railway: 401 — deploy con STATS_INGEST_KEY pendiente de verificar
-
-Schemas:
-- supabase-stats-schema.sql: ejecutado en Supabase ✅
-- server/stats-ingest.ts: deployado en Railway ✅
-
-**PENDIENTE INMEDIATO (esta noche):**
-1. Verificar que pm2 restart cogió el último código (schedule fix con teamId='')
-2. Verificar Railway deploy con STATS_INGEST_KEY — debería resolver el 401
-3. Ver logs del primer sync exitoso: standings + games + pbp
-4. Scraping histórico: añadir loop de temporadas en index.ts
-   (iterar seasonIds: [2092, 1767, 1470, 1108, 873, 428, 253, 236, 228, 245, 189, 175])
-5. Telegram en Pi: instalar VPN (Clash/sing-box) para desbloquear api.telegram.org
-
-**PENDIENTE PRÓXIMAS SESIONES:**
-- GET /api/stats/* endpoints para que la UI consuma datos
-- UI de U Stats: Stats.tsx redesign con las pantallas del blueprint
+### 🔴 PENDIENTE PRÓXIMAS SESIONES
+- GET /api/stats/* endpoints para UI
+- UI de U Stats: Stats.tsx redesign con blueprint aprobado
 - Wellness offline P3
 - ReportViewV4 → 3 slides
-- UX/visual pass
 - hasReport fix en MyScout
 - Schedule kebab/tap behavior
 
 ### Offline — estado 2 mayo 2026
 ```
-IMPLEMENTADO Y FUNCIONA:
-  - networkMode offlineFirst: queryClient.ts (global) + usePlayers/usePlayer (explícito)
-  - staleTime 10min + gcTime 7d en usePlayers/usePlayer → jugadora ve report sin conexión
-  - Cola offline players: enqueueOfflinePlayerMutation en useUpdatePlayer/useCreatePlayer onError
+IMPLEMENTADO:
+  - networkMode offlineFirst + staleTime 10min + gcTime 7d en usePlayers/usePlayer
+  - Cola offline players: enqueueOfflinePlayerMutation en useUpdatePlayer/useCreatePlayer
   - Flush automático en window.online event
-  - clearAllLocalCache() en logout limpia todo
+  - clearAllLocalCache() en logout
   - Motor client-side → coach puede generar report sin conexión ✅
-
-GAP CONOCIDO — P3:
-  - wellness.ts usa Supabase directo (no apiRequest) → useUpsertWellnessEntry no tiene cola offline
-  - Fix: endpoint POST /api/wellness + mover a apiRequest, o cola offline separada
-  - No bloqueante TestFlight
+GAP P3: wellness.ts usa Supabase directo → sin cola offline
 ```
+
+---
+
+## Raspberry Pi 5
+- OS: Raspberry Pi OS Lite 64-bit en SSD externo
+- IP local: 192.168.1.59 · SSH: pablo@192.168.1.59
+- Node 20 + PM2 · Collector en ~/ucore/collector
+- pm2 status: ucore-collector online
+- Telegram: BLOQUEADO por GFW — pendiente VPN
+- STATS_INGEST_KEY: configurada en .env Pi y en Railway ✅
+- GitHub: bloqueado por GFW a veces según red — usar SCP para actualizar archivos individuales
+  Comando SCP desde Mac: scp "ruta/archivo" pablo@192.168.1.59:~/ucore/collector/src/...
+- Comando deploy Pi: cd ~/ucore/collector && npm run build && pm2 restart ucore-collector
+
+## API WCBA — endpoints completos confirmados
+```
+matchoutrank?competitionId=56&seasonId=X          → standings ✅ scrapeado
+matchschedules?competitionId=56&seasonId=X&phaseId=Y&roundId=Z&teamId=
+  CLAVE: teamId='' REQUERIDO — sin él devuelve 500
+  Respuesta: array de fechas con array de partidos (date-grouped) ✅ scrapeado
+teamplayers?seasonId=X&teamId=Y                   → roster completo ✅ scrapeado
+teamheader?competitionId=56&seasonId=X&teamId=Y   → cabecera equipo
+playerbasicpage?...                               → promedios temporada ✅ scrapeado
+hotspotdata?gameId=Y&periods=1&periods=2...       → shot chart ✅ (dentro de pbp.ts)
+/api/v2/game/:id/actions                          → PBP completo ✅ scrapeado
+playerdata?gameId=X                               → boxscore individual jugadora ❌ FALTA
+  Campos: offensiveRebound/defensiveRebound separados, isStartLineUp,
+  positiveNegativeValue, twoPoints/threePoints/foulShot "made-att (pct%)", minutes "MM:SS"
+matchinfoscores?matchId=X&gameId=Y                → score final + cuartos ✅ scrapeado
+lastlymatchschedule?competitionId=56&seasonId=X   → último partido activo
+phasemenus?seasonId=X                             → phaseIds
+matchmenusschedule?competitionId=56&seasonId=X&phaseId=Y → roundIds
+```
+
+## Temporadas WCBA disponibles
+```
+2092 (2025-2026 activa), 1767, 1470, 1108, 873, 428, 253, 236, 228, 245, 189, 175
+```
+
+## Schema Supabase stats_* (creado 3 mayo 2026)
+```
+stats_teams, stats_players (external_id TEXT), stats_games, stats_boxscores,
+stats_season, stats_pbp, stats_standings, stats_roster_snapshots,
+stats_insights_cache, stats_sync_log
+```
+NOTA: stats_players.external_id es TEXT (playerId WCBA viene como string)
+
+## Schema Supabase app (fuera de schema.ts)
+- `players.is_canonical` boolean DEFAULT false
+- `player_scout_versions` (player_id, coach_id, inputs JSONB, status, submitted_at)
+- `league_matches` (club_id, rival_name, match_date, location, match_type)
+- `player_stats` (legacy — schema simple para MVP antes de Pi)
+- `schedule_events`, `schedule_participants`, `wellness_entries` — RLS allow_all
+- `user_roles` (user_id UUID PK, role TEXT) — server-controlled, RLS deny_all
+
+---
+
+## U Stats — diseño aprobado (sesión 3 mayo 2026)
+
+### Arquitectura Pi-heavy
+Pi calcula stats avanzadas nightly → stats_insights_cache → Railway sirve JSON pre-calculado
+Cliente solo renderiza, cero cálculo, cero joins complejos.
+
+### Métricas jugadora (Pi pre-calcula)
+TS%, eFG%, TOV%, USG% estimado, percentiles vs liga por métrica,
+shot zones 14 zonas (FG%/frecuencia), clutch stats (Q4 diff≤5),
+últimos 5 partidos sparkline, hot zones, top connections (asistencias entre pares)
+
+### Métricas equipo (Pi pre-calcula)
+PACE, PPP, ORTG, DRTG, Net Rating, OReb%, DReb%, AST/TOV ratio,
+eFG% equipo, TS% equipo, FT Rate, puntos por zona (paint/mid/3P/FT%)
+
+### Navegación U Stats aprobada
+```
+Liga      → Clasificación | Líderes
+Equipos   → Ficha (radar+stats) | Plantilla | Partidos
+Jugadoras → Ficha (radar+shot chart+tendencia) | Game log | Tendencia
+Comparador → Jugadora vs Jugadora | Equipo vs Equipo
+```
+
+### Gráficas aprobadas
+Radar perfil, shot chart hexagonal por zonas, tendencia sparkline últimos N partidos,
+distribución puntos por zona (donut), comparador lado a lado vs liga,
+grafo conexiones asistencias, score flow del partido (del PBP),
+radar rebotes (前板/后板/篮板率)
+
+### Import a U Scout
+Un clic por equipo → POST /api/stats/import-team → crea team canónico + jugadoras en players
+Nombre chino en DB, pinyin visible cuando locale=EN/ES (librería pinyin Node, pendiente)
+
+### Insights para U Scout (alimentan el report)
+1. Hot zone: "Dispara 42% desde lado derecho, FG% 58% (liga: 44%)" → FORCE direction
+2. Clutch scorer: stats Q4 con diff≤5 → isoDanger
+3. Tendencia reciente: últimos 3 partidos → threat level
 
 ---
 
@@ -223,7 +262,7 @@ GAP CONOCIDO — P3:
 - `/coach` → CoachHome
 - `/coach/personnel` → Personnel
 - `/coach/my-scout` → MyScout
-- `/coach/quick-scout/:id` → QuickScout (wizard por situación)
+- `/coach/quick-scout/:id` → QuickScout
 - `/coach/player/:id` → PlayerEditor
 - `/coach/film-room` → FilmRoom
 - `/coach/game-plan` → GamePlan
@@ -233,38 +272,35 @@ GAP CONOCIDO — P3:
 - `/settings` → Settings
 - `/stats` → Stats (U Stats)
 - `/player` → PlayerTeamList
-- `/player/team/:teamId` → Dashboard (PlayerTeamView)
-- `/player/report/:id` → ReportSlidesV1 (player mode, con overrides)
+- `/player/team/:teamId` → Dashboard
+- `/player/report/:id` → ReportSlidesV1 (player mode)
 - `/player/wellness` → WellnessStandalone
 
-**Rutas eliminadas:** `/coach/editor`, `/coach/reports`, `/coach/team/:id`, `/coach/test`
-
 ---
-
-## Schema Supabase (fuera de schema.ts)
-- `players.is_canonical` boolean DEFAULT false
-- `player_scout_versions` (player_id, coach_id, inputs JSONB, status, submitted_at)
-- `league_matches` (club_id, rival_name, match_date, location, match_type)
-- `player_stats` (club_id, player_name, team_name, season, game_date, rival_name, minutes, points, rebounds_*, assists, steals, blocks, turnovers, fouls_personal, fg_made/attempted, fg3_made/attempted, ft_made/attempted, plus_minus, source) — índices en club_id + season
-- `schedule_events`, `schedule_participants`, `wellness_entries` — RLS allow_all
-- `user_roles` (user_id UUID PK, role TEXT, granted_by UUID, granted_at TIMESTAMPTZ) — server-controlled, RLS deny_all
-- CASCADE: players→teams, report_*→players, player_scout_versions→players
 
 ## Arquitectura permisos getPlayers (definitiva)
 ```
 getPlayers(teamId?, clubId?, viewerUserId?)
   Con clubId + viewerUserId:
-    WHERE is_canonical = true                    → todos los coaches del club
-    OR created_by_user_id = viewerUserId         → sandbox solo al creador
-  Con clubId sin viewerUserId (legacy):
-    WHERE is_canonical = true OR created_by_user_id IN (active club members)
-  Sin clubId: sin filtro
+    WHERE is_canonical = true  OR  created_by_user_id = viewerUserId
 ```
 
 ## Arquitectura permisos Personnel
 - head_coach / master: acceso + crear canónicos + promover sandbox
 - coach con operationsAccess: ve Personnel, edita canónicos, NO crea ni promueve
 - coach sin badge: redirect a /coach si accede por URL directa
+
+---
+
+## Club INNER MONGOLIA
+- Club ID: 4bca3aa8-9062-4709-9d29-9e2313308f1a
+- Pablo (b334e51a) = owner + head_coach
+- Javier (6c5b76ab) = coach
+- Samuel/Luffy (3db8ec31) = coach + operationsAccess
+- Yuming (0d27576d) = coach
+- rodman91jym (1d72e00d) = coach
+- keitotm (3039a355) = coach
+- Mario (ccf99303) = coach
 
 ---
 
@@ -280,48 +316,16 @@ getPlayers(teamId?, clubId?, viewerUserId?)
 ---
 
 ## U CORE — módulos
-- U Schedule — client/src/pages/core/Schedule.tsx (god file ~228KB, en pages/core/)
-- U Wellness — embebido en Schedule (staff) + standalone /player/wellness (jugadora)
+- U Schedule — client/src/pages/core/Schedule.tsx (god file ~228KB)
+- U Wellness — embebido en Schedule (staff) + standalone /player/wellness
 - U Scout — scouting defensivo 1-on-1 (módulo más avanzado)
-- U Stats — client/src/pages/core/Stats.tsx — UI completa (Season/Games), esperando Pi + SSD
-Shell: client/src/pages/core/ModulePage.tsx + client/src/pages/core/ModuleNav.tsx
+- U Stats — client/src/pages/core/Stats.tsx
+Shell: client/src/pages/core/ModulePage.tsx + ModuleNav.tsx
 
 ### Motor
 - Calibración: 100% (551/551, 66 perfiles)
 - Quality eval: 100% (46/46, 10 perfiles)
-- motor-icons.ts: iconos Lucide por situationId, defenseKey, awareKey — reemplazables con SVG custom cuando Figma MCP esté disponible (junio)
-
-### Club INNER MONGOLIA
-- Club ID: 4bca3aa8-9062-4709-9d29-9e2313308f1a
-- Pablo (b334e51a) = owner + head_coach
-- Javier (6c5b76ab) = coach
-- Samuel/Luffy (3db8ec31) = coach + operationsAccess
-- Yuming (0d27576d) = coach
-- rodman91jym (1d72e00d) = coach
-- keitotm (3039a355) = coach
-- Mario (ccf99303) = coach
-
-### Raspberry Pi 5 (8GB)
-- Comprada, SSD en camino
-- Uso: WCBA scraper + Telegram bot + Tailscale SSH
-- Destino: tabla player_stats via POST /api/stats/ingest + Bearer STATS_INGEST_KEY
-- STATS_INGEST_KEY pendiente añadir en Railway env vars
-- Pi envía: { clubId, rows: [{ playerName, teamName, season, ... }] }
-
----
-
-## U Stats — estado y roadmap
-- Implementado: UI Season/Games, tipos, endpoints GET stats/players + stats/games, POST stats/ingest
-- Schema actual: player_stats simple — suficiente para MVP con Pi
-- Pendiente Pi: añadir STATS_INGEST_KEY en Railway
-- Pendiente features: opponent report, standings WCBA, importar plantillas a Personnel
-- No implementar schema normalizado hasta tener datos reales
-
-## QuickScout — estado y decisión de producto
-- Existe y funciona: wizard 3-5 pasos por situación
-- Problema: entrenadores revisan todos los campos en PlayerEditor igualmente — wizard no ahorra tiempo real
-- Decisión pendiente: evaluar si tiene sentido como "primer contacto" o refactorizar
-- No eliminar sin decisión consciente
+- motor-icons.ts: iconos Lucide — reemplazables con SVG custom (Figma, junio 2026)
 
 ---
 
@@ -329,7 +333,7 @@ Shell: client/src/pages/core/ModulePage.tsx + client/src/pages/core/ModuleNav.ts
 - Máximo 3 outputs accionables por pantalla
 - Mobile-first: 375px portrait primero
 - Coherencia visual entre módulos
-- Iconos: Figma obligatorio para iconos custom; Lucide como placeholder aceptable
+- Iconos: Figma obligatorio para iconos custom; Lucide como placeholder
 - Scope Scout: solo matchup 1-on-1, sin defensa colectiva
 
 ## Reglas entrega código
@@ -339,6 +343,20 @@ Shell: client/src/pages/core/ModulePage.tsx + client/src/pages/core/ModuleNav.ts
 - Migrations destructivas: raw SQL Supabase, nunca drizzle-kit push
 - Verificar siempre que Cursor no duplica handlers en routes.ts
 - Capabilities requieren membership: pasar siempre myMembership de useClub().data.members
+
+## Notas de sesión (trampas conocidas)
+- Schedule.tsx está en client/src/pages/core/, NO en client/src/core/
+- bash_tool corre en Linux — NO puede acceder al filesystem del Mac. Usar Filesystem MCP
+- Filesystem MCP write: usar filesystem:write_file (lowercase)
+- str_replace NO funciona con server/routes.ts — usar python3 script para ediciones
+- Figma MCP: límite mensual Starter agotado — resetea junio 2026
+- Cursor duplica handlers en routes.ts — verificar siempre post-edición
+- useCapabilities() sin membership ignora operationsAccess
+- getPlayers firma: (teamId?, clubId?, viewerUserId?) — siempre pasar viewerUserId
+- manualChunks en Vite EMPEORA el bundle — NO usar muchos chunks pequeños
+- zsh heredoc + JSX curly braces: usar Python scripts o ficheros temporales
+- Railway healthcheck: usar PORT env var + sin reusePort en server.listen()
+- Pi GFW bloquea GitHub y Telegram — usar SCP para subir archivos individuales
 
 ## Scripts
 ```bash
@@ -355,17 +373,6 @@ cd "/Users/palant/Downloads/U scout" && npx tsx scripts/eval-report-llm.ts --jud
 - Discrepancia: dos entrenadores con opciones distintas
 - trapResponse: reacción a blitz/hedge en PnR
 - pressureResponse: reacción a presión individual
-
-## Notas de sesión (trampas conocidas)
-- Schedule.tsx está en client/src/pages/core/, NO en client/src/core/
-- bash_tool corre en Linux — NO puede acceder al filesystem del Mac. Usar Filesystem MCP
-- Filesystem MCP write: usar filesystem:write_file (lowercase)
-- Figma MCP: límite mensual Starter agotado — resetea junio 2026
-- Cursor duplica handlers en routes.ts — verificar siempre post-edición
-- useCapabilities() sin membership ignora operationsAccess
-- getPlayers firma: (teamId?, clubId?, viewerUserId?) — siempre pasar viewerUserId
-- manualChunks en Vite EMPEORA el bundle porque modulepreload suma todos los vendors — NO usar
-- zsh heredoc + JSX curly braces: usar Python scripts o ficheros temporales
 
 ---
 

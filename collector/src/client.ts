@@ -33,7 +33,7 @@ wcbaClient.interceptors.response.use(
 
 export const ucoreClient: AxiosInstance = axios.create({
   baseURL: config.ucore.apiUrl,
-  timeout: 30_000,
+  timeout: 120_000,
   headers: {
     'Content-Type':  'application/json',
     'Authorization': `Bearer ${config.ucore.ingestKey}`,
