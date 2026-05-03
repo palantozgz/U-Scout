@@ -1612,5 +1612,62 @@ export async function registerRoutes(
     return res.json({ games });
   });
 
+  // GET /api/stats/standings
+  app.get("/api/stats/standings", requireAuth, async (req, res) => {
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    const rows = await db.execute(sql`
+      SELECT
+        st.external_id     AS "teamExternalId",
+        st.name_zh         AS "teamName",
+        st.logo_url        AS "logoUrl",
+        ss.rank,
+        ss.wins,
+        ss.losses,
+        ss.win_pct         AS "winPct",
+        ss.pts_per_game    AS "ppg",
+        ss.pts_against_per_game AS "oppg",
+        ss.phase_name      AS "phaseName"
+      FROM stats_standings ss
+      JOIN stats_teams st ON st.external_id = ss.team_external_id
+      WHERE ss.season_id = ${seasonId}
+      ORDER BY ss.rank ASC
+    `);
+    return res.json({ standings: (rows as any).rows ?? [] });
+  });
+
+  // GET /api/stats/leaders
+  app.get("/api/stats/leaders", requireAuth, async (req, res) => {
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    const stat = String(req.query.stat ?? "ppg");
+    const allowedStats: Record<string, string> = {
+      ppg: "AVG(pb.pts)",
+      rpg: "AVG(pb.reb)",
+      apg: "AVG(pb.ast)",
+      spg: "AVG(pb.stl)",
+      bpg: "AVG(pb.blk)",
+      topg: "AVG(pb.tov)",
+    };
+    const statExpr = allowedStats[stat] ?? allowedStats["ppg"];
+    const rows = await db.execute(sql`
+      SELECT
+        sp.external_id     AS "externalId",
+        sp.name_zh         AS "playerName",
+        sp.name_en         AS "playerNameEn",
+        st.name_zh         AS "teamName",
+        ROUND(${sql.raw(statExpr)}::numeric, 1) AS value,
+        COUNT(DISTINCT pb.game_id)::int AS games
+      FROM stats_player_boxscores pb
+      JOIN stats_games sg ON sg.id = pb.game_id
+      JOIN stats_players sp ON sp.external_id = pb.player_external_id
+      LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
+      WHERE sg.status = 4
+      GROUP BY sp.external_id, sp.name_zh, sp.name_en, st.name_zh
+      HAVING COUNT(DISTINCT pb.game_id) >= 5
+      ORDER BY value DESC
+      LIMIT 15
+    `);
+    return res.json({ leaders: (rows as any).rows ?? [], stat });
+  });
+
   return httpServer;
 }
