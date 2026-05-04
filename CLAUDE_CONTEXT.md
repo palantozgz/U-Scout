@@ -48,7 +48,7 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ---
 
-## Estado app — 4 mayo 2026 (sesión p16 — CIERRE)
+## Estado app — 4 mayo 2026 (sesión p17 — EN CURSO)
 
 ### Completado esta sesión ✅ (p16)
 1. `GET /api/stats/players` — añadido `externalId` al SELECT (antes solo playerName)
@@ -89,10 +89,24 @@ stats_pbp:           116.700 ✅
 stats_player_boxscores:  5.335 ✅
 ```
 
+### Completado esta sesión ✅ (p17)
+1. Fix build Railway: `vite` + `@vitejs/plugin-react` + `@tailwindcss/vite` + `tailwindcss` movidos a dependencies
+2. Fix `railway.json`: `buildCommand: npm install --include=dev && npm run build`
+3. Fix `GET /api/stats/players`: `AVG(pb.minutes::float)` → `SPLIT_PART` para columna TEXT MM:SS
+4. Tab Equipos eliminado (duplicado de Clasificación)
+5. `standingsGroups` useMemo: agrupa por `phaseName`, headers de grupo, orden por wins DESC
+6. Clasificación: filas → `<button>` tappables → abre `StatsTeamSheet`
+7. `Stats.tsx`: `MainTab = "liga" | "jugadoras"` (era `| "equipos"`)
+
+### 🔴 VERIFICAR EN PRODUCCIÓN
+1. Tab Players → ¿carga lista jugadoras?
+2. Tap jugadora → ¿abre StatsPlayerSheet con averages + game log?
+3. Tab League → Standings → tap equipo → ¿abre StatsTeamSheet?
+
 ### 🔴 OBJETIVO PRÓXIMA SESIÓN
-1. Verificar en producción: StatsPlayerSheet desde tab Jugadoras + StatsTeamSheet
+1. Confirmar todo lo anterior en producción
 2. StatsMiniChip deep link end-to-end verificado en producción
-3. `StatsRadar` — recharts 6 ejes (portrait, behind tap en StatsPlayerSheet)
+3. `StatsRadar` — recharts 6 ejes (portrait behind tap en StatsPlayerSheet)
 
 ### 🔴 RIESGOS ACTIVOS
 - P1 Schedule scroll List→Planner: no recentra en hoy (pendiente)

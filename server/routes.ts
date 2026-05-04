@@ -1469,7 +1469,24 @@ export async function registerRoutes(
       console.error(err);
       return res.status(500).json({ error: "Failed to load player stats" });
     }
-    const players = (rows as any).rows ?? [];
+    const players = ((rows as any).rows ?? []).map((r: any) => ({
+      externalId: String(r.externalId ?? ""),
+      playerName: String(r.playerName ?? ""),
+      playerNameEn: r.playerNameEn ?? null,
+      teamName: r.teamName ?? null,
+      season: String(r.season ?? ""),
+      games: Number(r.games ?? 0),
+      mpg: Number(r.mpg ?? 0),
+      ppg: Number(r.ppg ?? 0),
+      rpg: Number(r.rpg ?? 0),
+      apg: Number(r.apg ?? 0),
+      spg: Number(r.spg ?? 0),
+      bpg: Number(r.bpg ?? 0),
+      topg: Number(r.topg ?? 0),
+      fgPct: r.fgPct != null ? Number(r.fgPct) : null,
+      fg3Pct: r.fg3Pct != null ? Number(r.fg3Pct) : null,
+      ftPct: r.ftPct != null ? Number(r.ftPct) : null,
+    }));
     return res.json({ players });
   });
 

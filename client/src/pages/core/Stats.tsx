@@ -505,7 +505,7 @@ export default function Stats() {
                   </div>
 
                   {jugadorasFiltered.map((p: PlayerSeasonStats) => {
-                    const key = `${p.playerName}__${p.teamName}__${p.season}`;
+                    const key = `${p.externalId}__${p.playerName}`;
                     return (
                       <button
                         key={key}
@@ -519,9 +519,9 @@ export default function Stats() {
                         </div>
                         <p className="text-xs font-semibold text-muted-foreground truncate">{p.teamName}</p>
                         <p className="text-xs font-black text-foreground tabular-nums text-right">{p.games}</p>
-                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.ppg.toFixed(1)}</p>
-                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.rpg.toFixed(1)}</p>
-                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.apg.toFixed(1)}</p>
+                        <p className="text-xs font-black text-foreground tabular-nums text-right">{num(p.ppg).toFixed(1)}</p>
+                        <p className="text-xs font-black text-foreground tabular-nums text-right">{num(p.rpg).toFixed(1)}</p>
+                        <p className="text-xs font-black text-foreground tabular-nums text-right">{num(p.apg).toFixed(1)}</p>
                       </button>
                     );
                   })}
@@ -726,18 +726,18 @@ function StatsPlayerSheet({
                           )}
                         >
                           {pm}
-                          </p>
-                          </div>
-                          );
-                          })}
-                          </div>
-                          </div>
-                          )}
-                          </>
-                          )}
-                          </div>
-                          </div>
-                          );
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function StatsTeamSheet({
