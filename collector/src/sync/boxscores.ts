@@ -1,6 +1,6 @@
 import { wcbaClient } from '../client';
 import { config } from '../config';
-import { ingest } from '../ingest';
+import { fetchSyncStatus, ingest } from '../ingest';
 import { logger } from '../logger';
 
 export async function syncBoxscore(gameId: number, matchId: number): Promise<void> {
@@ -103,11 +103,15 @@ export async function syncPlayerBoxscore(gameId: number): Promise<void> {
 }
 
 export async function syncNewPlayerBoxscores(gameIds: number[]): Promise<void> {
-  logger.info('Syncing player boxscores', { count: gameIds.length });
+  const { boxDone } = await fetchSyncStatus();
+  const boxDoneSet = new Set(boxDone);
+  const pending = gameIds.filter(id => !boxDoneSet.has(id));
+  logger.info('Syncing player boxscores', { total: gameIds.length, pending: pending.length, skipped: gameIds.length - pending.length });
+  if (pending.length === 0) { logger.info('Player boxscores: all up to date'); return; }
   let synced = 0;
-  for (const id of gameIds) {
+  for (const id of pending) {
     try { await syncPlayerBoxscore(id); synced++; }
     catch (err: any) { logger.error('PlayerBoxscore failed', { gameId: id, error: err.message }); }
   }
-  logger.info('Player boxscores done', { synced, total: gameIds.length });
+  logger.info('Player boxscores done', { synced, total: pending.length });
 }

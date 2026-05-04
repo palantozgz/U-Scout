@@ -77,6 +77,17 @@ async function testApi(): Promise<string> {
   return `API OK — ${count} equipos en standings`;
 }
 
+export async function runPartialSync(types: ('player_boxscores' | 'pbp')[], gameIds: number[]): Promise<void> {
+  logger.info('=== PARTIAL SYNC START ===', { types, games: gameIds.length });
+  if (types.includes('player_boxscores')) {
+    await syncNewPlayerBoxscores(gameIds);
+  }
+  if (types.includes('pbp')) {
+    await syncNewPBP(gameIds);
+  }
+  logger.info('=== PARTIAL SYNC DONE ===');
+}
+
 async function main(): Promise<void> {
   logger.info('U Core Collector starting...', { seasonId: config.wcba.seasonId });
 

@@ -28,3 +28,16 @@ export async function ingest(payload: IngestPayload): Promise<void> {
   logger.error('Ingest failed after 3 retries', { type: payload.type, error: lastErr?.message });
   throw lastErr;
 }
+
+export async function fetchSyncStatus(): Promise<{ pbpDone: number[]; boxDone: number[] }> {
+  try {
+    const res = await ucoreClient.get('/api/stats/sync-status');
+    return {
+      pbpDone: (res.data?.pbpDone ?? []).map(Number),
+      boxDone: (res.data?.boxDone ?? []).map(Number),
+    };
+  } catch (err: any) {
+    logger.warn('fetchSyncStatus failed, will process all games', { error: err.message });
+    return { pbpDone: [], boxDone: [] };
+  }
+}

@@ -1,6 +1,6 @@
 import { wcbaClient } from '../client';
 import { config } from '../config';
-import { ingest } from '../ingest';
+import { fetchSyncStatus, ingest } from '../ingest';
 import { logger } from '../logger';
 import { classifyShots, type ShotPoint } from './shotZones';
 
@@ -338,11 +338,14 @@ export async function syncPBP(gameId: number): Promise<void> {
 }
 
 export async function syncNewPBP(gameIds: number[]): Promise<void> {
-  logger.info('Syncing PBP batch', { count: gameIds.length });
-  let synced = 0;
-  for (const id of gameIds) {
-    try { await syncPBP(id); synced++; }
-    catch (err: any) { logger.error('PBP sync failed', { gameId: id, error: err.message }); }
+  const { pbpDone } = await fetchSyncStatus();
+  const pbpDoneSet = new Set(pbpDone);
+  const pending = gameIds.filter(id => !pbpDoneSet.has(id));
+  logger.info('Syncing PBP', { total: gameIds.length, pending: pending.length, skipped: gameIds.length - pending.length });
+  if (pending.length === 0) { logger.info('PBP: all up to date'); return; }
+  for (const id of pending) {
+    try { await syncPBP(id); }
+    catch (err: any) { logger.error('PBP failed', { gameId: id, error: err.message }); }
   }
-  logger.info('PBP batch done', { synced, total: gameIds.length });
+  logger.info('PBP done', { synced: pending.length });
 }
