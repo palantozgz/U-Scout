@@ -1538,6 +1538,7 @@ export async function registerRoutes(
   app.get("/api/stats/players", requireAuth, async (_req, res) => {
     const rows = await db.execute(sql`
       SELECT
+        sp.external_id                                AS "externalId",
         sp.name_zh                                    AS "playerName",
         sp.name_en                                    AS "playerNameEn",
         st.name_zh                                    AS "teamName",
@@ -1859,6 +1860,81 @@ export async function registerRoutes(
     const boxDone = ((boxRows as any).rows ?? []).map((r: any) => Number(r.external_game_id));
 
     return res.json({ pbpDone, boxDone });
+  });
+
+  // ─── GET /api/stats/team/:externalId ─────────────────────────────────────────
+  app.get("/api/stats/team/:externalId", requireAuth, async (req, res) => {
+    const { externalId } = req.params;
+    const seasonId = Number(req.query.seasonId ?? 2092);
+
+    const teamRow = await db.execute(sql`
+      SELECT
+        st.external_id   AS "externalId",
+        st.name_zh       AS "nameZh",
+        st.logo_url      AS "logoUrl",
+        ss.wins,
+        ss.losses,
+        ss.pts_per_game  AS ppg,
+        ss.pts_against_per_game AS oppg,
+        ss.rank
+      FROM stats_teams st
+      LEFT JOIN stats_standings ss
+        ON ss.team_external_id = st.external_id AND ss.season_id = ${seasonId}
+      WHERE st.external_id = ${Number(externalId)}
+      LIMIT 1
+    `);
+    const team = (teamRow as any).rows?.[0];
+    if (!team) return res.status(404).json({ error: "Team not found" });
+
+    const playersRow = await db.execute(sql`
+      SELECT
+        sp.external_id                                AS "externalId",
+        sp.name_zh                                    AS "nameZh",
+        sp.name_en                                    AS "nameEn",
+        sp.jersey_number                              AS "jerseyNumber",
+        sp.position,
+        COUNT(DISTINCT pb.game_id)::int               AS games,
+        ROUND(AVG(pb.pts)::numeric, 1)                AS ppg,
+        ROUND(AVG(pb.reb)::numeric, 1)                AS rpg,
+        ROUND(AVG(pb.ast)::numeric, 1)                AS apg
+      FROM stats_players sp
+      LEFT JOIN stats_player_boxscores pb ON pb.player_external_id = sp.external_id
+      LEFT JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      WHERE sp.team_id = (SELECT id FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1)
+      GROUP BY sp.external_id, sp.name_zh, sp.name_en, sp.jersey_number, sp.position
+      ORDER BY ppg DESC NULLS LAST
+    `);
+    const players = ((playersRow as any).rows ?? []).map((p: any) => ({
+      externalId: p.externalId,
+      nameZh: p.nameZh,
+      nameEn: p.nameEn,
+      jerseyNumber: p.jerseyNumber,
+      position: p.position,
+      games: Number(p.games ?? 0),
+      ppg: Number(p.ppg ?? 0),
+      rpg: Number(p.rpg ?? 0),
+      apg: Number(p.apg ?? 0),
+    }));
+
+    const net =
+      team.ppg != null && team.oppg != null
+        ? Number((Number(team.ppg) - Number(team.oppg)).toFixed(1))
+        : null;
+
+    return res.json({
+      team: {
+        externalId: String(team.externalId),
+        nameZh: team.nameZh,
+        logoUrl: team.logoUrl,
+        wins: Number(team.wins ?? 0),
+        losses: Number(team.losses ?? 0),
+        ppg: team.ppg != null ? Number(team.ppg) : null,
+        oppg: team.oppg != null ? Number(team.oppg) : null,
+        net,
+        rank: Number(team.rank ?? 0),
+      },
+      players,
+    });
   });
 
   return httpServer;

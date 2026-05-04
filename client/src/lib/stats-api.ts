@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "./queryClient";
 
 export type PlayerSeasonStats = {
+  externalId: string;
   playerName: string;
   teamName: string;
   season: string;
@@ -156,6 +157,43 @@ export interface GameLogEntry {
   fta: number;
   plusMinus: number;
   isStart: boolean;
+}
+
+export interface TeamRosterPlayer {
+  externalId: string;
+  nameZh: string;
+  nameEn: string | null;
+  jerseyNumber: string | number | null;
+  position: string | null;
+  games: number;
+  ppg: number;
+  rpg: number;
+  apg: number;
+}
+
+export interface TeamDetail {
+  externalId: string;
+  nameZh: string;
+  logoUrl: string | null;
+  wins: number;
+  losses: number;
+  ppg: number | null;
+  oppg: number | null;
+  net: number | null;
+  rank: number;
+}
+
+export function useTeamDetail(externalId: string | null | undefined, seasonId?: number) {
+  return useQuery({
+    queryKey: ["stats-team-detail", externalId, seasonId ?? 2092],
+    queryFn: async () => {
+      const qs = seasonId ? `?seasonId=${seasonId}` : "";
+      const r = await apiRequest("GET", `/api/stats/team/${externalId}${qs}`);
+      return r.json() as Promise<{ team: TeamDetail; players: TeamRosterPlayer[] }>;
+    },
+    enabled: Boolean(externalId),
+    staleTime: 1000 * 60 * 5,
+  });
 }
 
 export function usePlayerDetail(externalId: string | null | undefined) {
