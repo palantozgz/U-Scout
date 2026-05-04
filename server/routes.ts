@@ -1349,117 +1349,7 @@ export async function registerRoutes(
     }
   });
 
-  // ── U Stats (U Core) ─────────────────────────────────────────────────────
-  // Season averages per player (club)
-  app.get("/api/stats/players", requireAuth, async (req, res) => {
-    try {
-      const uid = req.user!.id;
-      const club = await storage.getClubForUser(uid);
-      if (!club) return res.status(404).json({ error: "Club not found" });
-
-      const rows = await db.execute(sql`
-        SELECT
-          player_name as "playerName",
-          team_name as "teamName",
-          season as "season",
-          COUNT(*)::int as "games",
-          ROUND(AVG(minutes)::numeric, 1) as "mpg",
-          ROUND(AVG(points)::numeric, 1) as "ppg",
-          ROUND(AVG(rebounds_total)::numeric, 1) as "rpg",
-          ROUND(AVG(assists)::numeric, 1) as "apg",
-          ROUND(AVG(steals)::numeric, 1) as "spg",
-          ROUND(AVG(blocks)::numeric, 1) as "bpg",
-          ROUND(AVG(turnovers)::numeric, 1) as "topg",
-          ROUND(AVG(fg_made::float / NULLIF(fg_attempted,0) * 100)::numeric, 1) as "fgPct",
-          ROUND(AVG(fg3_made::float / NULLIF(fg3_attempted,0) * 100)::numeric, 1) as "fg3Pct",
-          ROUND(AVG(ft_made::float / NULLIF(ft_attempted,0) * 100)::numeric, 1) as "ftPct"
-        FROM player_stats
-        WHERE club_id = ${club.id}
-        GROUP BY player_name, team_name, season
-        ORDER BY "ppg" DESC
-      `);
-
-      const data = ((rows as any).rows ?? rows) as Array<Record<string, unknown>>;
-      // Normalize numerics coming back as strings.
-      const out = data.map((r) => ({
-        playerName: String(r.playerName ?? ""),
-        teamName: String(r.teamName ?? ""),
-        season: String(r.season ?? ""),
-        games: Number(r.games ?? 0),
-        mpg: Number(r.mpg ?? 0),
-        ppg: Number(r.ppg ?? 0),
-        rpg: Number(r.rpg ?? 0),
-        apg: Number(r.apg ?? 0),
-        spg: Number(r.spg ?? 0),
-        bpg: Number(r.bpg ?? 0),
-        topg: Number(r.topg ?? 0),
-        fgPct: r.fgPct == null ? null : Number(r.fgPct),
-        fg3Pct: r.fg3Pct == null ? null : Number(r.fg3Pct),
-        ftPct: r.ftPct == null ? null : Number(r.ftPct),
-      }));
-
-      res.json({ players: out });
-    } catch (err) {
-      res.status(500).json({ error: "Failed to load player stats" });
-    }
-  });
-
   // Game log for player name (club)
-  app.get("/api/stats/games", requireAuth, async (req, res) => {
-    try {
-      const uid = req.user!.id;
-      const club = await storage.getClubForUser(uid);
-      if (!club) return res.status(404).json({ error: "Club not found" });
-
-      const playerName = String((req.query.playerName as string) ?? "").trim();
-      const season = String((req.query.season as string) ?? "").trim();
-      if (!playerName) return res.status(400).json({ error: "playerName required" });
-
-      const rows = await db.execute(sql`
-        SELECT
-          id,
-          player_name as "playerName",
-          team_name as "teamName",
-          season as "season",
-          game_date as "gameDate",
-          rival_name as "rivalName",
-          minutes,
-          points,
-          rebounds_total as "reboundsTotal",
-          assists,
-          steals,
-          blocks,
-          turnovers,
-          plus_minus as "plusMinus"
-        FROM player_stats
-        WHERE club_id = ${club.id}
-          AND player_name = ${playerName}
-          ${season ? sql`AND season = ${season}` : sql``}
-        ORDER BY game_date DESC NULLS LAST, created_at DESC
-      `);
-      const data = ((rows as any).rows ?? rows) as Array<Record<string, unknown>>;
-      const out = data.map((r) => ({
-        id: String(r.id ?? ""),
-        playerName: String(r.playerName ?? ""),
-        teamName: String(r.teamName ?? ""),
-        season: String(r.season ?? ""),
-        gameDate: r.gameDate ? String(r.gameDate) : null,
-        rivalName: r.rivalName == null ? null : String(r.rivalName),
-        minutes: r.minutes == null ? null : Number(r.minutes),
-        points: r.points == null ? null : Number(r.points),
-        reboundsTotal: r.reboundsTotal == null ? null : Number(r.reboundsTotal),
-        assists: r.assists == null ? null : Number(r.assists),
-        steals: r.steals == null ? null : Number(r.steals),
-        blocks: r.blocks == null ? null : Number(r.blocks),
-        turnovers: r.turnovers == null ? null : Number(r.turnovers),
-        plusMinus: r.plusMinus == null ? null : Number(r.plusMinus),
-      }));
-
-      res.json({ games: out });
-    } catch (err) {
-      res.status(500).json({ error: "Failed to load game log" });
-    }
-  });
 
   registerStatsIngest(app);
 
@@ -1536,7 +1426,9 @@ export async function registerRoutes(
 
   // ─── GET /api/stats/players — promedios temporada desde player_boxscores ────
   app.get("/api/stats/players", requireAuth, async (_req, res) => {
-    const rows = await db.execute(sql`
+    let rows;
+    try {
+      rows = await db.execute(sql`
       SELECT
         sp.external_id                                AS "externalId",
         sp.name_zh                                    AS "playerName",
@@ -1573,6 +1465,10 @@ export async function registerRoutes(
       HAVING COUNT(DISTINCT pb.game_id) > 0
       ORDER BY ppg DESC
     `);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Failed to load player stats" });
+    }
     const players = (rows as any).rows ?? [];
     return res.json({ players });
   });
