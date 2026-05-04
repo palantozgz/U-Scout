@@ -51,15 +51,15 @@ export async function syncPlayerBoxscore(gameId: number): Promise<void> {
   const mapPlayers = (players: any[], teamType: 'Home' | 'Away') =>
     (Array.isArray(players) ? players : []).map((p: any) => ({
       gameId,
-      playerExternalId: String(p.playerId ?? p.userId ?? ''),
+      playerExternalId: String(p.playerId ?? p.userId ?? p.playerid ?? ''),
       teamExternalId:   String(p.teamId ?? ''),
       teamType,
       isStartLineUp:    Boolean(p.isStartLineUp ?? false),
-      minutes:          String(p.minutes ?? p.playTime ?? '00:00'),
-      pts:              Number(p.pts ?? p.score ?? 0),
+      minutes:          String(p.minutes ?? p.playTime ?? p.playtime ?? '00:00'),
+      pts:              Number(p.pts ?? p.score ?? p.point ?? 0),
       offReb:           Number(p.offensiveRebound ?? p.offReb ?? 0),
       defReb:           Number(p.defensiveRebound ?? p.defReb ?? 0),
-      reb:              Number(p.totalReb ?? p.reb ?? 0),
+      reb:              Number(p.totalReb ?? p.reb ?? p.rebound ?? 0),
       ast:              Number(p.ast ?? 0),
       stl:              Number(p.stl ?? 0),
       blk:              Number(p.blk ?? 0),
@@ -74,8 +74,21 @@ export async function syncPlayerBoxscore(gameId: number): Promise<void> {
       plusMinus:        Number(p.positiveNegativeValue ?? p.plusMinus ?? 0),
     }));
 
-  const homePlayers = mapPlayers(d.home?.players ?? d.homePlayers ?? [], 'Home');
-  const awayPlayers = mapPlayers(d.away?.players ?? d.awayPlayers ?? [], 'Away');
+  // API returns an array: [{ teamType: 'Home', teamPlayerData: [...] }, { teamType: 'Away', ... }]
+  const homeTeam = Array.isArray(d)
+    ? d.find((t: any) => t.teamType === 'Home')
+    : (d.home ?? null);
+  const awayTeam = Array.isArray(d)
+    ? d.find((t: any) => t.teamType === 'Away')
+    : (d.away ?? null);
+  const homePlayers = mapPlayers(
+    homeTeam?.teamPlayerData ?? homeTeam?.players ?? [],
+    'Home'
+  );
+  const awayPlayers = mapPlayers(
+    awayTeam?.teamPlayerData ?? awayTeam?.players ?? [],
+    'Away'
+  );
   const allPlayers = [...homePlayers, ...awayPlayers];
 
   if (allPlayers.length === 0) { logger.warn('PlayerBoxscore: no players', { gameId }); return; }

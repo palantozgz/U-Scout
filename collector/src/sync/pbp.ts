@@ -105,7 +105,6 @@ const ACTION_CODE_MAP: Record<string, string> = {
   '2PAFAD': 'shot_missed',  // 2P attempt fadeaway
   '2PMFLT': 'shot_made',    // 2P made flat
   '2PAFLT': 'shot_missed',  // 2P attempt flat
-  '2PAPUL': 'shot_missed',  // 2P attempt pull-up
 
   // More turnovers
   TNODDR:  'turnover',  // double dribble
