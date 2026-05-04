@@ -1645,6 +1645,7 @@ export async function registerRoutes(
         sp.position,
         st.name_zh           AS "teamName",
         st.logo_url          AS "teamLogo",
+        st.external_id::text AS "teamExternalId",
         COUNT(pb.id)         AS games,
         ROUND(AVG(pb.pts)::numeric, 1)                                         AS ppg,
         ROUND(AVG(pb.reb)::numeric, 1)                                         AS rpg,
@@ -1672,7 +1673,7 @@ export async function registerRoutes(
       LEFT JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
       WHERE sp.external_id = ${externalId}
       GROUP BY sp.external_id, sp.name_zh, sp.name_en,
-               sp.jersey_number, sp.position, st.name_zh, st.logo_url
+               sp.jersey_number, sp.position, st.name_zh, st.logo_url, st.external_id
       LIMIT 1
     `);
     const player = (playerRows as any).rows?.[0];
@@ -1736,6 +1737,7 @@ export async function registerRoutes(
         position: player.position,
         teamName: player.teamName,
         teamLogo: player.teamLogo,
+        teamExternalId: player.teamExternalId != null ? String(player.teamExternalId) : null,
         games: Number(player.games ?? 0),
         ppg: Number(player.ppg ?? 0),
         rpg: Number(player.rpg ?? 0),

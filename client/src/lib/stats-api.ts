@@ -41,7 +41,7 @@ export function usePlayerSeasonStats() {
     queryKey: ["/api/stats/players"],
     queryFn: async (): Promise<{ players: PlayerSeasonStats[] }> =>
       (await apiRequest("GET", "/api/stats/players")).json(),
-    networkMode: "offlineFirst",
+    networkMode: "online",
     staleTime: 60_000,
   });
 }
@@ -101,7 +101,8 @@ export function useStandings(seasonId: number) {
       const r = await apiRequest("GET", `/api/stats/standings?seasonId=${seasonId}`);
       return r.json() as Promise<{ standings: StandingsRow[] }>;
     },
-    staleTime: 1000 * 60 * 5,
+    networkMode: "online",
+    staleTime: 300_000,
   });
 }
 
@@ -112,7 +113,8 @@ export function useLeaders(seasonId: number, stat: string) {
       const r = await apiRequest("GET", `/api/stats/leaders?seasonId=${seasonId}&stat=${encodeURIComponent(stat)}`);
       return r.json() as Promise<{ leaders: LeaderRow[]; stat: string }>;
     },
-    staleTime: 1000 * 60 * 5,
+    networkMode: "online",
+    staleTime: 300_000,
   });
 }
 
@@ -124,6 +126,7 @@ export interface PlayerDetail {
   position: string | null;
   teamName: string | null;
   teamLogo: string | null;
+  teamExternalId: string | null;
   games: number;
   ppg: number;
   rpg: number;
