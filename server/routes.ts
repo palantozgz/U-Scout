@@ -1544,7 +1544,11 @@ export async function registerRoutes(
         st.name_zh                                    AS "teamName",
         '2024-25'                                     AS season,
         COUNT(DISTINCT pb.game_id)::int               AS games,
-        ROUND(AVG(pb.minutes::float)::numeric, 1)     AS mpg,
+        ROUND(AVG(
+          CASE WHEN pb.minutes ~ '^\d+:\d{2}$'
+            THEN (SPLIT_PART(pb.minutes, ':', 1)::numeric * 60 + SPLIT_PART(pb.minutes, ':', 2)::numeric) / 60
+            ELSE NULL END
+        )::numeric, 1)                                AS mpg,
         ROUND(AVG(pb.pts)::numeric, 1)                AS ppg,
         ROUND(AVG(pb.reb)::numeric, 1)                AS rpg,
         ROUND(AVG(pb.ast)::numeric, 1)                AS apg,
