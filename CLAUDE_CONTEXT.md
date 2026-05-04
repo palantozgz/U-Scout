@@ -48,9 +48,20 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ---
 
-## Estado app — 4 mayo 2026 (sesión p15 — CIERRE)
+## Estado app — 4 mayo 2026 (sesión p16 — CIERRE)
 
-### Completado esta sesión ✅
+### Completado esta sesión ✅ (p16)
+1. `GET /api/stats/players` — añadido `externalId` al SELECT (antes solo playerName)
+2. `PlayerSeasonStats` type — añadido campo `externalId: string`
+3. Tab Jugadoras → tap fila → abre `StatsPlayerSheet` (antes era expand inline)
+4. `GET /api/stats/team/:externalId` — nuevo endpoint: standings data + roster con ppg/rpg/apg
+5. `TeamDetail` + `TeamRosterPlayer` interfaces + `useTeamDetail` hook en stats-api.ts
+6. `StatsTeamSheet` — header logo + nombre + W-L + NET, lista jugadoras tappable
+7. Tab Equipos → tap fila → abre `StatsTeamSheet`
+8. Flujo completo: Equipos → equipo → plantilla → jugadora → `StatsPlayerSheet`
+9. `npm run check` limpio
+
+### Completado sesión p15 ✅
 1. `GET /api/stats/player/:externalId` — ficha completa con promedios temporada + game log 30 partidos
    - MPG: SPLIT_PART(minutes,':',1)*60 + SPLIT_PART(minutes,':',2) / 60 (columna text "MM:SS")
    - rivalName y score: subquery para resolver home_team_id FK → external_id
@@ -68,34 +79,20 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
    - Sync nightly: ~10 min en vez de ~5 horas una vez datos cargados
 10. `collector/src/force-player-boxscores.ts` — script one-shot (npx tsx)
 
-### Estado DB al cierre sesión p15
+### Estado DB al cierre sesión p16
 ```
 stats_teams:              18 ✅
-stats_games:             224 ✅ (223 con status=4, 1 cancelado/aplazado)
+stats_games:             224 ✅
 stats_standings:          18 ✅
 stats_players:           307 ✅
 stats_pbp:           116.700 ✅
-stats_player_boxscores: 1.564 ✅ (subiendo — sync en curso)
-```
-
-### Al iniciar próxima sesión — verificar PRIMERO
-```sql
-SELECT
-  (SELECT COUNT(*) FROM stats_player_boxscores) as player_boxscores,
-  (SELECT COUNT(*) FROM stats_pbp) as pbp_eventos;
-```
-Target: `player_boxscores > 3000` (223 partidos × ~14 jugadoras/partido)
-
-Si < 3000: revisar logs Pi
-```bash
-ssh pablo@192.168.1.59 "grep -E 'PlayerBoxscore synced|player boxscores done|boxscores done' ~/.pm2/logs/ucore-collector-out.log | tail -10"
+stats_player_boxscores:  5.335 ✅
 ```
 
 ### 🔴 OBJETIVO PRÓXIMA SESIÓN
-1. Verificar SQL → probar StatsPlayerSheet en producción con datos reales
-2. Tab Jugadoras: hacer filas tappables → StatsPlayerSheet (ahora solo desde Líderes)
-3. `StatsTeamSheet` — ficha equipo
-4. StatsMiniChip deep link end-to-end verificado en producción
+1. Verificar en producción: StatsPlayerSheet desde tab Jugadoras + StatsTeamSheet
+2. StatsMiniChip deep link end-to-end verificado en producción
+3. `StatsRadar` — recharts 6 ejes (portrait, behind tap en StatsPlayerSheet)
 
 ### 🔴 RIESGOS ACTIVOS
 - P1 Schedule scroll List→Planner: no recentra en hoy (pendiente)
@@ -104,9 +101,7 @@ ssh pablo@192.168.1.59 "grep -E 'PlayerBoxscore synced|player boxscores done|box
 ### 🔴 BACKLOG COMPLETO
 
 #### U Stats
-- Jugadoras tab: tap fila → StatsPlayerSheet (solo abre desde Líderes ahora) — PRÓXIMA
-- `StatsTeamSheet` — ficha equipo con plantilla + métricas — PRÓXIMA
-- `StatsRadar` recharts 6 ejes (portrait behind tap)
+- `StatsRadar` recharts 6 ejes (portrait behind tap en StatsPlayerSheet)
 - Shot chart landscape (hexbin) — LandscapeHint placeholder ya en StatsPlayerSheet
 - `StatsComparator` landscape split view
 - Bubble chart liga (freq vs eficiencia, referencia elradardelscout.com)
@@ -211,6 +206,7 @@ GET  /api/stats/leaders        ✅ (ppg/rpg/apg/spg/bpg/fgPct)
 GET  /api/stats/player-link    ✅
 GET  /api/stats/seasons        ✅
 GET  /api/stats/player/:id     ✅ ficha completa + game log 30 partidos
+GET  /api/stats/team/:id       ✅ standings data + roster con ppg/rpg/apg
 GET  /api/stats/sync-status    ✅ (auth: STATS_INGEST_KEY) pbpDone + boxDone
 POST /api/stats/import-team    ✅
 POST /api/stats/ingest         ✅
@@ -222,13 +218,12 @@ GET  /api/stats/team/:id       → ficha equipo con plantilla + métricas
 ## U Stats — componentes
 ### Implementados ✅
 - `LandscapeHint.tsx`
-- `Stats.tsx` — 3 tabs + SeasonPicker + StatsPlayerSheet + deep link ?player=
+- `Stats.tsx` — 3 tabs + SeasonPicker + StatsPlayerSheet + StatsTeamSheet + deep link ?player=
 - `StatsMiniChip` — MyScout.tsx, fichas canónicas, apiRequest Bearer
 - `StatsPlayerSheet` — averages + LandscapeHint + game log 30 partidos
+- `StatsTeamSheet` — logo + W-L + NET + plantilla tappable → StatsPlayerSheet
 
 ### Pendientes
-- Jugadoras tab: tap fila → StatsPlayerSheet
-- `StatsTeamSheet`
 - `StatsRadar` recharts 6 ejes
 - `StatsComparator` landscape split
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, ChevronDown, ChevronLeft, Trophy, Users, Shield } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronLeft, Trophy, Users } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { ModulePageShell } from "./ModulePage";
 import { LandscapeHint } from "@/components/LandscapeHint";
@@ -23,7 +23,7 @@ import {
   type TeamRosterPlayer,
 } from "@/lib/stats-api";
 
-type MainTab = "liga" | "jugadoras" | "equipos";
+type MainTab = "liga" | "jugadoras";
 type LigaSegment = "clasificacion" | "lideres";
 type JugadorasSort = "ppg" | "rpg" | "apg";
 type LeaderStatKey = "ppg" | "rpg" | "apg" | "spg" | "bpg" | "fgPct";
@@ -32,7 +32,7 @@ type PlayerSheetId = string | null;
 function parseMainTab(search: string): MainTab {
   const raw = search.startsWith("?") ? search.slice(1) : search;
   const t = new URLSearchParams(raw).get("tab");
-  if (t === "jugadoras" || t === "equipos" || t === "liga") return t;
+  if (t === "jugadoras" || t === "liga") return t;
   return "liga";
 }
 
@@ -162,7 +162,7 @@ export default function Stats() {
     const raw = search.startsWith("?") ? search.slice(1) : search;
     const qs = new URLSearchParams(raw);
     const tab = qs.get("tab");
-    if (tab === "jugadoras" || tab === "equipos" || tab === "liga") setMainTab(tab);
+    if (tab === "jugadoras" || tab === "liga") setMainTab(tab);
     const player = qs.get("player");
     if (player) setPlayerSheetId(player);
   }, [search]);
@@ -211,13 +211,33 @@ export default function Stats() {
   const standingsRows = standingsQ.data?.standings ?? [];
   const leadersRows = leadersQ.data?.leaders ?? [];
 
+  const standingsGroups = useMemo(() => {
+    const rows = standingsRows;
+    if (rows.length === 0) return { showHeaders: false, groups: [] as { label: string | null; rows: StandingsRow[] }[] };
+
+    const phaseKey = (r: StandingsRow) =>
+      r.phaseName != null && String(r.phaseName).trim() !== "" ? String(r.phaseName).trim() : "__default__";
+
+    const order: string[] = [];
+    for (const r of rows) {
+      const k = phaseKey(r);
+      if (!order.includes(k)) order.push(k);
+    }
+    const showHeaders = order.length > 1;
+    const groups = order.map((k) => {
+      const label = k === "__default__" ? null : k;
+      const groupRows = rows.filter((r) => phaseKey(r) === k).sort((a, b) => b.wins - a.wins);
+      return { label, rows: groupRows };
+    });
+    return { showHeaders, groups };
+  }, [standingsRows]);
+
   const showJugadorasEmpty = !playersQ.isLoading && !playersQ.isError && jugadorasFiltered.length === 0;
 
   const showGlobalSpinner =
     (mainTab === "liga" &&
       (seasonsQ.isLoading || standingsQ.isLoading || (ligaSegment === "lideres" && leadersQ.isLoading))) ||
-    (mainTab === "jugadoras" && playersQ.isLoading) ||
-    (mainTab === "equipos" && (seasonsQ.isLoading || standingsQ.isLoading));
+    (mainTab === "jugadoras" && playersQ.isLoading);
 
   const refetchAll = () => {
     void seasonsQ.refetch();
@@ -274,7 +294,7 @@ export default function Stats() {
         </Sheet>
 
         <Tabs value={mainTab} onValueChange={(v) => setTabAndLocation(v as MainTab)} className="w-full">
-          <TabsList className="h-10 w-full grid grid-cols-3 gap-0.5">
+          <TabsList className="h-10 w-full grid grid-cols-2 gap-0.5">
             <TabsTrigger value="liga" className="text-[10px] sm:text-xs font-black px-1 gap-1">
               <Trophy className="w-3.5 h-3.5 shrink-0 opacity-80" />
               {L.tabLiga}
@@ -282,10 +302,6 @@ export default function Stats() {
             <TabsTrigger value="jugadoras" className="text-[10px] sm:text-xs font-black px-1 gap-1">
               <Users className="w-3.5 h-3.5 shrink-0 opacity-80" />
               {L.tabJugadoras}
-            </TabsTrigger>
-            <TabsTrigger value="equipos" className="text-[10px] sm:text-xs font-black px-1 gap-1">
-              <Shield className="w-3.5 h-3.5 shrink-0 opacity-80" />
-              {L.tabEquipos}
             </TabsTrigger>
           </TabsList>
 
@@ -344,25 +360,36 @@ export default function Stats() {
                       <span className="text-right">{L.colPPG}</span>
                       <span className="text-right">{L.colOPPG}</span>
                     </div>
-                    {standingsRows.map((row: StandingsRow) => (
-                      <div
-                        key={String(row.teamExternalId)}
-                        className="grid grid-cols-[0.35fr_1fr_0.55fr_0.45fr_0.45fr] gap-1 items-center px-2 py-2 border-b border-border last:border-b-0 text-xs"
-                      >
-                        <p className="text-center font-black tabular-nums text-muted-foreground">{row.rank}</p>
-                        <div className="min-w-0 flex items-center gap-2">
-                          {row.logoUrl ? (
-                            <img src={row.logoUrl} alt="" className="w-7 h-7 rounded-md object-contain bg-muted/30 shrink-0" />
-                          ) : (
-                            <div className="w-7 h-7 rounded-md bg-muted/40 shrink-0" />
-                          )}
-                          <p className="font-bold text-foreground truncate">{row.teamName}</p>
-                        </div>
-                        <p className="text-right font-black tabular-nums">
-                          {row.wins}-{row.losses}
-                        </p>
-                        <p className="text-right font-black tabular-nums">{row.ppg != null ? num(row.ppg).toFixed(1) : "—"}</p>
-                        <p className="text-right font-black tabular-nums">{row.oppg != null ? num(row.oppg).toFixed(1) : "—"}</p>
+                    {standingsGroups.groups.map((group, gi) => (
+                      <div key={`${group.label ?? "default"}-${gi}`}>
+                        {standingsGroups.showHeaders && (
+                          <p className="px-2 py-1.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b border-border bg-muted/15">
+                            {group.label ?? "—"}
+                          </p>
+                        )}
+                        {group.rows.map((row: StandingsRow) => (
+                          <button
+                            key={String(row.teamExternalId)}
+                            type="button"
+                            onClick={() => setTeamSheetId(String(row.teamExternalId))}
+                            className="w-full grid grid-cols-[0.35fr_1fr_0.55fr_0.45fr_0.45fr] gap-1 items-center px-2 py-2 border-b border-border last:border-b-0 text-xs text-left hover:bg-muted/25 transition-colors"
+                          >
+                            <p className="text-center font-black tabular-nums text-muted-foreground">{row.rank}</p>
+                            <div className="min-w-0 flex items-center gap-2">
+                              {row.logoUrl ? (
+                                <img src={row.logoUrl} alt="" className="w-7 h-7 rounded-md object-contain bg-muted/30 shrink-0" />
+                              ) : (
+                                <div className="w-7 h-7 rounded-md bg-muted/40 shrink-0" />
+                              )}
+                              <p className="font-bold text-foreground truncate">{row.teamName}</p>
+                            </div>
+                            <p className="text-right font-black tabular-nums">
+                              {row.wins}-{row.losses}
+                            </p>
+                            <p className="text-right font-black tabular-nums">{row.ppg != null ? num(row.ppg).toFixed(1) : "—"}</p>
+                            <p className="text-right font-black tabular-nums">{row.oppg != null ? num(row.oppg).toFixed(1) : "—"}</p>
+                          </button>
+                        ))}
                       </div>
                     ))}
                   </div>
@@ -503,58 +530,6 @@ export default function Stats() {
             )}
           </TabsContent>
 
-          <TabsContent value="equipos" className={cn("mt-4", showGlobalSpinner && "hidden")}>
-            {!standingsQ.isLoading && !standingsQ.isError && (
-              <>
-                {standingsRows.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center text-sm font-bold text-muted-foreground">
-                    {L.teamsEmpty}
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                    <div className="grid grid-cols-[0.35fr_1fr_0.5fr_0.45fr_0.45fr_0.45fr] gap-1 border-b border-border bg-muted/30 px-2 py-2 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
-                      <span className="text-center">{L.colRank}</span>
-                      <span>{L.colTeam}</span>
-                      <span className="text-right">{L.colWL}</span>
-                      <span className="text-right">{L.colPPG}</span>
-                      <span className="text-right">{L.colOPPG}</span>
-                      <span className="text-right">{L.colNET}</span>
-                    </div>
-                    {standingsRows.map((row: StandingsRow) => {
-                      const net =
-                        row.ppg != null && row.oppg != null && Number.isFinite(num(row.ppg)) && Number.isFinite(num(row.oppg))
-                          ? (num(row.ppg) - num(row.oppg)).toFixed(1)
-                          : "—";
-                      return (
-                        <button
-                          key={String(row.teamExternalId)}
-                          type="button"
-                          onClick={() => setTeamSheetId(String(row.teamExternalId))}
-                          className="w-full grid grid-cols-[0.35fr_1fr_0.5fr_0.45fr_0.45fr_0.45fr] gap-1 items-center px-2 py-2 border-b border-border last:border-b-0 text-xs text-left hover:bg-muted/25 transition-colors"
-                        >
-                          <p className="text-center font-black tabular-nums text-muted-foreground">{row.rank}</p>
-                          <div className="min-w-0 flex items-center gap-2">
-                            {row.logoUrl ? (
-                              <img src={row.logoUrl} alt="" className="w-7 h-7 rounded-md object-contain bg-muted/30 shrink-0" />
-                            ) : (
-                              <div className="w-7 h-7 rounded-md bg-muted/40 shrink-0" />
-                            )}
-                            <p className="font-bold text-foreground truncate">{row.teamName}</p>
-                          </div>
-                          <p className="text-right font-black tabular-nums">
-                            {row.wins}-{row.losses}
-                          </p>
-                          <p className="text-right font-black tabular-nums">{row.ppg != null ? num(row.ppg).toFixed(1) : "—"}</p>
-                          <p className="text-right font-black tabular-nums">{row.oppg != null ? num(row.oppg).toFixed(1) : "—"}</p>
-                          <p className="text-right font-black tabular-nums">{net}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-          </TabsContent>
         </Tabs>
       </div>
 
