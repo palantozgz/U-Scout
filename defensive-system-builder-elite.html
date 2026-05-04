@@ -5,670 +5,671 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Defensive System Builder ELITE</title>
 <style>
-:root {
-  --bg0:#0a0c10;
-  --bg1:#12161e;
-  --bg2:#1a2029;
-  --border:#2a3344;
-  --text:#e8ecf1;
-  --muted:#8b96a8;
-  --accent:#3d8bfd;
-  --accent2:#22c55e;
-  --danger:#ef4444;
-  --warn:#f59e0b;
-  --radius:14px;
-  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+:root{--b0:#05070a;--b1:#0c1018;--b2:#141a24;--bd:#2a3548;--tx:#eef2f8;--m:#8a96ab;--a:#4d8cff;--g:#2ee6a5;--r:#f87171;--rad:15px;--ff:system-ui,-apple-system,"Segoe UI",sans-serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--ff);background:radial-gradient(110% 80% at 50% -15%,#121a28,var(--b0));color:var(--tx);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px 14px 22px;-webkit-tap-highlight-color:transparent}
+#root{width:100%;max-width:600px;flex:1;display:flex;flex-direction:column;min-height:0}
+header{text-align:center;padding:10px 0 14px;border-bottom:1px solid var(--bd);margin-bottom:16px}
+header h1{font-size:1rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+header .sub{font-size:.62rem;color:var(--m);margin-top:6px;letter-spacing:.14em}
+.pwrap{margin-bottom:16px}
+.pmeta{display:flex;justify-content:space-between;font-size:.7rem;color:var(--m);margin-bottom:5px}
+.ptrack{height:6px;background:var(--b2);border-radius:99px;border:1px solid var(--bd);overflow:hidden}
+.pfill{height:100%;background:linear-gradient(90deg,var(--a),#7eb6ff);transition:width .3s ease}
+main{flex:1;display:flex;flex-direction:column;min-height:0}
+.q{font-size:1.04rem;font-weight:650;margin-bottom:6px;line-height:1.32}
+.h{font-size:.78rem;color:var(--m);margin-bottom:16px;line-height:1.42}
+main .h{margin-top:4px}
+.opts{display:flex;flex-direction:column;gap:10px;flex:1}
+.obtn{
+  appearance:none;border:2px solid var(--bd);background:var(--b2);color:var(--tx);font:inherit;font-size:.98rem;font-weight:650;
+  padding:16px 17px;border-radius:var(--rad);text-align:left;cursor:pointer;min-height:54px;display:flex;align-items:flex-start;gap:10px;
+  transition:border-color .12s,background .12s,transform .06s;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
-body {
-  font-family: var(--font);
-  background: linear-gradient(165deg, var(--bg0) 0%, var(--bg1) 45%, #0d1117 100%);
-  color: var(--text);
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px;
-  -webkit-tap-highlight-color: transparent;
-}
-#app {
-  width: 100%;
-  max-width: 560px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-header {
-  text-align: center;
-  padding: 12px 0 20px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 20px;
-}
-header h1 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text);
-}
-header .sub {
-  font-size: 0.72rem;
-  color: var(--muted);
-  margin-top: 6px;
-  letter-spacing: 0.12em;
-}
-.progress-wrap {
-  margin-bottom: 20px;
-}
-.progress-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin-bottom: 8px;
-}
-.progress-bar {
-  height: 6px;
-  background: var(--bg2);
-  border-radius: 99px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), #60a5fa);
-  border-radius: 99px;
-  transition: width 0.35s ease;
-}
-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.screen-title {
-  font-size: 1.05rem;
-  font-weight: 600;
-  margin-bottom: 8px;
-  line-height: 1.35;
-}
-.screen-hint {
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-bottom: 20px;
-  line-height: 1.45;
-}
-.options {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex: 1;
-}
-.btn-option {
-  appearance: none;
-  border: 2px solid var(--border);
-  background: var(--bg2);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 1rem;
-  font-weight: 600;
-  padding: 18px 20px;
-  border-radius: var(--radius);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, transform 0.1s;
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.btn-option span.desc {
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--muted);
-  display: block;
-  margin-top: 4px;
-}
-.btn-option:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: #1f2733;
-}
-.btn-option:active:not(:disabled) { transform: scale(0.99); }
-.btn-option:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  border-style: dashed;
-}
-.btn-option .reason {
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: #f87171;
-  margin-top: 8px;
-  line-height: 1.35;
-}
-.nav-row {
-  display: flex;
-  gap: 10px;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-.btn-ghost, .btn-danger {
-  flex: 1;
-  font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
-  padding: 16px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  border: 2px solid var(--border);
-  background: transparent;
-  color: var(--muted);
-  min-height: 52px;
-}
-.btn-danger {
-  flex: 0 0 auto;
-  min-width: 100px;
-  color: var(--danger);
-  border-color: #3f2024;
-}
-.btn-ghost:hover:not(:disabled), .btn-danger:hover:not(:disabled) {
-  background: var(--bg2);
-  color: var(--text);
-}
-.btn-ghost:disabled { opacity: 0.35; cursor: not-allowed; }
-.report {
-  background: var(--bg1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  font-size: 0.88rem;
-  line-height: 1.55;
-  max-height: min(62vh, 520px);
-  overflow-y: auto;
-}
-.report h2 {
-  font-size: 1.1rem;
-  margin-bottom: 12px;
-  color: var(--accent2);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 8px;
-}
-.report h3 {
-  font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-  margin: 18px 0 8px;
-}
-.report p { margin-bottom: 10px; }
-.report ul { margin: 0 0 10px 18px; }
-.report li { margin-bottom: 6px; }
-.system-name {
-  font-size: 1.25rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  margin-bottom: 14px;
-  color: #fff;
-}
-.block-banner {
-  background: #2a1518;
-  border: 1px solid #5c2a32;
-  color: #fecaca;
-  padding: 14px 16px;
-  border-radius: var(--radius);
-  font-size: 0.88rem;
-  margin-bottom: 16px;
-}
-.hidden { display: none !important; }
+.obtn:hover:not(:disabled){border-color:var(--a);background:#1a222e}
+.obtn:active:not(:disabled){transform:scale(.996)}
+.obtn:disabled{opacity:.34;cursor:not-allowed;border-style:dashed}
+.obtn .d{display:block;font-size:.72rem;font-weight:400;color:var(--m);margin-top:5px;line-height:1.38}
+.obtn .x{font-size:.69rem;color:var(--r);margin-top:7px;line-height:1.32;font-weight:500}
+.nav{display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--bd)}
+.nb{font:inherit;font-size:.92rem;font-weight:650;padding:14px;border-radius:var(--rad);cursor:pointer;border:2px solid var(--bd);background:transparent;color:var(--m);min-height:50px;flex:1}
+.nb.d{flex:0 0 auto;min-width:100px;color:var(--r);border-color:#3a2428}
+.nb:hover:not(:disabled){background:var(--b2);color:var(--tx)}
+.nb:disabled{opacity:.34;cursor:not-allowed}
+.rep{background:var(--b1);border:1px solid var(--bd);border-radius:var(--rad);padding:18px;font-size:.85rem;line-height:1.52;max-height:min(56vh,500px);overflow-y:auto}
+.rep h2{font-size:.98rem;color:var(--g);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bd)}
+.rep h3{font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--m);margin:14px 0 6px}
+.rep p{margin-bottom:8px}
+.rep ul{margin:0 0 6px 16px}
+.rep li{margin-bottom:4px}
+.sn{font-size:1.12rem;font-weight:800;margin-bottom:10px;color:#fff}
+.bad{background:#2a1518;border:1px solid #5c2a32;color:#fecaca;padding:12px;border-radius:var(--rad);font-size:.84rem;margin-bottom:12px;line-height:1.42}
+.export-actions{margin-top:14px}
+.btn-ex{width:100%;font:inherit;font-size:.98rem;font-weight:750;padding:16px;border-radius:var(--rad);cursor:pointer;border:2px solid #2a4a78;background:linear-gradient(180deg,#1a3558,#122840);color:#e6f0ff;min-height:54px}
+.btn-ex:hover:not(:disabled){filter:brightness(1.06)}
+.btn-ex:disabled{opacity:.5;cursor:wait}
+#export-host{position:fixed;left:-9999px;top:0;width:700px;pointer-events:none;z-index:0}
+.ex-card{width:700px;background:#080c12;border:1px solid #243044;border-radius:18px;padding:32px 36px 36px;font-family:var(--ff);color:#dce4f0;-webkit-font-smoothing:antialiased}
+.ex-card .br{font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;color:#5c6b82;margin-bottom:12px}
+.ex-card .ti{font-size:1.55rem;font-weight:800;color:#fff;line-height:1.15;margin-bottom:10px}
+.ex-card .sec{margin-top:18px}
+.ex-card .sec h4{font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:#3dd4a8;margin-bottom:8px;font-weight:700}
+.ex-card .sec .tx{font-size:.84rem;line-height:1.52;color:#b4c0d4}
+.ex-card .sec ul{margin:0;padding-left:17px}
+.ex-card .sec li{margin-bottom:5px;font-size:.84rem;line-height:1.42;color:#b4c0d4}
 </style>
 </head>
 <body>
-<div id="app"></div>
+<div id="export-host"><div id="export-card" class="ex-card"></div></div>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
 <script>
 (function () {
   var STEPS = [
-    { id: "priority", label: "Defensive priority", hint: "What are you willing to concede least often?", options: [
-      { value: "rim", label: "Protect the rim", desc: "Shrink the paint; contest twos; live with some threes." },
-      { value: "three", label: "Protect the 3", desc: "High closeouts; help from nail; rim can be thinner." },
-      { value: "disrupt", label: "Disrupt the ball", desc: "Pressure, gaps, turnovers; higher risk behind the ball." }
+    { id: "priority", q: "Defensive priority", h: "What you protect at all costs.", opts: [
+      { v: "rim", t: "Protect the rim", d: "Shrink paint; contest twos." },
+      { v: "three", t: "Protect the 3", d: "High contests; nail help." },
+      { v: "disrupt", t: "Disrupt the ball", d: "Pressure; gaps; turnovers." }
     ]},
-    { id: "driveDirection", label: "Drive direction", hint: "Where do you force primary drivers?", options: [
-      { value: "noMiddle", label: "No middle", desc: "Baseline / sideline pushes; wall the lane-line." },
-      { value: "forceMiddle", label: "Force middle", desc: "Pack-line feel; big helps from tag; rim protection central." }
+    { id: "driveDirection", q: "Drive direction philosophy", h: "Primary forcing rules.", opts: [
+      { v: "noMiddle", t: "No middle", d: "Baseline / sideline walls." },
+      { v: "forceMiddle", t: "Force middle", d: "Pack paint; tags." },
+      { v: "funnel", t: "Funnel", d: "Channel to defined help pockets." }
     ]},
-    { id: "helpStructure", label: "Half-court help structure", hint: "Where does your help originate most often?", options: [
-      { value: "weak", label: "Weak-side", desc: "I help from low man / dunker; strong side stays home more." },
-      { value: "strong", label: "Strong-side", desc: "Loaded ball-side gaps; early stunts from nail / elbow." },
-      { value: "mixed", label: "Mixed", desc: "Matchups and game plan dictate weak vs strong tags." },
-      { value: "none", label: "None (stay home)", desc: "Minimal help; iso answers; switch-heavy skeleton." }
+    { id: "onBall", q: "On-ball posture", h: "Default ball pressure.", opts: [
+      { v: "contain", t: "Contain", d: "Gap; feet on floor; wall drives." },
+      { v: "pressure", t: "Pressure", d: "Up touch; shrink clock; more risk." },
+      { v: "turn", t: "Turn", d: "Force pick-up; deny rhythm; high foul discipline." }
     ]},
-    { id: "helpTiming", label: "Help timing", hint: "When do helpers commit relative to the drive?", options: [
-      { value: "early", label: "Early", desc: "Show hands on the catch; stunt on the first dribble." },
-      { value: "late", label: "Late", desc: "Stay home until the drive threatens the paint / score." }
+    { id: "sidePnRRule", q: "Side ball screen — direction", h: "Pick on the side.", opts: [
+      { v: "ice", t: "ICE", d: "Force baseline; corner help." },
+      { v: "standard", t: "Standard", d: "No forced baseline." },
+      { v: "switch", t: "Switch", d: "Exchange on side PnR." }
     ]},
-    { id: "pnrCoverage", label: "Pick & roll coverage", hint: "Default ball-screen answer in the half court.", options: [
-      { value: "drop", label: "Drop", desc: "Big contains; guards get over; conservative." },
-      { value: "switch", label: "Switch", desc: "Exchange; scram switch mismatches you cannot keep." },
-      { value: "blitz", label: "Blitz (trap)", desc: "Two to the ball; rotations must be true." },
-      { value: "hedge", label: "Hedge / show", desc: "Big up to touch time; recover to roller." }
+    { id: "middlePnRRule", q: "Middle ball screen — direction", h: "Pick in the slot / middle.", opts: [
+      { v: "weak", t: "WEAK", d: "Force weak hand." },
+      { v: "standard", t: "Standard", d: "No forced weak hand." },
+      { v: "switch", t: "Switch", d: "Exchange in middle." }
     ]},
-    { id: "rotationModel", label: "Rotation model", hint: "When the ball beats the first line, what is the rule?", options: [
-      { value: "recover", label: "Recover", desc: "Stunt and get back; keep matchups when possible." },
-      { value: "rotate", label: "Rotate", desc: "Full chain: one more pass away is live." },
-      { value: "switch", label: "Switch", desc: "Exchange matchups to kill advantage; scramble after." },
-      { value: "peel", label: "Peel", desc: "Helper peels off shooter to tag roller / nail." }
+    { id: "pnrCoverage", q: "PnR shell coverage", h: "Big technique (separate from ICE/WEAK).", opts: [
+      { v: "drop", t: "Drop", d: "Contain two to the ball." },
+      { v: "switch", t: "Switch", d: "Exchange shell." },
+      { v: "blitz", t: "Blitz", d: "Trap; long rotations." },
+      { v: "hedge", t: "Hedge / show", d: "Touch time; recover." }
     ]},
-    { id: "penetration", label: "Penetration response", hint: "When the ball gets into the paint off the bounce.", options: [
-      { value: "contain", label: "Contain", desc: "Wall up; no fly-bys; contest without fouling." },
-      { value: "help", label: "Help", desc: "Helpers step to ball level; kick-outs are contested by rotation." },
-      { value: "peel", label: "Peel", desc: "Closest help peels from shooter to tag driver / roller." }
+    { id: "helpStructure", q: "Help structure", h: "Where help lives.", opts: [
+      { v: "weak", t: "Weak-side", d: "Low man from weak." },
+      { v: "strong", t: "Strong-side", d: "Loaded gaps." },
+      { v: "mixed", t: "Mixed", d: "Plan-driven." },
+      { v: "none", t: "None", d: "Stay home; switch skeleton." }
     ]},
-    { id: "postDefense", label: "Post defense", hint: "Rules vs deep catches on the block.", options: [
-      { value: "onev1", label: "1v1", desc: "Stay between; no automatic doubles." },
-      { value: "dig", label: "Dig", desc: "Guards hit pockets on dribbles; big stays primary." },
-      { value: "double", label: "Double", desc: "Send a second defender on the catch or first move." }
+    { id: "helpTiming", q: "Help timing", h: "When helpers commit to drives.", opts: [
+      { v: "early", t: "Early", d: "First dribble / catch triggers." },
+      { v: "late", t: "Late", d: "Paint-line and score threats." }
     ]},
-    { id: "mismatch", label: "Mismatch rules", hint: "When a switch creates a bad matchup.", options: [
-      { value: "accept", label: "Accept", desc: "Live with it; load help without automatic exchange." },
-      { value: "scram", label: "Scram", desc: "Re-switch, peel, or late switch to clean the matchup." }
+    { id: "helpIntensity", q: "Help intensity", h: "How much you load off ball.", opts: [
+      { v: "none", t: "None", d: "Stay home; no stunt layer." },
+      { v: "stunt", t: "Stunt", d: "Brief shows; recover." },
+      { v: "dig", t: "Dig", d: "Pockets on drives; more commitment." },
+      { v: "full", t: "Full", d: "Live help; rotation ready." }
     ]},
-    { id: "closeouts", label: "Closeout style", hint: "Default technique on skip / drive-kick.", options: [
-      { value: "aggressive", label: "Aggressive", desc: "Long closeouts; fly-by risk; run shooters off." },
-      { value: "controlled", label: "Controlled", desc: "Short contest; gap reads; fewer blow-bys." }
+    { id: "rotationModel", q: "Rotation model", h: "When ball beats first line.", opts: [
+      { v: "recover", t: "Recover", d: "Help and get back." },
+      { v: "rotate", t: "Rotation", d: "X-out chain." },
+      { v: "switch", t: "Switch", d: "Exchange matchups." },
+      { v: "peel", t: "Peel", d: "Peel from shooter to tag." }
     ]},
-    { id: "transitionSafety", label: "Transition safety structure", hint: "How many players prioritize getting back vs crashing?", options: [
-      { value: "oneBack", label: "1 back", desc: "One safety; others release or conditional crash." },
-      { value: "twoBack", label: "2 back", desc: "Double safety; balanced floor on misses." },
-      { value: "fullCrash", label: "Full crash", desc: "Everyone hits glass first; extreme risk reward." }
+    { id: "offBallPosition", q: "Off-ball positioning", h: "One off-ball rule for the shell.", opts: [
+      { v: "gap", t: "Gap", d: "Help position; one foot in paint." },
+      { v: "deny", t: "Deny", d: "Passing lane pressure." },
+      { v: "attached", t: "Attached", d: "Stay with man; no load." }
     ]},
-    { id: "transitionStopBall", label: "Stop ball priority (transition)", hint: "Order of operations when the ball advances in transition.", options: [
-      { value: "earlyStop", label: "Early stop", desc: "Pick up full court; slow the ball above the arc." },
-      { value: "contain", label: "Contain", desc: "Channel to help; protect rim with length." },
-      { value: "protectRim", label: "Protect rim first", desc: "Sprint to pack paint; late show at three." }
+    { id: "kypDenyMode", q: "KYP — deny rules", h: "Who gets deny pressure.", opts: [
+      { v: "shooters", t: "Deny: shooters", d: "Snipers and elite shooters." },
+      { v: "all", t: "Deny: all", d: "Aggressive one-away everywhere." }
     ]},
-    { id: "reboundBalance", label: "Offensive rebounding system", hint: "Must align with who gets back in transition.", options: [
-      { value: "crash", label: "Crash (4–5)", desc: "Send everyone possible; second shots over safety." },
-      { value: "balanced", label: "Balanced (2–3 crash)", desc: "Designated crashers; defined release rules." },
-      { value: "safetyFirst", label: "Safety priority (1–2 always back)", desc: "Guards or designated safeties never crash." }
+    { id: "kypHelpOff", q: "KYP — help off", h: "Can you leave non-shooters to help?", opts: [
+      { v: "yes", t: "Help off: yes", d: "Load to ball vs non-shooters." },
+      { v: "no", t: "Help off: no", d: "Stay attached; limited dig windows." }
     ]},
-    { id: "earlyScreen", label: "Early offense / early drag screen", hint: "Before your half-court help shell is set.", options: [
-      { value: "switch", label: "Switch", desc: "Exchange immediately; organize scrambles after stop." },
-      { value: "contain", label: "Contain (no hedge)", desc: "Guard fights over/under; big flat or short step." },
-      { value: "softShow", label: "Soft show", desc: "Brief touch on ball-handler; recover to roller." },
-      { value: "noCoverage", label: "No coverage (protect paint)", desc: "Go under / through; center protects rim first." }
+    { id: "kypStuntUsage", q: "KYP — stunt usage", h: "When stunts fire.", opts: [
+      { v: "always", t: "Always", d: "Rhythm stunts scripted." },
+      { v: "situational", t: "Situational", d: "Personnel and count based." }
+    ]},
+    { id: "lowManTag", q: "Low man / roller tag", h: "Roller responsibility.", opts: [
+      { v: "always", t: "Always", d: "Tag every roller." },
+      { v: "conditional", t: "Conditional", d: "Vs shooters / high PnP only." },
+      { v: "none", t: "None", d: "Switch-based; no dedicated tag." }
+    ]},
+    { id: "postDefense", q: "Post defense", h: "Deep catches.", opts: [
+      { v: "onev1", t: "1v1", d: "No automatic doubles." },
+      { v: "dig", t: "Dig", d: "Guard pockets." },
+      { v: "double", t: "Double", d: "Send second defender." }
+    ]},
+    { id: "mismatchResponse", q: "Mismatch response", h: "After a bad switch.", opts: [
+      { v: "accept", t: "Accept", d: "Live with it." },
+      { v: "scram", t: "Scram", d: "Late exchange to clean." },
+      { v: "frontHelp", t: "Front + help", d: "3⁄4 front; helper loads." },
+      { v: "doubleMismatch", t: "Double", d: "Trap the mismatch." },
+      { v: "forcedReswitch", t: "Forced reswitch", d: "Front post + pressure ball to force drive and reswitch on penetration." }
+    ]},
+    { id: "penetration", q: "Penetration response", h: "Ball in paint off bounce.", opts: [
+      { v: "contain", t: "Contain", d: "Wall up." },
+      { v: "help", t: "Help", d: "Step to ball level." },
+      { v: "peel", t: "Peel", d: "Peel from shooter." }
+    ]},
+    { id: "closeouts", q: "Closeout style", h: "Skip and kick.", opts: [
+      { v: "aggressive", t: "Aggressive", d: "Long; run off." },
+      { v: "controlled", t: "Controlled", d: "Short contest." }
+    ]},
+    { id: "transitionSafety", q: "Transition safety", h: "Getting back.", opts: [
+      { v: "oneBack", t: "1 back", d: "One safety." },
+      { v: "twoBack", t: "2 back", d: "Double safety." },
+      { v: "matchups", t: "Matchups", d: "No assigned safety." },
+      { v: "tagUpTrans", t: "Tag Up", d: "Linked to Tag Up ORB." }
+    ]},
+    { id: "transitionPriority", q: "Transition priority", h: "Order in conversion.", opts: [
+      { v: "stopBall", t: "Stop ball", d: "Pick up early." },
+      { v: "protectRim", t: "Protect rim", d: "Pack first." },
+      { v: "wall", t: "Wall", d: "Channel; contain." }
+    ]},
+    { id: "reboundBalance", q: "Offensive rebounding", h: "Glass rules.", opts: [
+      { v: "crash", t: "Crash", d: "Maximum numbers." },
+      { v: "balanced", t: "Balanced", d: "2–3 crashers." },
+      { v: "safetyFirst", t: "Safety-first", d: "1–2 rarely crash." },
+      { v: "tagUp", t: "Tag Up", d: "Five tag; matchup transition." }
+    ]},
+    { id: "earlyScreen", q: "Early defense", h: "Before shell is set.", opts: [
+      { v: "switch", t: "Switch", d: "" },
+      { v: "contain", t: "Contain", d: "" },
+      { v: "softShow", t: "Soft show", d: "" },
+      { v: "under", t: "Under", d: "" }
     ]}
   ];
 
-  var state = {
-    answers: {},
-    stepIndex: 0,
-    history: [],
-    blockedReason: null
-  };
+  var state = { a: {}, i: 0, h: [] };
 
-  function hasHelpState(ans) {
-    return !!(ans && ans.helpStructure && ans.helpStructure !== "none");
+  function A() { return state.a; }
+
+  function tagUpOrb(x) {
+    x = x || A();
+    return x.reboundBalance === "tagUp";
   }
 
-  function blitzAllowed(a) {
-    return hasHelpState(a) && (a.helpTiming === "early" || a.priority === "disrupt");
+  function tagTransOk(x) {
+    x = x || A();
+    return x.transitionSafety === "tagUpTrans" || x.transitionSafety === "matchups";
   }
 
-  function LogicEngine() {}
-
-  LogicEngine.prototype.optionDisabledReason = function (stepId, value) {
-    var a = state.answers;
-    if (stepId === "helpTiming") {
-      if (value === "early" && a.pnrCoverage === "switch") return "Switch coverage needs late help tags.";
-      if (value === "early" && a.rotationModel === "peel") return "Peel base rotations conflict with early help complexity.";
-      if (value === "early" && a.pnrCoverage === "drop") return "Drop coverage is built on late help triggers.";
-    }
-    if (stepId === "helpStructure") {
-      if (value === "strong" && a.pnrCoverage === "switch") return "Cannot pair strong-side help with switch coverage.";
-      if (value === "none" && a.postDefense === "double") return "Double post requires a live help structure.";
-    }
-    if (stepId === "pnrCoverage") {
-      if (value === "switch" && a.helpStructure === "strong") return "Strong-side help with switch coverage is incoherent.";
-      if ((value === "blitz" || value === "hedge") && !hasHelpState(a)) return "No tag structure: cannot run hedge or blitz as default.";
-      if (value === "blitz" && !blitzAllowed(a)) return "Blitz requires early committed help tags or a disrupt-first identity.";
-      if (value === "hedge" && hasHelpState(a) && !(a.helpTiming === "early" || a.priority === "disrupt")) return "Hedge/show needs early tags or disrupt identity to protect the big.";
-      if (value === "switch" && a.helpTiming === "early") return "Switch coverage forces late help commitment.";
-      if (value === "drop" && a.helpTiming === "early") return "Drop is a late-trigger coverage; early help breaks the contain.";
-      if (value === "switch" && a.mismatch === "accept") return "Switch systems need scram rules to clean bad matchups.";
-    }
-    if (stepId === "rotationModel") {
-      if (value === "recover" && a.penetration === "peel") return "Peel penetration needs a peel rotation rule.";
-      if (value === "rotate" && a.penetration === "peel") return "Heavy rotation chains clash with peel rules.";
-      if (value === "switch" && a.helpStructure === "none") return "No help shell requires switch-based answers at the second line.";
-      if (value !== "switch" && a.helpStructure === "none") return "Without help, you cannot run recover/rotate/peel as primary.";
-      if (value === "peel" && a.helpTiming === "early") return "Early help increases long rotations; peel is a reduced-chain model.";
-      if (value !== "peel" && a.penetration === "peel") return "Penetration peel requires peel as the rotation model.";
-      if (value === "rotate" && a.pnrCoverage === "drop") return "Drop coverage asks for lower rotation volume than a full rotate system.";
-    }
-    if (stepId === "penetration") {
-      if (value === "peel" && a.helpTiming === "early") return "Peel rules need late help discipline.";
-      if (value === "peel" && a.rotationModel !== "peel") return "Peel penetration requires peel rotation model.";
-      if (value !== "peel" && a.rotationModel === "peel") return "Peel rotation model requires peel penetration response.";
-    }
-    if (stepId === "postDefense") {
-      if (value === "double" && a.helpStructure === "none") return "Doubling the post requires a live help structure.";
-    }
-    if (stepId === "mismatch") {
-      if (value === "accept" && a.pnrCoverage === "switch") return "Switch coverage requires scram switches on bad matchups.";
-    }
-    if (stepId === "closeouts") {
-      if (value === "aggressive" && a.pnrCoverage === "drop" && a.helpTiming === "late") return "Drop + late help: keep closeouts controlled to protect the drive.";
-    }
-    if (stepId === "transitionSafety") {
-      if (value === "fullCrash" && a.transitionStopBall === "protectRim") return "Protect rim first requires defined safeties; cannot full-crash transition.";
-      if (value === "oneBack" && a.reboundBalance === "crash") return "One safety cannot support a 4–5 player crash system.";
-    }
-    if (stepId === "transitionStopBall") {
-      if (value === "protectRim" && a.transitionSafety === "fullCrash") return "Rim protection first needs at least one dedicated safety back.";
-      if (value === "earlyStop" && a.transitionSafety === "fullCrash") return "Full crash transition weakens early ball pressure structure.";
-    }
-    if (stepId === "reboundBalance") {
-      if (value === "crash" && a.transitionSafety === "oneBack") return "With one safety, you cannot send 4–5 to the glass reliably.";
-      if (value === "crash" && a.transitionSafety === "fullCrash" && a.transitionStopBall !== "contain") return "Full crash transition needs contain stop-ball to pair with an ORB crash.";
-      if (value === "safetyFirst" && a.transitionSafety === "fullCrash") return "Safety-first rebounding conflicts with full transition crash.";
-    }
-    if (stepId === "earlyScreen") {
-      if (value === "softShow" && !hasHelpState(a)) return "No half-court help shell: cannot soft show (tag-free hedge).";
-      if (value === "softShow" && a.helpTiming === "late" && a.priority !== "disrupt") return "Soft show before the shell needs disrupt identity or early tags.";
-      if (value === "noCoverage" && a.priority === "three") return "Protect-three identity cannot concede every early drag with zero coverage.";
-    }
-    return null;
-  };
-
-  LogicEngine.prototype.isOptionAllowed = function (stepId, value) {
-    return this.optionDisabledReason(stepId, value) === null;
-  };
-
-  LogicEngine.prototype.validateFullSystem = function () {
-    var a = state.answers;
-    var errors = [];
-    var stepOrder = STEPS.map(function (s) { return s.id; });
-    for (var i = 0; i < stepOrder.length; i++) {
-      var id = stepOrder[i];
-      var v = a[id];
-      if (!v) { errors.push("Incomplete: " + id); continue; }
-      var eng = this;
-      if (eng.optionDisabledReason(id, v)) errors.push(eng.optionDisabledReason(id, v));
-    }
-    if (a.helpStructure === "none" && a.postDefense === "double") errors.push("No help + double post is impossible.");
-    if (a.helpStructure === "strong" && a.pnrCoverage === "switch") errors.push("Strong-side help + switch coverage is blocked.");
-    if (a.rotationModel === "peel" && a.penetration !== "peel") errors.push("Peel system requires peel penetration.");
-    if (a.penetration === "peel" && a.rotationModel !== "peel") errors.push("Peel penetration requires peel rotation model.");
-    if (a.rotationModel === "rotate" && a.penetration === "peel") errors.push("Heavy rotations + peel rules are incompatible.");
-    if (a.rotationModel === "recover" && a.penetration === "peel") errors.push("Recover base + peel penetration is incoherent.");
-    if (a.pnrCoverage === "switch" && a.helpTiming !== "late") errors.push("Switch forces late help.");
-    if (a.pnrCoverage === "switch" && a.mismatch !== "scram") errors.push("Switch requires scram mismatch rules.");
-    if (a.helpStructure === "none" && ["recover", "rotate", "peel"].indexOf(a.rotationModel) >= 0) errors.push("No help forces switch-based second-line play.");
-    if (a.postDefense === "double" && a.helpStructure === "none") errors.push("Double post requires help.");
-    if (a.transitionStopBall === "protectRim" && a.transitionSafety === "fullCrash") errors.push("Protect rim first requires a safety back.");
-    if (a.reboundBalance === "crash" && a.transitionSafety === "oneBack") errors.push("One safety limits offensive rebound crash count.");
-    if (a.reboundBalance === "crash" && a.transitionSafety === "fullCrash" && a.transitionStopBall !== "contain") errors.push("Full crash transition + ORB crash needs contain stop-ball or two-back.");
-    if (a.reboundBalance === "safetyFirst" && a.transitionSafety === "fullCrash") errors.push("Safety rebounding conflicts with full crash transition.");
-    if ((a.pnrCoverage === "blitz" || a.pnrCoverage === "hedge") && !hasHelpState(a)) errors.push("Hedge/blitz with no help shell is invalid.");
-    if (a.pnrCoverage === "blitz" && !blitzAllowed(a)) errors.push("Blitz without early help tags or disrupt identity is invalid.");
-    if (a.pnrCoverage === "hedge" && hasHelpState(a) && !(a.helpTiming === "early" || a.priority === "disrupt")) errors.push("Hedge/show without early tags or disrupt identity is invalid.");
-    if (a.pnrCoverage === "drop" && a.helpTiming === "early") errors.push("Drop coverage requires late help.");
-    if (a.earlyScreen === "softShow" && a.helpStructure === "none") errors.push("Early soft show without help structure is invalid.");
-    if (a.earlyScreen === "noCoverage" && a.priority === "three") errors.push("Protect-three plan cannot default to zero early coverage.");
-    if (a.rotationModel === "peel" && a.helpTiming === "early") errors.push("Peel model with early help is invalid.");
-    if (a.closeouts === "aggressive" && a.pnrCoverage === "drop" && a.helpTiming === "late") errors.push("Drop + late help requires controlled closeouts.");
-    if (a.pnrCoverage === "drop" && a.rotationModel === "rotate") errors.push("Drop coverage is incompatible with a full rotate system.");
-    var seen = {};
-    errors = errors.filter(function (e) {
-      if (seen[e]) return false;
-      seen[e] = true;
-      return true;
-    });
-    return errors;
-  };
-
-  var engine = new LogicEngine();
-
-  function labelFor(stepId, value) {
-    var step = STEPS.find(function (s) { return s.id === stepId; });
-    if (!step) return value;
-    var o = step.options.find(function (x) { return x.value === value; });
-    return o ? o.label : value;
+  function mergeAns(a, stepId, val) {
+    var m = {};
+    for (var k in a) m[k] = a[k];
+    m[stepId] = val;
+    return m;
   }
 
-  function buildSystemName(a) {
-    var parts = [];
-    if (a.pnrCoverage === "drop") parts.push("Contain Drop");
-    else if (a.pnrCoverage === "switch") parts.push("Switch");
-    else if (a.pnrCoverage === "blitz") parts.push("Pressure");
-    else if (a.pnrCoverage === "hedge") parts.push("Show");
-    if (a.rotationModel === "peel") parts.push("Peel");
-    else if (a.rotationModel === "rotate") parts.push("Rotation");
-    else if (a.rotationModel === "recover") parts.push("Recover");
-    else if (a.rotationModel === "switch") parts.push("Switch");
-    if (a.helpStructure === "weak") parts.push("Weak Help");
-    else if (a.helpStructure === "strong") parts.push("Loaded");
-    else if (a.helpStructure === "mixed") parts.push("Mixed Shell");
-    else parts.push("Stay Home");
-    return parts.filter(Boolean).join(" + ") + " System";
-  }
+  /**
+   * Derivation-based engine: HELP → ROTATION → COVERAGE → PENETRATION as one chain.
+   * Option viability = domain(step) ∩ chain coherence (single source of truth).
+   */
+  var Engine = (function () {
+    function helpStructureDomain(m) {
+      if (!m.driveDirection || !m.priority) return null;
+      var o = { weak: 1, strong: 1, mixed: 1, none: 1 };
+      if (m.driveDirection === "noMiddle") delete o.strong;
+      if (m.driveDirection === "forceMiddle") delete o.weak;
+      if (m.driveDirection === "funnel") delete o.none;
+      if (m.priority === "disrupt") delete o.weak;
+      if (m.pnrCoverage === "blitz") delete o.none;
+      return o;
+    }
 
-  function buildReport() {
-    var a = state.answers;
-    var name = buildSystemName(a);
-    var identity = "";
-    if (a.priority === "rim") identity = "Shrink the floor and contest at the rim first. ";
-    else if (a.priority === "three") identity = "Prioritize three-point contests and nail help. ";
-    else identity = "Pressure the ball and force non-rhythm offense. ";
-    if (a.driveDirection === "noMiddle") identity += "Drivers are walled to the sideline/baseline.";
-    else identity += "Drivers are invited middle with packed paint help.";
+    function helpTimingDomain(m) {
+      if (!m.pnrCoverage) return null;
+      var o = {};
+      if (m.pnrCoverage === "drop" || m.pnrCoverage === "switch") o.late = 1;
+      else if (m.pnrCoverage === "blitz") o.early = 1;
+      else if (m.pnrCoverage === "hedge") {
+        if (m.priority === "disrupt") {
+          o.early = 1;
+          o.late = 1;
+        } else o.early = 1;
+      } else {
+        o.early = 1;
+        o.late = 1;
+      }
+      if (m.sidePnRRule === "ice") {
+        if (o.late) o = { late: 1 };
+        else o = {};
+      }
+      if (m.rotationModel === "peel" || m.penetration === "peel") {
+        o = { late: 1 };
+      }
+      return o;
+    }
 
-    var core = [];
-    core.push("Help: " + labelFor("helpStructure", a.helpStructure) + " — " + labelFor("helpTiming", a.helpTiming) + ".");
-    core.push("Rotations: " + labelFor("rotationModel", a.rotationModel) + "; penetration = " + labelFor("penetration", a.penetration) + ".");
-    core.push("PnR: " + labelFor("pnrCoverage", a.pnrCoverage) + "; closeouts " + labelFor("closeouts", a.closeouts) + ".");
-    core.push("Post: " + labelFor("postDefense", a.postDefense) + "; mismatches " + labelFor("mismatch", a.mismatch) + ".");
-    core.push("Transition shell: " + labelFor("transitionSafety", a.transitionSafety) + "; stop ball = " + labelFor("transitionStopBall", a.transitionStopBall) + ".");
+    function pnrCoverageDomain(m) {
+      if (!m.sidePnRRule || m.sidePnRRule !== "ice") return null;
+      var o = { drop: 1, switch: 1, hedge: 1, blitz: 1 };
+      delete o.blitz;
+      if (m.priority !== "disrupt") delete o.hedge;
+      return o;
+    }
 
-    var transWho = "";
-    if (a.transitionSafety === "oneBack") transWho = "One designated safety sprints widest lane to rim line; others release on shot vs crash rules.";
-    else if (a.transitionSafety === "twoBack") transWho = "Two safeties: first guard back takes ball-handler level; second protects rim / weak-side.";
-    else transWho = "Full crash release: convert only on long rebounds or scripted safety tags.";
+    function helpIntensityDomain(m) {
+      if (m.pnrCoverage === "blitz") return { dig: 1, full: 1 };
+      if (m.pnrCoverage === "hedge" && m.helpStructure && m.helpStructure !== "none")
+        return { stunt: 1, dig: 1, full: 1 };
+      if (m.helpStructure === "none") return { none: 1 };
+      return { none: 1, stunt: 1, dig: 1, full: 1 };
+    }
 
-    var transBall = "";
-    if (a.transitionStopBall === "earlyStop") transBall = "Pick up early; stunt at halfcourt; force side dead zones.";
-    else if (a.transitionStopBall === "contain") transBall = "Channel to help; no gambling until paint is filled.";
-    else transBall = "Sprint to pack line; protect rim first, contest threes on late close.";
+    function rotationDomain(m) {
+      if (m.pnrCoverage === "blitz") return { rotate: 1 };
+      if (m.helpStructure === "none") return { switch: 1 };
+      if (m.pnrCoverage === "drop") return { recover: 1, switch: 1 };
+      var o = { recover: 1, rotate: 1, switch: 1, peel: 1 };
+      if (m.helpTiming === "early") delete o.peel;
+      return o;
+    }
 
-    var reb = "";
-    if (a.reboundBalance === "crash") reb = "Send four to five to glass when safety rules allow; accept risk if contain stop-ball or two-back is live.";
-    else if (a.reboundBalance === "balanced") reb = "Two to three crashers with defined long-side tagger and safety release.";
-    else reb = "One to two never crash; offensive boards come from slips and long bounces only.";
+    function penetrationDomain(m) {
+      if (m.pnrCoverage === "blitz") return { help: 1 };
+      if (m.helpStructure === "none") return { contain: 1 };
+      if (m.rotationModel === "peel") return { peel: 1 };
+      return { contain: 1, help: 1 };
+    }
 
-    var early = "";
-    if (a.earlyScreen === "switch") early = "Switch early drags; late scram if mismatch is untenable.";
-    else if (a.earlyScreen === "contain") early = "Flat contain; no hedge until shell is set.";
-    else if (a.earlyScreen === "softShow") early = "Brief touch with early tag support; recover to roller quickly.";
-    else early = "Through/under to protect paint; live with pull-up variance vs elite shooters only if identity allows.";
+    function mismatchDomain(m) {
+      if (m.pnrCoverage === "switch") return { scram: 1 };
+      return null;
+    }
 
-    var strengths = [];
-    var weaknesses = [];
-    var uses = [];
+    function lowManDomain(m) {
+      if (m.pnrCoverage === "hedge" || m.pnrCoverage === "blitz") return { always: 1, conditional: 1 };
+      return null;
+    }
 
-    if (a.priority === "three" && a.closeouts === "aggressive") strengths.push("Runs shooters off the line in scramble situations.");
-    if (a.pnrCoverage === "drop" && a.helpTiming === "late") strengths.push("Low foul rate; controlled pick-and-roll defense.");
-    if (a.pnrCoverage === "blitz") strengths.push("Forces young guards into late-clock decisions.");
-    if (a.rotationModel === "switch") strengths.push("Simplifies communication vs spread pick-and-roll.");
-    if (a.transitionSafety === "twoBack") strengths.push("Consistent transition floor vs running teams.");
-    if (strengths.length === 0) strengths.push("Balanced risk profile when rules are executed with discipline.");
+    var domainByStep = {
+      pnrCoverage: pnrCoverageDomain,
+      helpStructure: helpStructureDomain,
+      helpTiming: helpTimingDomain,
+      helpIntensity: helpIntensityDomain,
+      rotationModel: rotationDomain,
+      penetration: penetrationDomain,
+      mismatchResponse: mismatchDomain,
+      lowManTag: lowManDomain
+    };
 
-    if (a.helpStructure === "none") weaknesses.push("Isolated breakdowns vs elite shot creators.");
-    if (a.pnrCoverage === "drop") weaknesses.push("Elite pull-up shooters can turn the corner for rhythm threes.");
-    if (a.rotationModel === "rotate") weaknesses.push("One late rotation exposes corner skips.");
-    if (a.transitionSafety === "fullCrash") weaknesses.push("Long misses become automatic run-outs.");
-    if (a.postDefense === "onev1") weaknesses.push("Deep post catches vs size without automatic doubles.");
-    if (weaknesses.length < 2) weaknesses.push("Scouting can attack the gap between your transition rules and ORB release.");
+    function valueInDomain(stepId, value, m) {
+      var fn = domainByStep[stepId];
+      if (!fn) return true;
+      var d = fn(m);
+      if (!d) return true;
+      return !!d[value];
+    }
 
-    if (a.priority === "three") uses.push("vs high-volume three-point teams: nail tags and closeout rules are your edge.");
-    if (a.driveDirection === "noMiddle") uses.push("vs middle-drive finishers: baseline pushes shrink efficiency.");
-    if (a.transitionStopBall === "earlyStop") uses.push("vs transition-heavy teams: slow the ball and force half-court.");
-    if (a.postDefense === "double") uses.push("vs dominant post scorers: force passes to non-shooters.");
-    if (uses.length < 3) uses.push("vs balanced offenses: clarity and repeatability beat complexity.");
+    function domainHint(stepId) {
+      if (stepId === "pnrCoverage") return "ICE removes blitz; hedge/show only with disrupt priority.";
+      if (stepId === "helpStructure") return "Incompatible with drive, priority, or shell.";
+      if (stepId === "helpTiming") return "Help timing is fixed by shell / ICE / peel chain.";
+      if (stepId === "helpIntensity") return "Intensity is fixed by shell and help structure.";
+      if (stepId === "rotationModel") return "Rotation follows from shell + help (chain).";
+      if (stepId === "penetration") return "Penetration follows from shell + rotations.";
+      if (stepId === "mismatchResponse") return "Switch shell requires scram cleanup.";
+      if (stepId === "lowManTag") return "Aggressive shell requires roller tag responsibility.";
+      return "Not available in this tactical chain.";
+    }
+
+    function chainClash(m) {
+      if (m.sidePnRRule === "ice" && m.driveDirection === "forceMiddle")
+        return "ICE conflicts with force-middle drive rules.";
+      if (m.sidePnRRule === "ice" && m.helpTiming === "early")
+        return "ICE requires late help.";
+      if (m.pnrCoverage === "drop" && m.helpTiming === "early")
+        return "Drop requires late help.";
+      if (m.pnrCoverage === "switch" && m.helpTiming && m.helpTiming !== "late")
+        return "Switch shell requires late help.";
+      if (m.pnrCoverage === "blitz") {
+        if (m.helpStructure && m.helpStructure === "none")
+          return "Blitz requires an active help structure.";
+        if (m.rotationModel && m.rotationModel !== "rotate")
+          return "Blitz mandates full rotation (X-out).";
+        if (m.penetration && m.penetration !== "help")
+          return "Blitz mandates help-level penetration response.";
+        if (m.helpTiming && m.helpTiming !== "early")
+          return "Blitz mandates early help triggers.";
+        if (m.helpIntensity && m.helpIntensity !== "dig" && m.helpIntensity !== "full")
+          return "Blitz requires dig or full help intensity.";
+      }
+      if (m.helpStructure === "none" && m.rotationModel && m.rotationModel !== "switch")
+        return "Minimal help requires switch rotations.";
+      if (m.helpStructure === "none" && m.penetration && m.penetration !== "contain")
+        return "Minimal help requires contain penetration.";
+      if (m.rotationModel === "peel" && m.penetration && m.penetration !== "peel")
+        return "Peel rotation requires peel penetration.";
+      if (m.penetration === "peel" && m.rotationModel && m.rotationModel !== "peel")
+        return "Peel penetration requires peel rotation.";
+      if (m.rotationModel === "peel" && m.helpTiming === "early")
+        return "Peel system requires late help.";
+      if (m.pnrCoverage === "drop") {
+        if (m.rotationModel === "rotate") return "Drop forbids high-volume X-out rotation.";
+        if (m.rotationModel === "peel") return "Drop is incompatible with peel rotations.";
+      }
+      if (m.pnrCoverage === "hedge") {
+        if (m.helpStructure === "none") return "Hedge/show needs help landmarks.";
+        if (m.lowManTag === "none") return "Hedge/show needs roller tag responsibility.";
+        if (m.helpIntensity === "none") return "Hedge/show needs secondary help activity.";
+      }
+      if (m.pnrCoverage === "switch" && m.mismatchResponse && m.mismatchResponse !== "scram")
+        return "Switch shell requires scram mismatch response.";
+      return null;
+    }
+
+    function edgeViolations(a) {
+      var e = [];
+      if (a.helpStructure === "none" && a.postDefense === "double") e.push("Double post requires help landmarks.");
+      if (tagUpOrb(a) && !tagTransOk(a)) e.push("Tag Up ORB coherence failed.");
+      if (a.transitionSafety === "tagUpTrans" && a.reboundBalance !== "tagUp")
+        e.push("Tag Up transition coherence failed.");
+      if (a.reboundBalance === "safetyFirst" && (tagUpOrb(a) || a.transitionSafety === "tagUpTrans"))
+        e.push("Tag Up + safety-first ORB blocked.");
+      return e;
+    }
+
+    function reason(stepId, value, a) {
+      var m = mergeAns(a, stepId, value);
+      var clash = chainClash(m);
+      if (clash) return clash;
+      if (!valueInDomain(stepId, value, m)) return domainHint(stepId);
+      if (stepId === "earlyScreen" && (value === "softShow" || value === "under") && m.helpStructure === "none")
+        return "Minimal shell: switch or contain only.";
+      return null;
+    }
 
     return {
-      name: name,
-      identity: identity,
-      core: core,
-      transition: { who: transWho, ball: transBall },
-      rebound: reb,
-      early: early,
-      strengths: strengths,
-      weaknesses: weaknesses,
-      uses: uses
+      reason: reason,
+      edgeViolations: edgeViolations,
+      chainClash: chainClash,
+      valueInDomain: valueInDomain,
+      domainHint: domainHint
     };
+  })();
+
+  var Logic = {};
+
+  Logic.reason = function (stepId, value) {
+    return Engine.reason(stepId, value, A());
+  };
+
+  Logic.validate = function () {
+    var a = A();
+    var ids = STEPS.map(function (s) { return s.id; });
+    for (var i = 0; i < ids.length; i++) {
+      if (!a[ids[i]]) return ["Incomplete."];
+    }
+    var clash = Engine.chainClash(a);
+    var e = clash ? [clash] : [];
+    Engine.edgeViolations(a).forEach(function (msg) {
+      e.push(msg);
+    });
+    var seen = {};
+    return e.filter(function (x) {
+      if (seen[x]) return false;
+      seen[x] = true;
+      return true;
+    });
+  };
+
+  function lbl(a, id) {
+    var s = STEPS.find(function (z) { return z.id === id; });
+    if (!s) return "";
+    var o = s.opts.find(function (z) { return z.v === a[id]; });
+    return o ? o.t : "";
   }
 
-  function el(tag, props, children) {
-    var node = document.createElement(tag);
+  var Report = {
+    name: function (a) {
+      var p = [];
+      if (tagUpOrb(a)) p.push("Tag Up");
+      if (a.sidePnRRule === "ice") p.push("ICE");
+      if (a.middlePnRRule === "weak") p.push("WEAK");
+      if (a.pnrCoverage === "drop") p.push("Drop");
+      else if (a.pnrCoverage === "switch") p.push("Switch");
+      else if (a.pnrCoverage === "blitz") p.push("Blitz");
+      else p.push("Hedge");
+      return (p.length ? p.join(" · ") : "Elite") + " System";
+    },
+    build: function (a) {
+      var id = "";
+      if (a.priority === "rim") id = "Rim-first identity. ";
+      else if (a.priority === "three") id = "Three-point protection identity. ";
+      else id = "Disruptive ball-pressure identity. ";
+      id += a.driveDirection === "noMiddle" ? "No-middle drive rules. " : a.driveDirection === "forceMiddle" ? "Force-middle pack rules. " : "Funnel channel rules. ";
+      id += "On-ball: " + lbl(a, "onBall") + ".";
+
+      var ball = [];
+      ball.push("Side: " + lbl(a, "sidePnRRule") + " · Middle: " + lbl(a, "middlePnRRule") + ".");
+      ball.push("Shell: " + lbl(a, "pnrCoverage") + ".");
+
+      var half = [];
+      half.push("Help: " + lbl(a, "helpStructure") + " · timing " + lbl(a, "helpTiming") + " · intensity " + lbl(a, "helpIntensity") + ".");
+      half.push("Off-ball: " + lbl(a, "offBallPosition") + " · rotations " + lbl(a, "rotationModel") + ".");
+      half.push("KYP: deny " + lbl(a, "kypDenyMode") + "; help off " + lbl(a, "kypHelpOff") + "; stunts " + lbl(a, "kypStuntUsage") + ".");
+      half.push("Low man: " + lbl(a, "lowManTag") + " · post " + lbl(a, "postDefense") + " · mismatch " + lbl(a, "mismatchResponse") + ".");
+      half.push("Penetration " + lbl(a, "penetration") + " · closeouts " + lbl(a, "closeouts") + ".");
+
+      var tr = [];
+      tr.push(lbl(a, "transitionSafety") + " · " + lbl(a, "transitionPriority") + ".");
+      if (tagUpOrb(a)) tr.push("Tag Up ORB: five contact tags, between man and basket, matchup transition — overrides fixed safety roles.");
+      else if (a.transitionSafety === "oneBack") tr.push("One safety to rim; release vs crash scripted.");
+      else if (a.transitionSafety === "twoBack") tr.push("Two safeties: ball then rim.");
+      else tr.push("Matchup conversion; no assigned safety.");
+
+      var rb = [];
+      if (tagUpOrb(a)) rb.push("Maximum ORB with Tag Up rules; long-miss mismatch risk.");
+      else if (a.reboundBalance === "crash") rb.push("Crash when transition allows numbers.");
+      else if (a.reboundBalance === "balanced") rb.push("Balanced 2–3 crashers.");
+      else rb.push("Safety-first release.");
+
+      var er = [];
+      if (a.earlyScreen === "switch") er.push("Switch early drags.");
+      else if (a.earlyScreen === "contain") er.push("Contain flat until shell.");
+      else if (a.earlyScreen === "softShow") er.push("Soft show; quick recover.");
+      else er.push("Under; protect paint.");
+
+      var st = [], wk = [], us = [];
+      if (tagUpOrb(a)) { st.push("ORB volume without classic safety."); wk.push("Tag fouls and transition mismatches."); }
+      if (a.transitionSafety === "twoBack") st.push("Floor vs runners.");
+      if (!st.length) st.push("Teachable layers for staff and players.");
+      if (a.helpStructure === "none") wk.push("Iso vs elite creators.");
+      if (a.rotationModel === "rotate") wk.push("Corner skip stress.");
+      if (wk.length < 2) wk.push("Scouting can attack ICE/WEAK vs shell timing.");
+      if (a.priority === "three") us.push("vs shooting.");
+      if (a.transitionPriority === "stopBall") us.push("vs transition.");
+      if (a.pnrCoverage === "switch") us.push("vs spread PnR.");
+      if (us.length < 3) us.push("vs balanced: clarity wins.");
+
+      return { name: Report.name(a), identity: id, ball: ball, half: half, trans: tr, reb: rb, early: er, st: st, wk: wk, us: us };
+    }
+  };
+
+  function el(tag, props, kids) {
+    var n = document.createElement(tag);
     if (props) for (var k in props) {
-      if (k === "className") node.className = props[k];
-      else if (k === "text") node.textContent = props[k];
-      else if (k.slice(0, 2) === "on" && typeof props[k] === "function") node.addEventListener(k.slice(2).toLowerCase(), props[k]);
-      else node.setAttribute(k, props[k]);
+      if (k === "className") n.className = props[k];
+      else if (k === "text") n.textContent = props[k];
+      else if (k === "disabled") n.disabled = !!props[k];
+      else if (k.slice(0, 2) === "on" && typeof props[k] === "function") n.addEventListener(k.slice(2).toLowerCase(), props[k]);
+      else n.setAttribute(k, props[k]);
     }
-    (children || []).forEach(function (c) {
-      if (typeof c === "string") node.appendChild(document.createTextNode(c));
-      else if (c) node.appendChild(c);
+    (kids || []).forEach(function (c) {
+      if (typeof c === "string") n.appendChild(document.createTextNode(c));
+      else if (c) n.appendChild(c);
     });
-    return node;
+    return n;
   }
 
-  function render() {
-    var root = document.getElementById("app");
-    root.innerHTML = "";
-    var total = STEPS.length;
-    var idx = state.stepIndex;
-    var done = idx >= total;
-    var pct = done ? 100 : Math.round(((idx + 1) / total) * 100);
+  function exSec(title, lines, list) {
+    var d = el("div", { className: "sec" });
+    d.appendChild(el("h4", { text: title }));
+    if (list) {
+      var u = el("ul", {}, []);
+      lines.forEach(function (t) { u.appendChild(el("li", { text: t })); });
+      d.appendChild(u);
+    } else {
+      d.appendChild(el("div", { className: "tx", text: lines.join(" ") }));
+    }
+    return d;
+  }
 
-    var header = el("header", {}, [
-      el("h1", { text: "Defensive System Builder" }),
-      el("div", { className: "sub", text: "ELITE · HALF COURT · TRANSITION · ORB · EARLY" })
-    ]);
+  var Export = {
+    fill: function (r) {
+      var c = document.getElementById("export-card");
+      c.textContent = "";
+      c.appendChild(el("div", { className: "br", text: "Defensive System Builder · ELITE" }));
+      c.appendChild(el("div", { className: "ti", text: r.name }));
+      c.appendChild(exSec("Defensive identity", [r.identity], false));
+      c.appendChild(exSec("Ball screen rules", r.ball, true));
+      c.appendChild(exSec("Half-court rules", r.half, true));
+      c.appendChild(exSec("Transition plan", r.trans, true));
+      c.appendChild(exSec("Rebound plan", r.reb, true));
+      c.appendChild(exSec("Early defense", r.early, false));
+      c.appendChild(exSec("Strengths", r.st, true));
+      c.appendChild(exSec("Weaknesses", r.wk, true));
+      c.appendChild(exSec("Ideal use", r.us, true));
+    },
+    png: function () {
+      var btn = document.getElementById("dl-png");
+      if (!btn || typeof html2canvas !== "function") return;
+      btn.disabled = true;
+      btn.textContent = "Generating…";
+      var card = document.getElementById("export-card");
+      html2canvas(card, { scale: 2, backgroundColor: "#080c12", useCORS: true, logging: false }).then(function (cv) {
+        var u = cv.toDataURL("image/png");
+        var a = document.createElement("a");
+        a.href = u;
+        a.download = "defensive-system-elite.png";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        btn.disabled = false;
+        btn.textContent = "Download as Image";
+      }).catch(function () {
+        btn.disabled = false;
+        btn.textContent = "Download as Image";
+      });
+    }
+  };
 
-    var prog = el("div", { className: "progress-wrap" }, [
-      el("div", { className: "progress-meta" }, [
-        el("span", { text: done ? "Complete" : ("Step " + (idx + 1) + " / " + total) }),
-        el("span", { text: pct + "%" })
-      ]),
-      el("div", { className: "progress-bar" }, [
-        el("div", { className: "progress-fill", style: "width:" + pct + "%" })
-      ])
-    ]);
-
-    if (idx >= total) {
-      var errs = engine.validateFullSystem();
-      var main = el("main", {});
-      if (errs.length) {
-        main.appendChild(el("div", { className: "block-banner", text: "System blocked: " + errs[0] }));
-        main.appendChild(el("p", { className: "screen-hint", text: "Use Back to adjust choices until the engine clears all conflicts." }));
-      } else {
-        var r = buildReport();
-        main.appendChild(el("div", { className: "system-name", text: r.name }));
-        main.appendChild(el("div", { className: "report" }, [
-          el("h2", { text: "Identity" }),
-          el("p", { text: r.identity }),
-          el("h3", { text: "Core rules" }),
-          el("ul", {}, r.core.map(function (t) { return el("li", { text: t }); })),
-          el("h3", { text: "Transition plan" }),
-          el("p", { text: r.transition.who }),
-          el("p", { text: r.transition.ball }),
-          el("h3", { text: "Rebound plan" }),
-          el("p", { text: r.rebound }),
-          el("h3", { text: "Early offense defense" }),
-          el("p", { text: r.early }),
-          el("h3", { text: "Strengths" }),
-          el("ul", {}, r.strengths.map(function (t) { return el("li", { text: t }); })),
-          el("h3", { text: "Weaknesses" }),
-          el("ul", {}, r.weaknesses.map(function (t) { return el("li", { text: t }); })),
-          el("h3", { text: "Ideal use cases" }),
-          el("ul", {}, r.uses.map(function (t) { return el("li", { text: t }); }))
+  var UI = {
+    go: function () {
+      var root = document.getElementById("root");
+      root.textContent = "";
+      var N = STEPS.length;
+      var idx = state.i;
+      var done = idx >= N;
+      var pct = done ? 100 : Math.round((idx + 1) / N * 100);
+      root.appendChild(el("header", {}, [
+        el("h1", { text: "Defensive System Builder" }),
+        el("p", { className: "sub", text: "ELITE" })
+      ]));
+      root.appendChild(el("div", { className: "pwrap" }, [
+        el("div", { className: "pmeta" }, [
+          el("span", { text: done ? "Complete" : "Step " + (idx + 1) + " / " + N }),
+          el("span", { text: pct + "%" })
+        ]),
+        el("div", { className: "ptrack" }, [el("div", { className: "pfill", style: "width:" + pct + "%" })])
+      ]));
+      if (done) {
+        var err = Logic.validate();
+        var main = el("main", {});
+        if (err.length) {
+          main.appendChild(el("div", { className: "bad", text: err[0] }));
+          main.appendChild(el("p", { className: "h", text: "Use Back to fix conflicts." }));
+        } else {
+          var r = Report.build(A());
+          Export.fill(r);
+          main.appendChild(el("div", { className: "sn", text: r.name }));
+          main.appendChild(el("div", { className: "rep" }, [
+            el("h2", { text: "Defensive identity" }),
+            el("p", { text: r.identity }),
+            el("h3", { text: "Ball screen rules" }),
+            el("ul", {}, r.ball.map(function (t) { return el("li", { text: t }); })),
+            el("h3", { text: "Half-court rules" }),
+            el("ul", {}, r.half.map(function (t) { return el("li", { text: t }); })),
+            el("h3", { text: "Transition plan" }),
+            el("ul", {}, r.trans.map(function (t) { return el("li", { text: t }); })),
+            el("h3", { text: "Rebound plan" }),
+            el("ul", {}, r.reb.map(function (t) { return el("li", { text: t }); })),
+            el("h3", { text: "Early defense" }),
+            el("p", { text: r.early.join(" ") }),
+            el("h3", { text: "Strengths" }),
+            el("ul", {}, r.st.map(function (t) { return el("li", { text: t }); })),
+            el("h3", { text: "Weaknesses" }),
+            el("ul", {}, r.wk.map(function (t) { return el("li", { text: t }); })),
+            el("h3", { text: "Ideal use" }),
+            el("ul", {}, r.us.map(function (t) { return el("li", { text: t }); }))
+          ]));
+          main.appendChild(el("div", { className: "export-actions" }, [
+            el("button", { type: "button", className: "btn-ex", id: "dl-png", text: "Download as Image", onclick: function () { Export.png(); } })
+          ]));
+        }
+        root.appendChild(main);
+        root.appendChild(el("div", { className: "nav" }, [
+          el("button", { type: "button", className: "nb", text: "Back", disabled: state.h.length === 0, onclick: Nav.back }),
+          el("button", { type: "button", className: "nb d", text: "Restart", onclick: Nav.restart })
         ]));
+        return;
       }
-      var nav = el("div", { className: "nav-row" }, [
-        el("button", { className: "btn-ghost", text: "Back", disabled: state.history.length === 0, onclick: goBack }),
-        el("button", { className: "btn-danger", text: "Restart", onclick: restart })
+      var st = STEPS[idx];
+      var main = el("main", {}, [
+        el("div", { className: "q", text: st.q }),
+        el("div", { className: "h", text: st.h })
       ]);
-      root.appendChild(header);
-      root.appendChild(prog);
+      var box = el("div", { className: "opts" });
+      st.opts.forEach(function (o) {
+        var msg = Logic.reason(st.id, o.v);
+        var L = el("div", {}, []);
+        L.appendChild(el("div", {}, [document.createTextNode(o.t)]));
+        if (o.d) L.appendChild(el("span", { className: "d", text: o.d }));
+        if (msg) L.appendChild(el("div", { className: "x", text: msg }));
+        box.appendChild(el("button", { type: "button", className: "obtn", disabled: !!msg, onclick: function () { Nav.pick(st.id, o.v); } }, [L]));
+      });
+      main.appendChild(box);
       root.appendChild(main);
-      root.appendChild(nav);
-      return;
+      root.appendChild(el("div", { className: "nav" }, [
+        el("button", { type: "button", className: "nb", text: "Back", disabled: state.h.length === 0, onclick: Nav.back }),
+        el("button", { type: "button", className: "nb d", text: "Restart", onclick: Nav.restart })
+      ]));
     }
+  };
 
-    var step = STEPS[idx];
-    var main = el("main", {}, [
-      el("div", { className: "screen-title", text: step.label }),
-      el("div", { className: "screen-hint", text: step.hint })
-    ]);
+  var Nav = {
+    pick: function (id, v) {
+      state.h.push({ i: state.i, a: JSON.parse(JSON.stringify(state.a)) });
+      state.a[id] = v;
+      state.i++;
+      if (state.i > STEPS.length) state.i = STEPS.length;
+      UI.go();
+    },
+    back: function () {
+      if (!state.h.length) return;
+      var s = state.h.pop();
+      state.i = s.i;
+      state.a = s.a;
+      UI.go();
+    },
+    restart: function () {
+      state.a = {};
+      state.i = 0;
+      state.h = [];
+      UI.go();
+    }
+  };
 
-    var opts = el("div", { className: "options" });
-    step.options.forEach(function (opt) {
-      var reason = engine.optionDisabledReason(step.id, opt.value);
-      var row = el("button", {
-        type: "button",
-        className: "btn-option",
-        disabled: !!reason,
-        onclick: function () { selectOption(step.id, opt.value); }
-      }, []);
-      var left = el("div", {}, []);
-      left.appendChild(el("div", {}, [document.createTextNode(opt.label)]));
-      if (opt.desc) left.appendChild(el("span", { className: "desc", text: opt.desc }));
-      row.appendChild(left);
-      if (reason) left.appendChild(el("div", { className: "reason", text: reason }));
-      opts.appendChild(row);
-    });
-    main.appendChild(opts);
-
-    var nav = el("div", { className: "nav-row" }, [
-      el("button", { className: "btn-ghost", text: "Back", disabled: state.history.length === 0, onclick: goBack }),
-      el("button", { className: "btn-danger", text: "Restart", onclick: restart })
-    ]);
-
-    root.appendChild(header);
-    root.appendChild(prog);
-    root.appendChild(main);
-    root.appendChild(nav);
-  }
-
-  function selectOption(stepId, value) {
-    state.history.push({ stepIndex: state.stepIndex, answers: JSON.parse(JSON.stringify(state.answers)) });
-    state.answers[stepId] = value;
-    state.stepIndex++;
-    if (state.stepIndex > STEPS.length) state.stepIndex = STEPS.length;
-    render();
-  }
-
-  function goBack() {
-    if (!state.history.length) return;
-    var snap = state.history.pop();
-    state.stepIndex = snap.stepIndex;
-    state.answers = snap.answers;
-    render();
-  }
-
-  function restart() {
-    state.answers = {};
-    state.stepIndex = 0;
-    state.history = [];
-    state.blockedReason = null;
-    render();
-  }
-
-  render();
+  UI.go();
 })();
 </script>
 </body>
