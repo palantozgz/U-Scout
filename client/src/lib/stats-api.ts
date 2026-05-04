@@ -115,3 +115,58 @@ export function useLeaders(seasonId: number, stat: string) {
   });
 }
 
+export interface PlayerDetail {
+  externalId: string;
+  nameZh: string;
+  nameEn: string | null;
+  jerseyNumber: string | number | null;
+  position: string | null;
+  teamName: string | null;
+  teamLogo: string | null;
+  games: number;
+  ppg: number;
+  rpg: number;
+  apg: number;
+  spg: number;
+  bpg: number;
+  topg: number;
+  mpg: number;
+  fgPct: number | null;
+  fg3Pct: number | null;
+  ftPct: number | null;
+}
+
+export interface GameLogEntry {
+  gameId: number;
+  gameDate: string | null;
+  rivalName: string | null;
+  score: string | null;
+  minutes: string | null;
+  pts: number;
+  reb: number;
+  ast: number;
+  stl: number;
+  blk: number;
+  tov: number;
+  fgm: number;
+  fga: number;
+  tpm: number;
+  tpa: number;
+  ftm: number;
+  fta: number;
+  plusMinus: number;
+  isStart: boolean;
+}
+
+export function usePlayerDetail(externalId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["stats-player-detail", externalId],
+    queryFn: async () => {
+      const r = await apiRequest("GET", `/api/stats/player/${externalId}`);
+      return r.json() as Promise<{ player: PlayerDetail; gameLog: GameLogEntry[] }>;
+    },
+    enabled: Boolean(externalId),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+

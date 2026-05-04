@@ -1714,5 +1714,125 @@ export async function registerRoutes(
     return res.json({ seasons });
   });
 
+  // ─── GET /api/stats/player/:externalId ──────────────────────────────────────
+  app.get("/api/stats/player/:externalId", requireAuth, async (req, res) => {
+    const { externalId } = req.params;
+
+    const playerRows = await db.execute(sql`
+      SELECT
+        sp.external_id       AS "externalId",
+        sp.name_zh           AS "nameZh",
+        sp.name_en           AS "nameEn",
+        sp.jersey_number     AS "jerseyNumber",
+        sp.position,
+        st.name_zh           AS "teamName",
+        st.logo_url          AS "teamLogo",
+        COUNT(pb.id)         AS games,
+        ROUND(AVG(pb.pts)::numeric, 1)                                         AS ppg,
+        ROUND(AVG(pb.reb)::numeric, 1)                                         AS rpg,
+        ROUND(AVG(pb.ast)::numeric, 1)                                         AS apg,
+        ROUND(AVG(pb.stl)::numeric, 1)                                         AS spg,
+        ROUND(AVG(pb.blk)::numeric, 1)                                         AS bpg,
+        ROUND(AVG(pb.tov)::numeric, 1)                                         AS topg,
+        ROUND(AVG(
+          CASE WHEN pb.minutes ~ '^\d+:\d{2}$'
+            THEN (SPLIT_PART(pb.minutes, ':', 1)::numeric * 60 + SPLIT_PART(pb.minutes, ':', 2)::numeric) / 60
+            ELSE NULL END
+        )::numeric, 1) AS mpg,
+        ROUND(
+          CASE WHEN SUM(pb.fga) > 0
+            THEN SUM(pb.fgm)::numeric / SUM(pb.fga) * 100 END, 1)             AS "fgPct",
+        ROUND(
+          CASE WHEN SUM(pb.tpa) > 0
+            THEN SUM(pb.tpm)::numeric / SUM(pb.tpa) * 100 END, 1)             AS "fg3Pct",
+        ROUND(
+          CASE WHEN SUM(pb.fta) > 0
+            THEN SUM(pb.ftm)::numeric / SUM(pb.fta) * 100 END, 1)             AS "ftPct"
+      FROM stats_players sp
+      LEFT JOIN stats_teams st ON st.id = sp.team_id
+      LEFT JOIN stats_player_boxscores pb ON pb.player_external_id = sp.external_id
+      LEFT JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
+      WHERE sp.external_id = ${externalId}
+      GROUP BY sp.external_id, sp.name_zh, sp.name_en,
+               sp.jersey_number, sp.position, st.name_zh, st.logo_url
+      LIMIT 1
+    `);
+    const player = (playerRows as any).rows?.[0];
+    if (!player) return res.status(404).json({ error: "Player not found" });
+
+    const logRows = await db.execute(sql`
+      SELECT
+        sg.external_game_id  AS "gameId",
+        sg.scheduled_at      AS "gameDate",
+        CASE
+          WHEN pb.team_external_id = (SELECT external_id FROM stats_teams WHERE id = sg.home_team_id LIMIT 1)
+            THEN at.name_zh
+          ELSE ht.name_zh
+        END                  AS "rivalName",
+        CASE
+          WHEN pb.team_external_id = (SELECT external_id FROM stats_teams WHERE id = sg.home_team_id LIMIT 1)
+            THEN sg.home_score || '-' || sg.away_score
+          ELSE sg.away_score || '-' || sg.home_score
+        END                  AS "score",
+        pb.minutes,
+        pb.pts, pb.reb, pb.ast, pb.stl, pb.blk, pb.tov,
+        pb.fgm, pb.fga, pb.tpm, pb.tpa, pb.ftm, pb.fta,
+        pb.plus_minus        AS "plusMinus",
+        pb.is_start_lineup   AS "isStart"
+      FROM stats_player_boxscores pb
+      JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
+      LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
+      LEFT JOIN stats_teams at ON at.id = sg.away_team_id
+      WHERE pb.player_external_id = ${externalId}
+      ORDER BY sg.scheduled_at DESC
+      LIMIT 30
+    `);
+    const gameLog = ((logRows as any).rows ?? []).map((r: any) => ({
+      gameId: r.gameId,
+      gameDate: r.gameDate,
+      rivalName: r.rivalName,
+      score: r.score,
+      minutes: r.minutes,
+      pts: Number(r.pts ?? 0),
+      reb: Number(r.reb ?? 0),
+      ast: Number(r.ast ?? 0),
+      stl: Number(r.stl ?? 0),
+      blk: Number(r.blk ?? 0),
+      tov: Number(r.tov ?? 0),
+      fgm: Number(r.fgm ?? 0),
+      fga: Number(r.fga ?? 0),
+      tpm: Number(r.tpm ?? 0),
+      tpa: Number(r.tpa ?? 0),
+      ftm: Number(r.ftm ?? 0),
+      fta: Number(r.fta ?? 0),
+      plusMinus: Number(r.plusMinus ?? 0),
+      isStart: Boolean(r.isStart),
+    }));
+
+    return res.json({
+      player: {
+        externalId: player.externalId,
+        nameZh: player.nameZh,
+        nameEn: player.nameEn,
+        jerseyNumber: player.jerseyNumber,
+        position: player.position,
+        teamName: player.teamName,
+        teamLogo: player.teamLogo,
+        games: Number(player.games ?? 0),
+        ppg: Number(player.ppg ?? 0),
+        rpg: Number(player.rpg ?? 0),
+        apg: Number(player.apg ?? 0),
+        spg: Number(player.spg ?? 0),
+        bpg: Number(player.bpg ?? 0),
+        topg: Number(player.topg ?? 0),
+        mpg: Number(player.mpg ?? 0),
+        fgPct: player.fgPct != null ? Number(player.fgPct) : null,
+        fg3Pct: player.fg3Pct != null ? Number(player.fg3Pct) : null,
+        ftPct: player.ftPct != null ? Number(player.ftPct) : null,
+      },
+      gameLog,
+    });
+  });
+
   return httpServer;
 }

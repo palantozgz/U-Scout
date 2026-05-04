@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, ChevronDown, Trophy, Users, Shield } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronLeft, Trophy, Users, Shield } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { ModulePageShell } from "./ModulePage";
+import { LandscapeHint } from "@/components/LandscapeHint";
 import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,15 +13,18 @@ import {
   useSeasons,
   useStandings,
   useLeaders,
+  usePlayerDetail,
   type PlayerSeasonStats,
   type LeaderRow,
   type StandingsRow,
+  type GameLogEntry,
 } from "@/lib/stats-api";
 
 type MainTab = "liga" | "jugadoras" | "equipos";
 type LigaSegment = "clasificacion" | "lideres";
 type JugadorasSort = "ppg" | "rpg" | "apg";
 type LeaderStatKey = "ppg" | "rpg" | "apg" | "spg" | "bpg" | "fgPct";
+type PlayerSheetId = string | null;
 
 function parseMainTab(search: string): MainTab {
   const raw = search.startsWith("?") ? search.slice(1) : search;
@@ -64,6 +68,18 @@ function formatLeaderValue(stat: string, value: unknown): string {
 function displayLeaderPlayerName(row: LeaderRow, preferEn: boolean): string {
   if (preferEn && row.playerNameEn?.trim()) return row.playerNameEn.trim();
   return row.playerName ?? "";
+}
+
+function minutesToDisplay(minutes: string | null): string {
+  if (!minutes) return "—";
+  if (/^\d+:\d{2}$/.test(minutes)) return minutes;
+  const n = Number(minutes);
+  if (Number.isFinite(n)) {
+    const m = Math.floor(n);
+    const s = Math.round((n - m) * 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+  return minutes;
 }
 
 export default function Stats() {
@@ -134,11 +150,17 @@ export default function Stats() {
   const [jugadorasTeam, setJugadorasTeam] = useState<string>("");
   const [jugadorasSort, setJugadorasSort] = useState<JugadorasSort>("ppg");
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [playerSheetId, setPlayerSheetId] = useState<PlayerSheetId>(null);
   const [seasonSheetOpen, setSeasonSheetOpen] = useState(false);
   const [seasonId, setSeasonId] = useState<number | null>(null);
 
   useEffect(() => {
-    setMainTab(parseMainTab(search));
+    const raw = search.startsWith("?") ? search.slice(1) : search;
+    const qs = new URLSearchParams(raw);
+    const tab = qs.get("tab");
+    if (tab === "jugadoras" || tab === "equipos" || tab === "liga") setMainTab(tab);
+    const player = qs.get("player");
+    if (player) setPlayerSheetId(player);
   }, [search]);
 
   const setTabAndLocation = (tab: MainTab) => {
@@ -202,6 +224,7 @@ export default function Stats() {
 
   return (
     <ModulePageShell title={t("ucore_card_stats_title")} moduleHeader={{ module: "stats", tagline: t("tagline_stats") }}>
+      <>
       <div className="px-4 pb-10 max-w-md mx-auto w-full">
         <div className="flex items-center justify-end pt-2 pb-1">
           <button
@@ -369,7 +392,12 @@ export default function Stats() {
                 ) : (
                   <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
                     {leadersRows.map((row: LeaderRow, idx: number) => (
-                      <div key={row.externalId} className="flex items-center gap-3 px-3 py-2.5">
+                      <button
+                        key={row.externalId}
+                        type="button"
+                        onClick={() => setPlayerSheetId(String(row.externalId))}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30 transition-colors text-left"
+                      >
                         <span className="w-6 text-center text-[11px] font-black text-muted-foreground tabular-nums">{idx + 1}</span>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-extrabold text-foreground truncate">
@@ -380,7 +408,7 @@ export default function Stats() {
                         <p className="text-sm font-black tabular-nums text-foreground shrink-0">
                           {formatLeaderValue(leadersQ.data?.stat ?? leaderStat, row.value)}
                         </p>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -487,7 +515,9 @@ export default function Stats() {
                     );
                   })}
 
-                  <div className="px-3 py-2 text-[10px] text-muted-foreground/60 font-semibold bg-muted/20">{L.tapRowMore}</div>
+                  <div className="px-3 py-2 text-[10px] text-muted-foreground/60 font-semibold bg-muted/20">
+                    {L.tapRowMore}
+                  </div>
                 </div>
               </>
             )}
@@ -546,6 +576,17 @@ export default function Stats() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Sheet open={Boolean(playerSheetId)} onOpenChange={(open) => { if (!open) setPlayerSheetId(null); }}>
+        <SheetContent side="bottom" className="h-[92dvh] rounded-t-2xl p-0 flex flex-col">
+          <StatsPlayerSheet
+            externalId={playerSheetId}
+            onClose={() => setPlayerSheetId(null)}
+            locale={locale}
+          />
+        </SheetContent>
+      </Sheet>
+      </>
     </ModulePageShell>
   );
 }
@@ -555,6 +596,178 @@ function StatChip(props: { label: string; value: string }) {
     <div className="rounded-lg border border-border bg-card px-2.5 py-2">
       <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">{props.label}</p>
       <p className="text-[12px] font-black text-foreground tabular-nums mt-0.5">{props.value}</p>
+    </div>
+  );
+}
+
+function StatsPlayerSheet({
+  externalId,
+  onClose,
+  locale,
+}: {
+  externalId: string | null;
+  onClose: () => void;
+  locale: string;
+}) {
+  const es = locale === "es";
+  const zh = locale === "zh";
+  const { data, isLoading, isError } = usePlayerDetail(externalId);
+
+  const player = data?.player;
+  const gameLog = data?.gameLog ?? [];
+
+  const displayName =
+    (locale === "en" || locale === "es") && player?.nameEn?.trim()
+      ? player.nameEn.trim()
+      : player?.nameZh ?? "—";
+
+  const L = {
+    close: es ? "Volver" : zh ? "返回" : "Back",
+    error: es ? "Error al cargar" : zh ? "加载失败" : "Failed to load",
+    noData: es ? "Sin datos" : zh ? "暂无数据" : "No data",
+    gameLogTitle: es ? "Últimos partidos" : zh ? "近期比赛" : "Recent games",
+    dateCol: es ? "Fecha" : zh ? "日期" : "Date",
+    rivalCol: es ? "Rival" : zh ? "对手" : "Rival",
+    ptsCol: "PTS",
+    rebCol: "REB",
+    astCol: "AST",
+    minCol: "MIN",
+    pmCol: "+/-",
+    starter: es ? "Titular" : zh ? "首发" : "Starter",
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 -ml-1 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+          aria-label={L.close}
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-black text-foreground truncate">{displayName}</p>
+          {player && (
+            <p className="text-[11px] text-muted-foreground truncate">
+              {player.jerseyNumber != null && player.jerseyNumber !== "" ? `#${player.jerseyNumber} · ` : ""}
+              {player.teamName ?? "—"}
+              {player.position ? ` · ${player.position}` : ""}
+            </p>
+          )}
+        </div>
+        {player && (
+          <div className="shrink-0 text-right">
+            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+              {player.games}G
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {isLoading && (
+          <div className="flex justify-center py-16">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+
+        {isError && (
+          <div className="rounded-2xl border border-border bg-card p-5 text-center">
+            <p className="text-sm font-bold text-destructive">{L.error}</p>
+          </div>
+        )}
+
+        {!isLoading && !isError && player && (
+          <>
+            <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+              <div className="grid grid-cols-3 gap-2">
+                <StatChip label="PPG" value={player.ppg.toFixed(1)} />
+                <StatChip label="RPG" value={player.rpg.toFixed(1)} />
+                <StatChip label="APG" value={player.apg.toFixed(1)} />
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                <StatChip label="SPG" value={player.spg.toFixed(1)} />
+                <StatChip label="BPG" value={player.bpg.toFixed(1)} />
+                <StatChip label="TOPG" value={player.topg.toFixed(1)} />
+                <StatChip label="MPG" value={player.mpg.toFixed(1)} />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <StatChip label="FG%" value={player.fgPct != null ? `${player.fgPct.toFixed(1)}%` : "—"} />
+                <StatChip label="3P%" value={player.fg3Pct != null ? `${player.fg3Pct.toFixed(1)}%` : "—"} />
+                <StatChip label="FT%" value={player.ftPct != null ? `${player.ftPct.toFixed(1)}%` : "—"} />
+              </div>
+            </div>
+
+            <LandscapeHint />
+
+            {gameLog.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border px-6 py-8 text-center text-sm font-bold text-muted-foreground">
+                {L.noData}
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-0.5">
+                  {L.gameLogTitle}
+                </p>
+                <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                  <div className="grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr_0.45fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                    <span>{L.dateCol}</span>
+                    <span>{L.rivalCol}</span>
+                    <span className="text-right">{L.ptsCol}</span>
+                    <span className="text-right">{L.rebCol}</span>
+                    <span className="text-right">{L.astCol}</span>
+                    <span className="text-right">{L.minCol}</span>
+                    <span className="text-right">{L.pmCol}</span>
+                  </div>
+                  {gameLog.map((g: GameLogEntry) => {
+                    const date = g.gameDate
+                      ? new Date(g.gameDate).toLocaleDateString(
+                          locale === "zh" ? "zh-CN" : locale === "es" ? "es-ES" : "en-GB",
+                          { month: "short", day: "numeric" },
+                        )
+                      : "—";
+                    const pm = g.plusMinus > 0 ? `+${g.plusMinus}` : String(g.plusMinus);
+                    return (
+                      <div
+                        key={g.gameId}
+                        className="grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr_0.45fr] gap-0 items-center px-3 py-2.5 border-b border-border last:border-b-0 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-bold text-foreground tabular-nums">{date}</p>
+                          {g.isStart && (
+                            <span className="text-[8px] font-black uppercase text-primary/70">{L.starter}</span>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground truncate font-semibold">{g.rivalName ?? "—"}</p>
+                        <p className="text-right font-black tabular-nums text-foreground">{g.pts}</p>
+                        <p className="text-right font-black tabular-nums text-foreground">{g.reb}</p>
+                        <p className="text-right font-black tabular-nums text-foreground">{g.ast}</p>
+                        <p className="text-right font-semibold tabular-nums text-muted-foreground">
+                          {minutesToDisplay(g.minutes != null ? String(g.minutes) : null)}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-right font-black tabular-nums",
+                            g.plusMinus > 0
+                              ? "text-green-600 dark:text-green-400"
+                              : g.plusMinus < 0
+                                ? "text-destructive"
+                                : "text-muted-foreground",
+                          )}
+                        >
+                          {pm}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
