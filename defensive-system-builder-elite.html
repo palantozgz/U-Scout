@@ -45,6 +45,7 @@ main .h{margin-top:4px}
 .rep li{margin-bottom:4px}
 .sn{font-size:1.12rem;font-weight:800;margin-bottom:10px;color:#fff}
 .bad{background:#2a1518;border:1px solid #5c2a32;color:#fecaca;padding:12px;border-radius:var(--rad);font-size:.84rem;margin-bottom:12px;line-height:1.42}
+.warn{background:#1a1f14;border:1px solid #4a5c32;color:#d9e8b8;padding:12px;border-radius:var(--rad);font-size:.78rem;margin-bottom:12px;line-height:1.45}
 .export-actions{margin-top:14px}
 .btn-ex{width:100%;font:inherit;font-size:.98rem;font-weight:750;padding:16px;border-radius:var(--rad);cursor:pointer;border:2px solid #2a4a78;background:linear-gradient(180deg,#1a3558,#122840);color:#e6f0ff;min-height:54px}
 .btn-ex:hover:not(:disabled){filter:brightness(1.06)}
@@ -66,7 +67,26 @@ main .h{margin-top:4px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
 <script>
 (function () {
-  /** Causal order: identity → drive → on-ball → PnR anchor → transition → rebounding. All shell help/rotation/penetration is derived. */
+  /** Causal order: identity → shell anchor + subtype → personnel → transition → rebounding. Help/rotations/paint are derived only. */
+  var COV_SUBTYPE_OPTS = {
+    drop: [
+      { v: "deep", t: "Deep drop", d: "Big stays attached to roller; protect rim first." },
+      { v: "high", t: "High drop", d: "Big higher; earlier touch on ballhandler." }
+    ],
+    hedge: [
+      { v: "soft", t: "Soft hedge / show", d: "Brief touch; quick recover." },
+      { v: "hard", t: "Hard hedge / show", d: "Longer show; more load on helpers." }
+    ],
+    switch: [
+      { v: "flat", t: "Flat switch", d: "Exchange level; limit back-line exposure." },
+      { v: "aggressive", t: "Aggressive switch", d: "Earlier exchange; more pressure on release." }
+    ],
+    blitz: [
+      { v: "standard", t: "Standard blitz", d: "Classic two-to-the-ball trap look." },
+      { v: "containTrap", t: "Contain trap", d: "Short-corner trap; contain first step then spring." }
+    ]
+  };
+
   var STEPS = [
     { id: "priority", q: "Defensive priority", h: "What you protect at all costs (identity).", opts: [
       { v: "rim", t: "Protect the rim", d: "Shrink paint; contest twos." },
@@ -83,11 +103,30 @@ main .h{margin-top:4px}
       { v: "pressure", t: "Pressure", d: "Up touch; shrink clock; more risk." },
       { v: "turn", t: "Turn", d: "Force pick-up; deny rhythm; high foul discipline." }
     ]},
-    { id: "pnrCoverage", q: "Pick-and-roll coverage (anchor)", h: "This choice fixes help timing, intensity, rotations, and paint response — not adjustable later.", opts: [
+    { id: "pnrCoverage", q: "Pick-and-roll coverage (anchor)", h: "Determines help, rotations, and paint answers downstream.", opts: [
       { v: "drop", t: "Drop", d: "Contain two to the ball; low rotation volume." },
-      { v: "switch", t: "Switch", d: "Exchange shell; stay square; scrams after." },
-      { v: "blitz", t: "Blitz", d: "Trap; early help; full X-out chain." },
+      { v: "switch", t: "Switch", d: "Exchange shell; stay square." },
+      { v: "blitz", t: "Blitz", d: "Trap; early help; X-out chain." },
       { v: "hedge", t: "Hedge / show", d: "Touch time; tag roller; recover or rotate by load." }
+    ]},
+    { id: "coverageSubtype", q: "Coverage subtype", h: "Refines the anchor technique (staff vocabulary).", opts: [] },
+    { id: "rimProtection", q: "Personnel — rim protection", h: "Big / back-line rim deterrence.", opts: [
+      { v: "low", t: "Low", d: "Limited rim vertical or small lineups." },
+      { v: "medium", t: "Medium", d: "Balanced rim presence." },
+      { v: "high", t: "High", d: "Elite rim protection anchor." }
+    ]},
+    { id: "mobilityBig", q: "Personnel — big mobility", h: "Ability to show, recover, blitz.", opts: [
+      { v: "low", t: "Low", d: "Stay home / drop biased." },
+      { v: "high", t: "High", d: "Comfortable showing and recovering." }
+    ]},
+    { id: "switchability", q: "Personnel — switchability", h: "Positional size and switch tolerance.", opts: [
+      { v: "low", t: "Low", d: "Traditional matchups; scram late." },
+      { v: "medium", t: "Medium", d: "Selective switches." },
+      { v: "high", t: "High", d: "Switch-heavy personnel." }
+    ]},
+    { id: "discipline", q: "Personnel — discipline", h: "Foul and scramble execution.", opts: [
+      { v: "low", t: "Low", d: "Youth / volatile foul environment." },
+      { v: "high", t: "High", d: "Veteran execution; situational scrams." }
     ]},
     { id: "transitionSafety", q: "Transition safety", h: "Getting back (philosophy).", opts: [
       { v: "oneBack", t: "1 back", d: "One safety." },
@@ -129,116 +168,49 @@ main .h{margin-top:4px}
     return m;
   }
 
-  /**
-   * domain(stepId, value, partialState) — structural availability only (no tactical causality).
-   */
+  /** Structural domain only (no tactical chain). Funnel + switch is allowed — see staff warnings in derivation output. */
   function domain(stepId, value, a) {
-    if (stepId !== "pnrCoverage") return true;
-    var m = mergeAns(a, stepId, value);
-    if (m.driveDirection === "funnel" && value === "switch") return false;
     return true;
   }
 
-  function domainHint(stepId) {
-    if (stepId === "pnrCoverage") return "Funnel needs a loaded shell; pure switch is excluded as structurally incoherent here.";
+  function domainHint() {
     return null;
   }
 
+  function subtypeValid(cov, sub) {
+    var arr = COV_SUBTYPE_OPTS[cov];
+    if (!arr || !sub) return false;
+    return arr.some(function (x) { return x.v === sub; });
+  }
+
   /**
-   * Pure derivation: pnrCoverage → helpStructure → helpTiming → helpIntensity → rotationModel → penetration → mismatchResponse (+ supporting tags).
+   * Strict causal chain: pnrCoverage + subtype + context → helpStructure → helpTiming → helpIntensity → rotationModel → penetration → mismatchResponse → lowManTag → supporting.
    */
   var Derivation = (function () {
-    function explainHelpStructure(cov, pr, dd) {
-      if (cov === "switch")
-        return "Switch coverage keeps defenders on matchups first, so help landmarks are minimal (stay-home / switch skeleton) instead of loading a weak-side low man.";
-      if (cov === "drop") {
-        if (dd === "noMiddle")
-          return "Drop behind the screen with no-middle forcing favors a weak-side low man as the primary landmark.";
-        if (dd === "forceMiddle")
-          return "Drop with force-middle pack rules loads the paint first, so help structure is strong-side / nail-loaded to meet drives in the pack.";
-        if (dd === "funnel")
-          return "Funnel channels drives into defined pockets; mixed help landmarks match plan-driven funnel traps.";
-        return "Drop uses mixed help landmarks to balance rim vs three.";
-      }
-      if (cov === "blitz") {
-        if (pr === "rim") return "Blitz traps create long rotations; rim-first priorities keep the low man weak-side as the natural rescue lane.";
-        if (pr === "three") return "Blitz with three-point protection loads strong-side gaps because skips are the main threat out of the trap.";
-        return "Disrupt blitzes use mixed landmarks so helpers can stunt gaps without freezing against spread.";
-      }
-      if (cov === "hedge") {
-        if (pr === "rim") return "Hedge/show with rim priority keeps helpers shallow so the big can recover to the roller — weak-side landmarks fit that load.";
-        if (pr === "three") return "Hedge/show vs elite shooting needs mixed landmarks so you can stunt gaps and still recover to shooters.";
-        return "Disrupt hedge uses strong-side loading because the show pressures the ball and helpers must be ready to rotate early.";
-      }
-      return "Help structure follows from shell and identity.";
-    }
-
-    function explainHelpTiming(cov) {
-      if (cov === "drop" || cov === "switch")
-        return "Help timing is late because " + (cov === "drop" ? "drop" : "switch") + " coverage contains the ballhandler two-on-two first and delays helper commitment until the drive threatens the paint.";
-      if (cov === "blitz")
-        return "Help timing is early because blitz traps require helpers to jump on the catch or first dribble so the trap forms before the split.";
-      return "Help timing is early because hedge/show is touch-time coverage: the helper must be on the ball early, then recover or trigger the next rotation.";
-    }
-
-    function explainHelpIntensity(cov, pr, hi) {
-      if (cov === "switch") return "Help intensity stays minimal because the shell exchanges matchups instead of loading helpers to the ball.";
-      if (cov === "blitz") return "Blitz demands full help intensity because traps create numerical disadvantage — helpers must be live to the ball and ready to X-out.";
-      if (cov === "drop") {
-        if (hi === "stunt")
-          return "Drop + rim identity uses stunt-level off-ball activity to match late help: brief shows without living in the gap.";
-        return "Drop + three/disrupt identity uses dig-level pockets on drives without committing to a full live rotation on every touch.";
-      }
-      if (hi === "stunt")
-        return "Hedge/show + rim uses stunt intensity: the big shows briefly while others stay attached until the recover path clears.";
-      if (hi === "dig")
-        return "Hedge/show + three uses dig intensity: helpers can commit to pockets because skip passes are the main threat.";
-      return "Hedge/show + disrupt uses full intensity: early pressure forces live help and triggers the next rotation if the show is beaten.";
-    }
-
-    function explainRotation(cov, rot, hi) {
-      if (cov === "blitz")
-        return "Rotation model is full X-out because blitz traps force long closeouts; the coherent answer is a chained rotation, not a single recover.";
-      if (cov === "switch")
-        return "Rotation model is switch-driven because minimal help means you clean most breakdowns by exchanging rather than rotating off shooters.";
-      if (cov === "drop")
-        return rot === "switch"
-          ? "Drop with your drive/priority profile favors exchange-based cleanup (switch) over chasing back to every assignment."
-          : "Drop with your drive/priority profile favors recover-first rotations: contain two-on-two, then sprint back to shooters.";
-      if (cov === "hedge")
-        return hi === "full"
-          ? "Full hedge load escalates to X-out when the show is broken — intensity demanded a full rotation answer."
-          : "Stunt/dig hedge keeps recover-first rotations: show, stunt gaps, then sprint back to shooters.";
-      return "Rotation follows from shell, help load, and intensity.";
-    }
-
-    function explainPenetration(cov) {
-      if (cov === "blitz")
-        return "Penetration response is help-level because the trap pulls a helper to the ball; the next defender must step to ball level when the ball escapes.";
-      if (cov === "switch")
-        return "Penetration response is contain-first because the shell switches matchups and walls the ball without sending extra helpers into the paint early.";
-      return "Penetration response is contain-first: drop and hedge/show recover paths wall the drive and keep the big between ball and rim until matchups reset.";
-    }
-
-    function explainMismatch(cov) {
-      if (cov === "switch")
-        return "Mismatch response is scram because switch-heavy shells create small-on-big exchanges; late scrams are the standard way to re-match without exposing the rim.";
-      return "Mismatch response defaults to accept here; non-switch shells layer scrams situationally rather than mandating one rule.";
-    }
-
     function derive(inp) {
       var pr = inp.priority;
       var dd = inp.driveDirection;
       var ob = inp.onBall;
       var cov = inp.pnrCoverage;
+      var sub = inp.coverageSubtype;
+      var rimP = inp.rimProtection;
+      var mob = inp.mobilityBig;
+      var sw = inp.switchability;
+      var disc = inp.discipline;
       var explanations = [];
+      var warnings = [];
+
+      if (dd === "funnel" && cov === "switch") {
+        warnings.push(
+          "Staff note: funnel channeling with a pure switch shell is non-standard — you trade classic funnel load-to-ball for matchup integrity; only staff with elite switch groups typically live here."
+        );
+      }
 
       var helpStructure = (function () {
         if (cov === "switch") return "none";
         if (cov === "drop") {
           if (dd === "noMiddle") return "weak";
           if (dd === "forceMiddle") return "strong";
-          if (dd === "funnel") return "mixed";
           return "mixed";
         }
         if (cov === "blitz") {
@@ -247,72 +219,145 @@ main .h{margin-top:4px}
           return "mixed";
         }
         if (cov === "hedge") {
-          if (pr === "rim") return "weak";
-          if (pr === "three") return "mixed";
-          return "strong";
+          if (sub === "soft") return pr === "rim" ? "weak" : "mixed";
+          if (sub === "hard") {
+            if (pr === "three") return "mixed";
+            return "strong";
+          }
         }
         return "mixed";
       })();
-      explanations.push({ key: "helpStructure", title: "Help structure", text: explainHelpStructure(cov, pr, dd) });
+      explanations.push({
+        key: "helpStructure",
+        title: "Help structure",
+        text:
+          "Help structure is " +
+          helpStructure +
+          " because the shell anchor (" +
+          cov +
+          (sub ? ", " + sub : "") +
+          ") with drive philosophy " +
+          dd +
+          " and priority " +
+          pr +
+          " fixes where low-man and nail help live before rotations trigger."
+      });
 
       var helpTiming = cov === "drop" || cov === "switch" ? "late" : "early";
-      explanations.push({ key: "helpTiming", title: "Help timing", text: explainHelpTiming(cov) });
+      explanations.push({
+        key: "helpTiming",
+        title: "Help timing",
+        text: "Help timing is " + helpTiming + " because " + (cov === "drop" || cov === "switch" ? cov + " shells contain the ballhandler two-on-two first" : cov + " forces early commitment") + " — the anchor coverage, not preference, sets the clock on helpers."
+      });
 
       var helpIntensity = (function () {
         if (cov === "switch") return "none";
         if (cov === "blitz") return "full";
         if (cov === "drop") return pr === "rim" ? "stunt" : "dig";
-        if (cov === "hedge") return pr === "rim" ? "stunt" : pr === "three" ? "dig" : "full";
+        if (cov === "hedge") {
+          if (sub === "soft") return "stunt";
+          if (pr === "disrupt" && disc === "high") return "full";
+          return "dig";
+        }
         return "stunt";
       })();
-      explanations.push({ key: "helpIntensity", title: "Help intensity", text: explainHelpIntensity(cov, pr, helpIntensity) });
+      explanations.push({
+        key: "helpIntensity",
+        title: "Help intensity",
+        text: "Help intensity is " + helpIntensity + " because the shell anchor (" + cov + (sub ? "/" + sub : "") + ") plus " + pr + " priority " + (cov === "hedge" && sub === "hard" && pr === "disrupt" && disc === "high" ? "and high discipline " : "") + "sets how much off-ball load you can carry without breaking the chain."
+      });
 
       var rotationModel = (function () {
-        if (cov === "blitz") return "rotate";
         if (cov === "switch") return "switch";
-        if (cov === "drop") return pr === "three" || dd === "noMiddle" ? "switch" : "recover";
-        if (cov === "hedge") return helpIntensity === "full" ? "rotate" : "recover";
+        if (cov === "blitz") return "rotate";
+        if (cov === "drop") {
+          if (pr === "three") return "switch";
+          if (dd === "noMiddle") return "conditional";
+          return "recover";
+        }
+        if (cov === "hedge") {
+          if (sub === "soft") return "recover";
+          if (helpIntensity === "full") return "rotate";
+          return "conditional";
+        }
         return "recover";
       })();
-      explanations.push({ key: "rotationModel", title: "Rotation model", text: explainRotation(cov, rotationModel, helpIntensity) });
+      explanations.push({
+        key: "rotationModel",
+        title: "Rotation model",
+        text: "Rotation model is " + rotationModel + " because " + cov + (sub ? " (" + sub + ")" : "") + " plus " + helpIntensity + " intensity forces whether you exchange, recover, live in conditional gaps, or X-out."
+      });
 
-      var penetration = cov === "blitz" ? "help" : "contain";
-      explanations.push({ key: "penetration", title: "Penetration response", text: explainPenetration(cov) });
+      var penetration = (function () {
+        if (cov === "blitz") return "help";
+        if (cov === "switch") return "contain";
+        if (cov === "drop") return "contain";
+        if (cov === "hedge") {
+          if (sub === "hard" && helpIntensity === "full") return "help";
+          return "contain";
+        }
+        return "contain";
+      })();
+      explanations.push({
+        key: "penetration",
+        title: "Penetration response",
+        text: penetration === "help"
+          ? "Penetration response is HELP because the shell is already extended (trap or full-load hedge) — the next defender must meet ball level when the first line is broken."
+          : cov === "drop"
+            ? "Penetration response is CONTAIN with late help because DROP keeps the big between ball and rim two-on-two until the drive threatens the paint, then helpers trigger on the score line."
+            : "Penetration response is CONTAIN first on hedge recover paths — you wall the drive out of the show, then sprint back to shooters unless the shell is fully loaded to help level."
+      });
 
-      var mismatchResponse = cov === "switch" ? "scram" : "accept";
-      explanations.push({ key: "mismatchResponse", title: "Mismatch response", text: explainMismatch(cov) });
+      var mismatchResponse = (function () {
+        if (sw === "high") return "scram";
+        if (disc === "high") return "situationalScram";
+        return "accept";
+      })();
+      explanations.push({
+        key: "mismatchResponse",
+        title: "Mismatch response",
+        text: "Mismatch cleanup is " + mismatchResponse + " because switchability " + sw + (disc === "high" ? " and discipline high" : "") + " forces how aggressively you re-match after exchanges."
+      });
 
-      var lowManTag = cov === "hedge" || cov === "blitz" ? "always" : "conditional";
+      var lowManTag = (function () {
+        if (cov === "blitz") return "always";
+        if (cov === "hedge") return sub === "hard" ? "always" : "conditional";
+        if (cov === "drop") return "conditional";
+        if (cov === "switch") return "none";
+        return "conditional";
+      })();
       explanations.push({
         key: "lowManTag",
-        title: "Roller tag",
-        text: cov === "hedge" || cov === "blitz"
-          ? "Tag responsibility is always assigned because show/trap coverages require a defined roller answer the moment the big is out."
-          : "Tag rules stay conditional so drop shells can stay home vs non-shooters when the roller is not a scoring threat."
+        title: "Low man / roller tag",
+        text: "Roller tag is " + lowManTag + " because " + cov + (sub ? " (" + sub + ")" : "") + " defines whether the roller must be tagged every time or only when the shell is loaded."
+      });
+
+      var earlyScreen = ob === "pressure" || ob === "turn" ? "switch" : "contain";
+      explanations.push({
+        key: "earlyScreen",
+        title: "Early defense",
+        text: "Early defense is " + earlyScreen + " because " + (ob === "contain" ? "contain posture" : "pressure/turn posture") + " forces whether you flat contain empty-side drags or exchange early to disrupt rhythm picks."
       });
 
       var sidePnRRule = cov === "switch" ? "switch" : "standard";
       var middlePnRRule = pr === "disrupt" ? "weak" : "standard";
-      var offBallPosition = "gap";
-      var kypDenyMode = "shooters";
+      var offBallPosition = mob === "high" ? "gap" : "gap";
+      var kypDenyMode = pr === "three" ? "shooters" : "shooters";
       var kypHelpOff = "yes";
       var kypStuntUsage = cov === "hedge" ? "always" : "situational";
-      var postDefense = "onev1";
+      var postDefense = rimP === "high" ? "onev1" : "onev1";
       var closeouts = pr === "three" ? "controlled" : "aggressive";
-      var earlyScreen = ob === "turn" ? "switch" : ob === "pressure" ? "switch" : "contain";
-      explanations.push({
-        key: "earlyScreen",
-        title: "Early drag / unset pick",
-        text: ob === "contain"
-          ? "Early defense mirrors contain posture: flat, feet-on-floor until the shell is set."
-          : "Higher on-ball pressure early favors quick exchanges on empty-side drags so the offense cannot get a free rhythm pick."
-      });
 
       var tactics = {
         priority: pr,
         driveDirection: dd,
         onBall: ob,
         pnrCoverage: cov,
+        coverageSubtype: sub,
+        rimProtection: rimP,
+        mobilityBig: mob,
+        switchability: sw,
+        discipline: disc,
         transitionSafety: inp.transitionSafety,
         transitionPriority: inp.transitionPriority,
         reboundBalance: inp.reboundBalance,
@@ -334,19 +379,28 @@ main .h{margin-top:4px}
         earlyScreen: earlyScreen
       };
 
-      return { tactics: tactics, explanations: explanations };
+      return { tactics: tactics, explanations: explanations, warnings: warnings };
     }
 
     function assertInvariants(t) {
+      if (t.pnrCoverage === "switch") {
+        if (t.helpStructure !== "none" || t.helpTiming !== "late") return false;
+      }
+      if (t.pnrCoverage === "blitz") {
+        if (t.helpTiming !== "early" || t.rotationModel !== "rotate" || t.penetration !== "help") return false;
+      }
       if (t.pnrCoverage === "drop" && t.rotationModel === "rotate") return false;
-      if (t.pnrCoverage === "switch" && t.mismatchResponse !== "scram") return false;
-      if (t.pnrCoverage === "blitz" && (t.rotationModel !== "rotate" || t.penetration !== "help" || t.helpTiming !== "early")) return false;
-      if (t.pnrCoverage === "switch" && (t.helpStructure !== "none" || t.helpTiming !== "late")) return false;
-      if (t.pnrCoverage === "hedge" && (t.helpTiming !== "early" || t.lowManTag === "none")) return false;
+      if (t.pnrCoverage === "hedge") {
+        if (t.helpTiming !== "early" || t.lowManTag === "none") return false;
+      }
       return true;
     }
 
-    return { derive: derive, full: function (userAnswers) { return derive(userAnswers); }, assertInvariants: assertInvariants };
+    function full(userAnswers) {
+      return derive(userAnswers);
+    }
+
+    return { derive: derive, full: full, assertInvariants: assertInvariants };
   })();
 
   function edgeViolations(t) {
@@ -363,18 +417,10 @@ main .h{margin-top:4px}
 
   Logic.reason = function (stepId, value) {
     var a = A();
-    if (!domain(stepId, value, a)) return domainHint(stepId);
-    if (stepId === "pnrCoverage" && a.priority && a.driveDirection && a.onBall) {
-      var probe = Derivation.derive({
-        priority: a.priority,
-        driveDirection: a.driveDirection,
-        onBall: a.onBall,
-        pnrCoverage: value,
-        transitionSafety: a.transitionSafety || "oneBack",
-        transitionPriority: a.transitionPriority || "stopBall",
-        reboundBalance: a.reboundBalance || "balanced"
-      });
-      if (!Derivation.assertInvariants(probe.tactics)) return "This shell breaks the internal tactical chain.";
+    if (!domain(stepId, value, a)) return domainHint();
+    if (stepId === "coverageSubtype") {
+      if (!a.pnrCoverage) return "Pick shell coverage first.";
+      if (!subtypeValid(a.pnrCoverage, value)) return "This subtype does not match the selected shell.";
     }
     return null;
   };
@@ -403,13 +449,23 @@ main .h{margin-top:4px}
     return o ? o.t : "";
   }
 
+  function lblSubtype(a) {
+    var arr = COV_SUBTYPE_OPTS[a.pnrCoverage] || [];
+    var o = arr.find(function (x) { return x.v === a.coverageSubtype; });
+    return o ? o.t : (a.coverageSubtype || "");
+  }
+
   var DERIVED_LABELS = {
+    rimProtection: { low: "Rim protection: low", medium: "Rim protection: medium", high: "Rim protection: high" },
+    mobilityBig: { low: "Big mobility: low", high: "Big mobility: high" },
+    switchability: { low: "Switchability: low", medium: "Switchability: medium", high: "Switchability: high" },
+    discipline: { low: "Discipline: low", high: "Discipline: high" },
     helpStructure: { weak: "Weak-side", strong: "Strong-side", mixed: "Mixed", none: "Minimal (switch skeleton)" },
     helpTiming: { early: "Early", late: "Late" },
     helpIntensity: { none: "None", stunt: "Stunt", dig: "Dig", full: "Full" },
-    rotationModel: { recover: "Recover", rotate: "Rotation (X-out)", switch: "Switch", peel: "Peel" },
+    rotationModel: { none: "None", recover: "Recover", conditional: "Conditional", rotate: "Rotation (X-out)", switch: "Switch", peel: "Peel" },
     penetration: { contain: "Contain", help: "Help", peel: "Peel" },
-    mismatchResponse: { accept: "Accept", scram: "Scram", frontHelp: "Front + help", doubleMismatch: "Double", forcedReswitch: "Forced reswitch" },
+    mismatchResponse: { accept: "Accept", scram: "Scram", situationalScram: "Situational scram", frontHelp: "Front + help", doubleMismatch: "Double", forcedReswitch: "Forced reswitch" },
     sidePnRRule: { standard: "Standard", switch: "Switch", ice: "ICE" },
     middlePnRRule: { weak: "WEAK", standard: "Standard", switch: "Switch" },
     lowManTag: { always: "Always tag", conditional: "Conditional tag", none: "None" },
@@ -423,6 +479,7 @@ main .h{margin-top:4px}
   };
 
   function tlabel(t, id) {
+    if (id === "coverageSubtype") return lblSubtype(t);
     var L = DERIVED_LABELS[id];
     if (L && t[id] != null && L[t[id]]) return L[t[id]];
     return lbl(t, id);
@@ -452,11 +509,21 @@ main .h{margin-top:4px}
       else if (t.priority === "three") id = "Three-point protection identity. ";
       else id = "Disruptive ball-pressure identity. ";
       id += t.driveDirection === "noMiddle" ? "No-middle drive rules. " : t.driveDirection === "forceMiddle" ? "Force-middle pack rules. " : "Funnel channel rules. ";
-      id += "On-ball: " + lbl(userA, "onBall") + ".";
+      id += "On-ball: " + lbl(userA, "onBall") + ". ";
+      id +=
+        "Personnel: " +
+        tlabel(t, "rimProtection") +
+        " · " +
+        tlabel(t, "mobilityBig") +
+        " · " +
+        tlabel(t, "switchability") +
+        " · " +
+        tlabel(t, "discipline") +
+        ".";
 
       var ball = [];
       ball.push("Side / middle alignment (derived from anchor): " + tlabel(t, "sidePnRRule") + " · " + tlabel(t, "middlePnRRule") + ".");
-      ball.push("Shell anchor (your input): " + lbl(userA, "pnrCoverage") + ".");
+      ball.push("Shell anchor (your input): " + lbl(userA, "pnrCoverage") + " · " + lblSubtype(userA) + ".");
 
       var half = [];
       half.push(
@@ -507,6 +574,7 @@ main .h{margin-top:4px}
         ball: ball,
         half: half,
         causal: causal,
+        warnings: pack.warnings || [],
         trans: tr,
         reb: rb,
         early: er,
@@ -553,6 +621,7 @@ main .h{margin-top:4px}
       c.appendChild(el("div", { className: "br", text: "Defensive System Builder · ELITE" }));
       c.appendChild(el("div", { className: "ti", text: r.name }));
       c.appendChild(exSec("Defensive identity", [r.identity], false));
+      if (r.warnings && r.warnings.length) c.appendChild(exSec("Staff warnings", r.warnings, true));
       c.appendChild(exSec("Ball screen rules", r.ball, true));
       c.appendChild(exSec("Half-court rules", r.half, true));
       c.appendChild(exSec("Causal chain (derived)", r.causal, true));
@@ -615,9 +684,12 @@ main .h{margin-top:4px}
           var r = Report.build(A());
           Export.fill(r);
           main.appendChild(el("div", { className: "sn", text: r.name }));
-          main.appendChild(el("div", { className: "rep" }, [
+          var repKids = [
             el("h2", { text: "Defensive identity" }),
-            el("p", { text: r.identity }),
+            el("p", { text: r.identity })
+          ];
+          if (r.warnings && r.warnings.length) repKids.push(el("div", { className: "warn", text: r.warnings.join(" ") }));
+          repKids.push(
             el("h3", { text: "Ball screen rules" }),
             el("ul", {}, r.ball.map(function (t) { return el("li", { text: t }); })),
             el("h3", { text: "Half-court rules" }),
@@ -636,7 +708,8 @@ main .h{margin-top:4px}
             el("ul", {}, r.wk.map(function (t) { return el("li", { text: t }); })),
             el("h3", { text: "Ideal use" }),
             el("ul", {}, r.us.map(function (t) { return el("li", { text: t }); }))
-          ]));
+          );
+          main.appendChild(el("div", { className: "rep" }, repKids));
           main.appendChild(el("div", { className: "export-actions" }, [
             el("button", { type: "button", className: "btn-ex", id: "dl-png", text: "Download as Image", onclick: function () { Export.png(); } })
           ]));
@@ -653,8 +726,12 @@ main .h{margin-top:4px}
         el("div", { className: "q", text: st.q }),
         el("div", { className: "h", text: st.h })
       ]);
+      if (st.id === "coverageSubtype" && !A().pnrCoverage) {
+        main.appendChild(el("div", { className: "bad", text: "Pick shell coverage on the previous step first." }));
+      }
       var box = el("div", { className: "opts" });
-      st.opts.forEach(function (o) {
+      var opts = st.id === "coverageSubtype" ? COV_SUBTYPE_OPTS[A().pnrCoverage] || [] : st.opts;
+      opts.forEach(function (o) {
         var msg = Logic.reason(st.id, o.v);
         var L = el("div", {}, []);
         L.appendChild(el("div", {}, [document.createTextNode(o.t)]));
