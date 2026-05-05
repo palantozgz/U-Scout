@@ -3,6 +3,7 @@ import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Trophy, Users } from
 import { useSearch, useLocation } from "wouter";
 import { ModulePageShell } from "./ModulePage";
 import { LandscapeHint } from "@/components/LandscapeHint";
+import { StatsRadar } from "@/components/StatsRadar";
 import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
   useLeaders,
   usePlayerDetail,
   useTeamDetail,
+  toTitleCase,
   type PlayerSeasonStats,
   type LeaderRow,
   type StandingsRow,
@@ -69,7 +71,7 @@ function formatLeaderValue(stat: string, value: unknown): string {
 }
 
 function displayLeaderPlayerName(row: LeaderRow, preferEn: boolean): string {
-  if (preferEn && row.playerNameEn?.trim()) return row.playerNameEn.trim();
+  if (preferEn && row.playerNameEn?.trim()) return toTitleCase(row.playerNameEn) ?? row.playerName ?? "";
   return row.playerName ?? "";
 }
 
@@ -177,6 +179,10 @@ export default function Stats() {
     setJugadorasLimit(50);
   }, [jugadorasTeam, jugadorasSort, jugadorasSearch]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [leaderStat]);
+
   const setTabAndLocation = (tab: MainTab) => {
     setMainTab(tab);
     const raw = search.startsWith("?") ? search.slice(1) : search;
@@ -279,7 +285,11 @@ export default function Stats() {
             onClick={() => setSeasonSheetOpen(true)}
             className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
           >
-            {seasonLabel}
+            {seasonsQ.isLoading ? (
+              <span className="w-10 h-2.5 rounded bg-muted-foreground/20 animate-pulse inline-block" />
+            ) : (
+              seasonLabel
+            )}
             <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-70" />
           </button>
         </div>
@@ -551,31 +561,24 @@ export default function Stats() {
                   ))}
                 </div>
 
-                <div className="flex gap-1.5 flex-wrap">
-                  {(["ppg", "rpg", "apg"] as const).map((k) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setJugadorasSort(k)}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors",
-                        jugadorasSort === k
-                          ? "border-primary bg-primary/15 text-primary"
-                          : "border-border bg-card text-muted-foreground hover:bg-muted/40",
-                      )}
-                    >
-                      {k === "ppg" ? L.sortPPG : k === "rpg" ? L.sortRPG : L.sortAPG}
-                    </button>
-                  ))}
-                </div>
-
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
                   <div className="grid grid-cols-[1.8fr_0.4fr_0.6fr_0.6fr_0.6fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                     <span className="text-left">{L.colPlayer}</span>
                     <span className="text-right">{L.colG}</span>
-                    <span className="text-right">{L.colPPG}</span>
-                    <span className="text-right">{L.colRPG}</span>
-                    <span className="text-right">{L.colAPG}</span>
+                    {(["ppg", "rpg", "apg"] as const).map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => setJugadorasSort(k)}
+                        className={cn(
+                          "text-right font-black uppercase tracking-wider text-[10px] touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                          jugadorasSort === k ? "text-primary" : "text-muted-foreground",
+                        )}
+                      >
+                        {k === "ppg" ? L.sortPPG : k === "rpg" ? L.sortRPG : L.sortAPG}
+                        {jugadorasSort === k && <span className="text-[8px]">▼</span>}
+                      </button>
+                    ))}
                   </div>
 
                   {jugadorasFiltered.slice(0, jugadorasLimit).map((p: PlayerSeasonStats) => {
@@ -620,6 +623,11 @@ export default function Stats() {
         onOpenChange={(open) => {
           if (!open) {
             setPlayerSheetId(null);
+            const raw2 = search.startsWith("?") ? search.slice(1) : search;
+            const qs2 = new URLSearchParams(raw2);
+            qs2.delete("player");
+            const newSearch = qs2.toString();
+            setLocation(newSearch ? `/stats?${newSearch}` : "/stats");
             if (returnToTeamId) {
               setTeamSheetId(returnToTeamId);
               setReturnToTeamId(null);
@@ -627,11 +635,16 @@ export default function Stats() {
           }
         }}
       >
-        <SheetContent side="bottom" className="h-[92dvh] rounded-t-2xl p-0 flex flex-col">
+        <SheetContent side="bottom" className="h-[92dvh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full">
           <StatsPlayerSheet
             externalId={playerSheetId}
             onClose={() => {
               setPlayerSheetId(null);
+              const raw2 = search.startsWith("?") ? search.slice(1) : search;
+              const qs2 = new URLSearchParams(raw2);
+              qs2.delete("player");
+              const newSearch = qs2.toString();
+              setLocation(newSearch ? `/stats?${newSearch}` : "/stats");
               if (returnToTeamId) {
                 setTeamSheetId(returnToTeamId);
                 setReturnToTeamId(null);
@@ -649,7 +662,7 @@ export default function Stats() {
       </Sheet>
 
       <Sheet open={Boolean(teamSheetId)} onOpenChange={(open) => { if (!open) setTeamSheetId(null); }}>
-        <SheetContent side="bottom" className="h-[92dvh] rounded-t-2xl p-0 flex flex-col">
+        <SheetContent side="bottom" className="h-[92dvh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full">
           <StatsTeamSheet
             externalId={teamSheetId}
             seasonId={effectiveSeasonId}
@@ -694,9 +707,11 @@ function StatsPlayerSheet({
   const zh = locale === "zh";
   const { data, isLoading, isError } = usePlayerDetail(externalId);
   const [showAllGames, setShowAllGames] = useState(false);
+  const [showRadar, setShowRadar] = useState(false);
 
   useEffect(() => {
     setShowAllGames(false);
+    setShowRadar(false);
   }, [externalId]);
 
   const player = data?.player;
@@ -704,7 +719,7 @@ function StatsPlayerSheet({
 
   const displayName =
     (locale === "en" || locale === "es") && player?.nameEn?.trim()
-      ? player.nameEn.trim()
+      ? (toTitleCase(player.nameEn) ?? player.nameEn.trim())
       : player?.nameZh ?? "—";
 
   const L = {
@@ -805,6 +820,25 @@ function StatsPlayerSheet({
                 <StatChip label="3P%" value={player.fg3Pct != null ? `${player.fg3Pct.toFixed(1)}%` : "—"} />
                 <StatChip label="FT%" value={player.ftPct != null ? `${player.ftPct.toFixed(1)}%` : "—"} />
               </div>
+              <button
+                type="button"
+                onClick={() => setShowRadar((v) => !v)}
+                className="w-full rounded-xl border border-border bg-muted/20 py-2 text-xs font-black text-muted-foreground hover:bg-muted/40 active:opacity-70 touch-manipulation transition-colors flex items-center justify-center gap-1.5"
+              >
+                <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+                {showRadar
+                  ? locale === "es"
+                    ? "Ocultar radar"
+                    : locale === "zh"
+                      ? "隐藏雷达图"
+                      : "Hide radar"
+                  : locale === "es"
+                    ? "Ver radar"
+                    : locale === "zh"
+                      ? "查看雷达图"
+                      : "View radar"}
+              </button>
+              {showRadar && <StatsRadar player={player} locale={locale} />}
             </div>
 
             <LandscapeHint />
@@ -912,7 +946,7 @@ function StatsTeamSheet({
 
   const team = data?.team;
   const players = data?.players ?? [];
-  const activePlayers = players.filter((p) => p.games > 0 && p.ppg > 0);
+  const activePlayers = players.filter((p) => p.games > 0);
 
   const teamName = team?.nameZh ?? "—";
 
@@ -1004,7 +1038,8 @@ function StatsTeamSheet({
                     <span className="text-right">APG</span>
                   </div>
                   {activePlayers.map((p: TeamRosterPlayer) => {
-                    const name = (preferEn && p.nameEn?.trim()) ? p.nameEn.trim() : p.nameZh;
+                    const name =
+                      preferEn && p.nameEn?.trim() ? (toTitleCase(p.nameEn) ?? p.nameEn.trim()) : p.nameZh;
                     return (
                       <button
                         key={p.externalId}

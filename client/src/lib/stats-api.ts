@@ -1,6 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "./queryClient";
 
+export function toTitleCase(str: string | null | undefined): string | null {
+  if (!str?.trim()) return null;
+  return str
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export type PlayerSeasonStats = {
   externalId: string;
   playerName: string;

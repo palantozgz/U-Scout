@@ -48,65 +48,76 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ---
 
-## Estado app — 4 mayo 2026 (sesión p17 — EN CURSO)
+## U Playbook — módulo futuro de U Core
 
-### Completado esta sesión ✅ (p16)
-1. `GET /api/stats/players` — añadido `externalId` al SELECT (antes solo playerName)
-2. `PlayerSeasonStats` type — añadido campo `externalId: string`
-3. Tab Jugadoras → tap fila → abre `StatsPlayerSheet` (antes era expand inline)
-4. `GET /api/stats/team/:externalId` — nuevo endpoint: standings data + roster con ppg/rpg/apg
-5. `TeamDetail` + `TeamRosterPlayer` interfaces + `useTeamDetail` hook en stats-api.ts
-6. `StatsTeamSheet` — header logo + nombre + W-L + NET, lista jugadoras tappable
-7. Tab Equipos → tap fila → abre `StatsTeamSheet`
-8. Flujo completo: Equipos → equipo → plantilla → jugadora → `StatsPlayerSheet`
-9. `npm run check` limpio
+### Qué es
+**U Playbook** es el módulo de documentación de filosofía defensiva (y en el futuro ofensiva) del equipo. La primera pieza es el **Defensive System Builder**, un wizard HTML standalone desarrollado fuera del repo en sesión paralela (mayo 2026) que permite a un staff técnico construir, documentar y comparar hasta 3 sistemas defensivos completos.
 
-### Completado sesión p15 ✅
-1. `GET /api/stats/player/:externalId` — ficha completa con promedios temporada + game log 30 partidos
-   - MPG: SPLIT_PART(minutes,':',1)*60 + SPLIT_PART(minutes,':',2) / 60 (columna text "MM:SS")
-   - rivalName y score: subquery para resolver home_team_id FK → external_id
-2. `PlayerDetail` + `GameLogEntry` interfaces + `usePlayerDetail` hook en stats-api.ts
-3. `StatsPlayerSheet` en Stats.tsx: averages grid + LandscapeHint + game log 30 partidos
-4. `minutesToDisplay()` helper — convierte "MM:SS" text a display legible
-5. Deep link completo: `?player=EXTERNAL_ID` → abre StatsPlayerSheet directa
-6. Líderes: cada fila tappable → abre StatsPlayerSheet
-7. **Fix crítico collector**: API `/playerdata` devuelve array `[{teamType,teamPlayerData}]` no `{home,away}` → `Array.isArray(d)` con `find(teamType==='Home')`
-8. **Fix duplicate key**: `2PAPUL` duplicado en pbp.ts eliminado
-9. **Arquitectura incremental sync**:
-   - `GET /api/stats/sync-status` en Railway → devuelve gameIds ya en DB para pbp y player_boxscores
-   - `fetchSyncStatus()` en collector/src/ingest.ts
-   - `syncNewPBP` y `syncNewPlayerBoxscores` filtran solo gameIds pendientes
-   - Sync nightly: ~10 min en vez de ~5 horas una vez datos cargados
-10. `collector/src/force-player-boxscores.ts` — script one-shot (npx tsx)
+### Archivo actual
+- **Ruta standalone**: `/Users/palant/Downloads/defensive-system-builder-v5.html`
+- **Versión**: v5 (la más reciente y estable)
+- Este archivo es un HTML self-contained — sin dependencias externas excepto `html2canvas` (CDN) para export PNG. No requiere backend.
 
-### Estado DB al cierre sesión p16
-```
-stats_teams:              18 ✅
-stats_games:             224 ✅
-stats_standings:          18 ✅
-stats_players:           307 ✅
-stats_pbp:           116.700 ✅
-stats_player_boxscores:  5.335 ✅
-```
+### Specs técnicas del wizard
+- **41 pasos totales** organizados en 12 secciones
+- **Engine condicional**: `showIf(answers)` por paso — pasos aparecen/desaparecen según respuestas anteriores
+- **Visibilidad mínima** (switch anchor, sin ICE, sin dig): ~30 pasos
+- **Visibilidad máxima** (hedge + ICE + dig + front + todo activo): ~37 pasos
+- **3 sistemas en paralelo**: crear, editar, comparar
+- **Comparador mejorado**: 🔴 Critical / 🟡 Tactical / ⚪ Detail + sección "En común"
+- **Export PNG** por sistema (html2canvas)
+- **Personnel compatibility analysis**: semáforo 🔴🟡🟢 automático cruzando elecciones vs personnel
 
-### Completado esta sesión ✅ (p17)
-1. Fix build Railway: `vite` + `@vitejs/plugin-react` + `@tailwindcss/vite` + `tailwindcss` movidos a dependencies
-2. Fix `railway.json`: `buildCommand: npm install --include=dev && npm run build`
-3. Fix `GET /api/stats/players`: `AVG(pb.minutes::float)` → `SPLIT_PART` para columna TEXT MM:SS
-4. Tab Equipos eliminado (duplicado de Clasificación)
-5. `standingsGroups` useMemo: agrupa por `phaseName`, headers de grupo, orden por wins DESC
-6. Clasificación: filas → `<button>` tappables → abre `StatsTeamSheet`
-7. `Stats.tsx`: `MainTab = "liga" | "jugadoras"` (era `| "equipos"`)
+### Secciones del wizard (12)
+1. **Identity** (5 pasos): systemName, priority, driveDirection, onBall, pickupPoint
+2. **Off-Ball** (3 pasos): offBallPosition, onePassDeny, helpSideDepth
+3. **Ball Screens** (7 pasos, 4 condicionales): pnrCoverage, coverageSubtype, sideRule, middleRule, dhoRule, nextCoverage¹, popAnswer²
+4. **ICE Details** (2 pasos, condicionales si sideRule=ice): iceCornerX3, iceSnake
+5. **Early Offense** (4 pasos): earlyPnrCoverage, earlyPnrBig, earlyRescreenRule, earlyPostRule
+6. **Off-Ball Screens** (5 pasos): pinDownRule, backScreenRule, flareRule, stagRule, dhoOffBall
+7. **Spain PnR** (1 paso): spainCoverage — define los 3 roles (X5/X1/X-backscreener) en una sola elección
+8. **Switch Management** (3 pasos): rescramRule, xoutModel, mismatchResponse
+9. **Post Defense** (3 pasos, 2 condicionales): postDefense, postDigger³, postFront⁴
+10. **Personnel** (4 pasos): rimProtection, mobilityBig, switchability, discipline
+11. **Transition** (3 pasos): transitionSafety, transitionPriority, reboundBalance
+12. **KYP Rules** (1 paso): kypRules (0–5 reglas game-day específicas por rival)
 
-### 🔴 VERIFICAR EN PRODUCCIÓN
-1. Tab Players → ¿carga lista jugadoras?
-2. Tap jugadora → ¿abre StatsPlayerSheet con averages + game log?
-3. Tab League → Standings → tap equipo → ¿abre StatsTeamSheet?
+¹ nextCoverage: solo si pnrCoverage ≠ switch — implementa sistema Gonzalo Rodríguez / Monbus Obradoiro (X5 attached to roller, perimetral más cercano salta al balón, guards rotan entre sí)
+² popAnswer: solo si hay pnrCoverage — opciones diferenciadas por anchor (hedge→X5 recovery corta vs drop→X5 closeout largo)
+³ postDigger: solo si postDefense = 'dig'
+⁴ postFront: solo si postDefense = 'front' o 'threeFront'
 
-### 🔴 OBJETIVO PRÓXIMA SESIÓN
-1. Confirmar todo lo anterior en producción
-2. StatsMiniChip deep link end-to-end verificado en producción
-3. `StatsRadar` — recharts 6 ejes (portrait behind tap en StatsPlayerSheet)
+### Decisiones de arquitectura importantes (para cuando se integre en U Core)
+- **spainCoverage** cubre los 3 roles defensores en una pregunta — NO añadir spainBackScreener ni spainMismatchAnswer (eliminados por redundancia)
+- **mismatchResponse** cubre tanto big-on-guard como guard-on-big en una sola pregunta — NO añadir mismatchBigOnGuard ni mismatchGuardOnBig (eliminados por redundancia)
+- **xoutModel** primera opción es "Last helps · Next reads first pass · Beaten recovers second" (modelo real del staff, no scripted)
+- El comparador requiere ≥2 sistemas completados para habilitarse
+
+### Roadmap U Playbook (cuando se integre a U Core)
+1. Portarlo como página React: `client/src/pages/playbook/DefensiveSystems.tsx`
+2. Persistir sistemas en Supabase tabla `playbook_systems` (por club, por coach)
+3. Share de sistema entre staff (vista de solo lectura)
+4. Añadir sección Offensive Systems (PnR offense sets, ATO plays)
+5. Vincular sistemas a partidos (KYP rules pre-game)
+6. Export PDF además de PNG
+
+---
+
+## Estado app — 5 mayo 2026 (sesión p18 — CIERRE)
+
+### Completado esta sesión ✅ (p18)
+- **Defensive System Builder v5** (U Playbook MVP): wizard HTML standalone con 41 pasos, engine condicional showIf, 12 secciones, Next coverage (Obradoiro), ICE details, Spain PnR, Switch Management, personnel compatibility analysis, comparador por criticidad
+- Auditoría completa de duplicados vs documentación táctica profesional — 4 pasos eliminados, 2 condicionalizados, 3 correcciones de contenido
+- Corrección pop answer: opciones diferenciadas hedge vs drop vs blitz
+- Corrección xoutModel: opción real "Last · Next reads first pass · Beaten recovers second"
+- Corrección mismatchResponse: cubre explícitamente ambas direcciones de mismatch en cada opción
+- Corrección spainCoverage: hint y descripciones detallan los 3 roles por opción
+
+### 🔴 OBJETIVO PRÓXIMA SESIÓN (U Stats)
+1. Audit UX Stats: scroll, layout, elementos fuera de pantalla — prompt Cursor con capturas de Pablo
+2. Verificar StatsTeamSheet en producción (tap equipo en Clasificación)
+3. StatsMiniChip deep link end-to-end en producción
+4. `StatsRadar` recharts 6 ejes (portrait behind tap en StatsPlayerSheet)
 
 ### 🔴 RIESGOS ACTIVOS
 - P1 Schedule scroll List→Planner: no recentra en hoy (pendiente)
@@ -131,6 +142,9 @@ stats_player_boxscores:  5.335 ✅
 - PlayerEditor: auditoría completa campos
 - ReportViewV4 → diseño 3 slides
 - `backup/motor-v2.1-pre-20260405` → merge a main
+
+#### U Playbook (futuro módulo)
+- Portarlo a React dentro de U Core (ver sección U Playbook arriba)
 
 #### Platform
 - Favicon + Club logo upload real
@@ -224,9 +238,6 @@ GET  /api/stats/team/:id       ✅ standings data + roster con ppg/rpg/apg
 GET  /api/stats/sync-status    ✅ (auth: STATS_INGEST_KEY) pbpDone + boxDone
 POST /api/stats/import-team    ✅
 POST /api/stats/ingest         ✅
-
-PENDIENTES:
-GET  /api/stats/team/:id       → ficha equipo con plantilla + métricas
 ```
 
 ## U Stats — componentes
@@ -251,6 +262,26 @@ GET  /api/stats/team/:id       → ficha equipo con plantilla + métricas
 - Migrations destructivas: raw SQL Supabase, nunca drizzle-kit push
 - Railway: esbuild en dependencies (no devDependencies)
 - Tailwind v4: animaciones en index.css, NO en tailwind.config
+
+## Modelo de trabajo — aprendizajes sesiones p17-p18 (CRÍTICO)
+
+### Lo que falló y no debe repetirse
+- **Edits directos de Claude sobre archivos grandes** (Stats.tsx, routes.ts) con Filesystem:edit_file causan corrupción cuando el texto contiene backticks, regex o JSX anidado. NUNCA editar estos archivos directamente — siempre prompt Cursor.
+- **Claude trabajó a ciegas repetidamente**: propuso fixes sin leer el estado real del archivo, causando loops de debugging. Regla: leer archivo completo ANTES de proponer cualquier cambio.
+- **Prompts de audit genéricos**: cuando Pablo pide un audit de UX/navegación, Claude debe proponer un prompt que simule recorridos de usuario reales (tap por tap) y compare contra specs — no una lista de fixes CSS.
+- **Cursor duplica handlers en routes.ts**: ya documentado pero se volvió a ignorar. Después de CUALQUIER edit de Cursor a routes.ts, verificar con `grep -n 'app.get.*api/stats' server/routes.ts` antes de commitear.
+- **Números inventados**: Claude inventó conteos de pasos sin contar realmente. Siempre contar con grep antes de afirmar números.
+- **Proponer eliminaciones sin justificación por paso**: cada eliminación requiere argumentación táctica verificada.
+
+### Cómo debe trabajar Claude en próximas sesiones
+1. Leer CLAUDE_CONTEXT.md + archivos relevantes ANTES de cualquier propuesta
+2. Para cambios en Stats.tsx, routes.ts, Schedule.tsx → siempre prompt Cursor, nunca edit directo
+3. Para audits de UX → prompt Cursor que recorra flujos de usuario completos comparando contra specs
+4. Verificar en local antes de commitear
+5. Comandos siempre completos: cd + check + add + commit + push en una línea
+6. Contar siempre con herramientas antes de afirmar números
+
+---
 
 ## Notas (trampas conocidas)
 - bash_tool corre en Linux — NO accede al Mac. Usar Filesystem MCP

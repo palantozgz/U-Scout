@@ -1671,7 +1671,7 @@ export async function registerRoutes(
       LEFT JOIN stats_teams st ON st.id = sp.team_id
       LEFT JOIN stats_player_boxscores pb ON pb.player_external_id = sp.external_id
       LEFT JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
-      WHERE sp.external_id = ${externalId}
+      WHERE sp.external_id::text = ${externalId}
       GROUP BY sp.external_id, sp.name_zh, sp.name_en,
                sp.jersey_number, sp.position, st.name_zh, st.logo_url, st.external_id
       LIMIT 1
@@ -1702,7 +1702,7 @@ export async function registerRoutes(
       JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
       LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
       LEFT JOIN stats_teams at ON at.id = sg.away_team_id
-      WHERE pb.player_external_id = ${externalId}
+      WHERE pb.player_external_id::text = ${externalId}
       ORDER BY sg.scheduled_at DESC
       LIMIT 30
     `);
