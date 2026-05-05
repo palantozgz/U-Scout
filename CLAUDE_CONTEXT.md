@@ -26,8 +26,9 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/pages/scout/Personnel.tsx` — gestión plantillas + import WCBA (header responsive ✅)
 - `client/src/pages/scout/MyScout.tsx` — fichas coach (canónicas + sandbox) + StatsMiniChip ✅
 - `client/src/pages/core/Schedule.tsx` — god file ~228KB (U Schedule)
-- `client/src/pages/core/Stats.tsx` — U Stats: 3 tabs + SeasonPicker + StatsPlayerSheet ✅
-- `client/src/lib/stats-api.ts` — hooks completos: usePlayerSeasonStats, useGameLog, useSeasons, useStandings, useLeaders, usePlayerDetail ✅
+- `client/src/pages/core/Stats.tsx` — U Stats: 2 tabs (Liga/Jugadoras) + SeasonPicker + StatsPlayerSheet + StatsTeamSheet + deep link ?player= + StatsRadar toggle ✅
+- `client/src/lib/stats-api.ts` — hooks completos: usePlayerSeasonStats, useGameLog, useSeasons, useStandings, useLeaders, usePlayerDetail, useTeamDetail ✅
+- `client/src/components/StatsRadar.tsx` — radar 6 ejes recharts (PPG/RPG/APG/SPG/BPG/FG%) ✅
 - `client/src/components/LandscapeHint.tsx` — componente rotate hint ✅
 - `server/routes.ts` — rutas API Express
 - `server/stats-ingest.ts` — ingest endpoint Pi → Railway → Supabase
@@ -54,19 +55,24 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 **U Playbook** es el módulo de documentación de filosofía defensiva (y en el futuro ofensiva) del equipo. La primera pieza es el **Defensive System Builder**, un wizard HTML standalone desarrollado fuera del repo en sesión paralela (mayo 2026) que permite a un staff técnico construir, documentar y comparar hasta 3 sistemas defensivos completos.
 
 ### Archivo actual
-- **Ruta standalone**: `/Users/palant/Downloads/defensive-system-builder-v5.html`
-- **Versión**: v5 (la más reciente y estable)
-- Este archivo es un HTML self-contained — sin dependencias externas excepto `html2canvas` (CDN) para export PNG. No requiere backend.
+- **Ruta standalone**: `/Users/palant/Downloads/defensive-system-builder-v6.html` ✅ (sesión p20 — 5 mayo 2026)
+- **Versión**: v6 (la más reciente y estable)
+- v5 conservada como rollback en `/Users/palant/Downloads/defensive-system-builder-v5.html`
+- Self-contained — sin backend. Única dependencia externa: `html2canvas` (CDN) para export PNG.
+- ⚠️ La copia `/Users/palant/Downloads/U scout/defensive-system-builder-elite.html` (36 KB) es OBSOLETA — no usar.
 
-### Specs técnicas del wizard
-- **41 pasos totales** organizados en 12 secciones
-- **Engine condicional**: `showIf(answers)` por paso — pasos aparecen/desaparecen según respuestas anteriores
-- **Visibilidad mínima** (switch anchor, sin ICE, sin dig): ~30 pasos
-- **Visibilidad máxima** (hedge + ICE + dig + front + todo activo): ~37 pasos
+### Specs técnicas del wizard (v6)
+- **41 pasos totales** en 12 secciones
+- **Engine condicional**: `showIf(answers)` — exactamente 6 pasos condicionales: nextCoverage, popAnswer, iceCornerX3, iceSnake, postDigger, postFront
+- **Visibilidad real**: mínima **35 pasos** (los 6 condicionales ocultos), máxima **41 pasos** (todos visibles). [La spec previa decía 30/37 — incorrecta, corregida en p20.]
 - **3 sistemas en paralelo**: crear, editar, comparar
-- **Comparador mejorado**: 🔴 Critical / 🟡 Tactical / ⚪ Detail + sección "En común"
+- **Comparador**: 🔴 Critical / 🟡 Tactical / ⚪ Detail + sección "En común"
 - **Export PNG** por sistema (html2canvas)
+- **Export/Import JSON** ✅ (v6) — backup de los 3 sistemas, migrar entre dispositivos, compartir con otro coach. Formato: `{ version:6, exportedAt, systems:[...] }`
 - **Personnel compatibility analysis**: semáforo 🔴🟡🟢 automático cruzando elecciones vs personnel
+- **Persistencia** ✅ (v6): `localStorage` clave `dsb-v6-systems`. Sobrevive refresh, cierre Safari móvil, background-purge. Falla silenciosa en private mode.
+- **Scoring de complejidad** ✅ (v6, recalibrado): pesos por elección (no por desviación-de-default). Bandas: ≤8 Simple · 9–15 Moderate · 16–24 Demanding · 25+ Elite. Pesos clave: PnR switch=0, drop=1, hedge=3, blitz=5; Spain blitzSpain=4; Next conditional=5; Post front=3; KYP +1 c/u. Tabla completa en `derive()` v6 línea ~870.
+- **Modelo de navegación** ✅ (v6 final): un único patrón. **Forward** = clic en una opción → `wizPick()` avanza un paso. **Backward** = clic en `← Back` (arriba de cada paso desde paso 2 + abajo del informe) → `wizBack()` retrocede un paso preservando todas las respuestas. La opción previamente elegida se marca con `class="selected"` (borde azul + ✓). Re-clicar la opción marcada avanza con la misma respuesta; clicar otra opción la sobrescribe y resetea respuestas downstream que dependieran de ella. Sin chips clicables, sin selectores de salto, sin atajos forward — un solo modelo predecible.
 
 ### Secciones del wizard (12)
 1. **Identity** (5 pasos): systemName, priority, driveDirection, onBall, pickupPoint
@@ -103,34 +109,59 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ---
 
-## Estado app — 5 mayo 2026 (sesión p18 — CIERRE)
+## Estado app — 5 mayo 2026 (sesión p20 — CIERRE U Playbook v6)
 
-### Completado esta sesión ✅ (p18)
-- **Defensive System Builder v5** (U Playbook MVP): wizard HTML standalone con 41 pasos, engine condicional showIf, 12 secciones, Next coverage (Obradoiro), ICE details, Spain PnR, Switch Management, personnel compatibility analysis, comparador por criticidad
-- Auditoría completa de duplicados vs documentación táctica profesional — 4 pasos eliminados, 2 condicionalizados, 3 correcciones de contenido
-- Corrección pop answer: opciones diferenciadas hedge vs drop vs blitz
-- Corrección xoutModel: opción real "Last · Next reads first pass · Beaten recovers second"
-- Corrección mismatchResponse: cubre explícitamente ambas direcciones de mismatch en cada opción
-- Corrección spainCoverage: hint y descripciones detallan los 3 roles por opción
+### Completado esta sesión ✅ (p20)
+- **Auditoría completa** de `defensive-system-builder-v5.html` (1901 líneas) — verificado contra spec U Playbook
+- **Discrepancias detectadas**: visibilidad real 35/41 (no 30/37 como decía spec), `deleteSystem` duplicado (líneas 1086 y 1618), 0 persistencia → data loss en refresh, scoring de complejidad inflado (suma respuestas obligatorias como si fueran complejidad), sin Export JSON, viewport bloquea pinch-zoom
+- **v6 publicado** `/Users/palant/Downloads/defensive-system-builder-v6.html` (2008 líneas, +107 sobre v5):
+  - **P0** localStorage persistence (`dsb-v6-systems`) en saveProgress, deleteSystem, doImportJson
+  - **P0** `deleteSystem` duplicado eliminado (queda 1)
+  - **P1** scoring de complejidad reescrito con tabla de pesos por elección + 4 bandas calibradas
+  - **P2** Export/Import JSON (botones en home + funciones doExportJson/doImportJson)
+  - **P2** viewport sin `user-scalable=no` (a11y WCAG)
+  - **P3** branding título y export PNG: "Defensive System Builder · v6"
+- **Validación**: `node` parsea el JS sin errores; verificación grep OK (1 deleteSystem, hooks localStorage en 4 puntos, weights table presente, JSON I/O presente)
 
-### 🔴 OBJETIVO PRÓXIMA SESIÓN (U Stats)
-1. Audit UX Stats: scroll, layout, elementos fuera de pantalla — prompt Cursor con capturas de Pablo
-2. Verificar StatsTeamSheet en producción (tap equipo en Clasificación)
-3. StatsMiniChip deep link end-to-end en producción
-4. `StatsRadar` recharts 6 ejes (portrait behind tap en StatsPlayerSheet)
+### 🔴 OBJETIVO PRÓXIMA SESIÓN (U Playbook continuación)
+1. Probar v6 manualmente: crear 3 sistemas, refrescar, verificar restauración. Export JSON, Import JSON con confirm, comparador habilitado.
+2. Verificar bandas de complejidad con sistemas reales del staff (¿"Simple" sale demasiado fácil? ¿"Elite" sale demasiado raro?). Ajustar pesos si calibran mal.
+3. Plan de port a React/U Core: spec tabla `playbook_systems` Supabase, estructura `client/src/pages/playbook/DefensiveSystems.tsx`, estrategia i18n (≈150-200 keys EN/ES/ZH), code splitting `React.lazy`, mapeo CSS vars del HTML → Tailwind v4 + shadcn theme.
+
+---
+
+## Estado app — 5 mayo 2026 (sesión p19 — CIERRE)
+
+### Completado esta sesión ✅ (p19)
+- **Audit UX Stats completo** (6 issues, 0 críticos): chips sin snap (B1/B2), game log densidad (B3), líderes sin scroll reset (C1), URL ?player= no limpia al cerrar (D2), "2092" visible durante carga (E1)
+- **Fix D2**: cerrar StatsPlayerSheet limpia ?player= de URLSearchParams y llama setLocation
+- **Fix E1**: SeasonPicker muestra skeleton pulse mientras seasonsQ.isLoading en lugar de "2092"
+- **Fix C1**: useEffect [leaderStat] → window.scrollTo({ top: 0, behavior: 'smooth' })
+- **StatsRadar.tsx** nuevo componente: radar 6 ejes recharts (PPG/RPG/APG/SPG/BPG/FG%), normalización por AXIS_MAX WCBA, colores via CSS vars (--primary/--border), 220px height portrait
+- **Integración StatsRadar en StatsPlayerSheet**: botón "Ver radar" / "Ocultar radar" (toggle), resetea a false al cambiar jugadora, posición dentro del card de StatChips tras FG%/3P%/FT%
+- Commit: `a6fa747` — "feat(stats): UX fixes D2/E1/C1 + StatsRadar 6-axis radar chart"
+
+### 🔴 OBJETIVO PRÓXIMA SESIÓN (U Stats continuación)
+1. Verificar StatsRadar en producción con datos reales — ajustar AXIS_MAX si hay outliers
+2. Verificar StatsTeamSheet end-to-end en producción (curl + visual)
+3. StatsMiniChip deep link ?player= end-to-end verificación
+4. Issues menores pendientes del audit: B1 (chips snap), B2 (scroll reset chips), B3 (densidad game log)
 
 ### 🔴 RIESGOS ACTIVOS
 - P1 Schedule scroll List→Planner: no recentra en hoy (pendiente)
 - P2 hasReport — verificar con datos reales
+- StatsRadar AXIS_MAX son estimaciones — verificar contra datos reales WCBA en producción
 
 ### 🔴 BACKLOG COMPLETO
 
 #### U Stats
-- `StatsRadar` recharts 6 ejes (portrait behind tap en StatsPlayerSheet)
 - Shot chart landscape (hexbin) — LandscapeHint placeholder ya en StatsPlayerSheet
 - `StatsComparator` landscape split view
 - Bubble chart liga (freq vs eficiencia, referencia elradardelscout.com)
 - Scraping histórico temporadas [1767, 1470, 1108, 873, 428, 253...]
+- B1: chips equipo sin snap ni indicador de scroll horizontal
+- B2: scroll horizontal chips no resetea al cambiar filtro equipo
+- B3: game log 7 columnas — densidad en 390px (no es overflow, es cosmético)
 
 #### Personnel — gestión de temporadas (diseño aprobado)
 - **"Borrar todo" manual**: head_coach borra TODOS equipos+fichas canónicas de golpe. Destructiva, doble confirmación, nunca automática.
@@ -243,14 +274,16 @@ POST /api/stats/ingest         ✅
 ## U Stats — componentes
 ### Implementados ✅
 - `LandscapeHint.tsx`
-- `Stats.tsx` — 3 tabs + SeasonPicker + StatsPlayerSheet + StatsTeamSheet + deep link ?player=
+- `StatsRadar.tsx` — radar 6 ejes recharts, AXIS_MAX: PPG=35/RPG=15/APG=10/SPG=4/BPG=4/FG%=65
+- `Stats.tsx` — 2 tabs (Liga/Jugadoras) + SeasonPicker + StatsPlayerSheet + StatsTeamSheet + deep link ?player= + StatsRadar toggle
 - `StatsMiniChip` — MyScout.tsx, fichas canónicas, apiRequest Bearer
-- `StatsPlayerSheet` — averages + LandscapeHint + game log 30 partidos
+- `StatsPlayerSheet` — averages + radar toggle + LandscapeHint + game log 30 partidos
 - `StatsTeamSheet` — logo + W-L + NET + plantilla tappable → StatsPlayerSheet
 
 ### Pendientes
-- `StatsRadar` recharts 6 ejes
-- `StatsComparator` landscape split
+- Shot chart landscape (hexbin)
+- `StatsComparator` landscape split view
+- Ajuste AXIS_MAX con datos reales producción
 
 ---
 
@@ -263,7 +296,7 @@ POST /api/stats/ingest         ✅
 - Railway: esbuild en dependencies (no devDependencies)
 - Tailwind v4: animaciones en index.css, NO en tailwind.config
 
-## Modelo de trabajo — aprendizajes sesiones p17-p18 (CRÍTICO)
+## Modelo de trabajo — aprendizajes sesiones p17-p19 (CRÍTICO)
 
 ### Lo que falló y no debe repetirse
 - **Edits directos de Claude sobre archivos grandes** (Stats.tsx, routes.ts) con Filesystem:edit_file causan corrupción cuando el texto contiene backticks, regex o JSX anidado. NUNCA editar estos archivos directamente — siempre prompt Cursor.

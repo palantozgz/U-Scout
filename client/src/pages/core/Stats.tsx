@@ -246,6 +246,7 @@ export default function Stats() {
       const k = phaseKey(r);
       if (!order.includes(k)) order.push(k);
     }
+    order.sort((a, b) => a.localeCompare(b, "zh"));
     const showHeaders = order.length > 1;
     const groups = order.map((k) => {
       const label = k === "__default__" ? null : k;

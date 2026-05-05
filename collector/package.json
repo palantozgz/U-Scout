@@ -13,6 +13,7 @@
   "dependencies": {
     "axios": "^1.7.2",
     "node-cron": "^3.0.3",
+    "pinyin-pro": "^3.28.1",
     "telegraf": "^4.16.3",
     "winston": "^3.13.0"
   },
