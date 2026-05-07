@@ -1819,6 +1819,7 @@ export async function registerRoutes(
         sp.name_zh           AS "nameZh",
         sp.name_en           AS "nameEn",
         sp.jersey_number     AS "jerseyNumber",
+        sp.photo_url         AS "photoUrl",
         sp.position,
         st.name_zh           AS "teamName",
         st.name_en           AS "teamNameEn",
@@ -1851,7 +1852,7 @@ export async function registerRoutes(
       LEFT JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
       WHERE sp.external_id::text = ${externalId}
       GROUP BY sp.external_id, sp.name_zh, sp.name_en,
-               sp.jersey_number, sp.position, st.name_zh, st.name_en, st.logo_url, st.external_id
+               sp.jersey_number, sp.photo_url, sp.position, st.name_zh, st.name_en, st.logo_url, st.external_id
       LIMIT 1
     `);
     const player = (playerRows as any).rows?.[0];
@@ -1907,6 +1908,7 @@ export async function registerRoutes(
         nameZh: player.nameZh,
         nameEn: player.nameEn,
         jerseyNumber: player.jerseyNumber,
+        photoUrl: player.photoUrl ?? null,
         position: player.position,
         teamName: player.teamName,
         teamNameEn: player.teamNameEn ?? null,
@@ -1972,9 +1974,21 @@ export async function registerRoutes(
         st.logo_url      AS "logoUrl",
         ss.wins,
         ss.losses,
-        ss.pts_per_game  AS ppg,
-        ss.pts_against_per_game AS oppg,
-        ss.rank
+        ss.pts_per_game          AS ppg,
+        ss.pts_against_per_game  AS oppg,
+        ss.rank,
+        ss.win_pct               AS "winPct",
+        ss.streak,
+        ss.last10_wins           AS "last10W",
+        ss.last10_losses         AS "last10L",
+        ss.home_wins             AS "homeW",
+        ss.home_losses           AS "homeL",
+        ss.away_wins             AS "awayW",
+        ss.away_losses           AS "awayL",
+        (SELECT ROUND(SUM(sb.fgm)::numeric / NULLIF(SUM(sb.fga), 0) * 100, 1)
+         FROM stats_boxscores sb
+         JOIN stats_games sg ON sg.id = sb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+         WHERE sb.team_id = st.id) AS "teamFgPct"
       FROM stats_teams st
       LEFT JOIN stats_standings ss
         ON ss.team_external_id = st.external_id AND ss.season_id = ${seasonId}
@@ -2031,6 +2045,15 @@ export async function registerRoutes(
         oppg: team.oppg != null ? Number(team.oppg) : null,
         net,
         rank: Number(team.rank ?? 0),
+        winPct: team.winPct != null ? Number(team.winPct) : null,
+        streak: team.streak != null ? Number(team.streak) : null,
+        last10W: team.last10W != null ? Number(team.last10W) : null,
+        last10L: team.last10L != null ? Number(team.last10L) : null,
+        homeW: team.homeW != null ? Number(team.homeW) : null,
+        homeL: team.homeL != null ? Number(team.homeL) : null,
+        awayW: team.awayW != null ? Number(team.awayW) : null,
+        awayL: team.awayL != null ? Number(team.awayL) : null,
+        teamFgPct: team.teamFgPct != null ? Number(team.teamFgPct) : null,
       },
       players,
     });

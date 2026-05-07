@@ -839,6 +839,15 @@ function StatsPlayerSheet({
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
+        {player?.photoUrl ? (
+          <img
+            src={player.photoUrl}
+            alt=""
+            className="w-14 h-14 rounded-full object-cover object-top bg-muted/40 shrink-0 border border-border"
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-full bg-muted/40 shrink-0" />
+        )}
         <div className="flex-1 min-w-0">
           <p className="text-base font-black text-foreground truncate">{displayName}</p>
           {player && (
@@ -1167,6 +1176,57 @@ function StatsTeamSheet({
                 <StatChip label="PPG" value={team.ppg != null ? team.ppg.toFixed(1) : "—"} />
                 <StatChip label="OPPG" value={team.oppg != null ? team.oppg.toFixed(1) : "—"} />
                 <StatChip label="NET" value={team.net != null ? (team.net > 0 ? `+${team.net}` : String(team.net)) : "—"} />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+              <div className="grid grid-cols-3 gap-2">
+                <StatChip
+                  label="WIN%"
+                  value={
+                    team.winPct != null ? `${(Number(team.winPct) * 100).toFixed(1)}%` : "—"
+                  }
+                />
+                <StatChip
+                  label="FG%"
+                  value={team.teamFgPct != null ? `${team.teamFgPct.toFixed(1)}%` : "—"}
+                />
+                <StatChip
+                  label="STREAK"
+                  value={
+                    team.streak != null && team.streak > 0
+                      ? `W${team.streak}`
+                      : team.streak != null && team.streak < 0
+                        ? `L${Math.abs(team.streak)}`
+                        : "—"
+                  }
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <StatChip
+                  label="HOME"
+                  value={
+                    team.homeW != null && team.homeL != null
+                      ? `${team.homeW}-${team.homeL}`
+                      : "—"
+                  }
+                />
+                <StatChip
+                  label="AWAY"
+                  value={
+                    team.awayW != null && team.awayL != null
+                      ? `${team.awayW}-${team.awayL}`
+                      : "—"
+                  }
+                />
+                <StatChip
+                  label="L10"
+                  value={
+                    team.last10W != null && team.last10L != null
+                      ? `${team.last10W}-${team.last10L}`
+                      : "—"
+                  }
+                />
               </div>
             </div>
 

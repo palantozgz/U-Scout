@@ -199,6 +199,15 @@ export interface TeamDetail {
   oppg: number | null;
   net: number | null;
   rank: number;
+  winPct?: number | null;
+  streak?: number | null;
+  last10W?: number | null;
+  last10L?: number | null;
+  homeW?: number | null;
+  homeL?: number | null;
+  awayW?: number | null;
+  awayL?: number | null;
+  teamFgPct?: number | null;
 }
 
 export function useTeamDetail(externalId: string | null | undefined, seasonId?: number) {
