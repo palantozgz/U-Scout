@@ -58,7 +58,7 @@ export default function Settings() {
         </Button>
         <div>
           <h1 className="font-bold text-foreground">{t("settings_title")}</h1>
-          <p className="text-xs text-muted-foreground">U Scout</p>
+          <p className="text-xs text-muted-foreground">U Core</p>
         </div>
       </header>
 
@@ -134,7 +134,7 @@ export default function Settings() {
               </button>
             ))}
           </div>
-          {locale === "zh" && (
+          {locale === "zh" && profile?.role !== "player" && (
             <div className="px-5 py-3 bg-amber-50 dark:bg-amber-950/20 border-t border-amber-100 dark:border-amber-900">
               <p className="text-xs text-amber-700 dark:text-amber-400">
                 ⚠️ {t("settings_zh_warning")}

@@ -84,7 +84,7 @@ export default function Login() {
         <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
           <Shield className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-2xl font-extrabold tracking-tight">U Scout</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">U Core</h1>
         <p className="text-muted-foreground text-sm">
           {mode === "login" ? t("sign_in") : t("sign_up")}
         </p>

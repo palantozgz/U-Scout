@@ -92,7 +92,7 @@ export default function WellnessStandalone() {
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
         <button
           type="button"
-          onClick={() => setLocation("/player")}
+          onClick={() => window.history.back()}
           className="-ml-1 p-3 rounded-lg text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="w-5 h-5" />
