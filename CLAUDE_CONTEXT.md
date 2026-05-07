@@ -23,10 +23,10 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/pages/scout/ReportSlidesV1.tsx` — 3 slides
 - `client/src/pages/scout/ReportViewV4.tsx` — shell coach_review con OverridePanel
 - `client/src/pages/scout/PlayerEditor.tsx` — editor inputs jugador
-- `client/src/pages/scout/Personnel.tsx` — gestión plantillas + import WCBA (header responsive ✅)
+- `client/src/pages/scout/Personnel.tsx` — gestión plantillas + import WCBA + import liga + borrar todo ✅
 - `client/src/pages/scout/MyScout.tsx` — fichas coach (canónicas + sandbox) + StatsMiniChip ✅
 - `client/src/pages/core/Schedule.tsx` — god file ~228KB (U Schedule)
-- `client/src/pages/core/Stats.tsx` — U Stats: 2 tabs (Liga/Jugadoras) + SeasonPicker + StatsPlayerSheet + StatsTeamSheet + deep link ?player= + StatsRadar toggle ✅
+- `client/src/pages/core/Stats.tsx` — U Stats: 2 tabs (Liga/Jugadoras) + SeasonPicker + StatsPlayerSheet + StatsTeamSheet + deep link ?player= + StatsRadar toggle + sort grupos A→B ✅
 - `client/src/lib/stats-api.ts` — hooks completos ✅
 - `client/src/components/StatsRadar.tsx` — radar 6 ejes recharts ✅
 - `server/routes.ts` — rutas API Express
@@ -38,6 +38,7 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `collector/src/sync/roster.ts` — URL /datahub/cbamatch/team/teamplayers, respuesta en data.data.players ✅
 - `collector/src/sync/phases.ts` — /datahub/cbamatch/games/phasemenus → matchmenusschedule ✅
 - `collector/fix-player-names.js` — one-shot pinyin, ya ejecutado (297 jugadoras) ✅
+- `collector/audit-end-to-end.js` — script audit 34/34 ✅, ejecutar en Pi para verificar pipeline
 
 ## i18n — arquitectura lazy
 - `client/src/lib/i18n-core.ts` — runtime lazy: EN estático, ES/ZH async
@@ -56,52 +57,32 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ---
 
-## Estado app — 5 mayo 2026 (sesión p20 — CIERRE)
+## Estado app — 7 mayo 2026 (sesión p21 — CIERRE)
 
-### Completado esta sesión ✅ (p20)
-- StatsRadar integrado en StatsPlayerSheet con toggle ✅
-- Fixes UX: D2 (URL player), E1 (skeleton temporada), C1 (scroll líderes) ✅
-- **WCBA player boxscore field mapping corregido**: `p.points`, `p.assists`, `p.steals`, `p.blocks`, `p.turnover`, `parseShotStr(p.shot)` ✅
-- **Pinyin names**: 297 jugadoras actualizadas con pinyin-pro ✅
-- **Audit pipeline completo**: standings ✅, schedule ✅, PBP ✅ (18pts PBP = 18pts boxscore), roster URL correcta ✅
-- **dist/ completo copiado al Pi** + source boxscores.ts actualizado ✅
-- Commit: `3121b94` — fix collector field mapping + pinyin
+### Completado esta sesión ✅ (p21)
+- **audit-end-to-end.js**: 34/34 ✅ — pipeline completo verificado (standings, schedule, PBP, player_boxscores, ingest) ✅
+- **TRUNCATE stats_player_boxscores** ejecutado + pm2 restart → Pi re-sincronizando 223 partidos con field mapping correcto ✅
+- **Personnel import WCBA**: ya existía y funcionaba (endpoints GET /api/stats/teams y POST /api/stats/import-team estaban en routes.ts) ✅
+- **Personnel — Importar liga completa**: nuevo endpoint POST /api/stats/import-league + botón en UI ✅
+- **Personnel — Borrar todo**: nuevo endpoint DELETE /api/personnel/reset + modal confirmación "CONFIRMAR" ✅
+- **Stats.tsx — Orden grupos clasificación**: ya estaba correcto (localeCompare "zh" → A组 antes de B组) ✅
 
-### 🔴 ESTADO CRÍTICO AL CIERRE — sync en curso pero NO verificado end-to-end
-El sync está corriendo en el Pi con el fix de boxscores aplicado. Al cierre de sesión:
-- `stats_player_boxscores`: 5312 filas, 16 con pts>0 — sync AÚN EN CURSO
-- **No se ha verificado end-to-end** que standings, schedule, PBP y player_boxscores lleguen correctamente a Supabase para un partido completo
-- **No se han verificado** los field mappings de standings (pts/losePts → ppg/oppg), PBP (action codes reales vs mapeados), roster (data.data.players)
+### Estado sync Pi (al cierre p21)
+- stats_player_boxscores: TRUNCATE hecho, Pi re-sincronizando con field mapping correcto
+- El Pi usa boxDone para saltar juegos ya procesados → después del TRUNCATE procesará todos 223 de nuevo
+- **Verificar en próxima sesión**: COUNT(*) y AVG(pts) en stats_player_boxscores deben mostrar datos reales
 
-### 🔴 PROBLEMA SISTÉMICO IDENTIFICADO
-El workflow de esta sesión fue ineficiente: audits parciales → fixes → sync largo → nuevo problema. 
-**La próxima sesión DEBE empezar con un script audit-end-to-end.js que:**
-1. Llame a cada endpoint de la API WCBA
-2. Mapee los campos exactamente como lo hace el collector
-3. Ingeste 1 partido completo (standings + schedule + boxscore + player_boxscore + PBP)
-4. Verifique en Supabase que los datos llegaron correctamente
-5. Reporte ✅/❌ por cada tipo — todo en <60 segundos
-**Solo cuando ese script devuelva 100% ✅ se puede confiar en el sync completo.**
-
-### 🔴 OBJETIVO PRÓXIMA SESIÓN — PIPELINE COMPLETO
-1. Escribir y ejecutar `audit-end-to-end.js` desde el Pi
-2. Verificar y corregir todos los field mappings que fallen
-3. TRUNCATE stats_player_boxscores + pm2 restart con fix confirmado
-4. Verificar U Scout Personnel import WCBA end-to-end
-5. Fix orden grupos clasificación (Grupo B arriba → Grupo A)
+### Pendiente diseño — Migración asistida (Personnel)
+Feature compleja: detectar jugadoras que cambian de equipo entre temporadas, ofrecer opciones A/B/C/D al head coach. Requiere sesión dedicada de product design antes de implementar.
 
 ### 🔴 RIESGOS ACTIVOS
 - P1 Schedule scroll List→Planner: no recentra en hoy (pendiente)
-- P1 Sync no verificado end-to-end — puede haber más field mappings rotos
 - P2 hasReport — verificar con datos reales
 - StatsRadar AXIS_MAX son estimaciones — verificar contra datos reales
 
 ### 🔴 BACKLOG COMPLETO
 
 #### U Stats
-- **PRÓXIMA SESIÓN P1**: audit-end-to-end.js — verificar pipeline completo
-- **PRÓXIMA SESIÓN P1**: U Scout Personnel import WCBA end-to-end
-- Fix orden grupos clasificación (Grupo B antes que Grupo A)
 - Shot chart landscape (hexbin)
 - StatsComparator landscape split view
 - B1: chips equipo sin snap
@@ -109,7 +90,7 @@ El workflow de esta sesión fue ineficiente: audits parciales → fixes → sync
 - B3: game log 7 columnas densidad
 
 #### Personnel
-- "Borrar todo" manual, migración asistida, "Importar liga completa"
+- Migración asistida (sesión dedicada de diseño — ver descripción arriba)
 
 #### U Scout
 - PlayerEditor: auditoría completa campos
@@ -126,7 +107,7 @@ El workflow de esta sesión fue ineficiente: audits parciales → fixes → sync
 - Node 20 + PM2 · Collector en ~/ucore/collector
 - **dist/ sincronizado desde Mac** — NUNCA compilar en el Pi (pm2 usa dist/index.js directamente)
 - Deploy Pi: `npm run build` en Mac → `scp -r dist/ pablo@192.168.1.59:~/ucore/collector/dist/` → `pm2 restart`
-- Scripts de test en Pi: test-sync-one.js, test-3games.js, audit-pipeline-3.js, audit-roster-pbp.js
+- Scripts de test en Pi: test-sync-one.js, test-3games.js, audit-pipeline-3.js, audit-roster-pbp.js, audit-end-to-end.js
 - fix-player-names.js: ya ejecutado, no volver a ejecutar salvo nuevo import
 
 ## Workflow Pi — REGLA FIJA
@@ -211,34 +192,56 @@ a.action_title    → eventZh
 PBP pts verificado: player 530931 = 18pts desde PBP = 18pts desde boxscore ✅
 ```
 
-## Supabase — estado tablas (5 mayo 2026 al cierre)
+## Supabase — estado tablas (7 mayo 2026 al cierre p21)
 ```
 stats_games:            223 partidos status=4, season_id=2092
 stats_teams:            18 equipos
 stats_players:          307 jugadoras (name_en regenerado con pinyin ✅)
-stats_standings:        18 filas
-stats_player_boxscores: 5312 filas — sync EN CURSO, pts aún sin verificar end-to-end
-stats_pbp:              116.700 eventos (no re-sync esta sesión)
+stats_standings:        18 filas ✅
+stats_player_boxscores: TRUNCATE hecho — Pi re-sincronizando. Verificar COUNT/AVG en próxima sesión
+stats_pbp:              116.700 eventos ✅
 ```
 
 ## Endpoints Railway implementados
 ```
-GET /api/stats/seasons    ✅ requireAuth
-GET /api/stats/standings  ✅ requireAuth
-GET /api/stats/leaders    ✅ requireAuth (HAVING games >= 5)
-GET /api/stats/players    ✅ requireAuth
-GET /api/stats/player/:id ✅ requireAuth — ppg/rpg/apg calculados desde boxscores
-GET /api/stats/team/:id   ✅ requireAuth
-GET /api/stats/sync-status ✅ Bearer STATS_INGEST_KEY
-POST /api/stats/ingest    ✅ Bearer STATS_INGEST_KEY
+GET  /api/stats/seasons      ✅ requireAuth
+GET  /api/stats/standings    ✅ requireAuth
+GET  /api/stats/leaders      ✅ requireAuth (HAVING games >= 5)
+GET  /api/stats/players      ✅ requireAuth
+GET  /api/stats/player/:id   ✅ requireAuth — ppg/rpg/apg calculados desde boxscores
+GET  /api/stats/team/:id     ✅ requireAuth
+GET  /api/stats/player-link  ✅ requireAuth
+GET  /api/stats/games        ✅ requireAuth
+GET  /api/stats/sync-status  ✅ Bearer STATS_INGEST_KEY
+POST /api/stats/ingest       ✅ Bearer STATS_INGEST_KEY
+GET  /api/stats/teams        ✅ requireAuth — lista 18 equipos WCBA para import
+POST /api/stats/import-team  ✅ requireAuth — importa jugadoras de un equipo WCBA
+POST /api/stats/import-league ✅ requireAuth — importa todos los 18 equipos WCBA de golpe
+DELETE /api/personnel/reset  ✅ requireAuth + headCoach — borra todos equipos+jugadoras del club
 ```
 
 ## U Stats — componentes
 ### Implementados ✅
 - `StatsRadar.tsx` — radar 6 ejes, AXIS_MAX: PPG=35/RPG=15/APG=10/SPG=4/BPG=4/FG%=65
-- `Stats.tsx` — Liga/Jugadoras + SeasonPicker + PlayerSheet + TeamSheet + radar toggle
+- `Stats.tsx` — Liga/Jugadoras + SeasonPicker + PlayerSheet + TeamSheet + radar toggle + sort grupos A→B
 - `StatsMiniChip` — MyScout.tsx
 - `LandscapeHint.tsx`
+
+## Personnel — features implementadas
+```
+Import WCBA (un equipo)   ✅ GET /api/stats/teams + POST /api/stats/import-team
+Import liga completa      ✅ POST /api/stats/import-league — 18 equipos + jugadoras en un click
+Borrar todo               ✅ DELETE /api/personnel/reset — confirmación "CONFIRMAR" requerida
+Migración asistida        🔴 Pendiente — requiere sesión de diseño de producto
+```
+
+## Collector — lógica sync (trampa crítica)
+```
+syncNewPlayerBoxscores usa fetchSyncStatus() → boxDone[]
+Si un gameId ya tiene filas en stats_player_boxscores → está en boxDone → se SALTA
+⚠ Para forzar re-sync completo: TRUNCATE stats_player_boxscores en Supabase SQL Editor
+  luego pm2 restart en Pi → procesará todos los juegos de nuevo
+```
 
 ---
 
@@ -267,14 +270,16 @@ POST /api/stats/ingest    ✅ Bearer STATS_INGEST_KEY
 - matchschedules requiere teamId='' obligatorio
 - player boxscore: teamId NO viene en player data
 - standings: campo "loses" (no "losses") en API
+- syncNewPlayerBoxscores SALTA juegos ya en boxDone → TRUNCATE necesario para re-sync completo
 
 ## Scripts Pi disponibles
 ```
-node test-sync-one.js      — ingesta 1 partido, verifica inmediatamente
-node test-3games.js        — ingesta 3 partidos
-node audit-pipeline-3.js   — verifica URLs y field mapping
-node audit-roster-pbp.js   — verifica roster URL + PBP vs boxscore
-node fix-player-names.js   — regenera pinyin (ya ejecutado)
+node test-sync-one.js        — ingesta 1 partido, verifica inmediatamente
+node test-3games.js          — ingesta 3 partidos
+node audit-pipeline-3.js     — verifica URLs y field mapping
+node audit-roster-pbp.js     — verifica roster URL + PBP vs boxscore
+node audit-end-to-end.js     — audit completo 34 checks (34/34 ✅ verificado p21)
+node fix-player-names.js     — regenera pinyin (ya ejecutado, no repetir)
 ```
 
 ## Club INNER MONGOLIA

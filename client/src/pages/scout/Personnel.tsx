@@ -97,6 +97,16 @@ export default function Personnel() {
   const [showImportTeam, setShowImportTeam] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState<{ created: number; skipped: number } | null>(null);
+  const [importLeagueLoading, setImportLeagueLoading] = useState(false);
+  const [importLeagueResult, setImportLeagueResult] = useState<{
+    teamsCreated: number;
+    teamsExisted: number;
+    playersCreated: number;
+    playersSkipped: number;
+  } | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
   const [statsTeams, setStatsTeams] = useState<Array<{ id: number; name: string; season: string; updatedAt: string }>>([]);
   const [selectedStatsTeamId, setSelectedStatsTeamId] = useState<number | null>(null);
 
@@ -116,6 +126,12 @@ export default function Personnel() {
       addCanonical: "+ New official profile",
       addSandbox: "+ Add practice profile",
       importWcba: "⬇ Import WCBA",
+      importLeague: "⬇ Full league",
+      resetAll: "🗑 Reset all",
+      resetTitle: "Delete all personnel",
+      resetDesc: "Permanently deletes all teams and official profiles. Cannot be undone.",
+      resetPrompt: "Type CONFIRMAR to continue",
+      resetButton: "Delete all",
       noTeams: "No teams yet. Create a team first from the editor.",
       canonical: "Official",
       sandbox: "Sandbox",
@@ -143,6 +159,12 @@ export default function Personnel() {
       addCanonical: "+ Nueva ficha oficial",
       addSandbox: "+ Añadir ficha de prueba",
       importWcba: "⬇ Importar WCBA",
+      importLeague: "⬇ Liga completa",
+      resetAll: "🗑 Borrar todo",
+      resetTitle: "Borrar toda la plantilla",
+      resetDesc: "Borra permanentemente todos los equipos y fichas oficiales. No se puede deshacer.",
+      resetPrompt: "Escribe CONFIRMAR para continuar",
+      resetButton: "Borrar todo",
       noTeams: "Sin equipos. Crea un equipo primero desde el editor.",
       canonical: "Oficial",
       sandbox: "Prueba",
@@ -170,6 +192,12 @@ export default function Personnel() {
       addCanonical: "+ 新建官方档案",
       addSandbox: "+ 添加练习档案",
       importWcba: "⬇ 导入WCBA",
+      importLeague: "⬇ 导入全联赛",
+      resetAll: "🗑 清空全部",
+      resetTitle: "清空全部档案",
+      resetDesc: "将永久删除所有球队和官方档案，操作不可撤销。",
+      resetPrompt: "输入 CONFIRMAR 以继续",
+      resetButton: "清空全部",
       noTeams: "暂无球队，请先在编辑器中创建球队。",
       canonical: "官方",
       sandbox: "测试",
@@ -197,6 +225,12 @@ export default function Personnel() {
     addCanonical: "+ New official profile",
     addSandbox: "+ Add practice profile",
     importWcba: "⬇ Import WCBA",
+    importLeague: "⬇ Full league",
+    resetAll: "🗑 Reset all",
+    resetTitle: "Delete all personnel",
+    resetDesc: "Permanently deletes all teams and official profiles. Cannot be undone.",
+    resetPrompt: "Type CONFIRMAR to continue",
+    resetButton: "Delete all",
     noTeams: "No teams yet.",
     canonical: "Official",
     sandbox: "Sandbox",
@@ -435,6 +469,39 @@ export default function Personnel() {
     }
   };
 
+  const handleImportLeague = async () => {
+    if (!profile?.id) return;
+    setImportLeagueLoading(true);
+    setImportLeagueResult(null);
+    try {
+      const res = await apiRequest("POST", "/api/stats/import-league", { coachUserId: profile.id });
+      const data = await res.json();
+      setImportLeagueResult(data);
+      await qc.invalidateQueries({ queryKey: ["/api/teams"] });
+      await qc.invalidateQueries({ queryKey: ["/api/players"] });
+    } catch (err) {
+      console.error("Import league failed", err);
+    } finally {
+      setImportLeagueLoading(false);
+    }
+  };
+
+  const handleResetAll = async () => {
+    if (resetConfirmText !== "CONFIRMAR") return;
+    setResetLoading(true);
+    try {
+      await apiRequest("DELETE", "/api/personnel/reset");
+      await qc.invalidateQueries({ queryKey: ["/api/teams"] });
+      await qc.invalidateQueries({ queryKey: ["/api/players"] });
+      setShowResetModal(false);
+      setResetConfirmText("");
+    } catch (err) {
+      console.error("Reset failed", err);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   if (teamsLoading) {
     return (
       <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
@@ -485,17 +552,42 @@ export default function Personnel() {
                 </Button>
               )}
             </div>
+            <div className="grid grid-cols-2 gap-2 w-full">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="text-xs font-bold h-10 rounded-lg w-full justify-center px-2 shadow-sm"
+                onClick={() => {
+                  setShowImportTeam(true);
+                  setImportResult(null);
+                  void handleFetchStatsTeams();
+                }}
+              >
+                {L.importWcba}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="text-xs font-bold h-10 rounded-lg w-full justify-center px-2 shadow-sm"
+                disabled={importLeagueLoading}
+                onClick={() => {
+                  setImportLeagueResult(null);
+                  void handleImportLeague();
+                }}
+              >
+                {importLeagueLoading ? "…" : L.importLeague}
+              </Button>
+            </div>
             <Button
               size="sm"
-              variant="secondary"
-              className="text-xs font-bold h-10 rounded-lg w-full justify-center px-3 shadow-sm"
+              variant="ghost"
+              className="text-[11px] font-bold h-8 rounded-lg w-full justify-center text-destructive/60 hover:text-destructive hover:bg-destructive/5"
               onClick={() => {
-                setShowImportTeam(true);
-                setImportResult(null);
-                void handleFetchStatsTeams();
+                setShowResetModal(true);
+                setResetConfirmText("");
               }}
             >
-              {L.importWcba}
+              {L.resetAll}
             </Button>
           </>
         )}
@@ -681,6 +773,24 @@ export default function Personnel() {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {importLeagueResult && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 space-y-0.5">
+            <p className="text-[11px] font-black text-primary">
+              {locale === "es" ? "✓ Liga importada" : locale === "zh" ? "✓ 联赛已导入" : "✓ League imported"}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {importLeagueResult.teamsCreated}{" "}
+              {locale === "es" ? "equipos nuevos" : locale === "zh" ? "支新球队" : "teams created"}
+              {" · "}
+              {importLeagueResult.playersCreated}{" "}
+              {locale === "es" ? "jugadoras importadas" : locale === "zh" ? "导入球员" : "players imported"}
+              {" · "}
+              {importLeagueResult.playersSkipped}{" "}
+              {locale === "es" ? "ya existían" : locale === "zh" ? "已跳过" : "skipped"}
+            </p>
           </div>
         )}
 
@@ -1012,6 +1122,40 @@ export default function Personnel() {
                 </Button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {showResetModal && isHeadCoach && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-6 sm:pb-0">
+          <div className="w-full max-w-sm rounded-2xl border border-destructive/40 bg-card p-5 space-y-4 shadow-xl">
+            <div className="space-y-1">
+              <p className="text-sm font-black text-destructive">{L.resetTitle}</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{L.resetDesc}</p>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{L.resetPrompt}</p>
+              <Input
+                placeholder="CONFIRMAR"
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                className="h-9 rounded-lg text-sm font-mono"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" className="flex-1 rounded-xl" onClick={() => setShowResetModal(false)}>
+                {L.cancel}
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 rounded-xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                disabled={resetConfirmText !== "CONFIRMAR" || resetLoading}
+                onClick={() => void handleResetAll()}
+              >
+                {resetLoading ? "…" : L.resetButton}
+              </Button>
+            </div>
           </div>
         </div>
       )}

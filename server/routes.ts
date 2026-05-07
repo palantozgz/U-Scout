@@ -1424,6 +1424,133 @@ export async function registerRoutes(
     return res.json({ ok: true, created, skipped, total: statPlayers.length });
   });
 
+  // ─── POST /api/stats/import-league ─────────────────────────────────────────
+  app.post("/api/stats/import-league", requireAuth, async (req, res) => {
+    try {
+      const { coachUserId } = req.body ?? {};
+      if (!coachUserId || typeof coachUserId !== "string") {
+        return res.status(400).json({ error: "coachUserId required" });
+      }
+
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+
+      const statsTeamsRes = await db.execute(sql`
+        SELECT id, external_id, name_zh FROM stats_teams ORDER BY name_zh ASC
+      `);
+      const statsTeams: { id: number; external_id: unknown; name_zh: string }[] = (statsTeamsRes as any).rows ?? [];
+
+      let teamsCreated = 0;
+      let teamsExisted = 0;
+      let playersCreated = 0;
+      let playersSkipped = 0;
+
+      const defaultInputs = {};
+      const defaultModel = {};
+      const defaultPlan = {};
+
+      for (const st of statsTeams) {
+        const teamNameZh = st.name_zh ?? "";
+        const existingTeam = await db.execute(sql`
+          SELECT id FROM teams
+          WHERE club_id = ${club.id} AND name = ${teamNameZh} AND (is_system IS NULL OR is_system = false)
+          LIMIT 1
+        `);
+        const existingId = (existingTeam as any).rows?.[0]?.id as string | undefined;
+
+        let localTeamId: string;
+        if (existingId) {
+          localTeamId = existingId;
+          teamsExisted++;
+        } else {
+          const ins = await db.execute(sql`
+            INSERT INTO teams (name, logo, primary_color, club_id)
+            VALUES (${teamNameZh}, ${"🏀"}, ${"bg-orange-500"}, ${club.id})
+            RETURNING id
+          `);
+          const newId = (ins as any).rows?.[0]?.id as string | undefined;
+          if (!newId) continue;
+          localTeamId = newId;
+          teamsCreated++;
+        }
+
+        const statsTeamInternalId = st.id;
+        const playersRow = await db.execute(
+          sql`SELECT name_en, name_zh, jersey_number, photo_url
+              FROM stats_players WHERE team_id = ${statsTeamInternalId}`,
+        );
+        const statPlayers: any[] = (playersRow as any).rows ?? [];
+
+        const existingRow = await db.execute(
+          sql`SELECT name FROM players WHERE team_id = ${localTeamId} AND is_canonical = true`,
+        );
+        const existingNames = new Set<string>(
+          ((existingRow as any).rows ?? []).map((r: { name: string }) => r.name),
+        );
+
+        for (const p of statPlayers) {
+          const name =
+            p.name_en && String(p.name_en).trim() ? String(p.name_en).trim() : (p.name_zh ?? "");
+          if (existingNames.has(name)) {
+            playersSkipped++;
+            continue;
+          }
+          await db.execute(sql`
+            INSERT INTO players (
+              team_id, name, number, image_url,
+              inputs, internal_model, archetype, key_traits, defensive_plan,
+              created_by_user_id, published, is_canonical
+            ) VALUES (
+              ${localTeamId}, ${name}, ${p.jersey_number ?? ""}, ${p.photo_url ?? ""},
+              ${JSON.stringify(defaultInputs)}::jsonb,
+              ${JSON.stringify(defaultModel)}::jsonb,
+              ${"Role Player"},
+              ${"{}"}::text[],
+              ${JSON.stringify(defaultPlan)}::jsonb,
+              ${coachUserId}, false, true
+            )
+          `);
+          existingNames.add(name);
+          playersCreated++;
+        }
+      }
+
+      return res.json({ teamsCreated, teamsExisted, playersCreated, playersSkipped });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Failed to import league" });
+    }
+  });
+
+  // ─── DELETE /api/personnel/reset ───────────────────────────────────────────
+  app.delete("/api/personnel/reset", requireAuth, async (req, res) => {
+    try {
+      if (!isHeadCoachOrMaster(req)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+
+      const delPlayers = await db.execute(sql`
+        DELETE FROM players WHERE team_id IN (
+          SELECT id FROM teams WHERE club_id = ${club.id} AND (is_system IS NULL OR is_system = false)
+        )
+      `);
+      const playersDeleted =
+        (delPlayers as any).rowCount ?? (delPlayers as any).rows?.length ?? 0;
+
+      const delTeams = await db.execute(sql`
+        DELETE FROM teams WHERE club_id = ${club.id} AND (is_system IS NULL OR is_system = false)
+      `);
+      const teamsDeleted = (delTeams as any).rowCount ?? (delTeams as any).rows?.length ?? 0;
+
+      return res.json({ ok: true, playersDeleted, teamsDeleted });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Failed to reset personnel" });
+    }
+  });
+
   // ─── GET /api/stats/players — promedios temporada desde player_boxscores ────
   app.get("/api/stats/players", requireAuth, async (_req, res) => {
     let rows;
