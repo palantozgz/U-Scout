@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Trophy, Users } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { ModulePageShell } from "./ModulePage";
-import { LandscapeHint } from "@/components/LandscapeHint";
+import { LandscapeHint, useIsLandscape } from "@/components/LandscapeHint";
 import { StatsRadar } from "@/components/StatsRadar";
 import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -179,13 +179,21 @@ export default function Stats() {
   const [jugadorasSort, setJugadorasSort] = useState<JugadorasSort>("ppg");
   const [jugadorasSortDir, setJugadorasSortDir] = useState<"asc" | "desc">("desc");
   const [jugadorasSearch, setJugadorasSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(jugadorasSearch), 200);
+    return () => clearTimeout(t);
+  }, [jugadorasSearch]);
   const [jugadorasLimit, setJugadorasLimit] = useState(50);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [playerSheetId, setPlayerSheetId] = useState<PlayerSheetId>(null);
   const [teamSheetId, setTeamSheetId] = useState<string | null>(null);
   const [returnToTeamId, setReturnToTeamId] = useState<string | null>(null);
   const [seasonSheetOpen, setSeasonSheetOpen] = useState(false);
-  const [seasonId, setSeasonId] = useState<number | null>(null);
+  const [seasonId, setSeasonId] = useState<number | null>(() => {
+    const s = localStorage.getItem("stats_seasonId");
+    return s ? Number(s) : null;
+  });
 
   useEffect(() => {
     const raw = search.startsWith("?") ? search.slice(1) : search;
@@ -257,7 +265,7 @@ export default function Stats() {
   const jugadorasFiltered = useMemo(() => {
     let list = playersForSeason.filter((p) => p.games > 0);
     if (jugadorasTeam.trim()) list = list.filter((p) => p.teamName === jugadorasTeam);
-    const q = jugadorasSearch.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     if (q)
       list = list.filter(
         (p) =>
@@ -269,7 +277,7 @@ export default function Stats() {
         ? num(b[jugadorasSort]) - num(a[jugadorasSort])
         : num(a[jugadorasSort]) - num(b[jugadorasSort]),
     );
-  }, [playersForSeason, jugadorasTeam, jugadorasSort, jugadorasSearch, jugadorasSortDir]);
+  }, [playersForSeason, jugadorasTeam, jugadorasSort, debouncedSearch, jugadorasSortDir]);
 
   const playersWithGamesForSeason = useMemo(
     () => playersForSeason.filter((p) => p.games > 0),
@@ -357,6 +365,7 @@ export default function Stats() {
                     type="button"
                     onClick={() => {
                       setSeasonId(s.seasonId);
+                      localStorage.setItem("stats_seasonId", String(s.seasonId));
                       setSeasonSheetOpen(false);
                     }}
                     className={cn(
@@ -613,7 +622,7 @@ export default function Stats() {
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[1.8fr_0.4fr_0.6fr_0.6fr_0.6fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                  <div className="grid grid-cols-[2fr_0.4fr_0.6fr_0.6fr_0.6fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                     <span className="text-left">{L.colPlayer}</span>
                     <span className="text-right">{L.colG}</span>
                     {(["ppg", "rpg", "apg"] as const).map((k) => (
@@ -641,15 +650,28 @@ export default function Stats() {
                         key={key}
                         type="button"
                         onClick={() => setPlayerSheetId(p.externalId)}
-                        className="w-full px-3 py-3 grid grid-cols-[1.8fr_0.4fr_0.6fr_0.6fr_0.6fr] items-center gap-0 text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors border-b border-border last:border-b-0"
+                        className="w-full px-3 py-3 grid grid-cols-[2fr_0.4fr_0.6fr_0.6fr_0.6fr] items-center gap-0 text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors border-b border-border last:border-b-0"
                       >
-                        <div className="min-w-0">
-                          <p className="text-sm font-extrabold text-foreground truncate">
-                            {pickName(p.playerName, p.playerNameEn ?? null, locale)}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground/60 font-semibold truncate">
-                            {pickName(p.teamName, p.teamNameEn ?? null, locale) || p.season}
-                          </p>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {p.photoUrl ? (
+                            <img
+                              src={p.photoUrl}
+                              className="w-7 h-7 rounded-full object-cover object-top shrink-0 bg-muted/30"
+                              alt=""
+                            />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-muted/40 shrink-0 flex items-center justify-center text-[8px] font-black text-muted-foreground">
+                              {(pickName(p.playerName, p.playerNameEn ?? null, locale) || "?")[0].toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-extrabold text-foreground truncate">
+                              {pickName(p.playerName, p.playerNameEn ?? null, locale)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground/60 font-semibold truncate">
+                              {pickName(p.teamName, p.teamNameEn ?? null, locale) || p.season}
+                            </p>
+                          </div>
                         </div>
                         <p className="text-xs font-black text-foreground tabular-nums text-right">{p.games}</p>
                         <p className="text-xs font-black text-foreground tabular-nums text-right">{num(p.ppg).toFixed(1)}</p>
@@ -738,17 +760,93 @@ export default function Stats() {
   );
 }
 
+const STAT_FULL: Record<string, string> = {
+  PPG: "Points Per Game",
+  RPG: "Rebounds Per Game",
+  APG: "Assists Per Game",
+  SPG: "Steals Per Game",
+  BPG: "Blocks Per Game",
+  TOPG: "Turnovers Per Game",
+  MPG: "Minutes Per Game",
+  "FG%": "Field Goal %",
+  "3P%": "3-Point %",
+  "FT%": "Free Throw %",
+  OPPG: "Opp. Points Per Game",
+  NET: "Net Rating",
+  "WIN%": "Win Percentage",
+  STREAK: "Current Streak",
+  HOME: "Home Record",
+  AWAY: "Away Record",
+  L10: "Last 10 Games",
+};
+
+function ShotZoneChart({ fgPct, fg3Pct }: { fgPct: number | null; fg3Pct: number | null }) {
+  function zoneColor(pct: number | null, base: number) {
+    if (pct == null) return "hsl(var(--muted))";
+    const delta = pct - base;
+    if (delta > 5) return "#22c55e";
+    if (delta > 0) return "#86efac";
+    if (delta > -5) return "#fca5a5";
+    return "#ef4444";
+  }
+  const paint2Color = zoneColor(fgPct, 45);
+  const mid2Color = zoneColor(fgPct, 38);
+  const threeColor = zoneColor(fg3Pct, 33);
+  return (
+    <svg viewBox="0 0 300 160" className="w-full max-w-xs mx-auto" aria-label="Shot zones">
+      {/* Half court outline */}
+      <rect x="10" y="10" width="280" height="140" rx="4" fill="none" stroke="hsl(var(--border))" strokeWidth="1.5" />
+      {/* 3PT zone background */}
+      <rect x="10" y="10" width="280" height="140" rx="4" fill={threeColor} opacity="0.25" />
+      {/* 2PT mid-range */}
+      <path
+        d="M 90 10 A 100 100 0 0 1 210 10 L 210 150 L 90 150 Z"
+        fill={mid2Color}
+        opacity="0.3"
+      />
+      {/* Paint */}
+      <rect x="110" y="10" width="80" height="65" fill={paint2Color} opacity="0.4" />
+      {/* Labels */}
+      <text x="150" y="52" textAnchor="middle" fontSize="11" fontWeight="900" fill="hsl(var(--foreground))">
+        {fgPct != null ? `${fgPct.toFixed(1)}%` : "—"}
+      </text>
+      <text x="150" y="64" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">
+        PAINT
+      </text>
+      <text x="55" y="90" textAnchor="middle" fontSize="10" fontWeight="800" fill="hsl(var(--foreground))">
+        {fg3Pct != null ? `${fg3Pct.toFixed(1)}%` : "—"}
+      </text>
+      <text x="55" y="101" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">
+        3PT
+      </text>
+      <text x="245" y="90" textAnchor="middle" fontSize="10" fontWeight="800" fill="hsl(var(--foreground))">
+        {fg3Pct != null ? `${fg3Pct.toFixed(1)}%` : "—"}
+      </text>
+      <text x="245" y="101" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">
+        3PT
+      </text>
+    </svg>
+  );
+}
+
 function StatChip(props: { label: string; value: string; hero?: boolean }) {
+  const title = STAT_FULL[props.label] ?? props.label;
   if (props.hero) {
     return (
-      <div className="rounded-xl border border-border bg-card px-3 py-3 flex flex-col items-center justify-center">
+      <div
+        title={title}
+        className="rounded-xl border border-border bg-card px-3 py-3 flex flex-col items-center justify-center cursor-help"
+      >
         <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/70">{props.label}</p>
         <p className="text-2xl font-black text-foreground tabular-nums mt-0.5">{props.value}</p>
       </div>
     );
   }
   return (
-    <div className="rounded-lg border border-border bg-card px-2.5 py-2">
+    <div
+      title={title}
+      className="rounded-lg border border-border bg-card px-2.5 py-2 cursor-help"
+    >
       <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">{props.label}</p>
       <p className="text-[12px] font-black text-foreground tabular-nums mt-0.5">{props.value}</p>
     </div>
@@ -771,6 +869,7 @@ function StatsPlayerSheet({
   const es = locale === "es";
   const zh = locale === "zh";
   const { data, isLoading, isError } = usePlayerDetail(externalId);
+  const isLandscape = useIsLandscape();
   const [showAllGames, setShowAllGames] = useState(false);
   const [showRadar, setShowRadar] = useState(false);
   const [showMoreStats, setShowMoreStats] = useState(false);
@@ -971,7 +1070,16 @@ function StatsPlayerSheet({
               {showRadar && <StatsRadar player={player} locale={locale} />}
             </div>
 
-            <LandscapeHint />
+            {isLandscape ? (
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60 mb-3">
+                  Shot Zones
+                </p>
+                <ShotZoneChart fgPct={player.fgPct ?? null} fg3Pct={player.fg3Pct ?? null} />
+              </div>
+            ) : (
+              <LandscapeHint />
+            )}
 
             {gameLog.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border px-6 py-8 text-center text-sm font-bold text-muted-foreground">
@@ -1032,7 +1140,7 @@ function StatsPlayerSheet({
                           )}
                         </div>
                         <p className="text-muted-foreground truncate font-semibold">
-                          {pickName(g.rivalName, (g as any).rivalNameEn ?? null, locale)}
+                          {pickName(g.rivalName, (g as any).rivalNameEn ?? null, locale) || "—"}
                         </p>
                         <p className="text-right font-black tabular-nums text-foreground">{g.pts}</p>
                         <p className="text-right font-black tabular-nums text-foreground">{g.reb}</p>

@@ -6,6 +6,7 @@
  * Uso: node fix-foreign-names.js [--dry-run]
  */
 const axios = require('./node_modules/axios').default;
+const { execSync } = require('child_process');
 const fs = require('fs');
 
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -61,34 +62,33 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ── Parser roster asia-basket ──────────────────────────────────────────────────
 function parseRoster(html) {
-  // Extrae filas de la tabla de roster: número + nombre
+  // <td class="mediumfont" translate="no">
+  //   <label class="mobileuniformstarting">#22<img ...></label> Yuting<br> Lin
+  // </td>
   const rows = [];
-  // Patrón: <td>número</td> ... <a href="/player/Name-Surname/...">Name Surname</a>
-  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  const tdRegex = /<td[^>]*class="mediumfont"[^>]*translate="no"[^>]*>([\s\S]*?)<\/td>/gi;
   let m;
-  while ((m = rowRegex.exec(html)) !== null) {
-    const row = m[1];
-    // Jersey number — primer <td> con solo dígitos
-    const numMatch = row.match(/<td[^>]*>\s*(\d{1,3})\s*<\/td>/);
-    // Player name — link a /player/
-    const nameMatch = row.match(/href="\/player\/([^"]+)\/\d+[^"]*"[^>]*>([^<]+)<\/a>/i);
-    if (numMatch && nameMatch) {
-      const jersey = parseInt(numMatch[1], 10);
-      const name = nameMatch[2].trim();
-      if (name.length > 2) rows.push({ jersey, name });
-    }
+  while ((m = tdRegex.exec(html)) !== null) {
+    const cell = m[1];
+    const jerseyMatch = cell.match(/#(\d{1,3})/);
+    if (!jerseyMatch) continue;
+    const jersey = parseInt(jerseyMatch[1], 10);
+    // Strip all tags, collapse whitespace
+    const name = cell.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+                     .replace(/^#\d{1,3}\s*/, '').trim();
+    if (name.length > 2) rows.push({ jersey, name });
   }
   return rows;
 }
 
-async function fetchRoster(teamId, slug) {
-  const url = `https://basketball.asia-basket.com/team/China/${slug}/${teamId}/Roster/${SEASON}?Women=1`;
+function fetchRoster(teamId, slug) {
+  const url = `https://basketball.asia-basket.com/team/${slug}/${teamId}?Women=1`;
   try {
-    const r = await axios.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      timeout: 15000,
-    });
-    return parseRoster(r.data);
+    const html = execSync(
+      `curl -sL "${url}" -H "User-Agent: Mozilla/5.0" --max-time 15`,
+      { encoding: 'utf-8', timeout: 20000 }
+    );
+    return parseRoster(html);
   } catch (e) {
     console.warn(`  ⚠ fetch error for ${slug}: ${e.message}`);
     return [];
@@ -157,7 +157,7 @@ async function main() {
     }
 
     console.log(`\nTeam ${extId} (${teamInfo.slug}):`);
-    const roster = await fetchRoster(teamInfo.id, teamInfo.slug);
+    const roster = fetchRoster(teamInfo.id, teamInfo.slug);
     console.log(`  Roster fetched: ${roster.length} players`);
 
     for (const p of players) {
@@ -176,7 +176,8 @@ async function main() {
       updated++;
     }
 
-    await sleep(DELAY_MS);
+    // rate limit
+    await new Promise(r => setTimeout(r, DELAY_MS));
   }
 
   console.log(`\n✅ Done. Updated: ${updated} | Not found: ${notFound}`);

@@ -14,6 +14,7 @@ export type PlayerSeasonStats = {
   externalId: string;
   playerName: string;
   playerNameEn?: string | null;
+  photoUrl?: string | null;
   teamName: string;
   teamNameEn?: string | null;
   season: string;
@@ -135,6 +136,7 @@ export interface PlayerDetail {
   nameZh: string;
   nameEn: string | null;
   jerseyNumber: string | number | null;
+  photoUrl?: string | null;
   position: string | null;
   teamName: string | null;
   teamNameEn?: string | null;

@@ -1606,6 +1606,7 @@ export async function registerRoutes(
         sp.external_id                                AS "externalId",
         sp.name_zh                                    AS "playerName",
         sp.name_en                                    AS "playerNameEn",
+        sp.photo_url                                  AS "photoUrl",
         st.name_zh                                    AS "teamName",
         st.name_en                                    AS "teamNameEn",
         '2024-25'                                     AS season,
@@ -1635,7 +1636,7 @@ export async function registerRoutes(
       JOIN stats_players sp ON sp.external_id = pb.player_external_id
       LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
       WHERE sg.status = 4
-      GROUP BY sp.external_id, sp.name_zh, sp.name_en, st.name_zh, st.name_en
+      GROUP BY sp.external_id, sp.name_zh, sp.name_en, sp.photo_url, st.name_zh, st.name_en
       HAVING COUNT(DISTINCT pb.game_id) > 0
       ORDER BY ppg DESC
     `);
@@ -1647,6 +1648,7 @@ export async function registerRoutes(
       externalId: String(r.externalId ?? ""),
       playerName: String(r.playerName ?? ""),
       playerNameEn: r.playerNameEn ?? null,
+      photoUrl: r.photoUrl ?? null,
       teamName: r.teamName ?? null,
       teamNameEn: r.teamNameEn ?? null,
       season: String(r.season ?? ""),
