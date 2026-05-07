@@ -64,7 +64,8 @@ function toEnglishName(nameZh, nameEn) {
 
 async function main() {
   // Fetch all players
-  const r = await axios.get(SUPABASE_URL + '/rest/v1/stats_players?select=external_id,name_zh,name_en', { headers });
+  // Exclude is_foreign=true players — those are handled by fix-foreign-names.js
+  const r = await axios.get(SUPABASE_URL + '/rest/v1/stats_players?select=external_id,name_zh,name_en&is_foreign=neq.true', { headers });
   const players = r.data;
   console.log('Total players:', players.length);
 

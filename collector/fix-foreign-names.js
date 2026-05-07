@@ -162,7 +162,7 @@ async function main() {
 
     for (const p of players) {
       const jerseyNum = p.jersey_number;
-      const match = roster.find(r => r.jersey === jerseyNum);
+      const match = roster.find(r => r.jersey === Number(jerseyNum) || String(r.jersey) === String(jerseyNum));
       if (!match) {
         console.log(`  ✗ ${p.name_zh} #${jerseyNum} — not found in roster (current: ${p.name_en})`);
         notFound++;

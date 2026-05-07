@@ -185,6 +185,7 @@ export default function Stats() {
     return () => clearTimeout(t);
   }, [jugadorasSearch]);
   const [jugadorasLimit, setJugadorasLimit] = useState(50);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [playerSheetId, setPlayerSheetId] = useState<PlayerSheetId>(null);
   const [teamSheetId, setTeamSheetId] = useState<string | null>(null);
@@ -279,6 +280,19 @@ export default function Stats() {
     );
   }, [playersForSeason, jugadorasTeam, jugadorasSort, debouncedSearch, jugadorasSortDir]);
 
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setJugadorasLimit((n) => n + 50);
+      },
+      { threshold: 0.1 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [jugadorasFiltered]);
+
   const playersWithGamesForSeason = useMemo(
     () => playersForSeason.filter((p) => p.games > 0),
     [playersForSeason],
@@ -314,8 +328,6 @@ export default function Stats() {
   const showJugadorasTeamFilterEmpty =
     !playersQ.isLoading && !playersQ.isError && playersWithGamesForSeason.length > 0 && jugadorasFiltered.length === 0;
   const jugadorasFilterEmptyMessage = jugadorasSearch.trim() ? L.jugadorasSearchEmpty : L.jugadorasFilterEmpty;
-  const jugadorasVerMasLabel = (n: number) =>
-    es ? `Ver ${n} más` : zh ? `再显示 ${n} 人` : `See ${n} more`;
 
   const showGlobalSpinner =
     (mainTab === "liga" &&
@@ -682,13 +694,9 @@ export default function Stats() {
                   })}
                 </div>
                 {jugadorasFiltered.length > jugadorasLimit && (
-                  <button
-                    type="button"
-                    onClick={() => setJugadorasLimit((n) => n + 50)}
-                    className="w-full rounded-xl border border-border bg-card py-2.5 text-xs font-black text-primary hover:bg-muted/30 transition-colors"
-                  >
-                    {jugadorasVerMasLabel(jugadorasFiltered.length - jugadorasLimit)}
-                  </button>
+                  <div ref={sentinelRef} className="h-8 flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
+                  </div>
                 )}
               </>
             )}
@@ -778,6 +786,10 @@ const STAT_FULL: Record<string, string> = {
   HOME: "Home Record",
   AWAY: "Away Record",
   L10: "Last 10 Games",
+  "TS%": "True Shooting % = PTS / (2 × (FGA + 0.44×FTA))",
+  "eFG%": "Effective FG% = (FGM + 0.5×3PM) / FGA",
+  DD: "Double-Doubles",
+  TD: "Triple-Doubles",
 };
 
 function ShotZoneChart({ fgPct, fg3Pct }: { fgPct: number | null; fg3Pct: number | null }) {
@@ -887,6 +899,51 @@ function StatsPlayerSheet({
   const player = data?.player;
   const gameLog = data?.gameLog ?? [];
 
+  const advStats = useMemo(() => {
+    if (gameLog.length === 0) return null;
+    let fgm = 0,
+      fga = 0,
+      tpm = 0,
+      ftm = 0,
+      fta = 0,
+      pts = 0;
+    for (const g of gameLog) {
+      fgm += g.fgm ?? 0;
+      fga += g.fga ?? 0;
+      tpm += g.tpm ?? 0;
+      ftm += g.ftm ?? 0;
+      fta += g.fta ?? 0;
+      pts += g.pts ?? 0;
+    }
+    const eFGPct = fga > 0 ? ((fgm + 0.5 * tpm) / fga) * 100 : null;
+    const tsPct = fga + 0.44 * fta > 0 ? (pts / (2 * (fga + 0.44 * fta))) * 100 : null;
+    let dd = 0,
+      td = 0;
+    for (const g of gameLog) {
+      const cats = [
+        (g.pts ?? 0) >= 10,
+        (g.reb ?? 0) >= 10,
+        (g.ast ?? 0) >= 10,
+        (g.stl ?? 0) >= 10,
+        (g.blk ?? 0) >= 10,
+      ].filter(Boolean).length;
+      if (cats >= 3) td++;
+      else if (cats >= 2) dd++;
+    }
+    const mean = pts / gameLog.length;
+    const stdDev = Math.sqrt(
+      gameLog.reduce((s, g) => s + ((g.pts ?? 0) - mean) ** 2, 0) / gameLog.length,
+    );
+    const last5 = [...gameLog]
+      .sort((a, b) => new Date(b.gameDate ?? 0).getTime() - new Date(a.gameDate ?? 0).getTime())
+      .slice(0, 5);
+    const last5Avg =
+      last5.length >= 3 ? last5.reduce((s, g) => s + (g.pts ?? 0), 0) / last5.length : null;
+    const isHot = last5Avg != null && last5Avg > mean * 1.15;
+    const isCold = last5Avg != null && last5Avg < mean * 0.85;
+    return { eFGPct, tsPct, dd, td, stdDev, isHot, isCold, last5Avg, meanPts: mean };
+  }, [gameLog]);
+
   const displayName =
     (locale === "en" || locale === "es") && player?.nameEn?.trim()
       ? (toTitleCase(player.nameEn) ?? player.nameEn.trim())
@@ -979,6 +1036,26 @@ function StatsPlayerSheet({
             <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
               {player.games}G
             </p>
+            {advStats && (advStats.isHot || advStats.isCold) && (
+              <p
+                className={cn(
+                  "text-[9px] font-black tracking-wide",
+                  advStats.isHot ? "text-orange-500" : "text-blue-400",
+                )}
+              >
+                {advStats.isHot
+                  ? es
+                    ? "🔥 Racha"
+                    : zh
+                      ? "🔥 热手"
+                      : "🔥 Hot"
+                  : es
+                    ? "📉 Baja"
+                    : zh
+                      ? "📉 低迷"
+                      : "📉 Cold"}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -1019,11 +1096,36 @@ function StatsPlayerSheet({
                 <StatChip label="TOPG" value={player.topg.toFixed(1)} />
               </div>
               {showMoreStats && (
-                <div className="grid grid-cols-3 gap-2">
-                  <StatChip label="MPG" value={player.mpg.toFixed(1)} />
-                  <StatChip label="3P%" value={player.fg3Pct != null ? `${player.fg3Pct.toFixed(1)}%` : "—"} />
-                  <StatChip label="FT%" value={player.ftPct != null ? `${player.ftPct.toFixed(1)}%` : "—"} />
-                </div>
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <StatChip label="MPG" value={player.mpg.toFixed(1)} />
+                    <StatChip label="3P%" value={player.fg3Pct != null ? `${player.fg3Pct.toFixed(1)}%` : "—"} />
+                    <StatChip label="FT%" value={player.ftPct != null ? `${player.ftPct.toFixed(1)}%` : "—"} />
+                  </div>
+                  {advStats && (
+                    <div className="grid grid-cols-4 gap-2">
+                      <StatChip
+                        label="TS%"
+                        value={advStats.tsPct != null ? `${advStats.tsPct.toFixed(1)}%` : "—"}
+                      />
+                      <StatChip
+                        label="eFG%"
+                        value={advStats.eFGPct != null ? `${advStats.eFGPct.toFixed(1)}%` : "—"}
+                      />
+                      <StatChip label="DD" value={String(advStats.dd)} />
+                      <StatChip label="TD" value={String(advStats.td)} />
+                    </div>
+                  )}
+                  {advStats && gameLog.length >= 5 && (
+                    <p className="text-[9px] text-muted-foreground/60 px-0.5">
+                      {es
+                        ? `Consistencia: σ ${advStats.stdDev.toFixed(1)} pts`
+                        : zh
+                          ? `稳定性：σ ${advStats.stdDev.toFixed(1)} 分`
+                          : `Consistency: σ ${advStats.stdDev.toFixed(1)} pts`}
+                    </p>
+                  )}
+                </>
               )}
               <div className="flex gap-2">
                 <button
