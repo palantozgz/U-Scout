@@ -136,8 +136,24 @@ export async function registerRoutes(
     try {
       const club = await storage.getClubForUser(req.user!.id);
       if (!club) return res.status(404).json({ error: "Club not found" });
-      const result = await storage.getTeams(club.id);
-      res.json(result);
+      const rows = await db.execute(sql`
+        SELECT
+          id,
+          name,
+          name_en,
+          logo,
+          primary_color,
+          is_system,
+          club_id,
+          primary_color AS "primaryColor",
+          is_system AS "isSystem",
+          club_id AS "clubId",
+          name_en AS "nameEn"
+        FROM teams
+        WHERE club_id = ${club.id}
+        ORDER BY name ASC
+      `);
+      return res.json((rows as any).rows ?? []);
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch teams" });
     }
@@ -1356,6 +1372,7 @@ export async function registerRoutes(
   app.get("/api/stats/teams", requireAuth, async (_req, res) => {
     const rows = await db.execute(sql`
       SELECT st.external_id as id, st.name_zh as name,
+             st.name_en as "nameEn",
              st.updated_at as "updatedAt",
              '2024-25' as season
       FROM stats_teams st
@@ -1436,9 +1453,15 @@ export async function registerRoutes(
       if (!club) return res.status(404).json({ error: "Club not found" });
 
       const statsTeamsRes = await db.execute(sql`
-        SELECT id, external_id, name_zh FROM stats_teams ORDER BY name_zh ASC
+        SELECT id, external_id, name_zh, name_en, logo_url FROM stats_teams ORDER BY name_zh ASC
       `);
-      const statsTeams: { id: number; external_id: unknown; name_zh: string }[] = (statsTeamsRes as any).rows ?? [];
+      const statsTeams: {
+        id: number;
+        external_id: unknown;
+        name_zh: string;
+        name_en: string | null;
+        logo_url: string | null;
+      }[] = (statsTeamsRes as any).rows ?? [];
 
       let teamsCreated = 0;
       let teamsExisted = 0;
@@ -1451,9 +1474,12 @@ export async function registerRoutes(
 
       for (const st of statsTeams) {
         const teamNameZh = st.name_zh ?? "";
+        const teamName = (st.name_en ?? "").trim() || teamNameZh;
         const existingTeam = await db.execute(sql`
           SELECT id FROM teams
-          WHERE club_id = ${club.id} AND name = ${teamNameZh} AND (is_system IS NULL OR is_system = false)
+          WHERE club_id = ${club.id}
+            AND (name = ${teamNameZh} OR name = ${teamName})
+            AND (is_system IS NULL OR is_system = false)
           LIMIT 1
         `);
         const existingId = (existingTeam as any).rows?.[0]?.id as string | undefined;
@@ -1462,10 +1488,11 @@ export async function registerRoutes(
         if (existingId) {
           localTeamId = existingId;
           teamsExisted++;
+          await db.execute(sql`UPDATE teams SET name_en = ${teamName} WHERE id = ${existingId}`);
         } else {
           const ins = await db.execute(sql`
-            INSERT INTO teams (name, logo, primary_color, club_id)
-            VALUES (${teamNameZh}, ${"🏀"}, ${"bg-orange-500"}, ${club.id})
+            INSERT INTO teams (name, name_en, logo, primary_color, club_id)
+            VALUES (${teamNameZh}, ${teamName}, ${st.logo_url || "🏀"}, ${"bg-orange-500"}, ${club.id})
             RETURNING id
           `);
           const newId = (ins as any).rows?.[0]?.id as string | undefined;
@@ -1482,37 +1509,56 @@ export async function registerRoutes(
         const statPlayers: any[] = (playersRow as any).rows ?? [];
 
         const existingRow = await db.execute(
-          sql`SELECT name FROM players WHERE team_id = ${localTeamId} AND is_canonical = true`,
+          sql`SELECT name, name_en FROM players WHERE team_id = ${localTeamId} AND is_canonical = true`,
         );
-        const existingNames = new Set<string>(
-          ((existingRow as any).rows ?? []).map((r: { name: string }) => r.name),
-        );
+        const existingNames = new Set<string>();
+        for (const r of (existingRow as any).rows ?? []) {
+          const n = r.name != null ? String(r.name).trim() : "";
+          const ne = r.name_en != null ? String(r.name_en).trim() : "";
+          if (n) existingNames.add(n);
+          if (ne) existingNames.add(ne);
+        }
 
+        const seen = new Set<string>(existingNames);
+        const newPlayers: typeof statPlayers = [];
         for (const p of statPlayers) {
-          const name =
-            p.name_en && String(p.name_en).trim() ? String(p.name_en).trim() : (p.name_zh ?? "");
-          if (existingNames.has(name)) {
+          const nameZh =
+            String(p.name_zh ?? "").trim() || String(p.name_en ?? "").trim();
+          const nameEn = String(p.name_en ?? "").trim() || nameZh;
+          if (seen.has(nameZh) || seen.has(nameEn)) {
             playersSkipped++;
             continue;
           }
-          await db.execute(sql`
-            INSERT INTO players (
-              team_id, name, number, image_url,
-              inputs, internal_model, archetype, key_traits, defensive_plan,
-              created_by_user_id, published, is_canonical
-            ) VALUES (
-              ${localTeamId}, ${name}, ${p.jersey_number ?? ""}, ${p.photo_url ?? ""},
-              ${JSON.stringify(defaultInputs)}::jsonb,
-              ${JSON.stringify(defaultModel)}::jsonb,
-              ${"Role Player"},
-              ${"{}"}::text[],
-              ${JSON.stringify(defaultPlan)}::jsonb,
-              ${coachUserId}, false, true
-            )
-          `);
-          existingNames.add(name);
-          playersCreated++;
+          seen.add(nameZh);
+          seen.add(nameEn);
+          newPlayers.push(p);
         }
+        if (newPlayers.length === 0) continue;
+
+        const values = newPlayers.map((p) => {
+          const nameZh =
+            String(p.name_zh ?? "").trim() || String(p.name_en ?? "").trim();
+          const nameEn = String(p.name_en ?? "").trim() || nameZh;
+          return sql`(
+            ${localTeamId}, ${nameZh}, ${nameEn}, ${String(p.jersey_number ?? "")}, ${p.photo_url ?? ""},
+            ${JSON.stringify(defaultInputs)}::jsonb,
+            ${JSON.stringify(defaultModel)}::jsonb,
+            ${"Role Player"},
+            ${"{}"}::text[],
+            ${JSON.stringify(defaultPlan)}::jsonb,
+            ${coachUserId}, false, true
+          )`;
+        });
+
+        await db.execute(sql`
+          INSERT INTO players (
+            team_id, name, name_en, number, image_url,
+            inputs, internal_model, archetype, key_traits, defensive_plan,
+            created_by_user_id, published, is_canonical
+          ) VALUES ${sql.join(values, sql`, `)}
+          ON CONFLICT DO NOTHING
+        `);
+        playersCreated += newPlayers.length;
       }
 
       return res.json({ teamsCreated, teamsExisted, playersCreated, playersSkipped });
@@ -1561,6 +1607,7 @@ export async function registerRoutes(
         sp.name_zh                                    AS "playerName",
         sp.name_en                                    AS "playerNameEn",
         st.name_zh                                    AS "teamName",
+        st.name_en                                    AS "teamNameEn",
         '2024-25'                                     AS season,
         COUNT(DISTINCT pb.game_id)::int               AS games,
         ROUND(AVG(
@@ -1588,7 +1635,7 @@ export async function registerRoutes(
       JOIN stats_players sp ON sp.external_id = pb.player_external_id
       LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
       WHERE sg.status = 4
-      GROUP BY sp.external_id, sp.name_zh, sp.name_en, st.name_zh
+      GROUP BY sp.external_id, sp.name_zh, sp.name_en, st.name_zh, st.name_en
       HAVING COUNT(DISTINCT pb.game_id) > 0
       ORDER BY ppg DESC
     `);
@@ -1601,6 +1648,7 @@ export async function registerRoutes(
       playerName: String(r.playerName ?? ""),
       playerNameEn: r.playerNameEn ?? null,
       teamName: r.teamName ?? null,
+      teamNameEn: r.teamNameEn ?? null,
       season: String(r.season ?? ""),
       games: Number(r.games ?? 0),
       mpg: Number(r.mpg ?? 0),
@@ -1664,6 +1712,7 @@ export async function registerRoutes(
       SELECT
         st.external_id     AS "teamExternalId",
         st.name_zh         AS "teamName",
+        st.name_en         AS "teamNameEn",
         st.logo_url        AS "logoUrl",
         ss.rank,
         ss.wins,
@@ -1761,6 +1810,7 @@ export async function registerRoutes(
 
   // ─── GET /api/stats/player/:externalId ──────────────────────────────────────
   app.get("/api/stats/player/:externalId", requireAuth, async (req, res) => {
+    try {
     const { externalId } = req.params;
 
     const playerRows = await db.execute(sql`
@@ -1771,6 +1821,7 @@ export async function registerRoutes(
         sp.jersey_number     AS "jerseyNumber",
         sp.position,
         st.name_zh           AS "teamName",
+        st.name_en           AS "teamNameEn",
         st.logo_url          AS "teamLogo",
         st.external_id::text AS "teamExternalId",
         COUNT(pb.id)         AS games,
@@ -1800,7 +1851,7 @@ export async function registerRoutes(
       LEFT JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
       WHERE sp.external_id::text = ${externalId}
       GROUP BY sp.external_id, sp.name_zh, sp.name_en,
-               sp.jersey_number, sp.position, st.name_zh, st.logo_url, st.external_id
+               sp.jersey_number, sp.position, st.name_zh, st.name_en, st.logo_url, st.external_id
       LIMIT 1
     `);
     const player = (playerRows as any).rows?.[0];
@@ -1810,16 +1861,9 @@ export async function registerRoutes(
       SELECT
         sg.external_game_id  AS "gameId",
         sg.scheduled_at      AS "gameDate",
-        CASE
-          WHEN pb.team_external_id = (SELECT external_id FROM stats_teams WHERE id = sg.home_team_id LIMIT 1)
-            THEN at.name_zh
-          ELSE ht.name_zh
-        END                  AS "rivalName",
-        CASE
-          WHEN pb.team_external_id = (SELECT external_id FROM stats_teams WHERE id = sg.home_team_id LIMIT 1)
-            THEN sg.home_score || '-' || sg.away_score
-          ELSE sg.away_score || '-' || sg.home_score
-        END                  AS "score",
+        CASE WHEN sg.home_team_id = sp2.team_id THEN at.name_zh ELSE ht.name_zh END AS "rivalName",
+        CASE WHEN sg.home_team_id = sp2.team_id THEN at.name_en ELSE ht.name_en END AS "rivalNameEn",
+        CASE WHEN sg.home_team_id = sp2.team_id THEN sg.home_score || '-' || sg.away_score ELSE sg.away_score || '-' || sg.home_score END AS "score",
         pb.minutes,
         pb.pts, pb.reb, pb.ast, pb.stl, pb.blk, pb.tov,
         pb.fgm, pb.fga, pb.tpm, pb.tpa, pb.ftm, pb.fta,
@@ -1827,6 +1871,7 @@ export async function registerRoutes(
         pb.is_start_lineup   AS "isStart"
       FROM stats_player_boxscores pb
       JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
+      JOIN stats_players sp2 ON sp2.external_id = pb.player_external_id
       LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
       LEFT JOIN stats_teams at ON at.id = sg.away_team_id
       WHERE pb.player_external_id::text = ${externalId}
@@ -1837,6 +1882,7 @@ export async function registerRoutes(
       gameId: r.gameId,
       gameDate: r.gameDate,
       rivalName: r.rivalName,
+      rivalNameEn: r.rivalNameEn ?? null,
       score: r.score,
       minutes: r.minutes,
       pts: Number(r.pts ?? 0),
@@ -1863,6 +1909,7 @@ export async function registerRoutes(
         jerseyNumber: player.jerseyNumber,
         position: player.position,
         teamName: player.teamName,
+        teamNameEn: player.teamNameEn ?? null,
         teamLogo: player.teamLogo,
         teamExternalId: player.teamExternalId != null ? String(player.teamExternalId) : null,
         games: Number(player.games ?? 0),
@@ -1879,6 +1926,10 @@ export async function registerRoutes(
       },
       gameLog,
     });
+    } catch (err: any) {
+      console.error("[player-detail] Error:", err?.message ?? err);
+      return res.status(500).json({ error: "Failed to load player", detail: err?.message });
+    }
   });
 
   // ─── GET /api/stats/sync-status ─────────────────────────────────────────────
@@ -1917,6 +1968,7 @@ export async function registerRoutes(
       SELECT
         st.external_id   AS "externalId",
         st.name_zh       AS "nameZh",
+        st.name_en       AS "nameEn",
         st.logo_url      AS "logoUrl",
         ss.wins,
         ss.losses,
@@ -1971,6 +2023,7 @@ export async function registerRoutes(
       team: {
         externalId: String(team.externalId),
         nameZh: team.nameZh,
+        nameEn: team.nameEn ?? null,
         logoUrl: team.logoUrl,
         wins: Number(team.wins ?? 0),
         losses: Number(team.losses ?? 0),

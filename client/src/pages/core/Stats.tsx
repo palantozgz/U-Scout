@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Trophy, Users } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { ModulePageShell } from "./ModulePage";
@@ -87,6 +87,25 @@ function minutesToDisplay(minutes: string | null): string {
   return minutes;
 }
 
+function pickName(nameZh: string | null | undefined, nameEn: string | null | undefined, locale: string): string {
+  if (locale === "zh") return nameZh ?? nameEn ?? "";
+  return nameEn ?? nameZh ?? "";
+}
+
+function translatePosition(pos: string | null | undefined, locale: string): string {
+  if (!pos || locale === "zh") return pos ?? "";
+  const map: Record<string, string> = {
+    后卫: "Guard",
+    控球后卫: "Point Guard",
+    得分后卫: "Shooting Guard",
+    前锋: "Forward",
+    小前锋: "Small Forward",
+    大前锋: "Power Forward",
+    中锋: "Center",
+  };
+  return map[pos] ?? pos;
+}
+
 export default function Stats() {
   const { t, locale } = useLocale();
   const es = locale === "es";
@@ -156,7 +175,9 @@ export default function Stats() {
   const [ligaSegment, setLigaSegment] = useState<LigaSegment>("clasificacion");
   const [leaderStat, setLeaderStat] = useState<LeaderStatKey>("ppg");
   const [jugadorasTeam, setJugadorasTeam] = useState<string>("");
+  const chipsScrollRef = useRef<HTMLDivElement>(null);
   const [jugadorasSort, setJugadorasSort] = useState<JugadorasSort>("ppg");
+  const [jugadorasSortDir, setJugadorasSortDir] = useState<"asc" | "desc">("desc");
   const [jugadorasSearch, setJugadorasSearch] = useState("");
   const [jugadorasLimit, setJugadorasLimit] = useState(50);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
@@ -178,6 +199,12 @@ export default function Stats() {
   useEffect(() => {
     setJugadorasLimit(50);
   }, [jugadorasTeam, jugadorasSort, jugadorasSearch]);
+
+  useEffect(() => {
+    if (chipsScrollRef.current) {
+      chipsScrollRef.current.scrollLeft = 0;
+    }
+  }, [jugadorasTeam]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -218,13 +245,31 @@ export default function Stats() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [playersForSeason]);
 
+  const handleJugadorasSortClick = (k: JugadorasSort) => {
+    if (jugadorasSort === k) {
+      setJugadorasSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setJugadorasSort(k);
+      setJugadorasSortDir("desc");
+    }
+  };
+
   const jugadorasFiltered = useMemo(() => {
     let list = playersForSeason.filter((p) => p.games > 0);
     if (jugadorasTeam.trim()) list = list.filter((p) => p.teamName === jugadorasTeam);
     const q = jugadorasSearch.trim().toLowerCase();
-    if (q) list = list.filter((p) => p.playerName.toLowerCase().includes(q));
-    return [...list].sort((a, b) => num(b[jugadorasSort]) - num(a[jugadorasSort]));
-  }, [playersForSeason, jugadorasTeam, jugadorasSort, jugadorasSearch]);
+    if (q)
+      list = list.filter(
+        (p) =>
+          p.playerName.toLowerCase().includes(q) ||
+          (p.playerNameEn ?? "").toLowerCase().includes(q),
+      );
+    return [...list].sort((a, b) =>
+      jugadorasSortDir === "desc"
+        ? num(b[jugadorasSort]) - num(a[jugadorasSort])
+        : num(a[jugadorasSort]) - num(b[jugadorasSort]),
+    );
+  }, [playersForSeason, jugadorasTeam, jugadorasSort, jugadorasSearch, jugadorasSortDir]);
 
   const playersWithGamesForSeason = useMemo(
     () => playersForSeason.filter((p) => p.games > 0),
@@ -422,7 +467,9 @@ export default function Stats() {
                               ) : (
                                 <div className="w-7 h-7 rounded-md bg-muted/40 shrink-0" />
                               )}
-                              <p className="font-bold text-foreground truncate">{row.teamName}</p>
+                              <p className="font-bold text-foreground truncate">
+                                {pickName(row.teamName, row.teamNameEn, locale)}
+                              </p>
                             </div>
                             <p className="text-right font-black tabular-nums">
                               {row.wins}-{row.losses}
@@ -532,12 +579,15 @@ export default function Stats() {
                   onChange={(e) => setJugadorasSearch(e.target.value)}
                   className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground/50"
                 />
-                <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1">
+                <div
+                  ref={chipsScrollRef}
+                  className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1 scroll-snap-type-x-mandatory"
+                >
                   <button
                     type="button"
                     onClick={() => setJugadorasTeam("")}
                     className={cn(
-                      "shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors",
+                      "scroll-snap-align-start shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors",
                       !jugadorasTeam.trim()
                         ? "border-primary bg-primary/15 text-primary"
                         : "border-border bg-card text-muted-foreground hover:bg-muted/40",
@@ -551,7 +601,7 @@ export default function Stats() {
                       type="button"
                       onClick={() => setJugadorasTeam(name)}
                       className={cn(
-                        "shrink-0 max-w-[200px] truncate rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors",
+                        "scroll-snap-align-start shrink-0 max-w-[200px] truncate rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors",
                         jugadorasTeam === name
                           ? "border-primary bg-primary/15 text-primary"
                           : "border-border bg-card text-muted-foreground hover:bg-muted/40",
@@ -570,14 +620,16 @@ export default function Stats() {
                       <button
                         key={k}
                         type="button"
-                        onClick={() => setJugadorasSort(k)}
+                        onClick={() => handleJugadorasSortClick(k)}
                         className={cn(
                           "text-right font-black uppercase tracking-wider text-[10px] touch-manipulation flex items-center justify-end gap-0.5 w-full",
                           jugadorasSort === k ? "text-primary" : "text-muted-foreground",
                         )}
                       >
                         {k === "ppg" ? L.sortPPG : k === "rpg" ? L.sortRPG : L.sortAPG}
-                        {jugadorasSort === k && <span className="text-[8px]">▼</span>}
+                        {jugadorasSort === k && (
+                          <span className="text-[8px]">{jugadorasSortDir === "desc" ? "▼" : "▲"}</span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -592,8 +644,12 @@ export default function Stats() {
                         className="w-full px-3 py-3 grid grid-cols-[1.8fr_0.4fr_0.6fr_0.6fr_0.6fr] items-center gap-0 text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors border-b border-border last:border-b-0"
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-extrabold text-foreground truncate">{p.playerName}</p>
-                          <p className="text-[10px] text-muted-foreground/60 font-semibold truncate">{p.teamName ?? p.season}</p>
+                          <p className="text-sm font-extrabold text-foreground truncate">
+                            {pickName(p.playerName, p.playerNameEn ?? null, locale)}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground/60 font-semibold truncate">
+                            {pickName(p.teamName, p.teamNameEn ?? null, locale) || p.season}
+                          </p>
                         </div>
                         <p className="text-xs font-black text-foreground tabular-nums text-right">{p.games}</p>
                         <p className="text-xs font-black text-foreground tabular-nums text-right">{num(p.ppg).toFixed(1)}</p>
@@ -682,7 +738,15 @@ export default function Stats() {
   );
 }
 
-function StatChip(props: { label: string; value: string }) {
+function StatChip(props: { label: string; value: string; hero?: boolean }) {
+  if (props.hero) {
+    return (
+      <div className="rounded-xl border border-border bg-card px-3 py-3 flex flex-col items-center justify-center">
+        <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/70">{props.label}</p>
+        <p className="text-2xl font-black text-foreground tabular-nums mt-0.5">{props.value}</p>
+      </div>
+    );
+  }
   return (
     <div className="rounded-lg border border-border bg-card px-2.5 py-2">
       <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">{props.label}</p>
@@ -709,10 +773,16 @@ function StatsPlayerSheet({
   const { data, isLoading, isError } = usePlayerDetail(externalId);
   const [showAllGames, setShowAllGames] = useState(false);
   const [showRadar, setShowRadar] = useState(false);
+  const [showMoreStats, setShowMoreStats] = useState(false);
+  const [gameLogSort, setGameLogSort] = useState<"date" | "pts" | "reb" | "ast">("date");
+  const [gameLogSortDir, setGameLogSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     setShowAllGames(false);
     setShowRadar(false);
+    setShowMoreStats(false);
+    setGameLogSort("date");
+    setGameLogSortDir("desc");
   }, [externalId]);
 
   const player = data?.player;
@@ -738,6 +808,26 @@ function StatsPlayerSheet({
     starter: es ? "Titular" : zh ? "首发" : "Starter",
   };
 
+  const handleGameLogSortClick = (col: "pts" | "reb" | "ast") => {
+    if (gameLogSort === col) {
+      setGameLogSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setGameLogSort(col);
+      setGameLogSortDir("desc");
+    }
+  };
+
+  const sortedGameLog = [...gameLog].sort((a, b) => {
+    let diff = 0;
+    if (gameLogSort === "pts") diff = (b.pts ?? 0) - (a.pts ?? 0);
+    else if (gameLogSort === "reb") diff = (b.reb ?? 0) - (a.reb ?? 0);
+    else if (gameLogSort === "ast") diff = (b.ast ?? 0) - (a.ast ?? 0);
+    else {
+      diff = new Date(b.gameDate ?? 0).getTime() - new Date(a.gameDate ?? 0).getTime();
+    }
+    return gameLogSortDir === "desc" ? diff : -diff;
+  });
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
@@ -756,19 +846,23 @@ function StatsPlayerSheet({
               {player.jerseyNumber != null && player.jerseyNumber !== "" ? (
                 <span>{`#${player.jerseyNumber} · `}</span>
               ) : null}
-              {player.teamName && onTeamTap && player.teamExternalId ? (
+              {pickName(player.teamName, player.teamNameEn, locale) && onTeamTap && player.teamExternalId ? (
                 <button
                   type="button"
                   onClick={() => onTeamTap(String(player.teamExternalId))}
                   className="inline-flex max-w-full items-center gap-0.5 text-primary underline-offset-2 hover:underline active:opacity-70 touch-manipulation shrink-0"
                 >
-                  <span className="truncate">{player.teamName}</span>
+                  <span className="truncate">{pickName(player.teamName, player.teamNameEn, locale)}</span>
                   <ChevronRight className="w-3 h-3 shrink-0" />
                 </button>
               ) : (
-                <span>{player.teamName ?? "—"}</span>
+                <span>{pickName(player.teamName, player.teamNameEn, locale) || "—"}</span>
               )}
-              {player.position ? <span>{` · ${player.position}`}</span> : null}
+              {player.position && player.position.trim() && (
+                <span className="inline-block rounded-full bg-muted/50 border border-border text-[9px] font-black uppercase tracking-wide px-1.5 py-0 leading-4 shrink-0">
+                  {translatePosition(player.position, locale)}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -804,41 +898,67 @@ function StatsPlayerSheet({
 
         {!isLoading && !isError && player && player.games > 0 && (
           <>
-            <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+            <div className="rounded-2xl border border-border bg-card p-3 space-y-3">
               <div className="grid grid-cols-3 gap-2">
-                <StatChip label="PPG" value={player.ppg.toFixed(1)} />
-                <StatChip label="RPG" value={player.rpg.toFixed(1)} />
-                <StatChip label="APG" value={player.apg.toFixed(1)} />
+                <StatChip hero label="PPG" value={player.ppg.toFixed(1)} />
+                <StatChip hero label="RPG" value={player.rpg.toFixed(1)} />
+                <StatChip hero label="APG" value={player.apg.toFixed(1)} />
               </div>
               <div className="grid grid-cols-4 gap-2">
+                <StatChip label="FG%" value={player.fgPct != null ? `${player.fgPct.toFixed(1)}%` : "—"} />
                 <StatChip label="SPG" value={player.spg.toFixed(1)} />
                 <StatChip label="BPG" value={player.bpg.toFixed(1)} />
                 <StatChip label="TOPG" value={player.topg.toFixed(1)} />
-                <StatChip label="MPG" value={player.mpg.toFixed(1)} />
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <StatChip label="FG%" value={player.fgPct != null ? `${player.fgPct.toFixed(1)}%` : "—"} />
-                <StatChip label="3P%" value={player.fg3Pct != null ? `${player.fg3Pct.toFixed(1)}%` : "—"} />
-                <StatChip label="FT%" value={player.ftPct != null ? `${player.ftPct.toFixed(1)}%` : "—"} />
+              {showMoreStats && (
+                <div className="grid grid-cols-3 gap-2">
+                  <StatChip label="MPG" value={player.mpg.toFixed(1)} />
+                  <StatChip label="3P%" value={player.fg3Pct != null ? `${player.fg3Pct.toFixed(1)}%` : "—"} />
+                  <StatChip label="FT%" value={player.ftPct != null ? `${player.ftPct.toFixed(1)}%` : "—"} />
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowMoreStats((v) => !v)}
+                  className="flex-1 rounded-xl border border-border bg-muted/20 py-2 text-xs font-black text-muted-foreground hover:bg-muted/40 active:opacity-70 touch-manipulation transition-colors"
+                >
+                  {showMoreStats
+                    ? locale === "es"
+                      ? "Ver menos"
+                      : locale === "zh"
+                        ? "收起"
+                        : "Less"
+                    : locale === "es"
+                      ? "Ver más"
+                      : locale === "zh"
+                        ? "更多"
+                        : "More"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRadar((v) => !v)}
+                  className={cn(
+                    "flex-1 rounded-xl border py-2 text-xs font-black touch-manipulation transition-colors flex items-center justify-center gap-1.5",
+                    showRadar
+                      ? "border-primary/30 bg-primary/15 text-primary hover:bg-primary/25"
+                      : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40 active:opacity-70",
+                  )}
+                >
+                  <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+                  {showRadar
+                    ? locale === "es"
+                      ? "Ocultar radar"
+                      : locale === "zh"
+                        ? "隐藏雷达"
+                        : "Hide radar"
+                    : locale === "es"
+                      ? "Ver radar"
+                      : locale === "zh"
+                        ? "雷达图"
+                        : "Radar"}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowRadar((v) => !v)}
-                className="w-full rounded-xl border border-border bg-muted/20 py-2 text-xs font-black text-muted-foreground hover:bg-muted/40 active:opacity-70 touch-manipulation transition-colors flex items-center justify-center gap-1.5"
-              >
-                <BarChart3 className="w-3.5 h-3.5 shrink-0" />
-                {showRadar
-                  ? locale === "es"
-                    ? "Ocultar radar"
-                    : locale === "zh"
-                      ? "隐藏雷达图"
-                      : "Hide radar"
-                  : locale === "es"
-                    ? "Ver radar"
-                    : locale === "zh"
-                      ? "查看雷达图"
-                      : "View radar"}
-              </button>
               {showRadar && <StatsRadar player={player} locale={locale} />}
             </div>
 
@@ -854,68 +974,78 @@ function StatsPlayerSheet({
                   {L.gameLogTitle}
                 </p>
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr_0.45fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                  <div className="grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 border-b border-border bg-muted/30 pl-2.5 pr-3 py-2 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
                     <span>{L.dateCol}</span>
                     <span>{L.rivalCol}</span>
-                    <span className="text-right">{L.ptsCol}</span>
-                    <span className="text-right">{L.rebCol}</span>
-                    <span className="text-right">{L.astCol}</span>
+                    {(["pts", "reb", "ast"] as const).map((col) => (
+                      <button
+                        key={col}
+                        type="button"
+                        onClick={() => handleGameLogSortClick(col)}
+                        className={cn(
+                          "text-right font-black uppercase tracking-wider text-[9px] touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                          gameLogSort === col ? "text-primary" : "text-muted-foreground",
+                        )}
+                      >
+                        {col === "pts" ? L.ptsCol : col === "reb" ? L.rebCol : L.astCol}
+                        {gameLogSort === col && (
+                          <span className="text-[7px]">{gameLogSortDir === "desc" ? "▼" : "▲"}</span>
+                        )}
+                      </button>
+                    ))}
                     <span className="text-right">{L.minCol}</span>
-                    <span className="text-right">{L.pmCol}</span>
                   </div>
-                  {(showAllGames ? gameLog : gameLog.slice(0, 10)).map((g: GameLogEntry) => {
+                  {(showAllGames ? sortedGameLog : sortedGameLog.slice(0, 10)).map((g: GameLogEntry) => {
                     const date = g.gameDate
                       ? new Date(g.gameDate).toLocaleDateString(
                           locale === "zh" ? "zh-CN" : locale === "es" ? "es-ES" : "en-GB",
                           { month: "short", day: "numeric" },
                         )
                       : "—";
-                    const pm = g.plusMinus > 0 ? `+${g.plusMinus}` : String(g.plusMinus);
                     return (
                       <div
                         key={g.gameId}
-                        className="grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr_0.45fr] gap-0 items-center px-3 py-2.5 border-b border-border last:border-b-0 text-xs"
+                        className={cn(
+                          "grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 items-center pl-2 pr-3 py-2.5 border-b border-border last:border-b-0 text-xs border-l-[3px]",
+                          g.plusMinus > 0
+                            ? "border-l-green-500/50 dark:border-l-green-400/50"
+                            : g.plusMinus < 0
+                              ? "border-l-destructive/40"
+                              : "border-l-transparent",
+                        )}
                       >
                         <div className="min-w-0">
                           <p className="font-bold text-foreground tabular-nums">{date}</p>
                           {g.isStart && (
-                            <span className="text-[8px] font-black uppercase text-primary/70">{L.starter}</span>
+                            <span className="inline-block rounded-full bg-primary/15 text-primary text-[8px] font-black uppercase tracking-wide px-1.5 py-0 leading-4">
+                              {L.starter}
+                            </span>
                           )}
                         </div>
-                        <p className="text-muted-foreground truncate font-semibold">{g.rivalName ?? "—"}</p>
+                        <p className="text-muted-foreground truncate font-semibold">
+                          {pickName(g.rivalName, (g as any).rivalNameEn ?? null, locale)}
+                        </p>
                         <p className="text-right font-black tabular-nums text-foreground">{g.pts}</p>
                         <p className="text-right font-black tabular-nums text-foreground">{g.reb}</p>
                         <p className="text-right font-black tabular-nums text-foreground">{g.ast}</p>
                         <p className="text-right font-semibold tabular-nums text-muted-foreground">
                           {minutesToDisplay(g.minutes != null ? String(g.minutes) : null)}
                         </p>
-                        <p
-                          className={cn(
-                            "text-right font-black tabular-nums",
-                            g.plusMinus > 0
-                              ? "text-green-600 dark:text-green-400"
-                              : g.plusMinus < 0
-                                ? "text-destructive"
-                                : "text-muted-foreground",
-                          )}
-                        >
-                          {pm}
-                        </p>
                       </div>
                     );
                   })}
                 </div>
-                {!showAllGames && gameLog.length > 10 && (
+                {!showAllGames && sortedGameLog.length > 10 && (
                   <button
                     type="button"
                     onClick={() => setShowAllGames(true)}
                     className="w-full rounded-xl border border-border bg-card py-2.5 text-xs font-black text-primary touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors"
                   >
                     {es
-                      ? `Ver ${gameLog.length - 10} partidos más`
+                      ? `Ver ${sortedGameLog.length - 10} partidos más`
                       : zh
-                        ? `显示全部 ${gameLog.length} 场`
-                        : `See all ${gameLog.length} games`}
+                        ? `显示全部 ${sortedGameLog.length} 场`
+                        : `See all ${sortedGameLog.length} games`}
                   </button>
                 )}
               </div>
@@ -947,9 +1077,24 @@ function StatsTeamSheet({
 
   const team = data?.team;
   const players = data?.players ?? [];
-  const activePlayers = players.filter((p) => p.games > 0);
+  const [rosterSort, setRosterSort] = useState<"ppg" | "rpg" | "apg">("ppg");
+  const [rosterSortDir, setRosterSortDir] = useState<"asc" | "desc">("desc");
 
-  const teamName = team?.nameZh ?? "—";
+  const handleRosterSortClick = (col: "ppg" | "rpg" | "apg") => {
+    if (rosterSort === col) {
+      setRosterSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setRosterSort(col);
+      setRosterSortDir("desc");
+    }
+  };
+
+  const activePlayers = [...players.filter((p) => p.games > 0)].sort((a, b) => {
+    const diff = (b[rosterSort] ?? 0) - (a[rosterSort] ?? 0);
+    return rosterSortDir === "desc" ? diff : -diff;
+  });
+
+  const teamName = pickName(team?.nameZh, team?.nameEn, locale) || "—";
 
   const L = {
     close: es ? "Volver" : zh ? "返回" : "Back",
@@ -1034,9 +1179,22 @@ function StatsTeamSheet({
                   <div className="grid grid-cols-[1.6fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
                     <span>{L.colPlayer}</span>
                     <span className="text-right">{L.colG}</span>
-                    <span className="text-right">PPG</span>
-                    <span className="text-right">RPG</span>
-                    <span className="text-right">APG</span>
+                    {(["ppg", "rpg", "apg"] as const).map((col) => (
+                      <button
+                        key={col}
+                        type="button"
+                        onClick={() => handleRosterSortClick(col)}
+                        className={cn(
+                          "text-right font-black uppercase tracking-wider text-[9px] touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                          rosterSort === col ? "text-primary" : "text-muted-foreground",
+                        )}
+                      >
+                        {col.toUpperCase()}
+                        {rosterSort === col && (
+                          <span className="text-[7px]">{rosterSortDir === "desc" ? "▼" : "▲"}</span>
+                        )}
+                      </button>
+                    ))}
                   </div>
                   {activePlayers.map((p: TeamRosterPlayer) => {
                     const name =

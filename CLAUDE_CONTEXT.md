@@ -57,40 +57,36 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ---
 
-## Estado app — 7 mayo 2026 (sesión p21 — CIERRE)
+## Estado app — 7 mayo 2026 (sesión p22 — CIERRE)
 
-### Completado esta sesión ✅ (p21)
-- **audit-end-to-end.js**: 34/34 ✅ — pipeline completo verificado (standings, schedule, PBP, player_boxscores, ingest) ✅
-- **TRUNCATE stats_player_boxscores** ejecutado + pm2 restart → Pi re-sincronizando 223 partidos con field mapping correcto ✅
-- **Personnel import WCBA**: ya existía y funcionaba (endpoints GET /api/stats/teams y POST /api/stats/import-team estaban en routes.ts) ✅
-- **Personnel — Importar liga completa**: nuevo endpoint POST /api/stats/import-league + botón en UI ✅
-- **Personnel — Borrar todo**: nuevo endpoint DELETE /api/personnel/reset + modal confirmación "CONFIRMAR" ✅
-- **Stats.tsx — Orden grupos clasificación**: ya estaba correcto (localeCompare "zh" → A组 antes de B组) ✅
+### Completado sesión p21 ✅
+- **audit-end-to-end.js**: 34/34 ✅ — pipeline completo verificado
+- **TRUNCATE stats_player_boxscores** + pm2 restart → Pi re-sincronizó 223 partidos (5312 rows, avg_scorers=9.7, max_pts=51 ✅)
+- **Personnel import WCBA / import-league / borrar todo** ✅
+- **Stats.tsx — Orden grupos A→B** ✅
 
-### Estado sync Pi (al cierre p21)
-- stats_player_boxscores: TRUNCATE hecho, Pi re-sincronizando con field mapping correcto
-- El Pi usa boxDone para saltar juegos ya procesados → después del TRUNCATE procesará todos 223 de nuevo
-- **Verificar en próxima sesión**: COUNT(*) y AVG(pts) en stats_player_boxscores deben mostrar datos reales
-
-### Pendiente diseño — Migración asistida (Personnel)
-Feature compleja: detectar jugadoras que cambian de equipo entre temporadas, ofrecer opciones A/B/C/D al head coach. Requiere sesión dedicada de product design antes de implementar.
+### Completado sesión p22 ✅
+- **fix-team-names.js**: ejecutado en Pi → 18 equipos con name_en (pinyin) en stats_teams ✅
+- **HTTP 500 player detail RESUELTO**: causa = `pb.team_external_id` (TEXT) comparado con `stats_teams.external_id` (INTEGER) en game log query → operador no existente. Fix: JOIN stats_players sp2 + usar `sg.home_team_id = sp2.team_id` (INTEGER). try/catch añadido. ✅
+- **Stats UX Phase 1 ✅**: B1 scroll-snap chips, B2 scroll reset, B3 6-col game log con border color +/-, badge Titular, contraste leaders
+- **Stats UX Phase 2 ✅**: sortDir en Jugadoras, StatChip hero PPG/RPG/APG + secondary FG%/SPG/BPG/TOPG + showMore, radar button estilo filled, position badge, sort clickable en game log y roster
+- **Nombres en locale en/es ✅**: `pickName(nameZh, nameEn, locale)` en Stats.tsx — standings, PlayerSheet, TeamSheet, Jugadoras. `teamNameEn` / `nameEn` añadidos a tipos en stats-api.ts y a los endpoints standings, player detail, team detail
+- **GET /api/stats/players `teamNameEn`**: pendiente confirmar aplicación (Cursor prompt en curso)
 
 ### 🔴 RIESGOS ACTIVOS
 - P1 Schedule scroll List→Planner: no recentra en hoy (pendiente)
 - P2 hasReport — verificar con datos reales
 - StatsRadar AXIS_MAX son estimaciones — verificar contra datos reales
+- P3 Jugadoras extranjeras con `-` en name_zh: fix-player-names.js las salta → name_en null → salen en chino (e.g., 钱内迪-卡特). Fix pendiente en fix-player-names.js (quitar filtro de `-`)
 
 ### 🔴 BACKLOG COMPLETO
 
 #### U Stats
 - Shot chart landscape (hexbin)
 - StatsComparator landscape split view
-- B1: chips equipo sin snap
-- B2: scroll chips no resetea
-- B3: game log 7 columnas densidad
 
 #### Personnel
-- Migración asistida (sesión dedicada de diseño — ver descripción arriba)
+- Migración asistida (sesión dedicada de diseño)
 
 #### U Scout
 - PlayerEditor: auditoría completa campos
@@ -205,11 +201,11 @@ stats_pbp:              116.700 eventos ✅
 ## Endpoints Railway implementados
 ```
 GET  /api/stats/seasons      ✅ requireAuth
-GET  /api/stats/standings    ✅ requireAuth
+GET  /api/stats/standings    ✅ requireAuth — retorna teamName (zh) + teamNameEn (pinyin)
 GET  /api/stats/leaders      ✅ requireAuth (HAVING games >= 5)
-GET  /api/stats/players      ✅ requireAuth
-GET  /api/stats/player/:id   ✅ requireAuth — ppg/rpg/apg calculados desde boxscores
-GET  /api/stats/team/:id     ✅ requireAuth
+GET  /api/stats/players      ✅ requireAuth — retorna teamName (zh) + teamNameEn (pinyin, pendiente confirmar)
+GET  /api/stats/player/:id   ✅ requireAuth — ppg/rpg/apg desde boxscores + teamNameEn + try/catch + game log fix (sp2 JOIN)
+GET  /api/stats/team/:id     ✅ requireAuth — retorna nameZh + nameEn
 GET  /api/stats/player-link  ✅ requireAuth
 GET  /api/stats/games        ✅ requireAuth
 GET  /api/stats/sync-status  ✅ Bearer STATS_INGEST_KEY
@@ -223,9 +219,10 @@ DELETE /api/personnel/reset  ✅ requireAuth + headCoach — borra todos equipos
 ## U Stats — componentes
 ### Implementados ✅
 - `StatsRadar.tsx` — radar 6 ejes, AXIS_MAX: PPG=35/RPG=15/APG=10/SPG=4/BPG=4/FG%=65
-- `Stats.tsx` — Liga/Jugadoras + SeasonPicker + PlayerSheet + TeamSheet + radar toggle + sort grupos A→B
+- `Stats.tsx` — Liga/Jugadoras + SeasonPicker + PlayerSheet + TeamSheet + radar toggle + sort grupos A→B + pickName(nameZh, nameEn, locale) para nombres en/es/zh ✅
 - `StatsMiniChip` — MyScout.tsx
 - `LandscapeHint.tsx`
+- `pickName(nameZh, nameEn, locale)` — helper en Stats.tsx: locale zh→Chinese, en/es→pinyin con fallback
 
 ## Personnel — features implementadas
 ```

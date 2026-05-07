@@ -243,7 +243,8 @@ export class DatabaseStorage implements IStorage {
           primary_color as "primaryColor",
           is_system as "isSystem",
           club_id as "clubId",
-          created_at as "createdAt"
+          created_at as "createdAt",
+          name_en as "nameEn"
         FROM teams WHERE club_id = ${clubId} ORDER BY is_system ASC, created_at ASC`,
       );
       const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
@@ -278,13 +279,15 @@ export class DatabaseStorage implements IStorage {
             is_canonical as "isCanonical",
             team_id as "teamId",
             created_by_user_id as "createdByUserId",
-            created_by_user_id as "createdByCoachId"
+            created_by_user_id as "createdByCoachId",
+            name_en as "nameEn"
           FROM players WHERE team_id = ${teamId}`)
         : await db.execute(sql`SELECT *,
             is_canonical as "isCanonical",
             team_id as "teamId",
             created_by_user_id as "createdByUserId",
-            created_by_user_id as "createdByCoachId"
+            created_by_user_id as "createdByCoachId",
+            name_en as "nameEn"
           FROM players`);
       const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
       return arr as Player[];
@@ -298,7 +301,8 @@ export class DatabaseStorage implements IStorage {
                 is_canonical as "isCanonical",
                 team_id as "teamId",
                 created_by_user_id as "createdByUserId",
-                created_by_user_id as "createdByCoachId"
+                created_by_user_id as "createdByCoachId",
+                name_en as "nameEn"
               FROM players
               WHERE (is_canonical = true OR created_by_user_id ${viewerUserId ? sql`= ${viewerUserId}` : sql`IN (${sql.join(userIds.map((id) => sql`${id}`), sql`,`)})`})
                 AND team_id = ${teamId}`
@@ -306,7 +310,8 @@ export class DatabaseStorage implements IStorage {
                 is_canonical as "isCanonical",
                 team_id as "teamId",
                 created_by_user_id as "createdByUserId",
-                created_by_user_id as "createdByCoachId"
+                created_by_user_id as "createdByCoachId",
+                name_en as "nameEn"
               FROM players
               WHERE is_canonical = true AND team_id = ${teamId}`,
         )
@@ -316,14 +321,16 @@ export class DatabaseStorage implements IStorage {
                 is_canonical as "isCanonical",
                 team_id as "teamId",
                 created_by_user_id as "createdByUserId",
-                created_by_user_id as "createdByCoachId"
+                created_by_user_id as "createdByCoachId",
+                name_en as "nameEn"
               FROM players
               WHERE (is_canonical = true OR created_by_user_id ${viewerUserId ? sql`= ${viewerUserId}` : sql`IN (${sql.join(userIds.map((id) => sql`${id}`), sql`,`)})`})`
             : sql`SELECT *,
                 is_canonical as "isCanonical",
                 team_id as "teamId",
                 created_by_user_id as "createdByUserId",
-                created_by_user_id as "createdByCoachId"
+                created_by_user_id as "createdByCoachId",
+                name_en as "nameEn"
               FROM players
               WHERE is_canonical = true`,
         );
@@ -336,7 +343,8 @@ export class DatabaseStorage implements IStorage {
       is_canonical as "isCanonical",
       team_id as "teamId",
       created_by_user_id as "createdByUserId",
-      created_by_user_id as "createdByCoachId"
+      created_by_user_id as "createdByCoachId",
+      name_en as "nameEn"
     FROM players WHERE id = ${id}`);
     const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
     return arr[0] as Player | undefined;
@@ -349,7 +357,8 @@ export class DatabaseStorage implements IStorage {
       is_canonical as "isCanonical",
       team_id as "teamId",
       created_by_user_id as "createdByUserId",
-      created_by_user_id as "createdByCoachId"
+      created_by_user_id as "createdByCoachId",
+      name_en as "nameEn"
     FROM players WHERE id = ${created.id}`);
     const arr = (rows as any).rows ?? (rows as unknown as any[]);
     return (arr[0] ?? created) as Player;
@@ -363,7 +372,8 @@ export class DatabaseStorage implements IStorage {
       is_canonical as "isCanonical",
       team_id as "teamId",
       created_by_user_id as "createdByUserId",
-      created_by_user_id as "createdByCoachId"
+      created_by_user_id as "createdByCoachId",
+      name_en as "nameEn"
     FROM players WHERE id = ${id}`);
     const arr = (rows as any).rows ?? (rows as unknown as any[]);
     return (arr[0] ?? updated) as Player;

@@ -35,19 +35,27 @@ function titleCase(str) {
   }).join(' ');
 }
 
-function isForeign(nameZh) {
-  return nameZh.startsWith('*') || nameZh.includes('-');
+function isAsterisked(nameZh) {
+  return nameZh.startsWith('*');
 }
 
 function toEnglishName(nameZh, nameEn) {
   if (!nameZh) return nameEn ? titleCase(nameEn) : null;
-  if (isForeign(nameZh)) return nameEn ? titleCase(nameEn) : null;
+  // Skip asterisk-prefixed entries (non-player markers)
+  if (isAsterisked(nameZh)) return nameEn ? titleCase(nameEn) : null;
+  // Extract all Chinese characters (ignore dashes and other separators used in foreign names)
   const chineseChars = Array.from(nameZh).filter(c => /[\u4e00-\u9fff]/.test(c));
   if (chineseChars.length < 2) return nameEn ? titleCase(nameEn) : null;
   const syllables = chineseChars.map(c => {
     const p = pinyin(c, { toneType: 'none', type: 'array' });
     return (p[0] || c).toLowerCase();
   });
+  // For names with dashes (foreign transliterations), join all syllables as one name block
+  if (nameZh.includes('-')) {
+    const allSyllables = syllables.join('');
+    return allSyllables.charAt(0).toUpperCase() + allSyllables.slice(1);
+  }
+  // Standard Chinese name: surname (first char) + given name (remaining)
   const surname = syllables[0].charAt(0).toUpperCase() + syllables[0].slice(1);
   const givenRaw = syllables.slice(1).join('');
   const given = givenRaw.charAt(0).toUpperCase() + givenRaw.slice(1);

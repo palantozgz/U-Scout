@@ -8,8 +8,7 @@ import { useClub } from "@/lib/club-api";
 import { useCapabilities } from "@/lib/capabilities";
 import { useTeams, usePlayers, useCreatePlayer, useDeletePlayer, useCreateTeam, useDeleteTeam, createDefaultPlayer, type PlayerProfile, type Team } from "@/lib/mock-data";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
-import { isRealPhoto } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { cn, isRealPhoto, localName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
@@ -18,6 +17,14 @@ import { useQueryClient } from "@tanstack/react-query";
 function teamAvatarRingClass(primaryColor: string): string {
   const ring = primaryColor.startsWith("bg-") ? primaryColor.replace(/^bg-/, "ring-") : "ring-primary";
   return cn("ring-2 ring-offset-2 ring-offset-background", ring);
+}
+
+function TeamLogo({ logo }: { logo?: string | null }) {
+  if (!logo) return <span className="text-lg">🏀</span>;
+  if (logo.startsWith("http")) {
+    return <img src={logo} className="w-7 h-7 rounded-full object-cover bg-muted" alt="" />;
+  }
+  return <span className="text-lg">{logo}</span>;
 }
 
 export default function Personnel() {
@@ -104,6 +111,7 @@ export default function Personnel() {
     playersCreated: number;
     playersSkipped: number;
   } | null>(null);
+  const [importLeagueError, setImportLeagueError] = useState<string | null>(null);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
@@ -126,7 +134,7 @@ export default function Personnel() {
       addCanonical: "+ New official profile",
       addSandbox: "+ Add practice profile",
       importWcba: "⬇ Import WCBA",
-      importLeague: "⬇ Full league",
+      importLeague: "⬇ Import all teams",
       resetAll: "🗑 Reset all",
       resetTitle: "Delete all personnel",
       resetDesc: "Permanently deletes all teams and official profiles. Cannot be undone.",
@@ -159,7 +167,7 @@ export default function Personnel() {
       addCanonical: "+ Nueva ficha oficial",
       addSandbox: "+ Añadir ficha de prueba",
       importWcba: "⬇ Importar WCBA",
-      importLeague: "⬇ Liga completa",
+      importLeague: "⬇ Importar liga completa",
       resetAll: "🗑 Borrar todo",
       resetTitle: "Borrar toda la plantilla",
       resetDesc: "Borra permanentemente todos los equipos y fichas oficiales. No se puede deshacer.",
@@ -225,7 +233,7 @@ export default function Personnel() {
     addCanonical: "+ New official profile",
     addSandbox: "+ Add practice profile",
     importWcba: "⬇ Import WCBA",
-    importLeague: "⬇ Full league",
+    importLeague: "⬇ Import all teams",
     resetAll: "🗑 Reset all",
     resetTitle: "Delete all personnel",
     resetDesc: "Permanently deletes all teams and official profiles. Cannot be undone.",
@@ -476,11 +484,13 @@ export default function Personnel() {
     try {
       const res = await apiRequest("POST", "/api/stats/import-league", { coachUserId: profile.id });
       const data = await res.json();
+      setImportLeagueError(null);
       setImportLeagueResult(data);
       await qc.invalidateQueries({ queryKey: ["/api/teams"] });
       await qc.invalidateQueries({ queryKey: ["/api/players"] });
     } catch (err) {
       console.error("Import league failed", err);
+      setImportLeagueError("Import failed. Check console.");
     } finally {
       setImportLeagueLoading(false);
     }
@@ -572,12 +582,25 @@ export default function Personnel() {
                 disabled={importLeagueLoading}
                 onClick={() => {
                   setImportLeagueResult(null);
+                  setImportLeagueError(null);
                   void handleImportLeague();
                 }}
               >
-                {importLeagueLoading ? "…" : L.importLeague}
+                {importLeagueLoading ? "⏳ Importing…" : L.importLeague}
               </Button>
             </div>
+            {importLeagueError && (
+              <p className="text-xs text-destructive font-semibold text-center mt-1">{importLeagueError}</p>
+            )}
+            {importLeagueLoading && (
+              <p className="text-xs text-muted-foreground text-center animate-pulse mt-1">
+                {locale === "zh"
+                  ? "导入中，最多需1分钟…"
+                  : locale === "es"
+                    ? "Importando, puede tardar ~1 minuto…"
+                    : "Importing, may take ~1 minute…"}
+              </p>
+            )}
             <Button
               size="sm"
               variant="ghost"
@@ -651,7 +674,10 @@ export default function Personnel() {
                   if (!aFA && bFA) return -1;
                   return a.name.localeCompare(b.name);
                 }).map((t) => (
-                  <option key={t.id} value={t.id}>{t.logo} {t.name}</option>
+                  <option key={t.id} value={t.id}>
+                    {t.logo?.startsWith("http") ? "⛹️" : t.logo}{" "}
+                    {localName(t.name, (t as any).nameEn ?? (t as any).name_en, locale)}
+                  </option>
                 ))}
               </select>
             )}
@@ -744,7 +770,9 @@ export default function Personnel() {
                     {locale === "es" ? "Selecciona equipo WCBA…" : locale === "zh" ? "选择WCBA球队…" : "Select WCBA team…"}
                   </option>
                   {statsTeams.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
+                    <option key={t.id} value={t.id}>
+                      {localName(t.name, (t as any).nameEn ?? (t as any).name_en, locale)}
+                    </option>
                   ))}
                 </select>
 
@@ -835,9 +863,11 @@ export default function Personnel() {
                     onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-lg">{team.logo}</span>
+                      <TeamLogo logo={team.logo} />
                       <div className="text-left">
-                        <p className="text-sm font-black text-foreground">{team.name}</p>
+                        <p className="text-sm font-black text-foreground">
+                          {localName(team.name, (team as any).nameEn ?? (team as any).name_en, locale)}
+                        </p>
                         {isSystemTeam && (
                           <p className="text-[10px] text-muted-foreground/50 leading-tight">
                             {locale === "es"
@@ -882,7 +912,7 @@ export default function Personnel() {
                             {/* Avatar */}
                             <div className="relative shrink-0">
                               {isRealPhoto(player.imageUrl)
-                                ? <img src={player.imageUrl} alt={player.name} className={cn("w-10 h-10 rounded-full object-cover", teamAvatarRingClass(team.primaryColor))} />
+                                ? <img src={player.imageUrl} alt={localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale)} className={cn("w-10 h-10 rounded-full object-cover", teamAvatarRingClass(team.primaryColor))} />
                                 : <div className={cn("w-10 h-10 rounded-full overflow-hidden", teamAvatarRingClass(team.primaryColor))}><BasketballPlaceholderAvatar size={40} /></div>
                               }
                               {isCanonical && (
@@ -895,7 +925,9 @@ export default function Personnel() {
                             {/* Info */}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <p className="text-sm font-extrabold text-foreground truncate">{player.name || "—"}</p>
+                                <p className="text-sm font-extrabold text-foreground truncate">
+                                  {localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) || "—"}
+                                </p>
                                 {isCanonical ? (
                                   <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                                     {L.canonical}
@@ -955,7 +987,10 @@ export default function Personnel() {
                                     {locale === "es" ? "Mover a equipo" : locale === "zh" ? "移至队伍" : "Move to team"}
                                   </option>
                                   {teams.filter(t => !Boolean((t as any).is_system)).map(t => (
-                                    <option key={t.id} value={t.id}>{t.logo} {t.name}</option>
+                                    <option key={t.id} value={t.id}>
+                                      {t.logo?.startsWith("http") ? "⛹️" : t.logo}{" "}
+                                      {localName(t.name, (t as any).nameEn ?? (t as any).name_en, locale)}
+                                    </option>
                                   ))}
                                 </select>
                               )}

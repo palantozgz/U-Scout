@@ -7,8 +7,7 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { usePlayers, useTeams, useCreatePlayer, createDefaultPlayer, type PlayerProfile } from "@/lib/mock-data";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
-import { isRealPhoto } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { cn, isRealPhoto, localName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
@@ -135,7 +134,11 @@ export default function MyScout() {
     });
   }, [teamsWithCanonical]);
 
-  const teamName = (teamId: string) => teams.find((t) => t.id === teamId)?.name ?? "";
+  const teamName = (teamId: string) => {
+    const t = teams.find((x) => x.id === teamId);
+    if (!t) return "";
+    return localName(t.name, (t as any).nameEn ?? (t as any).name_en, locale);
+  };
   const teamLogo = (teamId: string) => teams.find((t) => t.id === teamId)?.logo ?? "";
 
   const L = {
@@ -349,7 +352,9 @@ export default function MyScout() {
                     {team.logo}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-foreground truncate">{team.name}</p>
+                    <p className="text-sm font-black text-foreground truncate">
+                      {localName(team.name, (team as any).nameEn ?? (team as any).name_en, locale)}
+                    </p>
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
                       {L.playersCount.replace("{n}", String(teamCanon.length))}
                     </p>
@@ -379,7 +384,7 @@ export default function MyScout() {
                               {isRealPhoto(player.imageUrl) ? (
                                 <img
                                   src={player.imageUrl}
-                                  alt={player.name}
+                                  alt={localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale)}
                                   className="w-11 h-11 rounded-full object-cover ring-2 ring-border"
                                 />
                               ) : (
@@ -397,7 +402,7 @@ export default function MyScout() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <p className="text-sm font-extrabold text-foreground truncate">
-                                  {player.name || "—"}
+                                  {localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) || "—"}
                                 </p>
                                 {isCanonical && (
                                   <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
@@ -423,10 +428,15 @@ export default function MyScout() {
                             </button>
                           </div>
 
-                          {isCanonical && player.name && (
+                          {isCanonical &&
+                            localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) && (
                             <div className="px-3 pb-2">
                               <StatsMiniChip
-                                playerName={player.name}
+                                playerName={localName(
+                                  player.name,
+                                  (player as any).nameEn ?? (player as any).name_en,
+                                  locale,
+                                )}
                                 onNavigate={navigateToStats}
                               />
                             </div>

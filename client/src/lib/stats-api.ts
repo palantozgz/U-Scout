@@ -13,7 +13,9 @@ export function toTitleCase(str: string | null | undefined): string | null {
 export type PlayerSeasonStats = {
   externalId: string;
   playerName: string;
+  playerNameEn?: string | null;
   teamName: string;
+  teamNameEn?: string | null;
   season: string;
   games: number;
   mpg: number;
@@ -73,6 +75,7 @@ export function useGameLog(playerName: string | null | undefined, season?: strin
 export interface StandingsRow {
   teamExternalId: string;
   teamName: string;
+  teamNameEn?: string | null;
   logoUrl: string | null;
   rank: number;
   wins: number;
@@ -134,6 +137,7 @@ export interface PlayerDetail {
   jerseyNumber: string | number | null;
   position: string | null;
   teamName: string | null;
+  teamNameEn?: string | null;
   teamLogo: string | null;
   teamExternalId: string | null;
   games: number;
@@ -153,6 +157,7 @@ export interface GameLogEntry {
   gameId: number;
   gameDate: string | null;
   rivalName: string | null;
+  rivalNameEn?: string | null;
   score: string | null;
   minutes: string | null;
   pts: number;
@@ -186,6 +191,7 @@ export interface TeamRosterPlayer {
 export interface TeamDetail {
   externalId: string;
   nameZh: string;
+  nameEn?: string | null;
   logoUrl: string | null;
   wins: number;
   losses: number;
