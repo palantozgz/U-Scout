@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { Settings, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,13 @@ export default function PlayerTeamList() {
   const { locale } = useLocale();
   const [, setLocation] = useLocation();
   const { data, isLoading, isError } = usePlayerTeams();
+
+  // Single-team shortcut: skip the list and go straight to their reports
+  useEffect(() => {
+    if (!isLoading && !isError && data?.teams.length === 1) {
+      setLocation(`/player/team/${data.teams[0].team.id}`, { replace: true });
+    }
+  }, [isLoading, isError, data, setLocation]);
 
   const es = locale === "es";
   const zh = locale === "zh";

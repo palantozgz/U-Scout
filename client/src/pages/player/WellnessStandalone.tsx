@@ -28,7 +28,7 @@ function WellnessRow(props: {
             </span>
           ) : null}
         </div>
-        <p className="text-[11px] text-muted-foreground mt-0.5">{props.value ? "Selected" : "1–5"}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{props.value ? "✓" : "1–5"}</p>
       </div>
       <ToggleGroup
         type="single"

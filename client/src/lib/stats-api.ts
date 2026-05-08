@@ -55,6 +55,7 @@ export function usePlayerSeasonStats() {
       (await apiRequest("GET", "/api/stats/players")).json(),
     networkMode: "online",
     staleTime: 60_000,
+    retry: 0,
   });
 }
 
@@ -104,6 +105,7 @@ export function useSeasons() {
       return r.json() as Promise<{ seasons: { seasonId: number; label: string }[] }>;
     },
     staleTime: 1000 * 60 * 60,
+    retry: 0,
   });
 }
 
@@ -116,6 +118,7 @@ export function useStandings(seasonId: number) {
     },
     networkMode: "online",
     staleTime: 300_000,
+    retry: 0,
   });
 }
 
@@ -128,6 +131,7 @@ export function useLeaders(seasonId: number, stat: string) {
     },
     networkMode: "online",
     staleTime: 300_000,
+    retry: 0,
   });
 }
 
@@ -222,6 +226,7 @@ export function useTeamDetail(externalId: string | null | undefined, seasonId?: 
     },
     enabled: Boolean(externalId),
     staleTime: 1000 * 60 * 5,
+    retry: 0,
   });
 }
 
@@ -234,6 +239,7 @@ export function usePlayerDetail(externalId: string | null | undefined) {
     },
     enabled: Boolean(externalId),
     staleTime: 1000 * 60 * 5,
+    retry: 0,
   });
 }
 

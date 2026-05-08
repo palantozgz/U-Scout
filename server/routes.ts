@@ -1374,7 +1374,7 @@ export async function registerRoutes(
       SELECT st.external_id as id, st.name_zh as name,
              st.name_en as "nameEn",
              st.updated_at as "updatedAt",
-             '2024-25' as season
+             '2025-26' as season
       FROM stats_teams st
       ORDER BY st.name_zh ASC
     `);
@@ -1609,7 +1609,7 @@ export async function registerRoutes(
         sp.photo_url                                  AS "photoUrl",
         st.name_zh                                    AS "teamName",
         st.name_en                                    AS "teamNameEn",
-        '2024-25'                                     AS season,
+        '2025-26'                                     AS season,
         COUNT(DISTINCT pb.game_id)::int               AS games,
         ROUND(AVG(
           CASE WHEN pb.minutes ~ '^\d+:\d{2}$'
@@ -1677,7 +1677,7 @@ export async function registerRoutes(
         pb.id::text                                   AS id,
         sp.name_zh                                    AS "playerName",
         st.name_zh                                    AS "teamName",
-        '2024-25'                                     AS season,
+        '2025-26'                                     AS season,
         sg.scheduled_at::date                         AS "gameDate",
         rival.name_zh                                 AS "rivalName",
         pb.minutes                                    AS minutes,
@@ -1710,25 +1710,30 @@ export async function registerRoutes(
   // GET /api/stats/standings
   app.get("/api/stats/standings", requireAuth, async (req, res) => {
     const seasonId = Number(req.query.seasonId ?? 2092);
-    const rows = await db.execute(sql`
-      SELECT
-        st.external_id     AS "teamExternalId",
-        st.name_zh         AS "teamName",
-        st.name_en         AS "teamNameEn",
-        st.logo_url        AS "logoUrl",
-        ss.rank,
-        ss.wins,
-        ss.losses,
-        ss.win_pct         AS "winPct",
-        ss.pts_per_game    AS "ppg",
-        ss.pts_against_per_game AS "oppg",
-        ss.phase_name      AS "phaseName"
-      FROM stats_standings ss
-      JOIN stats_teams st ON st.external_id = ss.team_external_id
-      WHERE ss.season_id = ${seasonId}
-      ORDER BY ss.rank ASC
-    `);
-    return res.json({ standings: (rows as any).rows ?? [] });
+    try {
+      const rows = await db.execute(sql`
+        SELECT
+          st.external_id     AS "teamExternalId",
+          st.name_zh         AS "teamName",
+          st.name_en         AS "teamNameEn",
+          st.logo_url        AS "logoUrl",
+          ss.rank,
+          ss.wins,
+          ss.losses,
+          ss.win_pct         AS "winPct",
+          ss.pts_per_game    AS "ppg",
+          ss.pts_against_per_game AS "oppg",
+          ss.phase_name      AS "phaseName"
+        FROM stats_standings ss
+        JOIN stats_teams st ON st.external_id = ss.team_external_id
+        WHERE ss.season_id = ${seasonId}
+        ORDER BY ss.rank ASC
+      `);
+      return res.json({ standings: (rows as any).rows ?? [] });
+    } catch (err) {
+      console.error("[stats/standings] DB error:", (err as any)?.message ?? err);
+      return res.json({ standings: [] });
+    }
   });
 
   // GET /api/stats/leaders
@@ -1746,25 +1751,30 @@ export async function registerRoutes(
         "(CASE WHEN SUM(pb.fga) > 0 THEN (SUM(pb.fgm)::float / SUM(pb.fga) * 100) ELSE NULL END)",
     };
     const statExpr = allowedStats[stat] ?? allowedStats["ppg"];
-    const rows = await db.execute(sql`
-      SELECT
-        sp.external_id     AS "externalId",
-        sp.name_zh         AS "playerName",
-        sp.name_en         AS "playerNameEn",
-        st.name_zh         AS "teamName",
-        ROUND(${sql.raw(statExpr)}::numeric, 1) AS value,
-        COUNT(DISTINCT pb.game_id)::int AS games
-      FROM stats_player_boxscores pb
-      JOIN stats_games sg ON sg.id = pb.game_id
-      JOIN stats_players sp ON sp.external_id = pb.player_external_id
-      LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
-      WHERE sg.status = 4 AND sg.season_id = ${seasonId}
-      GROUP BY sp.external_id, sp.name_zh, sp.name_en, st.name_zh
-      HAVING COUNT(DISTINCT pb.game_id) >= 5
-      ORDER BY value DESC NULLS LAST
-      LIMIT 15
-    `);
-    return res.json({ leaders: (rows as any).rows ?? [], stat });
+    try {
+      const rows = await db.execute(sql`
+        SELECT
+          sp.external_id     AS "externalId",
+          sp.name_zh         AS "playerName",
+          sp.name_en         AS "playerNameEn",
+          st.name_zh         AS "teamName",
+          ROUND(${sql.raw(statExpr)}::numeric, 1) AS value,
+          COUNT(DISTINCT pb.game_id)::int AS games
+        FROM stats_player_boxscores pb
+        JOIN stats_games sg ON sg.id = pb.game_id
+        JOIN stats_players sp ON sp.external_id = pb.player_external_id
+        LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
+        WHERE sg.status = 4 AND sg.season_id = ${seasonId}
+        GROUP BY sp.external_id, sp.name_zh, sp.name_en, st.name_zh
+        HAVING COUNT(DISTINCT pb.game_id) >= 5
+        ORDER BY value DESC NULLS LAST
+        LIMIT 15
+      `);
+      return res.json({ leaders: (rows as any).rows ?? [], stat });
+    } catch (err) {
+      console.error("[stats/leaders] DB error:", (err as any)?.message ?? err);
+      return res.json({ leaders: [], stat });
+    }
   });
 
   // ─── GET /api/stats/player-link ─────────────────────────────────────────────
@@ -1797,17 +1807,22 @@ export async function registerRoutes(
 
   // ─── GET /api/stats/seasons ──────────────────────────────────────────────────
   app.get("/api/stats/seasons", requireAuth, async (_req, res) => {
-    const rows = await db.execute(sql`
-      SELECT DISTINCT season_id AS "seasonId"
-      FROM stats_games
-      WHERE status = 4 AND season_id IS NOT NULL
-      ORDER BY season_id DESC
-    `);
-    const seasons = ((rows as any).rows ?? []).map((r: any) => ({
-      seasonId: r.seasonId,
-      label: r.seasonId === 2092 ? "2024-25" : String(r.seasonId),
-    }));
-    return res.json({ seasons });
+    try {
+      const rows = await db.execute(sql`
+        SELECT DISTINCT season_id AS "seasonId"
+        FROM stats_games
+        WHERE status = 4 AND season_id IS NOT NULL
+        ORDER BY season_id DESC
+      `);
+      const seasons = ((rows as any).rows ?? []).map((r: any) => ({
+        seasonId: r.seasonId,
+        label: r.seasonId === 2092 ? "2025-26" : String(r.seasonId),
+      }));
+      return res.json({ seasons });
+    } catch (err) {
+      console.error("[stats/seasons] DB error:", (err as any)?.message ?? err);
+      return res.json({ seasons: [] });
+    }
   });
 
   // ─── GET /api/stats/player/:externalId ──────────────────────────────────────

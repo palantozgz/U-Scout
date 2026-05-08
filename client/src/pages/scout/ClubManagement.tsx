@@ -982,19 +982,20 @@ export default function ClubManagement() {
                         {locale === "zh" ? "球员名单" : locale === "es" ? "Jugadoras del club" : "Club players"}
                       </p>
                       {roster.map((m) => (
-                        <div key={m.id} className="flex items-center gap-2 py-1">
-                          <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-[11px] font-bold text-muted-foreground shrink-0">
-                            {(m.displayName || m.authFullName || "?").slice(0,2).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">
-                              {m.displayName || m.authFullName || m.authEmail || m.invitedEmail || "—"}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {(m as any).jerseyNumber ? `#${(m as any).jerseyNumber} · ` : ""}{(m as any).position || (locale === "es" ? "Jugadora" : locale === "zh" ? "球员" : "Player")}
-                            </p>
-                          </div>
-                        </div>
+                        <MemberRow
+                          key={m.id}
+                          m={m}
+                          variant="player"
+                          t={t}
+                          roleLabel={roleLabel}
+                          canManage={canManageStaff}
+                          meRole={meClubRole}
+                          profileId={profile?.id}
+                          clubOwnerId={q.data.club.ownerId}
+                          delMember={delMember}
+                          banMut={banMut}
+                          opsMut={opsMut}
+                        />
                       ))}
                     </div>
                   ) : (

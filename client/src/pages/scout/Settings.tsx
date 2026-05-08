@@ -11,30 +11,30 @@ const LANGUAGES: { code: Locale; label: string; native: string; flag: string }[]
   { code: "zh", label: "Chinese",  native: "中文",     flag: "🇨🇳" },
 ];
 
-const THEMES: { id: Theme; emoji: string; labelKey: string; previewBg: string; dot1: string; dot2: string }[] = [
+const THEMES: { id: Theme; emoji: string; labelKey: string; previewBg: string; accent: string; muted: string }[] = [
   {
     id: "gamenight",
     emoji: "🌙",
     labelKey: "theme_gamenight",
-    previewBg: "hsl(222, 47%, 5%)",
-    dot1: "#3b82f6",
-    dot2: "#f97316",
+    previewBg: "#0B0C0F",
+    accent: "#F5A623",
+    muted: "#6B6F85",
   },
   {
     id: "office",
-    emoji: "📋",
+    emoji: "☀️",
     labelKey: "theme_office",
-    previewBg: "#ffffff",
-    dot1: "#1d4ed8",
-    dot2: "#94a3b8",
+    previewBg: "#F4F6FA",
+    accent: "#4563E9",
+    muted: "#C5CFE8",
   },
   {
     id: "oldschool",
     emoji: "🏀",
     labelKey: "theme_oldschool",
-    previewBg: "hsl(35,28%,91%)",
-    dot1: "#92400e",
-    dot2: "#b45309",
+    previewBg: "#0C0800",
+    accent: "#FF8C00",
+    muted: "#5C4A1E",
   },
 ];
 
@@ -84,12 +84,23 @@ export default function Settings() {
                 ].join(" ")}
               >
                 <div
-                  className="w-full h-10 rounded-lg flex items-end justify-center gap-1 pb-1.5"
+                  className="w-full h-10 rounded-lg overflow-hidden relative"
                   style={{ backgroundColor: th.previewBg }}
                 >
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: th.dot1 }} />
-                  <span className="w-2 h-4 rounded-full" style={{ backgroundColor: th.dot2 }} />
-                  <span className="w-2 h-3 rounded-full" style={{ backgroundColor: th.dot1 }} />
+                  {/* mini nav bar preview */}
+                  <div className="absolute bottom-0 left-0 right-0 h-3 flex items-center justify-around px-1"
+                    style={{ borderTop: `1px solid ${th.muted}40` }}>
+                    {[0, 1, 2, 3].map(i => (
+                      <span key={i} className="rounded-full"
+                        style={{
+                          width: i === 1 ? "12px" : "6px",
+                          height: i === 1 ? "3px" : "3px",
+                          backgroundColor: i === 1 ? th.accent : th.muted,
+                        }} />
+                    ))}
+                  </div>
+                  {/* accent bar at top */}
+                  <div className="absolute top-0 left-0 w-8 h-0.5 rounded-full" style={{ backgroundColor: th.accent }} />
                 </div>
                 <span className="text-lg">{th.emoji}</span>
                 <span className="text-xs font-semibold text-foreground text-center leading-tight">

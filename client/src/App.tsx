@@ -206,6 +206,56 @@ function AuthGate() {
   );
 }
 
+/** Prefetches data for other modules in the background after auth, in priority order. */
+function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: string }) {
+  useEffect(() => {
+    // Phase 1 (500ms): Schedule today + week — most time-sensitive
+    const t1 = window.setTimeout(() => {
+      queryClient.prefetchQuery({
+        queryKey: ["schedule", "events", "today", clubId],
+        queryFn: () => apiRequest("GET", `/api/schedule/events?clubId=${clubId}&range=today`).then(r => r.json()).catch(() => null),
+        staleTime: 60_000,
+      });
+      queryClient.prefetchQuery({
+        queryKey: ["schedule", "events", "week", clubId],
+        queryFn: () => apiRequest("GET", `/api/schedule/events?clubId=${clubId}&range=week`).then(r => r.json()).catch(() => null),
+        staleTime: 60_000,
+      });
+    }, 500);
+
+    // Phase 2 (2s): Players + teams — U Scout data
+    const t2 = window.setTimeout(() => {
+      queryClient.prefetchQuery({
+        queryKey: ["/api/teams", userId],
+        queryFn: () => apiRequest("GET", "/api/teams").then(r => r.json()).catch(() => []),
+        staleTime: 600_000,
+      });
+      queryClient.prefetchQuery({
+        queryKey: ["/api/players", userId, undefined],
+        queryFn: () => apiRequest("GET", "/api/players").then(r => r.json()).catch(() => []),
+        staleTime: 600_000,
+      });
+    }, 2_000);
+
+    // Phase 3 (4s): Stats — least time-sensitive, large payload
+    const t3 = window.setTimeout(() => {
+      queryClient.prefetchQuery({
+        queryKey: ["stats-seasons"],
+        queryFn: () => apiRequest("GET", "/api/stats/seasons").then(r => r.json()).catch(() => ({ seasons: [] })),
+        staleTime: 3_600_000,
+      });
+    }, 4_000);
+
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [clubId, userId]);
+
+  return null;
+}
+
 function ClubSecurityGate(props: { children: ReactNode }) {
   const { user, profile, signOut } = useAuth();
   const clubQ = useClub({ enabled: Boolean(user && profile) });
@@ -237,7 +287,13 @@ function ClubSecurityGate(props: { children: ReactNode }) {
     void signOut();
   }, [clubQ.error, clubQ.isError, profile, signOut, user?.id]);
 
-  return <>{props.children}</>;
+  const clubId = clubQ.data?.club?.id;
+  return (
+    <>
+      {clubId && user?.id && <BackgroundPrefetcher clubId={clubId} userId={user.id} />}
+      {props.children}
+    </>
+  );
 }
 
 function App() {
@@ -308,7 +364,7 @@ function App() {
       <TooltipProvider>
         <OfflineBanner />
         <Toaster />
-        <div className="min-h-[100dvh] bg-background max-w-md mx-auto relative shadow-2xl overflow-hidden overflow-y-auto border-x border-border">
+        <div className="min-h-[100dvh] bg-background max-w-md mx-auto md:max-w-none md:ml-0 md:mr-0 md:pl-16 lg:pl-56 relative shadow-2xl md:shadow-none overflow-hidden overflow-y-auto border-x md:border-x-0 border-border">
           {showSplash ? <UCoreBootSplash fadeOut={splashFadeOut} /> : null}
           {previewRole && previewRole !== profile?.role ? (
             <button

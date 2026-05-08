@@ -280,14 +280,16 @@ export class DatabaseStorage implements IStorage {
             team_id as "teamId",
             created_by_user_id as "createdByUserId",
             created_by_user_id as "createdByCoachId",
-            name_en as "nameEn"
+            name_en as "nameEn",
+            image_url as "imageUrl"
           FROM players WHERE team_id = ${teamId}`)
         : await db.execute(sql`SELECT *,
             is_canonical as "isCanonical",
             team_id as "teamId",
             created_by_user_id as "createdByUserId",
             created_by_user_id as "createdByCoachId",
-            name_en as "nameEn"
+            name_en as "nameEn",
+            image_url as "imageUrl"
           FROM players`);
       const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
       return arr as Player[];
@@ -302,7 +304,8 @@ export class DatabaseStorage implements IStorage {
                 team_id as "teamId",
                 created_by_user_id as "createdByUserId",
                 created_by_user_id as "createdByCoachId",
-                name_en as "nameEn"
+                name_en as "nameEn",
+                image_url as "imageUrl"
               FROM players
               WHERE (is_canonical = true OR created_by_user_id ${viewerUserId ? sql`= ${viewerUserId}` : sql`IN (${sql.join(userIds.map((id) => sql`${id}`), sql`,`)})`})
                 AND team_id = ${teamId}`
@@ -311,7 +314,8 @@ export class DatabaseStorage implements IStorage {
                 team_id as "teamId",
                 created_by_user_id as "createdByUserId",
                 created_by_user_id as "createdByCoachId",
-                name_en as "nameEn"
+                name_en as "nameEn",
+                image_url as "imageUrl"
               FROM players
               WHERE is_canonical = true AND team_id = ${teamId}`,
         )
@@ -322,7 +326,8 @@ export class DatabaseStorage implements IStorage {
                 team_id as "teamId",
                 created_by_user_id as "createdByUserId",
                 created_by_user_id as "createdByCoachId",
-                name_en as "nameEn"
+                name_en as "nameEn",
+                image_url as "imageUrl"
               FROM players
               WHERE (is_canonical = true OR created_by_user_id ${viewerUserId ? sql`= ${viewerUserId}` : sql`IN (${sql.join(userIds.map((id) => sql`${id}`), sql`,`)})`})`
             : sql`SELECT *,
@@ -330,7 +335,8 @@ export class DatabaseStorage implements IStorage {
                 team_id as "teamId",
                 created_by_user_id as "createdByUserId",
                 created_by_user_id as "createdByCoachId",
-                name_en as "nameEn"
+                name_en as "nameEn",
+                image_url as "imageUrl"
               FROM players
               WHERE is_canonical = true`,
         );
@@ -344,7 +350,8 @@ export class DatabaseStorage implements IStorage {
       team_id as "teamId",
       created_by_user_id as "createdByUserId",
       created_by_user_id as "createdByCoachId",
-      name_en as "nameEn"
+      name_en as "nameEn",
+      image_url as "imageUrl"
     FROM players WHERE id = ${id}`);
     const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
     return arr[0] as Player | undefined;
@@ -358,7 +365,8 @@ export class DatabaseStorage implements IStorage {
       team_id as "teamId",
       created_by_user_id as "createdByUserId",
       created_by_user_id as "createdByCoachId",
-      name_en as "nameEn"
+      name_en as "nameEn",
+      image_url as "imageUrl"
     FROM players WHERE id = ${created.id}`);
     const arr = (rows as any).rows ?? (rows as unknown as any[]);
     return (arr[0] ?? created) as Player;
@@ -373,7 +381,8 @@ export class DatabaseStorage implements IStorage {
       team_id as "teamId",
       created_by_user_id as "createdByUserId",
       created_by_user_id as "createdByCoachId",
-      name_en as "nameEn"
+      name_en as "nameEn",
+      image_url as "imageUrl"
     FROM players WHERE id = ${id}`);
     const arr = (rows as any).rows ?? (rows as unknown as any[]);
     return (arr[0] ?? updated) as Player;

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Check, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale, type Locale } from "@/lib/i18n";
+import { useAuth } from "@/lib/useAuth";
 import { applyThemeToDocument, type Theme } from "@/lib/theme";
 import { completeOnboarding } from "@/lib/onboarding-state";
 import { cn } from "@/lib/utils";
@@ -39,7 +40,9 @@ const LANGS: { code: Locale; native: string; flag: string }[] = [
   { code: "zh", native: "中文", flag: "🇨🇳" },
 ];
 
-const TUTORIAL_SLIDES = ["scout", "club", "reports", "settings"] as const;
+const COACH_SLIDES = ["scout", "club", "reports", "settings"] as const;
+const PLAYER_SLIDES = ["player_reports", "player_wellness", "player_schedule"] as const;
+type SlideId = typeof COACH_SLIDES[number] | typeof PLAYER_SLIDES[number];
 
 type Step = "language" | "theme" | "tutorial";
 
@@ -67,6 +70,7 @@ export default function OnboardingFlow({
   onDone: () => void;
 }) {
   const { t, changeLocale, locale } = useLocale();
+  const { profile } = useAuth();
   const [step, setStep] = useState<Step>("language");
   const [theme, setThemeLocal] = useState<Theme>(() => {
     try {
@@ -99,17 +103,20 @@ export default function OnboardingFlow({
     onDone();
   }, [userId, onDone]);
 
+  const isPlayer = profile?.role === "player";
+  const activeSlides: readonly SlideId[] = isPlayer ? PLAYER_SLIDES : COACH_SLIDES;
+
   const slides = useMemo(
     () =>
-      TUTORIAL_SLIDES.map((id) => ({
+      activeSlides.map((id) => ({
         id,
         title: t(`onboarding_slide_${id}_title` as never),
         body: t(`onboarding_slide_${id}_body` as never),
       })),
-    [t],
+    [t, activeSlides],
   );
 
-  const slideVisual = (id: (typeof TUTORIAL_SLIDES)[number]) => {
+  const slideVisual = (id: SlideId) => {
     switch (id) {
       case "scout":
         return (
@@ -161,6 +168,66 @@ export default function OnboardingFlow({
               <div className="h-8 rounded-lg bg-muted border border-border flex items-center px-2 gap-2">
                 <span className="text-xs">🎨</span>
                 <div className="h-2 flex-1 rounded bg-foreground/10" />
+              </div>
+            </div>
+          </FakePhoneFrame>
+        );
+      case "player_reports":
+        return (
+          <FakePhoneFrame>
+            <div className="grid grid-cols-2 gap-1 flex-1">
+              <div className="rounded-lg bg-card border border-border overflow-hidden">
+                <div className="h-10 bg-primary/20" />
+                <div className="p-1 space-y-1">
+                  <div className="h-2 w-3/4 rounded bg-foreground/20" />
+                  <div className="h-1.5 w-full rounded bg-primary/30" />
+                </div>
+              </div>
+              <div className="rounded-lg bg-card border border-border overflow-hidden">
+                <div className="h-10 bg-muted" />
+                <div className="p-1 space-y-1">
+                  <div className="h-2 w-2/3 rounded bg-foreground/20" />
+                  <div className="h-1.5 w-full rounded bg-muted-foreground/20" />
+                </div>
+              </div>
+            </div>
+          </FakePhoneFrame>
+        );
+      case "player_wellness":
+        return (
+          <FakePhoneFrame>
+            <div className="flex-1 space-y-2">
+              {["睡眠", "能量", "酸痛", "状态"].map((label, i) => (
+                <div key={label} className="flex items-center justify-between gap-1">
+                  <div className="h-2 w-8 rounded bg-foreground/20" />
+                  <div className="flex gap-0.5">
+                    {[1,2,3,4,5].map((n) => (
+                      <div key={n} className={`h-4 w-4 rounded text-[8px] flex items-center justify-center font-black border ${n === [4,3,5,4][i] ? "bg-primary border-primary text-white" : "bg-muted border-border"}`}>
+                        {n}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="h-5 rounded-md bg-primary/80" />
+          </FakePhoneFrame>
+        );
+      case "player_schedule":
+        return (
+          <FakePhoneFrame>
+            <div className="h-6 rounded-md bg-primary/20 border border-primary/30 flex items-center px-2 gap-1">
+              <span className="text-[9px]">📅</span>
+              <div className="h-1.5 flex-1 rounded bg-primary/40" />
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <div className="h-2 w-1/3 rounded bg-foreground/20" />
+              <div className="h-10 rounded-lg bg-card border border-border p-1.5 space-y-1">
+                <div className="h-2 w-2/3 rounded bg-foreground/20" />
+                <div className="h-1.5 w-1/2 rounded bg-primary/30" />
+              </div>
+              <div className="h-10 rounded-lg bg-card border border-dashed border-border p-1.5 flex items-center justify-center">
+                <div className="h-2 w-1/2 rounded bg-muted" />
               </div>
             </div>
           </FakePhoneFrame>
@@ -237,7 +304,7 @@ export default function OnboardingFlow({
       {step === "tutorial" && (
         <>
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t("coach_mode")}</span>
+            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{profile?.role === "player" ? t("role_player") : profile?.role === "head_coach" ? t("role_head_coach") : profile?.role === "coach" ? t("role_coach") : t("coach_mode")}</span>
             <button
               type="button"
               onClick={finish}
@@ -247,11 +314,11 @@ export default function OnboardingFlow({
             </button>
           </div>
           <div className="flex-1 flex flex-col min-h-0">
-            {slideVisual(TUTORIAL_SLIDES[tutorialIdx])}
+            {slideVisual(activeSlides[tutorialIdx])}
             <h2 className="text-xl font-black text-center mt-6 mb-2">{slides[tutorialIdx]?.title}</h2>
             <p className="text-sm text-muted-foreground text-center leading-relaxed mb-6">{slides[tutorialIdx]?.body}</p>
             <div className="flex justify-center gap-1.5 mb-6">
-              {TUTORIAL_SLIDES.map((_, i) => (
+              {activeSlides.map((_, i) => (
                 <span
                   key={i}
                   className={cn("h-1.5 rounded-full transition-all", i === tutorialIdx ? "w-6 bg-primary" : "w-1.5 bg-muted-foreground/30")}
@@ -268,11 +335,11 @@ export default function OnboardingFlow({
             <Button
               className="flex-1 h-12 rounded-xl font-bold"
               onClick={() => {
-                if (tutorialIdx >= TUTORIAL_SLIDES.length - 1) finish();
+                if (tutorialIdx >= activeSlides.length - 1) finish();
                 else setTutorialIdx((i) => i + 1);
               }}
             >
-              {tutorialIdx >= TUTORIAL_SLIDES.length - 1 ? t("onboarding_tutorial_done") : t("onboarding_tutorial_next")}
+              {tutorialIdx >= activeSlides.length - 1 ? t("onboarding_tutorial_done") : t("onboarding_tutorial_next")}
             </Button>
           </div>
         </>

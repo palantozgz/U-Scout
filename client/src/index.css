@@ -8,7 +8,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  
+
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-card: hsl(var(--card));
@@ -29,159 +29,222 @@
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
 
-  --font-sans: 'Outfit', sans-serif;
+  --font-sans: 'Inter', sans-serif;
   --font-body: 'Inter', sans-serif;
 
   --animate-spin-slow: spin 3s linear infinite;
 }
 
+/* ── DEFAULT LIGHT ───────────────────────────────────────────── */
 :root {
-  --background: 210 20% 98%; /* Very light cool gray */
-  --foreground: 222 47% 11%;
-  
+  --background: 220 25% 97%;
+  --foreground: 225 12% 8%;
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  
+  --card-foreground: 225 12% 8%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  
-  --primary: 221 83% 53%; /* Strong sports blue */
-  --primary-foreground: 210 40% 98%;
-  
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
-  
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
-  
-  --accent: 24 98% 50%; /* Vibrant energetic orange */
-  --accent-foreground: 0 0% 100%;
-  
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
-
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 221 83% 53%;
-  
-  --radius: 1rem;
-}
-
-/* NBA 2K / dark sports tech — #060a14 base, cards #0d1526, borders #1e2d4a */
-.dark {
-  --background: 222 47% 5%;
-  --foreground: 210 40% 96%;
-  
-  --card: 220 40% 10%;
-  --card-foreground: 210 40% 96%;
-  
-  --popover: 222 47% 5%;
-  --popover-foreground: 210 40% 96%;
-  
-  --primary: 217 100% 58%;
-  --primary-foreground: 210 40% 98%;
-  
-  --secondary: 220 32% 14%;
-  --secondary-foreground: 210 40% 96%;
-  
-  --muted: 220 28% 12%;
-  --muted-foreground: 215 16% 52%;
-  
-  --accent: 24 98% 55%;
-  --accent-foreground: 210 40% 98%;
-  
-  --destructive: 0 62% 45%;
-  --destructive-foreground: 210 40% 98%;
-  
-  --border: 217 32% 20%;
-  --input: 217 32% 20%;
-  --ring: 213 100% 60%;
-  
-  --radius: 0.5rem;
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply font-sans antialiased bg-background text-foreground;
-  }
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-sans tracking-tight;
-  }
-  p, span, input, button, textarea, select {
-    @apply font-body;
-  }
-}
-
-/* Custom Utilities for Sports App Look */
-@layer utilities {
-  .glass-card {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm;
-  }
-  
-  .dark .glass-card {
-    @apply bg-slate-900/80 border-slate-800 shadow-xl;
-  }
-  
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-}
-/* ── OFFICE (work) ─────────────────────────────────────────── */
-.theme-office {
-  --background: 0 0% 98%;
-  --foreground: 220 13% 18%;
-  --card: 0 0% 100%;
-  --card-foreground: 220 13% 18%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 220 13% 18%;
-  --primary: 221 83% 45%;
+  --popover-foreground: 225 12% 8%;
+  --primary: 226 76% 58%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 220 14% 94%;
-  --secondary-foreground: 220 13% 18%;
-  --muted: 220 14% 94%;
-  --muted-foreground: 220 9% 46%;
-  --accent: 220 14% 88%;
-  --accent-foreground: 220 13% 18%;
+  --secondary: 222 50% 95%;
+  --secondary-foreground: 225 12% 18%;
+  --muted: 220 25% 93%;
+  --muted-foreground: 225 15% 50%;
+  --accent: 222 80% 95%;
+  --accent-foreground: 226 76% 40%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 220 13% 88%;
-  --input: 220 13% 88%;
-  --ring: 221 83% 45%;
-  --radius: 0.5rem;
-}
-
-/* ── OLDSCHOOL (classic) — warm palette + basketball leather texture ─ */
-.theme-oldschool {
-  --background: 35 28% 91%;
-  --foreground: 20 14% 12%;
-  --card: 35 25% 88%;
-  --card-foreground: 20 14% 12%;
-  --popover: 35 28% 94%;
-  --popover-foreground: 20 14% 12%;
-  --primary: 24 80% 38%;
-  --primary-foreground: 35 28% 96%;
-  --secondary: 35 22% 85%;
-  --secondary-foreground: 20 14% 12%;
-  --muted: 35 20% 84%;
-  --muted-foreground: 25 12% 40%;
-  --accent: 15 70% 40%;
-  --accent-foreground: 35 28% 96%;
-  --destructive: 0 65% 45%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 30 18% 78%;
-  --input: 30 18% 78%;
-  --ring: 24 80% 35%;
+  --border: 222 33% 91%;
+  --input: 222 33% 91%;
+  --ring: 226 76% 58%;
   --radius: 0.75rem;
 }
 
+/* ── DARK / GAME NIGHT ───────────────────────────────────────── */
+.dark {
+  --background: 228 18% 5%;
+  --foreground: 0 0% 97%;
+  --card: 228 16% 9%;
+  --card-foreground: 0 0% 96%;
+  --popover: 228 18% 6%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 38 92% 55%;
+  --primary-foreground: 228 18% 8%;
+  --secondary: 228 15% 13%;
+  --secondary-foreground: 0 0% 90%;
+  --muted: 228 15% 12%;
+  --muted-foreground: 233 10% 47%;
+  --accent: 38 92% 55%;
+  --accent-foreground: 228 18% 8%;
+  --destructive: 0 62% 48%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 228 20% 15%;
+  --input: 228 20% 15%;
+  --ring: 38 92% 55%;
+  --radius: 0.75rem;
+}
+
+/* ── OFFICE ──────────────────────────────────────────────────── */
+.theme-office {
+  --background: 220 33% 96%;
+  --foreground: 225 12% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 225 12% 8%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 225 12% 8%;
+  --primary: 226 76% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 222 50% 95%;
+  --secondary-foreground: 225 12% 18%;
+  --muted: 220 25% 93%;
+  --muted-foreground: 225 15% 50%;
+  --accent: 222 80% 95%;
+  --accent-foreground: 226 76% 40%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 222 33% 91%;
+  --input: 222 33% 91%;
+  --ring: 226 76% 58%;
+  --radius: 0.75rem;
+}
+
+/* ── OLDSCHOOL / CLASSIC ─────────────────────────────────────── */
+/*
+  Referencias: Wilson leather playbook · old gym parquet · retro
+  championship poster (orange + teal) · NBA Showtime scoreboard.
+  Paleta: mahogany oscuro pero con luz cálida · naranja quemado
+  (ball/scoreboard) · teal/turquesa complementario · crema-pergamino.
+*/
+.theme-oldschool {
+  --background: 28 45% 10%;         /* caoba oscura cálida #221408 */
+  --foreground: 44 70% 83%;         /* crema-pergamino      #F0E0A8 */
+
+  --card: 30 50% 15%;               /* cuero medio          #3D2410 */
+  --card-foreground: 44 70% 83%;
+
+  --popover: 28 45% 12%;
+  --popover-foreground: 44 70% 83%;
+
+  --primary: 28 90% 52%;            /* naranja balón        #E86A10 */
+  --primary-foreground: 28 60% 8%;
+
+  --secondary: 178 55% 28%;         /* teal complementario  #208070 */
+  --secondary-foreground: 178 30% 90%;
+
+  --muted: 30 40% 18%;
+  --muted-foreground: 36 30% 52%;   /* tostado medio */
+
+  --accent: 178 55% 28%;            /* teal como accent */
+  --accent-foreground: 178 30% 90%;
+
+  --destructive: 0 65% 45%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 32 50% 24%;             /* borde cuero claro    #5C3418 */
+  --input: 32 50% 24%;
+  --ring: 28 90% 52%;
+
+  --radius: 0.5rem;
+}
+
+/* ── CLASSIC: fondo con textura de pista y arco de balón ─────── */
 html.theme-oldschool body {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='48' fill='none' stroke='%23c1440e' stroke-width='1.5' opacity='0.15'/%3E%3Cpath d='M2 50 Q25 25 50 2' fill='none' stroke='%23c1440e' stroke-width='1' opacity='0.12'/%3E%3Cpath d='M50 2 Q75 25 98 50' fill='none' stroke='%23c1440e' stroke-width='1' opacity='0.12'/%3E%3Cpath d='M2 50 Q25 75 50 98' fill='none' stroke='%23c1440e' stroke-width='1' opacity='0.12'/%3E%3Cpath d='M50 98 Q75 75 98 50' fill='none' stroke='%23c1440e' stroke-width='1' opacity='0.12'/%3E%3Cline x1='50' y1='2' x2='50' y2='98' stroke='%23c1440e' stroke-width='1' opacity='0.1'/%3E%3C/svg%3E");
-  background-size: 100px 100px;
+  /* Líneas de parqué horizontales — tablones de madera */
+  background-image:
+    /* Arco de zona — semicírculo decorativo grande, centrado */
+    radial-gradient(
+      ellipse 200px 200px at 50% 110%,
+      transparent 85%,
+      rgba(232, 106, 16, 0.12) 85.5%,
+      rgba(232, 106, 16, 0.12) 87%,
+      transparent 87.5%
+    ),
+    /* Línea central de pista */
+    linear-gradient(
+      180deg,
+      transparent 49.8%,
+      rgba(232, 106, 16, 0.18) 49.8%,
+      rgba(232, 106, 16, 0.18) 50.2%,
+      transparent 50.2%
+    ),
+    /* Tablones de parqué — líneas finas horizontales */
+    repeating-linear-gradient(
+      180deg,
+      transparent,
+      transparent 38px,
+      rgba(180, 100, 20, 0.18) 38px,
+      rgba(180, 100, 20, 0.18) 39px
+    ),
+    /* Tablones de parqué — variación de tono madera */
+    repeating-linear-gradient(
+      180deg,
+      rgba(255,200,80,0.02),
+      rgba(255,200,80,0.02) 19px,
+      rgba(255,150,30,0.03) 19px,
+      rgba(255,150,30,0.03) 38px
+    );
+}
+
+/* ── CLASSIC: efecto LED/scoreboard en números grandes ────────── */
+/*
+  Simula los "bolitos" del marcador eléctrico con:
+  - Espacio entre letras monospace (Space Mono)
+  - Text-shadow que imita el glow de los LEDs
+  - Border-bottom como "guía" del display de 7 segmentos
+*/
+html.theme-oldschool [data-scoreboard],
+html.theme-oldschool .scoreboard-num {
+  text-shadow:
+    0 0 8px hsl(28 90% 52%),
+    0 0 20px hsl(28 90% 52% / 0.5),
+    0 0 40px hsl(28 90% 52% / 0.2);
+  letter-spacing: 0.04em;
+}
+
+/* Bordes de card con brillo sutil naranja en classic */
+html.theme-oldschool [data-card-classic],
+html.theme-oldschool .card {
+  border-color: hsl(32 50% 26%);
+  box-shadow: inset 0 1px 0 rgba(255,200,80,0.08), 0 1px 3px rgba(0,0,0,0.4);
+}
+
+/* Teal accent para botones secundarios / etiquetas */
+html.theme-oldschool [data-teal] {
+  color: hsl(178 55% 45%);
+}
+
+/* Space Mono en todo el texto */
+html.theme-oldschool body,
+html.theme-oldschool h1, html.theme-oldschool h2,
+html.theme-oldschool h3, html.theme-oldschool h4,
+html.theme-oldschool p, html.theme-oldschool span,
+html.theme-oldschool button, html.theme-oldschool input,
+html.theme-oldschool select, html.theme-oldschool textarea,
+html.theme-oldschool a, html.theme-oldschool label {
+  font-family: 'Space Mono', monospace;
+}
+
+/* ── SHARED BASE ─────────────────────────────────────────────── */
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply antialiased bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+    @apply tracking-tight;
+  }
+  p, span, input, button, textarea, select {
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .glass-card {
+    @apply backdrop-blur-md border shadow-sm;
+    background-color: hsl(var(--card) / 0.85);
+    border-color: hsl(var(--border));
+  }
 }

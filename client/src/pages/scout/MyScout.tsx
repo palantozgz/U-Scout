@@ -348,8 +348,11 @@ export default function MyScout() {
                   }
                   className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
                 >
-                  <span className="text-xl shrink-0" aria-hidden>
-                    {team.logo}
+                  <span className="shrink-0" aria-hidden>
+                    {team.logo && (team.logo.startsWith("http://") || team.logo.startsWith("https://"))
+                      ? <img src={team.logo} alt="" className="w-8 h-8 object-contain rounded" />
+                      : <span className="text-xl">{team.logo || "🏀"}</span>
+                    }
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-black text-foreground truncate">
@@ -411,7 +414,7 @@ export default function MyScout() {
                                 )}
                               </div>
                               <p className="text-xs text-muted-foreground">
-                                #{player.number || "—"} · {teamLogo(player.teamId)} {teamName(player.teamId)}
+                                #{player.number || "—"} · {teamName(player.teamId)}
                               </p>
                             </div>
 
@@ -524,7 +527,7 @@ export default function MyScout() {
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        #{player.number || "—"} · {teamLogo(player.teamId)} {teamName(player.teamId)}
+                        #{player.number || "—"} · {teamName(player.teamId)}
                       </p>
                       {!isCanonical && (
                         <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">

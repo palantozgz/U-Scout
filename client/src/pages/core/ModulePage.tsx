@@ -25,7 +25,7 @@ export function ModulePageShell(
   const settingsHref = previewRole ? "/settings" : (caps.canUsePlayerUX ? "/player/home-settings" : "/settings");
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-16">
+    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-16 md:pb-0">
       {moduleHeader ? (
         // Modo logo centrado — igual que CoachHome / U CORE Home
         <div className="max-w-md mx-auto w-full px-4">

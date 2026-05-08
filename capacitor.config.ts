@@ -5,10 +5,9 @@ const config: CapacitorConfig = {
   appName: 'U Core',
   webDir: 'dist/public',
   server: {
-    // En producción apunta al bundle local, no a Railway
-    // Para desarrollo puedes descomentar la línea de abajo:
-    // url: 'https://u-scout-production.up.railway.app',
-    // allowNavigation: ['u-scout-production.up.railway.app']
+    url: 'https://u-scout-production.up.railway.app',
+    allowNavigation: ['u-scout-production.up.railway.app'],
+    cleartext: false,
   },
   ios: {
     contentInset: 'always',        // respeta safe area (notch)
