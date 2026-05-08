@@ -216,7 +216,7 @@ export default function CoachHome() {
   // Next game from schedule
   const nextGame = useMemo(() => {
     const now = Date.now();
-    return weekEvents
+    return (weekEvents ?? [])
       .filter((e) => new Date(e.starts_at).getTime() >= now)
       .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0] ?? null;
   }, [weekEvents]);
