@@ -30,15 +30,30 @@ describe("computeCapabilities", () => {
     expect(c.canCreateEvent).toBe(true);
   });
 
-  it("coach with active membership can manage/invite but cannot edit club unless owner/head coach", () => {
+  it("coach with active membership CANNOT manage/invite/edit club — only head_coach can", () => {
     const c = computeCapabilities({
       realRole: "coach",
       effectiveRole: "coach",
       membership: { clubId: "c1", userId: "u1", role: "coach", status: "active", isOwner: false },
     });
-    expect(c.canManageClub).toBe(true);
-    expect(c.canInviteMembers).toBe(true);
+    expect(c.canManageClub).toBe(false);
+    expect(c.canInviteMembers).toBe(false);
+    expect(c.canSeeAdminActions).toBe(false);
     expect(c.canEditClub).toBe(false);
+    expect(c.canCreateEvent).toBe(true); // coaches can still create sessions
+  });
+
+  it("coach with operationsAccess CANNOT manage/invite/edit club either", () => {
+    const c = computeCapabilities({
+      realRole: "coach",
+      effectiveRole: "coach",
+      membership: { clubId: "c1", userId: "u1", role: "coach", status: "active", isOwner: false, operationsAccess: true },
+    });
+    expect(c.canManageClub).toBe(false);
+    expect(c.canInviteMembers).toBe(false);
+    expect(c.canSeeAdminActions).toBe(false);
+    expect(c.canEditClub).toBe(false);
+    expect(c.canAccessPersonnel).toBe(true); // operationsAccess does grant Personnel
     expect(c.canCreateEvent).toBe(true);
   });
 

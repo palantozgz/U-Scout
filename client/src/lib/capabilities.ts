@@ -75,7 +75,7 @@ export function computeCapabilities(input: {
     if (!m) return false;
     if (m.status !== "active") return false;
     if (m.isOwner) return true;
-    return m.role === "head_coach" || m.role === "coach";
+    return m.role === "head_coach";
   })();
 
   const canInviteMembers = canManageClub;

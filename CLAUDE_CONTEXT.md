@@ -82,7 +82,7 @@ function ModCard({ icon, title, subtitle, badge, dot, comingSoon, onClick })
 
 ---
 
-## Estado app — 9 mayo 2026 (sesión p25 — CERRADA)
+## Estado app — 9 mayo 2026 (sesión p26 — CERRADA)
 
 ### Completado p23 ✅
 - **Redesign completo UI**: 3 temas (Dark/Classic/Office) en toda la navegación, todos los idiomas
@@ -118,6 +118,14 @@ Paleta módulos:
   stats:    #F59E0B (amber)
   playbook: #EF4444 (red)  ← nuevo, comingSoon
 ```
+
+### ✅ Completado p26
+- **Bug fix CoachHome.tsx**: `(weekEvents ?? [])` en useMemo — U Scout ya no peta con null
+- **Home.tsx**: U mark D=25 (40px) + "U CORE" wordmark centrado sobre el greeting — logo restaurado
+- **capabilities.ts**: `canManageClub` solo para head_coach/master/owner — coaches excluidos de Mi Club
+- **capabilities.test.ts**: tests actualizados reflejando la restricción (coach + operationsAccess también excluidos)
+- **Schedule.tsx (Cursor)**: recharts importado; `WellnessTrendChart` (AreaChart con gradiente, eje X fechas, Y 1-5, ReferenceLine en 3, tooltip CSS vars); `WellnessRow` con prop `goodUp` y semántica de color rojo→verde; tendencias jugadora → WellnessTrendChart con colores blue/amber/red/emerald; tendencias staff → idem; tarjeta "próxima sesión" jugadora con countdown + icono tipo + chips de hora/location/wellness; `SessionRow` staff con columna izquierda de color por tipo de sesión
+- **Backup**: `backup/schedule-ui-wellness-may9-2026` en GitHub
 
 ### 🔴 PRÓXIMO — iOS en dispositivo físico (Xcode abierto)
 - Estado: `ios/` generado, Xcode abierto
