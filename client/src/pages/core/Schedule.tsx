@@ -28,6 +28,7 @@ import {
   CalendarDays,
   Info,
 } from "lucide-react";
+import { AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { toPng } from "html-to-image";
 import {
   DropdownMenu,
@@ -40,6 +41,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatTimeHHMMFromParts, formatTimeHHMMFromTotalMinutes, parseTimeHHMMToTotalMinutes } from "@/lib/timeHHMM";
 import {
   todayKey,
+  type WellnessEntry,
   useUpsertWellnessEntry,
   useWellnessEntriesForDate,
   useWellnessEntriesRangeForUsers,
@@ -1539,39 +1541,94 @@ export default function Schedule() {
             ) : null}
             {isPlayer ? (
               <>
-                <div className="rounded-2xl border border-border bg-card p-4">
-                  <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
-                    {t("schedule_player_next_session")}
-                  </p>
-                  <div className="mt-2">
-                    <p className="text-sm font-extrabold text-foreground">
-                      {todayEventsQ.isLoading || tomorrowEventsQ.isLoading || weekEventsQ.isLoading
-                        ? t("schedule_loading_today")
-                        : nextSession
-                          ? nextSession.title
-                          : t("schedule_empty_next_sessions")}
+                <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+                  <div className="border-b border-border/60 bg-muted/15 px-4 py-2.5">
+                    <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                      {t("schedule_player_next_session")}
                     </p>
-                    {nextSession?.starts_at ? (
-                      <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
-                        {t("schedule_player_time")}: {formatTime(nextSession.starts_at)}
-                        {" · "}
-                        {t("schedule_player_location")}:{" "}
-                        {nextSession.location?.trim() ? nextSession.location! : t("schedule_location_tbd")}
-                      </p>
-                    ) : null}
-                    {nextSession?.session_type ? (
-                      <div className="mt-2">
-                        <span className="inline-flex items-center rounded-full border border-border bg-background/40 px-2.5 py-1 text-[11px] font-bold text-foreground">
-                          {t(ACTIVITY_TYPE_CONFIG[nextSession.session_type].labelKey)}
-                        </span>
-                      </div>
-                    ) : null}
                   </div>
-                  <div className="mt-3">
-                    <span className="inline-flex items-center rounded-full border border-border bg-background/40 px-2.5 py-1 text-[11px] font-bold text-foreground">
-                      {t("schedule_player_wellness")}:{" "}
-                      {submittedToday ? t("schedule_wellness_submitted") : t("schedule_wellness_pending")}
-                    </span>
+                  <div className="p-4">
+                    {todayEventsQ.isLoading || tomorrowEventsQ.isLoading || weekEventsQ.isLoading ? (
+                      <p className="text-sm font-semibold text-muted-foreground">{t("schedule_loading_today")}</p>
+                    ) : !nextSession ? (
+                      <p className="text-lg font-black tracking-tight text-foreground">{t("schedule_empty_next_sessions")}</p>
+                    ) : (
+                      <>
+                        <div className="flex items-start gap-3">
+                          {nextSession.session_type ? (
+                            (() => {
+                              const NextIcon = ACTIVITY_TYPE_CONFIG[nextSession.session_type].icon;
+                              return (
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary">
+                                  <NextIcon className="h-6 w-6" aria-hidden />
+                                </div>
+                              );
+                            })()
+                          ) : (
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted/30 text-muted-foreground">
+                              <CalendarDays className="h-6 w-6" aria-hidden />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-lg font-black leading-tight tracking-tight text-foreground sm:text-xl">{nextSession.title}</p>
+                            {nextSessionCountdown ? (
+                              <p className="mt-2 text-2xl font-black text-primary">{nextSessionCountdown}</p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {nextSession.session_type ? (
+                            (() => {
+                              const ChipIcon = ACTIVITY_TYPE_CONFIG[nextSession.session_type].icon;
+                              const chipClass =
+                                nextSession.session_type === "training"
+                                  ? "border-sky-500/35 bg-sky-500/10 text-sky-800 dark:text-sky-200"
+                                  : nextSession.session_type === "recovery"
+                                    ? "border-rose-500/35 bg-rose-500/10 text-rose-800 dark:text-rose-200"
+                                    : nextSession.session_type === "match"
+                                      ? "border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+                                      : nextSession.session_type === "travel"
+                                        ? "border-cyan-500/35 bg-cyan-500/10 text-cyan-900 dark:text-cyan-200"
+                                        : nextSession.session_type === "meeting"
+                                          ? "border-violet-500/35 bg-violet-500/10 text-violet-900 dark:text-violet-200"
+                                          : "border-border bg-muted/30 text-foreground";
+                              return (
+                                <span
+                                  className={[
+                                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-black",
+                                    chipClass,
+                                  ].join(" ")}
+                                >
+                                  <ChipIcon className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+                                  {t(ACTIVITY_TYPE_CONFIG[nextSession.session_type].labelKey)}
+                                </span>
+                              );
+                            })()
+                          ) : null}
+                          {nextSession.starts_at ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 text-[11px] font-bold text-foreground">
+                              <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                              {formatTime(nextSession.starts_at)}
+                            </span>
+                          ) : null}
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 text-[11px] font-bold text-foreground">
+                            {nextSession.location?.trim() ? nextSession.location : t("schedule_location_tbd")}
+                          </span>
+                          <span
+                            className={[
+                              "inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-black",
+                              submittedToday
+                                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+                                : "border-amber-500/40 bg-amber-500/12 text-amber-950 dark:text-amber-100",
+                            ].join(" ")}
+                          >
+                            {submittedToday
+                              ? `${t("schedule_player_wellness")} ✓`
+                              : `${t("schedule_player_wellness")}: ${t("schedule_wellness_pending")}`}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -2298,6 +2355,7 @@ export default function Schedule() {
                       (todayEventsQ.data ?? []).map((ev) => (
                         <SessionRow
                           key={ev.id}
+                          sessionType={ev.session_type}
                           title={ev.title}
                           subtitle={`${formatTime(ev.starts_at)}${ev.location ? ` · ${ev.location}` : ""}`}
                           right={
@@ -2680,24 +2738,33 @@ export default function Schedule() {
                         (() => {
                           const points = staffTrend.points;
                           const slice = staffTrendRange === "7d" ? points.slice(-7) : points;
-                          const pick = (k: keyof (typeof slice)[number]) => slice.map((p) => (p ? (p as any)[k] : null));
+                          const series = (metric: "avgSleep" | "avgEnergy" | "avgSoreness" | "avgReadiness") =>
+                            slice.map((p) => ({ date: p.day, value: (p as any)[metric] as number | null }));
                           return (
                             <div className="grid grid-cols-2 gap-3">
                               <div>
                                 <p className="text-xs font-bold text-foreground">{t("wellness_metric_sleep" as any)}</p>
-                                <div className="mt-1"><SparklineBars values={pick("avgSleep")} goodUp /></div>
+                                <div className="mt-1">
+                                  <WellnessTrendChart points={series("avgSleep")} goodUp color="#3b82f6" />
+                                </div>
                               </div>
                               <div>
                                 <p className="text-xs font-bold text-foreground">{t("wellness_metric_energy" as any)}</p>
-                                <div className="mt-1"><SparklineBars values={pick("avgEnergy")} goodUp /></div>
+                                <div className="mt-1">
+                                  <WellnessTrendChart points={series("avgEnergy")} goodUp color="#f59e0b" />
+                                </div>
                               </div>
                               <div>
                                 <p className="text-xs font-bold text-foreground">{t("wellness_metric_soreness" as any)}</p>
-                                <div className="mt-1"><SparklineBars values={pick("avgSoreness")} goodUp={false} /></div>
+                                <div className="mt-1">
+                                  <WellnessTrendChart points={series("avgSoreness")} goodUp={false} color="#ef4444" />
+                                </div>
                               </div>
                               <div>
                                 <p className="text-xs font-bold text-foreground">{t("wellness_metric_readiness" as any)}</p>
-                                <div className="mt-1"><SparklineBars values={pick("avgReadiness")} goodUp /></div>
+                                <div className="mt-1">
+                                  <WellnessTrendChart points={series("avgReadiness")} goodUp color="#10b981" />
+                                </div>
                               </div>
                             </div>
                           );
@@ -2796,6 +2863,7 @@ export default function Schedule() {
                       label={t("wellness_metric_sleep" as any)}
                       tooltip={t("wellness_tooltip_sleep" as any)}
                       value={sleepQuality}
+                      goodUp
                       onValueChange={(v) => {
                         setLocalSaved(false);
                         setSleepQuality(v);
@@ -2805,6 +2873,7 @@ export default function Schedule() {
                       label={t("wellness_metric_energy" as any)}
                       tooltip={t("wellness_tooltip_energy" as any)}
                       value={energyLevel}
+                      goodUp
                       onValueChange={(v) => {
                         setLocalSaved(false);
                         setEnergyLevel(v);
@@ -2814,6 +2883,7 @@ export default function Schedule() {
                       label={t("wellness_metric_soreness" as any)}
                       tooltip={t("wellness_tooltip_soreness" as any)}
                       value={muscleSoreness}
+                      goodUp={false}
                       onValueChange={(v) => {
                         setLocalSaved(false);
                         setMuscleSoreness(v);
@@ -2823,6 +2893,7 @@ export default function Schedule() {
                       label={t("wellness_metric_readiness" as any)}
                       tooltip={t("wellness_tooltip_readiness" as any)}
                       value={mentalReadiness}
+                      goodUp
                       onValueChange={(v) => {
                         setLocalSaved(false);
                         setMentalReadiness(v);
@@ -2947,13 +3018,14 @@ export default function Schedule() {
                     <div className="mt-3 space-y-3">
                       {(() => {
                         const q = wellnessTrendRange === "7d" ? last7Q : last30Q;
-                        const points = (q.data ?? []).map((e) => ({
-                          sleep: e.sleep_quality,
-                          energy: e.energy_level,
-                          soreness: e.muscle_soreness,
-                          readiness: e.mental_readiness,
-                        }));
-                        const pick = (k: keyof (typeof points)[number]) => points.map((p) => (p ? (p as any)[k] : null));
+                        const entries = q.data ?? [];
+                        const series = (
+                          field: keyof Pick<WellnessEntry, "sleep_quality" | "energy_level" | "muscle_soreness" | "mental_readiness">,
+                        ) =>
+                          entries.map((e) => ({
+                            date: e.entry_date,
+                            value: typeof e[field] === "number" && Number.isFinite(e[field]) ? e[field] : null,
+                          }));
                         return q.isLoading ? (
                           <p className="text-sm text-muted-foreground">{t("wellness_loading_today")}</p>
                         ) : (
@@ -2961,25 +3033,25 @@ export default function Schedule() {
                             <div>
                               <p className="text-xs font-bold text-foreground">{t("wellness_metric_sleep" as any)}</p>
                               <div className="mt-1">
-                                <SparklineBars values={pick("sleep")} goodUp />
+                                <WellnessTrendChart points={series("sleep_quality")} goodUp color="#3b82f6" />
                               </div>
                             </div>
                             <div>
                               <p className="text-xs font-bold text-foreground">{t("wellness_metric_energy" as any)}</p>
                               <div className="mt-1">
-                                <SparklineBars values={pick("energy")} goodUp />
+                                <WellnessTrendChart points={series("energy_level")} goodUp color="#f59e0b" />
                               </div>
                             </div>
                             <div>
                               <p className="text-xs font-bold text-foreground">{t("wellness_metric_soreness" as any)}</p>
                               <div className="mt-1">
-                                <SparklineBars values={pick("soreness")} goodUp={false} />
+                                <WellnessTrendChart points={series("muscle_soreness")} goodUp={false} color="#ef4444" />
                               </div>
                             </div>
                             <div>
                               <p className="text-xs font-bold text-foreground">{t("wellness_metric_readiness" as any)}</p>
                               <div className="mt-1">
-                                <SparklineBars values={pick("readiness")} goodUp />
+                                <WellnessTrendChart points={series("mental_readiness")} goodUp color="#10b981" />
                               </div>
                             </div>
                           </div>
@@ -3011,6 +3083,7 @@ export default function Schedule() {
                       label={t("wellness_metric_sleep" as any)}
                       tooltip={t("wellness_tooltip_sleep" as any)}
                       value={sleepQuality}
+                      goodUp
                       onValueChange={setSleepQuality}
                       disabled={upsert.isPending}
                     />
@@ -3018,6 +3091,7 @@ export default function Schedule() {
                       label={t("wellness_metric_energy" as any)}
                       tooltip={t("wellness_tooltip_energy" as any)}
                       value={energyLevel}
+                      goodUp
                       onValueChange={setEnergyLevel}
                       disabled={upsert.isPending}
                     />
@@ -3025,6 +3099,7 @@ export default function Schedule() {
                       label={t("wellness_metric_soreness" as any)}
                       tooltip={t("wellness_tooltip_soreness" as any)}
                       value={muscleSoreness}
+                      goodUp={false}
                       onValueChange={setMuscleSoreness}
                       disabled={upsert.isPending}
                     />
@@ -3032,6 +3107,7 @@ export default function Schedule() {
                       label={t("wellness_metric_readiness" as any)}
                       tooltip={t("wellness_tooltip_readiness" as any)}
                       value={mentalReadiness}
+                      goodUp
                       onValueChange={setMentalReadiness}
                       disabled={upsert.isPending}
                     />
@@ -3218,7 +3294,7 @@ export default function Schedule() {
                             key={m}
                             type="button"
                             size="sm"
-                            variant={durationMins === m ? "secondary" : "outline"}
+                            variant={durationMins === m ? "default" : "outline"}
                             className="h-9 px-3"
                             onClick={() => {
                               setCustomDurationOpen(false);
@@ -3232,7 +3308,7 @@ export default function Schedule() {
                         <Button
                           type="button"
                           size="sm"
-                          variant={customDurationOpen || (durationMins != null && !durationOptions.includes(durationMins)) ? "secondary" : "outline"}
+                          variant={customDurationOpen || (durationMins != null && !durationOptions.includes(durationMins)) ? "default" : "outline"}
                           className="h-9 px-3"
                           onClick={() => setCustomDurationOpen((v) => !v)}
                         >
@@ -4550,7 +4626,24 @@ function WellnessRow(props: {
   value: string;
   onValueChange: (v: string) => void;
   disabled?: boolean;
+  goodUp?: boolean;
 }) {
+  const goodUp = props.goodUp ?? true;
+  const COLOR_MAP_UP: Record<string, string> = {
+    "1": "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400 data-[state=on]:bg-red-500 data-[state=on]:text-white data-[state=on]:border-red-500",
+    "2": "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400 data-[state=on]:bg-orange-500 data-[state=on]:text-white data-[state=on]:border-orange-500",
+    "3": "border-yellow-500/40 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 data-[state=on]:bg-yellow-500 data-[state=on]:text-white data-[state=on]:border-yellow-500",
+    "4": "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 data-[state=on]:bg-emerald-500 data-[state=on]:text-white data-[state=on]:border-emerald-500",
+    "5": "border-emerald-600/50 bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 data-[state=on]:bg-emerald-600 data-[state=on]:text-white data-[state=on]:border-emerald-600",
+  };
+  const COLOR_MAP_DOWN: Record<string, string> = {
+    "1": "border-emerald-600/50 bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 data-[state=on]:bg-emerald-600 data-[state=on]:text-white data-[state=on]:border-emerald-600",
+    "2": "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 data-[state=on]:bg-emerald-500 data-[state=on]:text-white data-[state=on]:border-emerald-500",
+    "3": "border-yellow-500/40 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 data-[state=on]:bg-yellow-500 data-[state=on]:text-white data-[state=on]:border-yellow-500",
+    "4": "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400 data-[state=on]:bg-orange-500 data-[state=on]:text-white data-[state=on]:border-orange-500",
+    "5": "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400 data-[state=on]:bg-red-500 data-[state=on]:text-white data-[state=on]:border-red-500",
+  };
+  const colorMap = goodUp ? COLOR_MAP_UP : COLOR_MAP_DOWN;
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
@@ -4562,13 +4655,13 @@ function WellnessRow(props: {
             </span>
           ) : null}
         </div>
-        <p className="text-[11px] text-muted-foreground mt-0.5">{props.value ? "Selected" : "1–5"}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{props.value ? `${props.value}/5` : "—"}</p>
       </div>
       <ToggleGroup
         type="single"
         value={props.value}
         onValueChange={(v) => props.onValueChange(v || "")}
-        className="justify-end"
+        className="justify-end gap-1"
         disabled={props.disabled}
       >
         {["1", "2", "3", "4", "5"].map((n) => (
@@ -4578,8 +4671,8 @@ function WellnessRow(props: {
             size="sm"
             variant="outline"
             className={[
-              "h-10 w-10 px-0 text-sm font-black",
-              "data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm",
+              "h-10 w-10 px-0 text-sm font-black rounded-xl border transition-all duration-150",
+              colorMap[n],
             ].join(" ")}
           >
             {n}
@@ -4639,6 +4732,80 @@ function SparklineBars(props: {
   );
 }
 
+function WellnessTrendChart(props: {
+  points: Array<{ date: string; value: number | null }>;
+  goodUp?: boolean;
+  height?: number;
+  color?: string;
+}) {
+  const h = props.height ?? 80;
+  const goodUp = props.goodUp ?? true;
+  const baseColor = props.color ?? (goodUp ? "#10b981" : "#f59e0b");
+  const hasSufficientData = props.points.filter((p) => p.value !== null).length >= 2;
+  if (!hasSufficientData) {
+    return (
+      <div style={{ height: h }} className="flex items-center justify-center">
+        <p className="text-[10px] text-muted-foreground">—</p>
+      </div>
+    );
+  }
+  const gradId = `wgrad-${baseColor.replace("#", "")}`;
+  return (
+    <ResponsiveContainer width="100%" height={h}>
+      <AreaChart data={props.points} margin={{ top: 4, right: 2, left: -28, bottom: 0 }}>
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={baseColor} stopOpacity={0.35} />
+            <stop offset="95%" stopColor={baseColor} stopOpacity={0.03} />
+          </linearGradient>
+        </defs>
+        <XAxis
+          dataKey="date"
+          tick={{ fontSize: 8, fill: "var(--muted-foreground)" }}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(v: string) => {
+            try {
+              return new Intl.DateTimeFormat(undefined, { month: "numeric", day: "numeric" }).format(new Date(v));
+            } catch {
+              return v.slice(5);
+            }
+          }}
+          interval="preserveStartEnd"
+        />
+        <YAxis domain={[1, 5]} tick={{ fontSize: 8, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} ticks={[1, 2, 3, 4, 5]} />
+        <Tooltip
+          contentStyle={{
+            background: "var(--card)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            fontSize: 11,
+            padding: "4px 8px",
+          }}
+          formatter={(v: number) => [`${Number(v).toFixed(1)}`, ""]}
+          labelFormatter={(label: string) => {
+            try {
+              return new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" }).format(new Date(label));
+            } catch {
+              return label;
+            }
+          }}
+        />
+        <ReferenceLine y={3} stroke="var(--border)" strokeDasharray="3 3" strokeWidth={1} />
+        <Area
+          type="monotone"
+          dataKey="value"
+          stroke={baseColor}
+          strokeWidth={2}
+          fill={`url(#${gradId})`}
+          dot={false}
+          connectNulls
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
 function PlannerSessionCardButton(props: {
   className?: string;
   onOpenDetail: () => void;
@@ -4678,16 +4845,45 @@ function KpiCard(props: { title: string; value: string; subtitle?: string }) {
   );
 }
 
-function SessionRow(props: { title: string; subtitle?: string; right?: ReactNode }) {
+const STAFF_SESSION_ROW_ACCENT: Record<
+  ScheduleEvent["session_type"],
+  { panel: string; icon: string }
+> = {
+  training: { panel: "bg-sky-500/15 border-sky-500/25", icon: "text-sky-600 dark:text-sky-400" },
+  recovery: { panel: "bg-rose-500/15 border-rose-500/25", icon: "text-rose-600 dark:text-rose-400" },
+  match: { panel: "bg-amber-500/15 border-amber-500/30", icon: "text-amber-700 dark:text-amber-300" },
+  travel: { panel: "bg-cyan-500/15 border-cyan-500/25", icon: "text-cyan-700 dark:text-cyan-300" },
+  meeting: { panel: "bg-violet-500/15 border-violet-500/25", icon: "text-violet-700 dark:text-violet-300" },
+  other: { panel: "bg-muted/50 border-border", icon: "text-muted-foreground" },
+};
+
+function SessionRow(props: {
+  title: string;
+  subtitle?: string;
+  right?: ReactNode;
+  sessionType?: ScheduleEvent["session_type"];
+}) {
+  const accent = props.sessionType ? STAFF_SESSION_ROW_ACCENT[props.sessionType] : null;
+  const TypeIcon = props.sessionType ? ACTIVITY_TYPE_CONFIG[props.sessionType].icon : null;
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-3 py-2.5">
-      <div className="min-w-0">
-        <p className="text-sm font-extrabold text-foreground truncate">{props.title}</p>
-        {props.subtitle ? (
-          <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground truncate">{props.subtitle}</p>
-        ) : null}
+    <div className="flex overflow-hidden rounded-xl border border-border bg-background/40">
+      {accent && TypeIcon ? (
+        <div
+          className={["flex w-11 shrink-0 flex-col items-center justify-center border-r", accent.panel].join(" ")}
+          aria-hidden
+        >
+          <TypeIcon className={["h-4 w-4", accent.icon].join(" ")} />
+        </div>
+      ) : null}
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2.5">
+        <div className="min-w-0">
+          <p className="text-sm font-extrabold text-foreground truncate">{props.title}</p>
+          {props.subtitle ? (
+            <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground truncate">{props.subtitle}</p>
+          ) : null}
+        </div>
+        {props.right ? <div className="shrink-0">{props.right}</div> : null}
       </div>
-      {props.right ? <div className="shrink-0">{props.right}</div> : null}
     </div>
   );
 }
