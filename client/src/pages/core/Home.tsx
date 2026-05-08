@@ -4,7 +4,8 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth, type AppUserRole } from "@/lib/useAuth";
 import { computeCapabilities, readCoachBadges, useCapabilities } from "@/lib/capabilities";
 import { cn } from "@/lib/utils";
-import { CalendarDays, BarChart3, Users, Target, BellDot, Activity, ClipboardList, Heart, MapPin, Clock, BookOpen, Building2 } from "lucide-react";
+import { CalendarDays, BarChart3, Users, Target, BellDot, Activity, ClipboardList, Heart, MapPin, Clock, BookOpen, Building2, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { clubQueryKey } from "@/lib/club-api";
 import { useClub } from "@/lib/club-api";
@@ -44,7 +45,7 @@ function KpiCell({ value, label, color }: { value: string | number; label: strin
     color === "green"   ? "text-emerald-500" :
     "text-foreground";
   return (
-    <div className="flex flex-col items-center justify-center py-3 px-2">
+    <div className="flex flex-col items-center justify-center py-3 md:py-5 px-2">
       <span data-scoreboard="" className={cn("text-2xl font-black leading-none tabular-nums", colorClass)}>{value}</span>
       <span className="text-[8px] font-bold tracking-[1.5px] text-muted-foreground uppercase mt-1">{label}</span>
     </div>
@@ -69,7 +70,7 @@ function ModCard(props: {
       disabled={props.comingSoon}
       data-testid={props.testId}
       className={cn(
-        "group relative text-left rounded-xl border border-border bg-card p-4 flex flex-col gap-2",
+        "group relative text-left rounded-xl border border-border bg-card p-4 md:p-5 flex flex-col gap-2",
         "transition-all duration-200",
         props.comingSoon
           ? "opacity-50 cursor-default"
@@ -332,28 +333,41 @@ export default function Home() {
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
       <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-10 md:px-8">
 
-        {/* ── Brand header — mismo componente que el resto de módulos ── */}
-        <ModuleHeader
-          module="core"
-          tagline={
-            locale === "zh" ? "球队管理中心" :
-            locale === "es" ? "Centro de gestión del equipo" :
-            "Team management hub"
-          }
-        />
+        {/* ── Brand header — mobile only (sidebar lleva branding en desktop) ── */}
+        <div className="md:hidden">
+          <ModuleHeader
+            module="core"
+            tagline={
+              locale === "zh" ? "球队管理中心" :
+              locale === "es" ? "Centro de gestión del equipo" :
+              "Team management hub"
+            }
+          />
+        </div>
 
         {/* ── 2-col grid: left=content right=KPIs+MiClub (desktop) ── */}
-        <div className="lg:grid lg:grid-cols-[1fr_220px] lg:gap-x-6 lg:items-start">
+        <div className="lg:grid lg:grid-cols-[1fr_220px] lg:gap-x-6 lg:items-start md:pt-6">
           <div className="min-w-0">
 
         {/* ── Greeting ──────────────────────────────── */}
-        <div className="px-5 md:px-0 pb-4">
-          <p className="text-[10px] font-bold tracking-[2px] uppercase text-muted-foreground mb-1 truncate">
-            {dateStr}
-          </p>
-          <h1 className="text-[26px] font-black tracking-tight leading-tight">
-            {t("home_greeting_hi")}, <span className="text-primary">{firstName}</span> 👋
-          </h1>
+        <div className="px-5 md:px-0 pb-4 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-bold tracking-[2px] uppercase text-muted-foreground mb-1 truncate">
+              {dateStr}
+            </p>
+            <h1 className="text-[26px] font-black tracking-tight leading-tight">
+              {t("home_greeting_hi")}, <span className="text-primary">{firstName}</span> 👋
+            </h1>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden md:flex shrink-0 mt-1 text-muted-foreground hover:text-foreground"
+            onClick={() => setLocation(settingsHref)}
+            aria-label="Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
         </div>
 
         {/* ── Smart alerts ─────────────────────────── */}

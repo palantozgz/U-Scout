@@ -259,13 +259,20 @@ export default function CoachHome() {
     : L.alertAllGood;
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden pb-16">
-      <main className="relative z-10 flex flex-col flex-1 px-4 pb-6 landscape:pb-4 max-w-5xl mx-auto w-full gap-3 landscape:gap-2">
-        <ModuleHeader module="scout" tagline={
-          locale === "zh" ? "个人防守侦察" :
-          locale === "es" ? "Scouting defensivo individual" :
-          "Individual defensive scouting"
-        } />
+    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden pb-16 md:pb-0">
+      <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 pb-6 landscape:pb-4 max-w-5xl mx-auto w-full gap-3 landscape:gap-2">
+        {/* Mobile only — desktop sidebar carries module identity */}
+        <div className="md:hidden">
+          <ModuleHeader module="scout" tagline={
+            locale === "zh" ? "个人防守侦察" :
+            locale === "es" ? "Scouting defensivo individual" :
+            "Individual defensive scouting"
+          } />
+        </div>
+        {/* Desktop compact heading */}
+        <div className="hidden md:flex items-center justify-between py-4 border-b border-border/30 mb-1">
+          <h1 className="text-xl font-black tracking-tight">U Scout</h1>
+        </div>
 
         {/* ── ALERT SLOTS ── */}
         <div className="grid grid-cols-3 gap-2">
@@ -311,8 +318,7 @@ export default function CoachHome() {
           </>
         )}
 
-        {/* ── MY SCOUT ── */}
-        {/* Flow indicator — encima del primer card del workflow */}
+        {/* ── WORKFLOW: My Scout → Film Room → Game Plan ── */}
         <div className="flex items-center justify-center gap-1 text-[11px] font-black tracking-widest text-muted-foreground/35 uppercase -mb-1">
           <span>{locale === "zh" ? "我的报告" : locale === "es" ? "Mi Scout" : "My Scout"}</span>
           <ArrowRight className="w-3 h-3" />
@@ -320,31 +326,30 @@ export default function CoachHome() {
           <ArrowRight className="w-3 h-3" />
           <span>{locale === "zh" ? "比赛方案" : locale === "es" ? "Plan de juego" : "Game Plan"}</span>
         </div>
-        <NavCard
-          icon={<Pencil className="w-8 h-8" strokeWidth={2} />}
-          title={L.myscout}
-          sub={L.myscoutSub}
-          onClick={() => setLocation("/coach/my-scout")}
-          testId="coach-home-my-scout"
-        />
-
-        {/* ── FILM ROOM ── */}
-        <NavCard
-          icon={<Users2 className="w-8 h-8" strokeWidth={2} />}
-          title={L.filmroom}
-          sub={L.filmroomSub}
-          onClick={() => setLocation("/coach/film-room")}
-          testId="coach-home-film-room"
-        />
-
-        {/* ── GAME PLAN ── */}
-        <NavCard
-          icon={<FileText className="w-8 h-8" strokeWidth={2} />}
-          title={L.gameplan}
-          sub={L.gameplanSub}
-          onClick={() => setLocation("/coach/game-plan")}
-          testId="coach-home-game-plan"
-        />
+        {/* Cards — single col mobile, 3-col desktop */}
+        <div className="flex flex-col md:grid md:grid-cols-3 gap-3">
+          <NavCard
+            icon={<Pencil className="w-8 h-8" strokeWidth={2} />}
+            title={L.myscout}
+            sub={L.myscoutSub}
+            onClick={() => setLocation("/coach/my-scout")}
+            testId="coach-home-my-scout"
+          />
+          <NavCard
+            icon={<Users2 className="w-8 h-8" strokeWidth={2} />}
+            title={L.filmroom}
+            sub={L.filmroomSub}
+            onClick={() => setLocation("/coach/film-room")}
+            testId="coach-home-film-room"
+          />
+          <NavCard
+            icon={<FileText className="w-8 h-8" strokeWidth={2} />}
+            title={L.gameplan}
+            sub={L.gameplanSub}
+            onClick={() => setLocation("/coach/game-plan")}
+            testId="coach-home-game-plan"
+          />
+        </div>
       </main>
       <ModuleNav />
     </div>

@@ -1,8 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useCapabilities } from "@/lib/capabilities";
-import { Home, Target, CalendarDays, BarChart3, Building2 } from "lucide-react";
+import { Home, Target, CalendarDays, BarChart3, BookOpen } from "lucide-react";
 import { useLocale } from "@/lib/i18n";
 
 type NavItem = {
@@ -13,22 +12,18 @@ type NavItem = {
 };
 
 function useModuleNavItems() {
-  const caps = useCapabilities();
   const { t } = useLocale();
 
   return useMemo<NavItem[]>(() => {
     const home     = { key: "home",     label: t("ucore_nav_home"),     href: "/home",       icon: <Home         className="w-5 h-5" /> };
     const schedule = { key: "schedule", label: t("ucore_nav_schedule"), href: "/schedule",   icon: <CalendarDays className="w-5 h-5" /> };
     const scout    = { key: "scout",    label: t("ucore_nav_scout"),    href: "/scout",      icon: <Target       className="w-5 h-5" /> };
-    const stats    = { key: "stats",    label: t("ucore_nav_stats"),    href: "/stats",      icon: <BarChart3    className="w-5 h-5" /> };
-    const club     = { key: "club",     label: t("ucore_nav_club"),     href: "/coach/club", icon: <Building2    className="w-5 h-5" /> };
+    const stats    = { key: "stats",    label: t("ucore_nav_stats"),    href: "/stats",     icon: <BarChart3 className="w-5 h-5" /> };
+    const playbook = { key: "playbook", label: "Playbook",              href: "/playbook",  icon: <BookOpen  className="w-5 h-5" /> };
 
-    // Players: 4 items, no club management
-    if (caps.canUsePlayerUX) return [home, schedule, scout, stats];
-
-    // All staff (coaches, head coach, master): 5 items incl. Mi Club
-    return [home, schedule, scout, stats, club];
-  }, [caps.canUsePlayerUX, t]);
+    // All users: same 5-item nav
+    return [home, schedule, scout, stats, playbook];
+  }, [t]);
 }
 
 export function ModuleNav() {
