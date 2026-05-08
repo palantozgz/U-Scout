@@ -106,7 +106,7 @@ export default function WellnessStandalone() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-4 space-y-4 max-w-md mx-auto w-full">
+      <main className="flex-1 px-4 py-4 space-y-4 max-w-5xl mx-auto w-full">
         <FirstVisitBanner
           visitKey="wellness-v1"
           icon={<Activity className="h-4 w-4" />}

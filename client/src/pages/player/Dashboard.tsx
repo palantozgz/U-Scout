@@ -56,7 +56,7 @@ export function PlayerTeamView() {
         <h1 className="text-base font-black tracking-tight uppercase truncate">{team.name}</h1>
       </header>
 
-      <main className="flex-1 px-3 pb-10 pt-4 max-w-md mx-auto w-full">
+      <main className="flex-1 px-3 pb-10 pt-4 max-w-5xl mx-auto w-full">
         {players.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-sm text-muted-foreground">

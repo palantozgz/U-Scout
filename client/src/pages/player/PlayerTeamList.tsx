@@ -57,7 +57,7 @@ export default function PlayerTeamList() {
         </Button>
       </header>
 
-      <main className="flex-1 px-4 py-4 space-y-3 max-w-md mx-auto w-full">
+      <main className="flex-1 px-4 py-4 space-y-3 max-w-5xl mx-auto w-full">
         <FirstVisitBanner
           visitKey="scout-player-v1"
           icon={<ShieldCheck className="h-4 w-4" />}

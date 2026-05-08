@@ -649,7 +649,7 @@ export default function QuickScout({ playerId }: Props) {
         </button>
       </header>
 
-      <main className="flex-1 flex flex-col px-4 py-5 max-w-md mx-auto w-full gap-5">
+      <main className="flex-1 flex flex-col px-4 py-5 max-w-5xl mx-auto w-full gap-5">
         {/* Progress */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">

@@ -253,7 +253,7 @@ export default function MyScout() {
         </Button>
       </header>
 
-      <main className="flex-1 px-4 py-4 landscape:py-2 space-y-3 max-w-md mx-auto w-full">
+      <main className="flex-1 px-4 py-4 landscape:py-2 space-y-3 max-w-5xl mx-auto w-full">
 
         {/* Context banner */}
         {!showNewPlayer && sandboxPlayers.length === 0 && canonicalPlayers.length === 0 && (
