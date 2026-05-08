@@ -344,7 +344,7 @@ export default function Stats() {
   return (
     <ModulePageShell title={t("ucore_card_stats_title")} moduleHeader={{ module: "stats", tagline: t("tagline_stats") }}>
       <>
-      <div className="px-4 pb-10 max-w-md mx-auto w-full">
+      <div className="px-4 pb-10 max-w-5xl mx-auto w-full">
         <div className="mx-4 mt-3 mb-1 rounded-xl border border-border bg-muted/40 px-4 py-3 flex items-center gap-3">
           <BarChart3 className="w-5 h-5 text-primary/60 shrink-0" />
           <div>

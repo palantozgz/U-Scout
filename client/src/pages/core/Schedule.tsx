@@ -1508,7 +1508,7 @@ export default function Schedule() {
 
   return (
     <ModulePageShell title={t("ucore_card_schedule_title")} moduleHeader={{ module: "schedule", tagline: t("tagline_schedule") }}>
-      <div className="p-4 pb-10 max-w-md mx-auto w-full">
+      <div className="p-4 pb-10 max-w-5xl mx-auto w-full">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "schedule" | "wellness")}>
           <div className="flex items-center justify-between gap-3">
             <TabsList className="h-10">
