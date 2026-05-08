@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Info } from "lucide-react";
+import { ArrowLeft, Info, Activity } from "lucide-react";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -8,6 +8,7 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { useClub } from "@/lib/club-api";
 import { todayKey, useUpsertWellnessEntry, useWellnessEntryToday } from "@/lib/wellness";
+import { FirstVisitBanner } from "@/components/FirstVisitBanner";
 
 function WellnessRow(props: {
   label: string;
@@ -56,7 +57,7 @@ function WellnessRow(props: {
 }
 
 export default function WellnessStandalone() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [, setLocation] = useLocation();
   const { profile } = useAuth();
   const clubQ = useClub();
@@ -106,6 +107,20 @@ export default function WellnessStandalone() {
       </header>
 
       <main className="flex-1 px-4 py-4 space-y-4 max-w-md mx-auto w-full">
+        <FirstVisitBanner
+          visitKey="wellness-v1"
+          icon={<Activity className="h-4 w-4" />}
+          title={
+            locale === "zh" ? "每日状态记录" :
+            locale === "es" ? "Tu bienestar diario" :
+            "Daily Wellness Check-in"
+          }
+          body={
+            locale === "zh" ? "每次训练前评估你的状态（1-5分）。这帮助教练调整训练负荷，保护你的身体。" :
+            locale === "es" ? "Valora cómo te encuentras antes de cada entrenamiento (1–5). Ayuda al cuerpo técnico a ajustar la carga y cuidarte." :
+            "Rate how you feel before each session (1–5). This helps your coaching staff adjust training load and keep you healthy."
+          }
+        />
         {entryQ.isLoading ? (
           <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
             <p className="text-sm font-medium text-muted-foreground">{t("wellness_loading_today")}</p>

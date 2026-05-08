@@ -1,10 +1,11 @@
 import { useLocation } from "wouter";
-import { Settings } from "lucide-react";
+import { Settings, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
 import { usePlayerTeams } from "@/lib/player-home";
 import { UScoutLogo } from "@/components/UScoutLogo";
 import { ModuleNav } from "@/pages/core/ModuleNav";
+import { FirstVisitBanner } from "@/components/FirstVisitBanner";
 
 export default function PlayerTeamList() {
   const { locale } = useLocale();
@@ -49,6 +50,20 @@ export default function PlayerTeamList() {
       </header>
 
       <main className="flex-1 px-4 py-4 space-y-3 max-w-md mx-auto w-full">
+        <FirstVisitBanner
+          visitKey="scout-player-v1"
+          icon={<ShieldCheck className="h-4 w-4" />}
+          title={
+            zh ? "你的防守分析报告" :
+            es ? "Tus informes defensivos" :
+            "Your Defensive Reports"
+          }
+          body={
+            zh ? "你的教练团队会在这里发布对手分析报告。打开报告，了解如何防守你的对位球员。" :
+            es ? "Tu cuerpo técnico publica aquí los análisis de tus rivales. Ábrelos para saber exactamente cómo defenderlas." :
+            "Your coaching staff publishes opponent analysis here. Open each report to know exactly how to defend your match-up."
+          }
+        />
         {isLoading && (
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />

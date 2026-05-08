@@ -92,18 +92,18 @@ type SmartSlot = {
 
 function SmartSlots(props: { slots: SmartSlot[]; onNavigate: (href: string) => void }) {
   const toneClass = (tone: SmartSlot["tone"]) => {
-    // Home should share the same neutral "card" material as U Scout.
-    // Keep the slot semantics via icons/text, not via colored backgrounds.
-    if (tone === "amber") return "border-border bg-card hover:border-primary/40";
-    if (tone === "blue") return "border-border bg-card hover:border-primary/40";
-    if (tone === "emerald") return "border-border bg-card hover:border-primary/40";
+    if (tone === "amber") return "border-amber-500/40 bg-amber-500/8 hover:border-amber-500/60";
+    if (tone === "blue") return "border-blue-500/40 bg-blue-500/8 hover:border-blue-500/60";
+    if (tone === "emerald") return "border-emerald-500/40 bg-emerald-500/8 hover:border-emerald-500/60";
     return "border-border bg-card hover:border-primary/40";
   };
 
   const iconTone = (tone: SmartSlot["tone"]) => {
-    // Use primary accent similar to U Scout icon style.
     if (tone === "neutral") return "text-muted-foreground";
-    return "text-primary";
+    if (tone === "amber") return "text-amber-500";
+    if (tone === "emerald") return "text-emerald-600 dark:text-emerald-400";
+    if (tone === "blue") return "text-blue-500";
+    return "text-muted-foreground";
   };
 
   return (
@@ -117,7 +117,7 @@ function SmartSlots(props: { slots: SmartSlot[]; onNavigate: (href: string) => v
           type="button"
           onClick={() => props.onNavigate(s.href)}
           className={cn(
-            "rounded-xl border px-2.5 py-2 text-left transition-colors select-none",
+            "rounded-xl border px-3 py-3 text-left transition-colors select-none",
             "active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/10",
             toneClass(s.tone),
           )}

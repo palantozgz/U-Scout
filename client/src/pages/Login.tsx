@@ -5,15 +5,21 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
-import { useLocale } from "@/lib/i18n";
+import { useLocale, type Locale } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Shield } from "lucide-react";
 
+const LANG_OPTIONS: { code: Locale; flag: string; label: string }[] = [
+  { code: "en", flag: "🇬🇧", label: "EN" },
+  { code: "es", flag: "🇪🇸", label: "ES" },
+  { code: "zh", flag: "🇨🇳", label: "中文" },
+];
+
 type Mode = "login" | "register";
 
 export default function Login() {
-  const { t } = useLocale();
+  const { t, locale, changeLocale } = useLocale();
   const [, setLocation] = useLocation();
   const [mode,     setMode]     = useState<Mode>("login");
   const [email,    setEmail]    = useState("");
@@ -77,7 +83,25 @@ export default function Login() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[100dvh] px-6 gap-6 bg-background">
+    <div className="relative flex flex-col items-center justify-center min-h-[100dvh] px-6 gap-6 bg-background">
+
+      {/* Language picker */}
+      <div className="absolute top-4 right-4 flex gap-1">
+        {LANG_OPTIONS.map(l => (
+          <button
+            key={l.code}
+            type="button"
+            onClick={() => changeLocale(l.code)}
+            className={`h-8 px-2 rounded-lg text-xs font-bold transition-all ${
+              locale === l.code
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {l.flag} {l.label}
+          </button>
+        ))}
+      </div>
 
       {/* Logo */}
       <div className="flex flex-col items-center gap-3">
