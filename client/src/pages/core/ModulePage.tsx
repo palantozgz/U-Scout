@@ -27,28 +27,10 @@ export function ModulePageShell(
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-16 md:pb-0">
       {moduleHeader ? (
-        <>
-          {/* Mobile: logo centrado */}
-          <div className="md:hidden w-full max-w-5xl mx-auto px-4">
-            <ModuleHeader module={moduleHeader.module} tagline={moduleHeader.tagline} />
-          </div>
-          {/* Desktop: compact sticky header — la sidebar ya lleva la identidad del módulo */}
-          <header className="hidden md:block sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border">
-            <div className="w-full max-w-5xl mx-auto px-8 py-3 flex items-center justify-between gap-2">
-              <h1 className="text-lg font-extrabold tracking-tight truncate">{title}</h1>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => setLocation(settingsHref)}
-                aria-label="Settings"
-                data-testid="ucore-module-settings"
-              >
-                <Settings className="w-5 h-5" />
-              </Button>
-            </div>
-          </header>
-        </>
+        // Logo centrado — mobile y desktop
+        <div className="w-full max-w-5xl mx-auto px-4 md:px-8">
+          <ModuleHeader module={moduleHeader.module} tagline={moduleHeader.tagline} className="md:py-3" />
+        </div>
       ) : (
         // Modo header sticky con título de texto (para subpáginas)
         <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border">

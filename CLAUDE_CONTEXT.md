@@ -26,8 +26,11 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/pages/scout/MyScout.tsx` — fichas coach (canónicas + sandbox) + StatsMiniChip ✅
 - `client/src/pages/core/Schedule.tsx` — god file ~228KB (U Schedule + Wellness como tabs)
 - `client/src/pages/core/Stats.tsx` — U Stats: 2 tabs (Liga/Jugadoras) + SeasonPicker + deep link + radar ✅
-- `client/src/pages/core/Home.tsx` — **REESCRITO p23** — KPI bar + próximo evento + 2×2 grid + Mi Club button
-- `client/src/pages/core/ModuleNav.tsx` — **REESCRITO p23** — 4 items (player) / 5 items con Mi Club (staff)
+- `client/src/pages/core/Home.tsx` — **REESCRITO p27** — 2-col desktop (KPIs sidebar derecha), logos en todas las pantallas, justify-between para repartir espacio vertical
+- `client/src/pages/core/ModuleNav.tsx` — **REESCRITO p27** — 5 items iguales para todos: Home/Schedule/Scout/Stats/Playbook (BookOpen)
+- `client/src/pages/core/Playbook.tsx` — **NUEVO p27** — "en desarrollo" page, mobile + desktop
+- `client/src/pages/scout/CoachHome.tsx` — **p27** — logos visibles desktop, workflow cards 3-col en md+
+- `client/src/pages/core/ModulePage.tsx` — **p27** — logos visibles en todas las pantallas
 - `client/src/index.css` — **REESCRITO p23** — sistema 3 temas via CSS variables
 - `client/src/lib/stats-api.ts` — hooks completos ✅
 - `client/src/components/StatsRadar.tsx` — radar 6 ejes recharts ✅
@@ -126,6 +129,18 @@ Paleta módulos:
 - **capabilities.test.ts**: tests actualizados reflejando la restricción (coach + operationsAccess también excluidos)
 - **Schedule.tsx (Cursor)**: recharts importado; `WellnessTrendChart` (AreaChart con gradiente, eje X fechas, Y 1-5, ReferenceLine en 3, tooltip CSS vars); `WellnessRow` con prop `goodUp` y semántica de color rojo→verde; tendencias jugadora → WellnessTrendChart con colores blue/amber/red/emerald; tendencias staff → idem; tarjeta "próxima sesión" jugadora con countdown + icono tipo + chips de hora/location/wellness; `SessionRow` staff con columna izquierda de color por tipo de sesión
 - **Backup**: `backup/schedule-ui-wellness-may9-2026` en GitHub
+
+### ✅ Completado p27
+- **ModuleNav.tsx**: "Mi Club" → "U Playbook" (BookOpen icon), mismo nav para todos los users (5 items fijos)
+- **App icon iOS**: 1024×1024 PNG generado con Python cairosvg + PIL — fondo `#0A0C14`, U mark centrado (512,415) ancho 430px, glow radial purple, "CORE" wordmark y=660
+  - Nested SVG math: `W=972, X=26, Y=13` — verificado: horns blancas, gap oscuro ✅
+  - Archivo: `ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`
+- **Home.tsx desktop layout**: 2-col `lg:grid-cols-[1fr_220px]`, logos visibles en TODO (no md:hidden), `flex-1 justify-between` para repartir espacio vertical, KPIs en sidebar derecha desktop
+- **CoachHome.tsx (Scout)**: logos visibles desktop, workflow cards en `md:grid-cols-3`
+- **ModulePage.tsx**: logos visibles en móvil Y desktop
+- **Playbook.tsx**: nueva página "en desarrollo" con halo icon, feature pills, i18n EN/ES/ZH
+- **App.tsx**: ruta `/playbook` → `UCorePlaybook` añadida
+- **TypeScript**: `npx tsc --noEmit` → 0 errores ✅
 
 ### 🔴 PRÓXIMO — iOS en dispositivo físico (Xcode abierto)
 - Estado: `ios/` generado, Xcode abierto

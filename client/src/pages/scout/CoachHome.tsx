@@ -261,18 +261,11 @@ export default function CoachHome() {
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden pb-16 md:pb-0">
       <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 pb-6 landscape:pb-4 max-w-5xl mx-auto w-full gap-3 landscape:gap-2">
-        {/* Mobile only — desktop sidebar carries module identity */}
-        <div className="md:hidden">
-          <ModuleHeader module="scout" tagline={
-            locale === "zh" ? "个人防守侦察" :
-            locale === "es" ? "Scouting defensivo individual" :
-            "Individual defensive scouting"
-          } />
-        </div>
-        {/* Desktop compact heading */}
-        <div className="hidden md:flex items-center justify-between py-4 border-b border-border/30 mb-1">
-          <h1 className="text-xl font-black tracking-tight">U Scout</h1>
-        </div>
+        <ModuleHeader module="scout" tagline={
+          locale === "zh" ? "个人防守侦察" :
+          locale === "es" ? "Scouting defensivo individual" :
+          "Individual defensive scouting"
+        } className="md:py-3" />
 
         {/* ── ALERT SLOTS ── */}
         <div className="grid grid-cols-3 gap-2">

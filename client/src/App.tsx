@@ -43,6 +43,7 @@ const UCoreHome = lazy(() => import("@/pages/core/Home"));
 const UCoreScout = lazy(() => import("@/pages/core/Scout"));
 const UCoreSchedule = lazy(() => import("@/pages/core/Schedule"));
 const UCoreStats = lazy(() => import("@/pages/core/Stats"));
+const UCorePlaybook = lazy(() => import("@/pages/core/Playbook"));
 
 function RootRedirect({ to }: { to: string }) {
   const [, setLocation] = useLocation();
@@ -126,6 +127,7 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       <Route path="/scout" component={UCoreScout} />
       <Route path="/schedule" component={UCoreSchedule} />
       <Route path="/stats" component={UCoreStats} />
+      <Route path="/playbook" component={UCorePlaybook} />
       <Route path="/more">
         <RootRedirect to="/home" />
       </Route>

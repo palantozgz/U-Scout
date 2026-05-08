@@ -333,21 +333,23 @@ export default function Home() {
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
       <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-10 md:px-8">
 
-        {/* ── Brand header — mobile only (sidebar lleva branding en desktop) ── */}
-        <div className="md:hidden">
-          <ModuleHeader
-            module="core"
-            tagline={
-              locale === "zh" ? "球队管理中心" :
-              locale === "es" ? "Centro de gestión del equipo" :
-              "Team management hub"
-            }
-          />
-        </div>
+        {/* ── Brand header — visible siempre; en desktop actúa como ancla visual ── */}
+        <ModuleHeader
+          module="core"
+          tagline={
+            locale === "zh" ? "球队管理中心" :
+            locale === "es" ? "Centro de gestión del equipo" :
+            "Team management hub"
+          }
+          className="md:py-3"
+        />
 
-        {/* ── 2-col grid: left=content right=KPIs+MiClub (desktop) ── */}
-        <div className="lg:grid lg:grid-cols-[1fr_220px] lg:gap-x-6 lg:items-start md:pt-6">
-          <div className="min-w-0">
+        {/* ── 2-col grid: ocupa todo el espacio restante del main ── */}
+        <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_220px] lg:gap-x-6 lg:items-stretch">
+          {/* ── Columna izquierda: top group arriba, bottom group abajo ── */}
+          <div className="min-w-0 flex flex-col lg:justify-between">
+          {/* TOP GROUP: greeting + alerts + KPI bar (mobile) */}
+          <div>
 
         {/* ── Greeting ──────────────────────────────── */}
         <div className="px-5 md:px-0 pb-4 flex items-start justify-between gap-4">
@@ -498,6 +500,11 @@ export default function Home() {
           </div>
         )}
 
+          </div>{/* end TOP GROUP */}
+
+          {/* BOTTOM GROUP: next event + modules + Mi Club mobile */}
+          <div className="pb-4 lg:pb-6">
+
         {/* ── Próximo evento ────────────────────────── */}
         {nextSession ? (
           <button
@@ -638,10 +645,11 @@ export default function Home() {
           </div>
         )}
 
+          </div>{/* end BOTTOM GROUP */}
           </div>{/* end left col */}
 
           {/* ── Right column — desktop only ────────── */}
-          <div className="hidden lg:flex lg:flex-col gap-3 sticky top-4 pt-0">
+          <div className="hidden lg:flex flex-col justify-between gap-3">
             {/* KPI vertical card */}
             {mode === "staff" ? (
               <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
@@ -684,7 +692,7 @@ export default function Home() {
         </div>{/* end grid wrapper */}
 
         {/* ── User footer ──────────────────────────── */}
-        <div className="mt-auto mx-5 md:mx-0 pt-4 pb-2 md:pb-4 border-t border-border/50 flex items-center justify-between">
+        <div className="mx-5 md:mx-0 pt-4 pb-2 md:pb-6 border-t border-border/50 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-foreground">{displayName}</p>
             {roleLabel ? <p className="text-[10px] text-muted-foreground tracking-wide">{roleLabel}</p> : null}
