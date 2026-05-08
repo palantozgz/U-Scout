@@ -98,6 +98,54 @@ function ModCard(props: {
   );
 }
 
+/** Chip de alerta contextual — aparece solo cuando hay algo que mostrar */
+function HomeAlertChip({
+  icon,
+  label,
+  sub,
+  tone,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  sub?: string;
+  tone: "amber" | "emerald" | "blue" | "neutral";
+  onClick?: () => void;
+}) {
+  const toneClass = {
+    amber:   "border-amber-500/30 bg-amber-500/8",
+    emerald: "border-emerald-500/30 bg-emerald-500/8",
+    blue:    "border-blue-500/30 bg-blue-500/8",
+    neutral: "border-border bg-card",
+  }[tone];
+  const textClass = {
+    amber:   "text-amber-700 dark:text-amber-300",
+    emerald: "text-emerald-700 dark:text-emerald-300",
+    blue:    "text-blue-700 dark:text-blue-300",
+    neutral: "text-foreground",
+  }[tone];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className={cn(
+        "flex-1 min-w-[220px] rounded-xl border px-3 py-2.5 text-left transition-colors",
+        toneClass,
+        onClick ? "active:scale-[0.99] hover:brightness-95" : "cursor-default",
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <span className="text-base leading-none mt-0.5 shrink-0">{icon}</span>
+        <div className="min-w-0">
+          <p className={cn("text-[11px] font-black leading-snug tracking-tight", textClass)}>{label}</p>
+          {sub && <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground leading-snug">{sub}</p>}
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export default function Home() {
   const { t, locale } = useLocale();
   const [, setLocation] = useLocation();
@@ -294,6 +342,10 @@ export default function Home() {
           }
         />
 
+        {/* ── 2-col grid: left=content right=KPIs+MiClub (desktop) ── */}
+        <div className="lg:grid lg:grid-cols-[1fr_220px] lg:gap-x-6 lg:items-start">
+          <div className="min-w-0">
+
         {/* ── Greeting ──────────────────────────────── */}
         <div className="px-5 md:px-0 pb-4">
           <p className="text-[10px] font-bold tracking-[2px] uppercase text-muted-foreground mb-1 truncate">
@@ -304,15 +356,124 @@ export default function Home() {
           </h1>
         </div>
 
-        {/* ── KPI bar ───────────────────────────────── */}
+        {/* ── Smart alerts ─────────────────────────── */}
+        {mode === "staff" ? (() => {
+          const ranking = homeSignals.smartActionsRanking;
+          if (!ranking) return null;
+          const items = [ranking.primary, ranking.secondary].filter(Boolean) as typeof ranking.primary[];
+          const L = {
+            attendance: locale === "zh"
+              ? `${homeSignals.kpis.pendingAttendanceCount} 人未确认今日出勤`
+              : locale === "es"
+              ? `${homeSignals.kpis.pendingAttendanceCount} confirmaciones de asistencia pendientes`
+              : `${homeSignals.kpis.pendingAttendanceCount} attendance responses pending today`,
+            wellness: locale === "zh"
+              ? `Wellness ${kpiWellnessPct}% · 部分队员未提交`
+              : locale === "es"
+              ? `Wellness al ${kpiWellnessPct}% — revisar antes del entreno`
+              : `Team wellness at ${kpiWellnessPct}% — check before training`,
+            createSession: locale === "zh"
+              ? "今天没有安排训练 — 规划本周"
+              : locale === "es"
+              ? "Sin sesiones hoy — planifica la semana"
+              : "No sessions today — plan the week",
+            club: locale === "zh"
+              ? "球队名单有变动"
+              : locale === "es"
+              ? "Cambios en la plantilla"
+              : "Roster changes to review",
+          };
+          const cfg = {
+            attendance: { icon: "⚠️", tone: "amber" as const, route: "/schedule" },
+            wellness:   { icon: "🫀", tone: "amber" as const, route: "/schedule" },
+            createSession: { icon: "📅", tone: "neutral" as const, route: "/schedule" },
+            club:       { icon: "👥", tone: "blue" as const, route: "/coach/club" },
+          };
+          return (
+            <div className="mx-4 md:mx-0 mb-4 flex flex-wrap gap-2">
+              {items.map((action) => {
+                const c = cfg[action.kind];
+                return (
+                  <HomeAlertChip
+                    key={action.kind}
+                    icon={c.icon}
+                    label={L[action.kind]}
+                    tone={c.tone}
+                    onClick={() => setLocation(c.route)}
+                  />
+                );
+              })}
+            </div>
+          );
+        })() : (() => {
+          const entry = wellnessEntryQ.data;
+          const chips: React.ReactNode[] = [];
+
+          // 1. Wellness: pendiente o enviado + mensaje contextual
+          if (!wellnessSubmittedToday) {
+            const label = locale === "zh" ? "记得发送今日健康状态"
+              : locale === "es" ? "Pendiente: envía tu wellness de hoy"
+              : "Don't forget to log your wellness today";
+            chips.push(
+              <HomeAlertChip key="wellness-pending" icon="🫀" label={label} tone="amber"
+                onClick={() => setLocation("/schedule")} />
+            );
+          } else if (entry) {
+            const sleep = entry.sleep_quality;
+            const readiness = entry.mental_readiness;
+            const energy = entry.energy_level;
+            let label: string;
+            let sub: string | undefined;
+            if (sleep <= 2) {
+              label = locale === "zh" ? "今天睡眠不足 — 注意休息"
+                : locale === "es" ? "Parece que el descanso está costando"
+                : "Looks like rest has been tough lately";
+              sub = locale === "zh" ? "睡眠好才能表现好 ✓"
+                : locale === "es" ? "Wellness enviado · cuídate esta noche"
+                : "Wellness logged · take care tonight";
+            } else if (readiness >= 4 && energy >= 4) {
+              label = locale === "zh" ? "今天感觉很好 💪"
+                : locale === "es" ? "Te sientes bien hoy · sigue así"
+                : "You're feeling strong today · keep it up";
+              sub = locale === "zh" ? "健康状态已提交 ✓"
+                : locale === "es" ? "Wellness enviado ✓"
+                : "Wellness logged ✓";
+            } else {
+              label = locale === "zh" ? "健康状态已提交 ✓"
+                : locale === "es" ? "Wellness de hoy enviado ✓"
+                : "Today's wellness logged ✓";
+            }
+            chips.push(
+              <HomeAlertChip key="wellness-done" icon="✅" label={label} sub={sub} tone="emerald" />
+            );
+          }
+
+          // 2. Nuevos informes en Scout
+          if ((newReportsCount ?? 0) > 0) {
+            const label = locale === "zh"
+              ? `${newReportsCount} 份新球探报告`
+              : locale === "es"
+              ? `${newReportsCount} informe${(newReportsCount ?? 0) > 1 ? "s" : ""} nuevo${(newReportsCount ?? 0) > 1 ? "s" : ""} en Scout`
+              : `${newReportsCount} new report${(newReportsCount ?? 0) > 1 ? "s" : ""} in Scout`;
+            chips.push(
+              <HomeAlertChip key="reports" icon="📋" label={label} tone="blue"
+                onClick={() => setLocation("/scout")} />
+            );
+          }
+
+          if (!chips.length) return null;
+          return <div className="mx-4 md:mx-0 mb-4 flex flex-wrap gap-2">{chips}</div>;
+        })()}
+
+        {/* ── KPI bar — mobile only (desktop: right column) ─── */}
         {mode === "staff" ? (
-          <div className="mx-4 md:mx-0 mb-4 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
+          <div className="mx-4 md:mx-0 mb-4 lg:hidden grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
             <KpiCell value={kpiPlayers}       label={t("home_kpi_players")}   color="default"  />
             <KpiCell value={kpiWeekSessions}  label={t("home_kpi_week")}      color="primary"  />
             <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")} color="green" />
           </div>
         ) : (
-          <div className="mx-4 md:mx-0 mb-4 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
+          <div className="mx-4 md:mx-0 mb-4 lg:hidden grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
             <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
             <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}      color="primary" />
             <KpiCell
@@ -442,9 +603,9 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── Mi Club — staff only, compact centered ── */}
+        {/* ── Mi Club — staff only, mobile ── */}
         {mode === "staff" && (
-          <div className="mx-4 md:mx-0 mt-3">
+          <div className="mx-4 md:mx-0 mt-3 lg:hidden">
             <button
               type="button"
               onClick={() => setLocation("/coach/club")}
@@ -462,6 +623,51 @@ export default function Home() {
             </button>
           </div>
         )}
+
+          </div>{/* end left col */}
+
+          {/* ── Right column — desktop only ────────── */}
+          <div className="hidden lg:flex lg:flex-col gap-3 sticky top-4 pt-0">
+            {/* KPI vertical card */}
+            {mode === "staff" ? (
+              <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
+                <KpiCell value={kpiPlayers}           label={t("home_kpi_players")}      color="default" />
+                <KpiCell value={kpiWeekSessions}      label={t("home_kpi_week")}          color="primary" />
+                <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")}      color="green"   />
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
+                <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
+                <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}       color="primary" />
+                <KpiCell
+                  value={wellnessSubmittedToday ? "✓" : "!"}
+                  label={t("home_kpi_wellness")}
+                  color={wellnessSubmittedToday ? "green" : "primary"}
+                />
+              </div>
+            )}
+
+            {/* Mi Club — desktop right column */}
+            {mode === "staff" && (
+              <button
+                type="button"
+                onClick={() => setLocation("/coach/club")}
+                data-testid="ucore-home-mi-club-desktop"
+                className={cn(
+                  "w-full flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/60 px-4 py-3",
+                  "text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-card transition-colors",
+                )}
+              >
+                <Building2 className="w-4 h-4" />
+                <span>{t("ucore_nav_club")}</span>
+                {showClubActivityDot && (
+                  <span className="w-2 h-2 rounded-full bg-destructive ml-1" />
+                )}
+              </button>
+            )}
+          </div>
+
+        </div>{/* end grid wrapper */}
 
         {/* ── User footer ──────────────────────────── */}
         <div className="mt-auto mx-5 md:mx-0 pt-4 pb-2 md:pb-4 border-t border-border/50 flex items-center justify-between">
