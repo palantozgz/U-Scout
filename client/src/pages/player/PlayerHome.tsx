@@ -25,7 +25,7 @@ export default function PlayerHome() {
   const real = isRealPhoto(avatarUrl);
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
+    <div className="flex flex-col min-h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-3 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1 min-w-0">
           <Button

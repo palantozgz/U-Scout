@@ -44,7 +44,7 @@ function WellnessRow(props: {
             size="sm"
             variant="outline"
             className={[
-              "h-10 w-10 px-0 text-sm font-black",
+              "h-11 w-11 px-0 text-sm font-black",
               "data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm",
             ].join(" ")}
           >
@@ -89,7 +89,7 @@ export default function WellnessStandalone() {
   );
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-16">
+    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
         <button
           type="button"

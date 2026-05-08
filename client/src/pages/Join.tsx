@@ -8,7 +8,7 @@ import { fetchInvitationPublic, useAcceptInvitation } from "@/lib/player-home";
 import { useEffect } from "react";
 
 export default function JoinPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [, params] = useRoute("/join/:token");
   const token = params?.token ?? "";
   const [, setLocation] = useLocation();
@@ -33,9 +33,15 @@ export default function JoinPage() {
 
   if (!token) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center">
-        <ShieldAlert className="w-12 h-12 text-muted-foreground mb-4" />
-        <p className="text-destructive font-medium">{t("join_invalid")}</p>
+      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10">
+          <ShieldAlert className="w-8 h-8 text-destructive/70" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-base font-bold text-foreground">{t("join_invalid")}</p>
+          <p className="text-sm text-muted-foreground">{locale === "es" ? "El enlace no es válido o ha caducado." : locale === "zh" ? "链接无效或已过期。" : "This link is not valid or has expired."}</p>
+        </div>
+        <Button variant="outline" onClick={() => setLocation("/login")}>{t("join_go_home")}</Button>
       </div>
     );
   }
@@ -50,9 +56,15 @@ export default function JoinPage() {
 
   if (preview.isError) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center">
-        <ShieldAlert className="w-12 h-12 text-muted-foreground mb-4" />
-        <p className="text-destructive font-medium">{t("join_invalid")}</p>
+      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10">
+          <ShieldAlert className="w-8 h-8 text-destructive/70" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-base font-bold text-foreground">{t("join_invalid")}</p>
+          <p className="text-sm text-muted-foreground">{locale === "es" ? "El enlace no es válido o ha caducado." : locale === "zh" ? "链接无效或已过期。" : "This link is not valid or has expired."}</p>
+        </div>
+        <Button variant="outline" onClick={() => setLocation("/login")}>{t("join_go_home")}</Button>
       </div>
     );
   }
@@ -66,24 +78,30 @@ export default function JoinPage() {
   }, [user, token, data]);
   if (data.used) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center gap-4">
-        <ShieldAlert className="w-12 h-12 text-muted-foreground" />
-        <p className="text-foreground font-medium">{t("join_used")}</p>
-        <Button variant="outline" onClick={() => setLocation("/login")}>
-          {t("join_go_home")}
-        </Button>
+      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10">
+          <ShieldAlert className="w-8 h-8 text-destructive/70" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-base font-bold text-foreground">{t("join_used")}</p>
+          <p className="text-sm text-muted-foreground">{locale === "es" ? "Esta invitación ya ha sido utilizada." : locale === "zh" ? "该邀请已被使用。" : "This invitation has already been used."}</p>
+        </div>
+        <Button variant="outline" onClick={() => setLocation("/login")}>{t("join_go_home")}</Button>
       </div>
     );
   }
 
   if (data.expired) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center gap-4">
-        <ShieldAlert className="w-12 h-12 text-muted-foreground" />
-        <p className="text-foreground font-medium">{t("join_expired")}</p>
-        <Button variant="outline" onClick={() => setLocation("/login")}>
-          {t("join_go_home")}
-        </Button>
+      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10">
+          <ShieldAlert className="w-8 h-8 text-destructive/70" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-base font-bold text-foreground">{t("join_expired")}</p>
+          <p className="text-sm text-muted-foreground">{locale === "es" ? "Este enlace ha caducado." : locale === "zh" ? "该链接已过期。" : "This link has expired."}</p>
+        </div>
+        <Button variant="outline" onClick={() => setLocation("/login")}>{t("join_go_home")}</Button>
       </div>
     );
   }
