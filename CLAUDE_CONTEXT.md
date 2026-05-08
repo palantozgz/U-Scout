@@ -133,10 +133,15 @@ function ModCard({ icon, title, subtitle, badge, dot, comingSoon, onClick })
 - Schedule scroll List→Planner: no recentra en hoy (pendiente)
 - Jugadoras extranjeras con `-` en name_zh: fix-player-names.js las salta → name_en null
 
-#### U Stats
-- Shot chart landscape (hexbin)
-- StatsComparator landscape split view
+#### U Stats — backlog completo (identificado p24, requieren sesiones Cursor dedicadas)
+- **Radar / "hide radar"**: se ve feo, necesita fix visual
+- **Shoot zones**: diagrama mal dibujado, colores no funcionan en theme-oldschool, rediseñar desde cero
+- **Landscape**: no aporta nada respecto a portrait, necesita layout dedicado (split view o landscape chart)
+- **Tooltips stats**: al click en cada stat → tooltip con definición + fórmula de cálculo (todas las stats, incluso las básicas)
+- **Stats avanzadas de equipos**: faltan muchas, ver blueprints/conversaciones previas
+- **Team slide**: click en equipo → slide con datos completos del equipo, botón Roster → scroll del roster
 - StatsRadar AXIS_MAX son estimaciones — verificar contra datos reales
+- StatsComparator landscape split view
 
 #### U Scout
 - PlayerEditor: auditoría completa campos
