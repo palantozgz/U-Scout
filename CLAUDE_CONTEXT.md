@@ -130,7 +130,7 @@ function ModCard({ icon, title, subtitle, badge, dot, comingSoon, onClick })
 
 #### Platform
 - Avatar jugador: `BasketballPlaceholderAvatar` feo → reemplazar con silueta limpia
-- Schedule scroll List→Planner: no recentra en hoy (pendiente)
+- Schedule scroll List→Planner: NO tocar más — intentado múltiples veces, comportamiento aceptable
 - Jugadoras extranjeras con `-` en name_zh: fix-player-names.js las salta → name_en null
 
 #### U Stats — backlog completo (identificado p24, requieren sesiones Cursor dedicadas)

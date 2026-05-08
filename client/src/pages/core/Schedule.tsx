@@ -1072,13 +1072,13 @@ export default function Schedule() {
     const tryScroll = () => {
       const el = document.querySelector(`[data-today="true"]`) as HTMLElement | null;
       if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      } else if (attempts < 15) {
+        el.scrollIntoView({ behavior: "instant", block: "start" });
+      } else if (attempts < 20) {
         attempts++;
-        window.setTimeout(tryScroll, 100);
+        window.setTimeout(tryScroll, 150);
       }
     };
-    window.setTimeout(tryScroll, 300);
+    window.setTimeout(tryScroll, 500);
   }, [staffView]);
 
   const fmtWeekRange = (start: Date) => {

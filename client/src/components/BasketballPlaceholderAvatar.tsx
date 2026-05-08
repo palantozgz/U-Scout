@@ -1,5 +1,10 @@
 import { cn } from "@/lib/utils";
 
+/**
+ * Silueta limpia de jugador de baloncesto.
+ * Usa CSS variables del tema → funciona en Dark, Office y Classic.
+ * Diseñada para verse bien dentro de contenedores rounded-full overflow-hidden.
+ */
 export function BasketballPlaceholderAvatar({
   size = 48,
   className,
@@ -7,52 +12,26 @@ export function BasketballPlaceholderAvatar({
   size?: number;
   className?: string;
 }) {
-  const r = size / 2;
-  const s = size;
   return (
     <svg
-      width={s}
-      height={s}
-      viewBox={`0 0 ${s} ${s}`}
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("shrink-0", className)}
+      aria-hidden="true"
     >
-      {/* Ball */}
-      <circle cx={r} cy={r} r={r - 1} fill="#e8610a" />
-      {/* Seams */}
-      <path
-        d={`M ${r} 1 Q ${s * 0.72} ${r} ${r} ${s - 1}`}
-        fill="none"
-        stroke="#000"
-        strokeOpacity="0.22"
-        strokeWidth={s * 0.045}
-      />
-      <path
-        d={`M ${r} 1 Q ${s * 0.28} ${r} ${r} ${s - 1}`}
-        fill="none"
-        stroke="#000"
-        strokeOpacity="0.22"
-        strokeWidth={s * 0.045}
-      />
-      <line
-        x1="1"
-        y1={r}
-        x2={s - 1}
-        y2={r}
-        stroke="#000"
-        strokeOpacity="0.22"
-        strokeWidth={s * 0.045}
-      />
-      {/* Border */}
-      <circle
-        cx={r}
-        cy={r}
-        r={r - 1}
-        fill="none"
-        stroke="#000"
-        strokeOpacity="0.12"
-        strokeWidth="1"
-      />
+      {/* Fondo */}
+      <rect width="100" height="100" fill="hsl(var(--muted))" />
+
+      {/* Silueta — color muted-foreground con opacidad */}
+      <g fill="hsl(var(--muted-foreground))" opacity="0.45">
+        {/* Cabeza */}
+        <circle cx="50" cy="32" r="16" />
+
+        {/* Cuerpo + hombros — forma suave tipo avatar iOS */}
+        <path d="M 10,105 Q 10,62 50,57 Q 90,62 90,105 Z" />
+      </g>
     </svg>
   );
 }
