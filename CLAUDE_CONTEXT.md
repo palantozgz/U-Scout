@@ -97,23 +97,28 @@ function ModCard({ icon, title, subtitle, badge, dot, comingSoon, onClick })
 
 ### ✅ Completado p24
 - **Regla entrega código actualizada**: Claude edita directamente o da comandos/prompts Cursor, nunca texto manual
-- **Capacitor config**: `server.url` activado → apunta a Railway. Estrategia TestFlight: remote URL (cero cambios de código en la app, API funciona automáticamente)
+- **Capacitor config**: `server.url` activado → apunta a Railway. Estrategia: remote URL (cero cambios de código, API funciona automáticamente)
 - **Responsive shell implementado**:
   - `App.tsx`: `max-w-md` solo en mobile, `md:pl-16 lg:pl-56` para offset sidebar
   - `ModuleNav.tsx`: dual render — bottom bar en mobile (sin cambios), sidebar vertical izquierda en `md+` (w-16 collapsed, lg:w-56 con labels)
-  - `ModulePage.tsx`: `pb-16 md:pb-0` — sin espacio vacío en desktop donde iría el bottom nav
+  - `ModulePage.tsx`: `pb-16 md:pb-0` + header inner `max-w-5xl mx-auto` centrado en desktop
+  - `Home.tsx`: `main` → `max-w-5xl mx-auto md:px-8 md:pb-10`, grid `grid-cols-2 md:grid-cols-4`, todos los `mx-4` con `md:mx-0`
+  - `OnboardingFlow.tsx`: bug fix `TUTORIAL_SLIDES` → `activeSlides`
 
-### 🔴 PRÓXIMO — iOS TestFlight (pendiente ejecutar en terminal)
-```bash
-cd "/Users/palant/Downloads/U scout"
-npm run build          # genera dist/public
-npx cap add ios        # genera carpeta ios/
-npx cap sync ios       # copia assets
-npx cap open ios       # abre Xcode
-```
-Después en Xcode: Signing & Capabilities → Team → Archive → Distribute → TestFlight
-- appId: `com.ucore.app` (cambiar si da conflicto → `com.pablomgz.ucore`)
-- Requiere: Xcode instalado + cuenta Apple Developer activa ($99/año ✅)
+### 🔴 PRÓXIMO — iOS en dispositivo físico (Xcode abierto)
+- Estado: `ios/` generado, Xcode abierto
+- Cuenta actual: Apple Developer FREE (sin pagar $99 aún)
+  - ✅ Puede correr en iPhone propio via USB (válido 7 días, luego re-instalar)
+  - ❌ No puede usar TestFlight ni distribuir a otros
+  - ✅ Para TestFlight: pagar $99/año en developer.apple.com → cambiar Team en Xcode → Archive → Distribute
+- Para correr HOY sin pagar:
+  1. Conectar iPhone por USB
+  2. Xcode: seleccionar el iPhone como target (no simulador)
+  3. Signing & Capabilities → Team: seleccionar cuenta personal gratuita
+  4. Product → Run (Cmd+R)
+  5. En iPhone: Settings → General → VPN & Device Management → Trust [tu email]
+- appId: `com.ucore.app` (cambiar si conflicto → `com.pablomgz.ucore`)
+- La app carga desde Railway (server.url en capacitor.config.ts) → requiere internet
 
 ### 🔴 PRÓXIMO — Responsive fases siguientes (base implementada p24)
 - **Home.tsx**: grid más amplio en desktop (2-col o 3-col en lg+) → prompt Cursor (archivo grande)

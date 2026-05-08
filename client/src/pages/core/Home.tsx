@@ -281,10 +281,10 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
-      <main className="relative z-10 flex flex-col flex-1 max-w-md mx-auto w-full overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
+      <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-10 md:px-8">
 
         {/* ── Header: greeting ──────────────────────── */}
-        <div className="px-5 pt-10 pb-4 flex items-start justify-between gap-3">
+        <div className="px-5 md:px-0 pt-10 md:pt-8 pb-4 flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-bold tracking-[2px] uppercase text-muted-foreground mb-1 truncate">
               {dateStr}
@@ -305,13 +305,13 @@ export default function Home() {
 
         {/* ── KPI bar ───────────────────────────────── */}
         {mode === "staff" ? (
-          <div className="mx-4 mb-4 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
+          <div className="mx-4 md:mx-0 mb-4 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
             <KpiCell value={kpiPlayers}       label={t("home_kpi_players")}   color="default"  />
             <KpiCell value={kpiWeekSessions}  label={t("home_kpi_week")}      color="primary"  />
             <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")} color="green" />
           </div>
         ) : (
-          <div className="mx-4 mb-4 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
+          <div className="mx-4 md:mx-0 mb-4 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
             <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
             <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}      color="primary" />
             <KpiCell
@@ -327,7 +327,7 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setLocation("/schedule")}
-            className="mx-4 mb-4 text-left rounded-xl border border-border bg-card p-4 hover:border-primary/50 transition-colors active:scale-[0.99]"
+            className="mx-4 md:mx-0 mb-4 text-left rounded-xl border border-border bg-card p-4 hover:border-primary/50 transition-colors active:scale-[0.99]"
             data-testid="ucore-home-next-event"
           >
             <div className="flex items-center gap-1.5 mb-2">
@@ -364,9 +364,9 @@ export default function Home() {
         ) : null}
 
         {/* ── Module grid 2×2 ──────────────────────── */}
-        <div className="mx-4 mb-4">
+        <div className="mx-4 md:mx-0 mb-4">
           <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground mb-3">{t("home_modules_label")}</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {mode === "staff" ? (
               <>
                 {/* Schedule & Wellness — one module, two tabs inside */}
@@ -443,7 +443,7 @@ export default function Home() {
 
         {/* ── Mi Club — staff only, compact centered ── */}
         {mode === "staff" && (
-          <div className="mx-4 mt-3">
+          <div className="mx-4 md:mx-0 mt-3">
             <button
               type="button"
               onClick={() => setLocation("/coach/club")}
@@ -463,7 +463,7 @@ export default function Home() {
         )}
 
         {/* ── User footer ──────────────────────────── */}
-        <div className="mt-auto mx-5 pt-4 pb-2 border-t border-border/50 flex items-center justify-between">
+        <div className="mt-auto mx-5 md:mx-0 pt-4 pb-2 md:pb-4 border-t border-border/50 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-foreground">{displayName}</p>
             {roleLabel ? <p className="text-[10px] text-muted-foreground tracking-wide">{roleLabel}</p> : null}
