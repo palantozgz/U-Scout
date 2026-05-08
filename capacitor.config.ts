@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
   },
   ios: {
     contentInset: 'always',        // respeta safe area (notch)
-    scrollEnabled: false,          // la app gestiona su propio scroll
+    scrollEnabled: true,
     backgroundColor: '#ffffff',
   },
   plugins: {

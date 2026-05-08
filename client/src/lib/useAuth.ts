@@ -128,9 +128,17 @@ function ensureAuthSubscription() {
     setStore({ user: u, profile: p, loading: false });
   };
 
-  // Initial session hydrate
+  // Initial session hydrate — con timeout de seguridad para evitar loading infinito
+  const sessionTimeout = setTimeout(() => {
+    if (store.loading) setStore({ user: null, profile: null, loading: false });
+  }, 8000);
+
   supabase.auth.getSession().then(({ data: { session } }) => {
+    clearTimeout(sessionTimeout);
     void syncFromSession(session);
+  }).catch(() => {
+    clearTimeout(sessionTimeout);
+    setStore({ user: null, profile: null, loading: false });
   });
 
   // Auth change stream
