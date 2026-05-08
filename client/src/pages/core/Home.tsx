@@ -4,8 +4,7 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth, type AppUserRole } from "@/lib/useAuth";
 import { computeCapabilities, readCoachBadges, useCapabilities } from "@/lib/capabilities";
 import { cn } from "@/lib/utils";
-import { CalendarDays, BarChart3, Users, Target, BellDot, Activity, ClipboardList, Heart, MapPin, Clock, BookOpen, Building2, Settings } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CalendarDays, BarChart3, Target, Heart, MapPin, Clock, BookOpen, Building2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { clubQueryKey } from "@/lib/club-api";
 import { useClub } from "@/lib/club-api";
@@ -45,9 +44,9 @@ function KpiCell({ value, label, color }: { value: string | number; label: strin
     color === "green"   ? "text-emerald-500" :
     "text-foreground";
   return (
-    <div className="flex flex-col items-center justify-center py-3 md:py-5 px-2">
-      <span data-scoreboard="" className={cn("text-2xl font-black leading-none tabular-nums", colorClass)}>{value}</span>
-      <span className="text-[8px] font-bold tracking-[1.5px] text-muted-foreground uppercase mt-1">{label}</span>
+    <div className="flex flex-col items-center justify-center py-5 md:py-7 px-2">
+      <span data-scoreboard="" className={cn("text-3xl md:text-4xl font-black leading-none tabular-nums", colorClass)}>{value}</span>
+      <span className="text-[8px] md:text-[9px] font-bold tracking-[1.5px] text-muted-foreground uppercase mt-1.5">{label}</span>
     </div>
   );
 }
@@ -70,7 +69,7 @@ function ModCard(props: {
       disabled={props.comingSoon}
       data-testid={props.testId}
       className={cn(
-        "group relative text-left rounded-xl border border-border bg-card p-4 md:p-5 flex flex-col gap-2",
+        "group relative text-left rounded-xl border border-border bg-card p-4 md:p-6 flex flex-col gap-2 md:gap-3 min-h-[120px] md:min-h-[160px]",
         "transition-all duration-200",
         props.comingSoon
           ? "opacity-50 cursor-default"
@@ -92,8 +91,8 @@ function ModCard(props: {
       )}
       <span className={cn("opacity-70 transition-opacity", props.comingSoon ? "text-muted-foreground" : "text-primary group-hover:opacity-100")}>{props.icon}</span>
       <div>
-        <p className="text-sm font-black text-foreground tracking-tight leading-tight">{props.title}</p>
-        <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">{props.subtitle}</p>
+        <p className="text-sm md:text-base font-black text-foreground tracking-tight leading-tight">{props.title}</p>
+        <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1 leading-snug line-clamp-2">{props.subtitle}</p>
       </div>
     </button>
   );
@@ -188,7 +187,6 @@ export default function Home() {
       }),
     [profile?.id, profile?.role],
   );
-  const settingsHref = previewRole ? "/settings" : (caps.canUsePlayerUX ? "/player/home-settings" : "/settings");
   const displayName = profile?.username?.trim() || profile?.email || t("coach_home_name_fallback");
   const roleLabel = effectiveRole ? t(ROLE_LABEL_KEY[effectiveRole]) : "";
 
@@ -331,9 +329,9 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
-      <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-10 md:px-8">
+      <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-12 px-4 md:px-8">
 
-        {/* ── Brand header — visible siempre; en desktop actúa como ancla visual ── */}
+        {/* ── Brand header — visible siempre ── */}
         <ModuleHeader
           module="core"
           tagline={
@@ -341,38 +339,22 @@ export default function Home() {
             locale === "es" ? "Centro de gestión del equipo" :
             "Team management hub"
           }
-          className="md:py-3"
+          className="md:py-4"
         />
 
-        {/* ── 2-col grid: ocupa todo el espacio restante del main ── */}
-        <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_220px] lg:gap-x-6 lg:items-stretch">
-          {/* ── Columna izquierda: top group arriba, bottom group abajo ── */}
-          <div className="min-w-0 flex flex-col lg:justify-between">
-          {/* TOP GROUP: greeting + alerts + KPI bar (mobile) */}
-          <div>
-
-        {/* ── Greeting ──────────────────────────────── */}
-        <div className="px-5 md:px-0 pb-4 flex items-start justify-between gap-4">
+        {/* ── Greeting ── */}
+        <div className="pb-4 md:pb-6 flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-bold tracking-[2px] uppercase text-muted-foreground mb-1 truncate">
               {dateStr}
             </p>
-            <h1 className="text-[26px] font-black tracking-tight leading-tight">
+            <h1 className="text-[28px] md:text-[42px] font-black tracking-tight leading-tight">
               {t("home_greeting_hi")}, <span className="text-primary">{firstName}</span> 👋
             </h1>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden md:flex shrink-0 mt-1 text-muted-foreground hover:text-foreground"
-            onClick={() => setLocation(settingsHref)}
-            aria-label="Settings"
-          >
-            <Settings className="w-5 h-5" />
-          </Button>
         </div>
 
-        {/* ── Smart alerts ─────────────────────────── */}
+        {/* ── Smart alerts ── */}
         {mode === "staff" ? (() => {
           const ranking = homeSignals.smartActionsRanking;
           if (!ranking) return null;
@@ -406,7 +388,7 @@ export default function Home() {
             club:       { icon: "👥", tone: "blue" as const, route: "/coach/club" },
           };
           return (
-            <div className="mx-4 md:mx-0 mb-4 flex flex-wrap gap-2">
+            <div className="mb-5 flex flex-wrap gap-2">
               {items.map((action) => {
                 const c = cfg[action.kind];
                 return (
@@ -423,9 +405,8 @@ export default function Home() {
           );
         })() : (() => {
           const entry = wellnessEntryQ.data;
-          const chips: React.ReactNode[] = [];
+          const chips: ReactNode[] = [];
 
-          // 1. Wellness: pendiente o enviado + mensaje contextual
           if (!wellnessSubmittedToday) {
             const label = locale === "zh" ? "记得发送今日健康状态"
               : locale === "es" ? "Pendiente: envía tu wellness de hoy"
@@ -464,7 +445,6 @@ export default function Home() {
             );
           }
 
-          // 2. Nuevos informes en Scout
           if ((newReportsCount ?? 0) > 0) {
             const label = locale === "zh"
               ? `${newReportsCount} 份新球探报告`
@@ -478,20 +458,20 @@ export default function Home() {
           }
 
           if (!chips.length) return null;
-          return <div className="mx-4 md:mx-0 mb-4 flex flex-wrap gap-2">{chips}</div>;
+          return <div className="mb-5 flex flex-wrap gap-2">{chips}</div>;
         })()}
 
-        {/* ── KPI bar — mobile only (desktop: right column) ─── */}
+        {/* ── KPI bar — horizontal, siempre visible ── */}
         {mode === "staff" ? (
-          <div className="mx-4 md:mx-0 mb-4 lg:hidden grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
-            <KpiCell value={kpiPlayers}       label={t("home_kpi_players")}   color="default"  />
-            <KpiCell value={kpiWeekSessions}  label={t("home_kpi_week")}      color="primary"  />
-            <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")} color="green" />
+          <div className="mb-6 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
+            <KpiCell value={kpiPlayers}           label={t("home_kpi_players")}   color="default" />
+            <KpiCell value={kpiWeekSessions}      label={t("home_kpi_week")}       color="primary" />
+            <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")}  color="green"   />
           </div>
         ) : (
-          <div className="mx-4 md:mx-0 mb-4 lg:hidden grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
+          <div className="mb-6 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
             <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
-            <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}      color="primary" />
+            <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}       color="primary" />
             <KpiCell
               value={wellnessSubmittedToday ? "✓" : "!"}
               label={t("home_kpi_wellness")}
@@ -500,24 +480,19 @@ export default function Home() {
           </div>
         )}
 
-          </div>{/* end TOP GROUP */}
-
-          {/* BOTTOM GROUP: next event + modules + Mi Club mobile */}
-          <div className="pb-4 lg:pb-6">
-
-        {/* ── Próximo evento ────────────────────────── */}
+        {/* ── Próximo evento ── */}
         {nextSession ? (
           <button
             type="button"
             onClick={() => setLocation("/schedule")}
-            className="mx-4 md:mx-0 mb-4 text-left rounded-xl border border-border bg-card p-4 hover:border-primary/50 transition-colors active:scale-[0.99]"
+            className="mb-6 w-full text-left rounded-xl border border-border bg-card p-4 md:p-5 hover:border-primary/50 transition-colors active:scale-[0.99]"
             data-testid="ucore-home-next-event"
           >
             <div className="flex items-center gap-1.5 mb-2">
               <span className="w-1.5 h-1.5 rounded-full bg-primary" />
               <span className="text-[9px] font-black tracking-[1.5px] uppercase text-primary">{t("home_next_event_label")}</span>
             </div>
-            <p className="text-base font-black text-foreground tracking-tight leading-snug">{nextSession.title}</p>
+            <p className="text-base md:text-lg font-black text-foreground tracking-tight leading-snug">{nextSession.title}</p>
             <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground font-semibold">
               {nextSessionTimeStr && (
                 <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{nextSessionTimeStr}</span>
@@ -546,15 +521,14 @@ export default function Home() {
           </button>
         ) : null}
 
-        {/* ── Module grid 2×2 ──────────────────────── */}
-        <div className="mx-4 md:mx-0 mb-4">
+        {/* ── Module grid 2×2 ── */}
+        <div className="mb-5">
           <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground mb-3">{t("home_modules_label")}</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 md:gap-4">
             {mode === "staff" ? (
               <>
-                {/* Schedule & Wellness — one module, two tabs inside */}
                 <ModCard
-                  icon={<CalendarDays className="w-6 h-6" />}
+                  icon={<CalendarDays className="w-6 h-6 md:w-7 md:h-7" />}
                   title={t("ucore_card_schedule_title")}
                   subtitle={homeSignals.kpis.sessionsTodayCount > 0
                     ? t("home_sessions_today_count").replace("{count}", String(homeSignals.kpis.sessionsTodayCount))
@@ -564,22 +538,21 @@ export default function Home() {
                   testId="ucore-home-card-schedule"
                 />
                 <ModCard
-                  icon={<Target className="w-6 h-6" />}
+                  icon={<Target className="w-6 h-6 md:w-7 md:h-7" />}
                   title={t("ucore_card_scout_title")}
                   subtitle={t("ucore_card_scout_sub_staff")}
                   onClick={() => setLocation("/scout")}
                   testId="ucore-home-card-scout"
                 />
                 <ModCard
-                  icon={<BarChart3 className="w-6 h-6" />}
+                  icon={<BarChart3 className="w-6 h-6 md:w-7 md:h-7" />}
                   title={t("ucore_card_stats_title")}
                   subtitle={t("ucore_card_stats_sub")}
                   onClick={() => setLocation("/stats")}
                   testId="ucore-home-card-stats"
                 />
-                {/* U Playbook — coming soon */}
                 <ModCard
-                  icon={<BookOpen className="w-6 h-6" />}
+                  icon={<BookOpen className="w-6 h-6 md:w-7 md:h-7" />}
                   title="U Playbook"
                   subtitle={t("home_playbook_sub")}
                   comingSoon
@@ -590,21 +563,21 @@ export default function Home() {
             ) : (
               <>
                 <ModCard
-                  icon={<CalendarDays className="w-6 h-6" />}
+                  icon={<CalendarDays className="w-6 h-6 md:w-7 md:h-7" />}
                   title={t("ucore_card_schedule_title")}
                   subtitle={nextSession ? nextSession.title : t("schedule_empty_next_sessions")}
                   onClick={() => setLocation("/schedule")}
                   testId="ucore-home-card-schedule"
                 />
                 <ModCard
-                  icon={<Heart className="w-6 h-6" />}
+                  icon={<Heart className="w-6 h-6 md:w-7 md:h-7" />}
                   title={t("home_wellness_today")}
                   subtitle={wellnessSubmittedToday ? t("schedule_wellness_submitted") : t("schedule_wellness_pending")}
                   onClick={() => setLocation("/player/wellness")}
                   testId="ucore-home-card-wellness"
                 />
                 <ModCard
-                  icon={<Target className="w-6 h-6" />}
+                  icon={<Target className="w-6 h-6 md:w-7 md:h-7" />}
                   title={t("ucore_card_scout_title")}
                   subtitle={(newReportsCount ?? 0) > 0
                     ? t("ucore_slot_reports_count").replace("{count}", String(newReportsCount ?? 0))
@@ -613,7 +586,7 @@ export default function Home() {
                   testId="ucore-home-card-scout"
                 />
                 <ModCard
-                  icon={<BarChart3 className="w-6 h-6" />}
+                  icon={<BarChart3 className="w-6 h-6 md:w-7 md:h-7" />}
                   title={t("ucore_card_stats_title")}
                   subtitle={t("ucore_card_stats_sub")}
                   onClick={() => setLocation("/stats")}
@@ -624,15 +597,15 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── Mi Club — staff only, mobile ── */}
+        {/* ── Mi Club — staff only ── */}
         {mode === "staff" && (
-          <div className="mx-4 md:mx-0 mt-3 lg:hidden">
+          <div className="mb-4">
             <button
               type="button"
               onClick={() => setLocation("/coach/club")}
               data-testid="ucore-home-mi-club"
               className={cn(
-                "w-full flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/60 px-4 py-3",
+                "w-full flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/60 px-4 py-3 md:py-4",
                 "text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-card transition-colors",
               )}
             >
@@ -645,54 +618,8 @@ export default function Home() {
           </div>
         )}
 
-          </div>{/* end BOTTOM GROUP */}
-          </div>{/* end left col */}
-
-          {/* ── Right column — desktop only ────────── */}
-          <div className="hidden lg:flex flex-col justify-between gap-3">
-            {/* KPI vertical card */}
-            {mode === "staff" ? (
-              <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
-                <KpiCell value={kpiPlayers}           label={t("home_kpi_players")}      color="default" />
-                <KpiCell value={kpiWeekSessions}      label={t("home_kpi_week")}          color="primary" />
-                <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")}      color="green"   />
-              </div>
-            ) : (
-              <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
-                <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
-                <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}       color="primary" />
-                <KpiCell
-                  value={wellnessSubmittedToday ? "✓" : "!"}
-                  label={t("home_kpi_wellness")}
-                  color={wellnessSubmittedToday ? "green" : "primary"}
-                />
-              </div>
-            )}
-
-            {/* Mi Club — desktop right column */}
-            {mode === "staff" && (
-              <button
-                type="button"
-                onClick={() => setLocation("/coach/club")}
-                data-testid="ucore-home-mi-club-desktop"
-                className={cn(
-                  "w-full flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/60 px-4 py-3",
-                  "text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-card transition-colors",
-                )}
-              >
-                <Building2 className="w-4 h-4" />
-                <span>{t("ucore_nav_club")}</span>
-                {showClubActivityDot && (
-                  <span className="w-2 h-2 rounded-full bg-destructive ml-1" />
-                )}
-              </button>
-            )}
-          </div>
-
-        </div>{/* end grid wrapper */}
-
-        {/* ── User footer ──────────────────────────── */}
-        <div className="mx-5 md:mx-0 pt-4 pb-2 md:pb-6 border-t border-border/50 flex items-center justify-between">
+        {/* ── User footer ── */}
+        <div className="pt-4 pb-2 md:pb-6 border-t border-border/50 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-foreground">{displayName}</p>
             {roleLabel ? <p className="text-[10px] text-muted-foreground tracking-wide">{roleLabel}</p> : null}

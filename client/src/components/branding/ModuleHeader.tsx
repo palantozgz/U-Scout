@@ -30,6 +30,7 @@ const MODULE_WORDMARK: Record<string, string> = {
   schedule: "SCHEDULE",
   wellness: "WELLNESS",
   stats:    "STATS",
+  playbook: "PLAYBOOK",
 };
 
 const MODULE_ACCENT: Record<string, string> = {
@@ -38,10 +39,11 @@ const MODULE_ACCENT: Record<string, string> = {
   schedule: "#10B981",
   wellness: "#A78BFA",
   stats:    "#F59E0B",
+  playbook: "#EF4444",
 };
 
 export interface ModuleHeaderProps {
-  module: "core" | "scout" | "schedule" | "wellness" | "stats";
+  module: "core" | "scout" | "schedule" | "wellness" | "stats" | "playbook";
   tagline: string;
   className?: string;
 }

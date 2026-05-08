@@ -36,7 +36,7 @@ export default function Playbook() {
       <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 max-w-5xl mx-auto w-full">
 
         <ModuleHeader
-          module="core"
+          module="playbook"
           tagline={t.tagline}
           className="md:py-3"
         />
