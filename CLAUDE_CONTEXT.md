@@ -28,7 +28,7 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 - `client/src/pages/core/Schedule.tsx` — god file ~228KB (U Schedule)
 - `client/src/pages/core/Stats.tsx` — U Stats: 2 tabs (Liga/Jugadoras) + SeasonPicker + StatsPlayerSheet + StatsTeamSheet + deep link ?player= + StatsRadar toggle + sort grupos A→B ✅
 - `client/src/lib/stats-api.ts` — hooks completos ✅
-- `client/src/components/StatsRadar.tsx` — radar 6 ejes recharts ✅
+- `client/src/components/StatsRadar.tsx` — radar 6 ejes recharts ✅ AXIS_MAX calibrado con datos reales WCBA 2024-25 (SPG=3.5/BPG=2.5/FG%=80)
 - `server/routes.ts` — rutas API Express
 - `server/stats-ingest.ts` — ingest endpoint Pi → Railway → Supabase
 - `collector/src/sync/boxscores.ts` — FIELD MAPPING FIJO: usa p.points (no p.pts), p.assists, p.steals, p.blocks, p.turnover, parseShotStr(p.shot) para fgm/fga ✅
@@ -76,14 +76,17 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 ### 🔴 RIESGOS ACTIVOS
 - P1 Schedule scroll List→Planner: no recentra en hoy (pendiente)
 - P2 hasReport — verificar con datos reales
-- StatsRadar AXIS_MAX son estimaciones — verificar contra datos reales
-- P3 Jugadoras extranjeras con `-` en name_zh: fix-player-names.js las salta → name_en null → salen en chino (e.g., 钱内迪-卡特). Fix pendiente en fix-player-names.js (quitar filtro de `-`)
 
 ### 🔴 BACKLOG COMPLETO
 
-#### U Stats
-- Shot chart landscape (hexbin)
-- StatsComparator landscape split view
+#### U Stats (sesión p23 — 8 mayo 2026)
+- TS%/eFG%/DD/TD/hot streak/consistency ✅ (client-side desde gameLog)
+- Infinite scroll Jugadoras ✅
+- StatsRadar AXIS_MAX calibrado con datos reales ✅ (SPG 4→3.5, BPG 4→2.5, FG% 65→80)
+- fix-player-names.js: skip is_foreign ✅
+- fix-foreign-names.js: jersey type cast fix ✅ — 23 nombres actualizados
+- Shot chart landscape (hexbin) — requiere datos XY de tiro (largo plazo)
+- StatsComparator landscape split view (largo plazo)
 
 #### Personnel
 - Migración asistida (sesión dedicada de diseño)

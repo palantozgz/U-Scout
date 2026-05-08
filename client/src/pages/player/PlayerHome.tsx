@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { ArrowLeft, Settings } from "lucide-react";
+import { ArrowLeft, Settings, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
@@ -25,7 +25,7 @@ export default function PlayerHome() {
   const real = isRealPhoto(avatarUrl);
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
+    <div className="flex flex-col min-h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-3 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1 min-w-0">
           <Button
@@ -80,7 +80,7 @@ export default function PlayerHome() {
           </div>
         </div>
 
-       <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground px-1">
+       <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground px-1">
           {t("player_reports_section")}
         </p>
 
@@ -95,8 +95,16 @@ export default function PlayerHome() {
         )}
 
         {!isLoading && !isError && data && data.reports.length === 0 && (
-          <div className="bg-muted/40 rounded-2xl border border-dashed border-border px-6 py-12 text-center">
-            <p className="text-sm font-medium text-muted-foreground">{t("player_no_reports")}</p>
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-14 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+              <ShieldCheck className="h-8 w-8 text-primary/60" />
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-sm font-bold text-foreground">{t("player_no_reports")}</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed max-w-[220px] mx-auto">
+                {t("player_no_reports_sub")}
+              </p>
+            </div>
           </div>
         )}
 
@@ -127,7 +135,7 @@ export default function PlayerHome() {
                 </div>
                 <div className="px-3 py-2.5">
                   <p className="font-extrabold text-sm text-foreground truncate">{r.opponentName || "—"}</p>
-                  <p className="text-[10px] font-bold text-primary uppercase tracking-wider mt-0.5 truncate">{r.opponentTeamName}</p>
+                  <p className="text-[11px] font-bold text-primary uppercase tracking-wider mt-0.5 truncate">{r.opponentTeamName}</p>
                 </div>
               </button>
             ))}

@@ -43,7 +43,7 @@ function WellnessRow(props: {
             size="sm"
             variant="outline"
             className={[
-              "h-10 w-10 px-0 text-sm font-black",
+              "h-11 w-11 px-0 text-sm font-black",
               "data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm",
             ].join(" ")}
           >
@@ -88,7 +88,7 @@ export default function WellnessStandalone() {
   );
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-16">
+    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
         <button
           type="button"
@@ -99,7 +99,7 @@ export default function WellnessStandalone() {
         </button>
         <div>
           <h1 className="text-lg font-black tracking-tight">{t("schedule_tab_wellness")}</h1>
-          <p className="text-[10px] text-muted-foreground font-medium">
+          <p className="text-[11px] text-muted-foreground font-medium">
             {t("wellness_entry_date_label").replace("{date}", entryDate)}
           </p>
         </div>
@@ -116,19 +116,19 @@ export default function WellnessStandalone() {
               <p className="text-xs font-bold text-foreground">{t("wellness_submitted_today")}</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_sleep" as any)}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_sleep" as any)}</p>
                   <p className="mt-1 text-lg font-black text-foreground">{entryQ.data!.sleep_quality}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_energy" as any)}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_energy" as any)}</p>
                   <p className="mt-1 text-lg font-black text-foreground">{entryQ.data!.energy_level}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_soreness" as any)}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_soreness" as any)}</p>
                   <p className="mt-1 text-lg font-black text-foreground">{entryQ.data!.muscle_soreness}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_readiness" as any)}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_readiness" as any)}</p>
                   <p className="mt-1 text-lg font-black text-foreground">{entryQ.data!.mental_readiness}</p>
                 </div>
               </div>

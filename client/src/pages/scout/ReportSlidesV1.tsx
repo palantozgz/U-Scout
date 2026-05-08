@@ -315,7 +315,7 @@ export default function ReportSlidesV1({
 
           {/* Slide label under pills */}
           <div className="pb-2 text-center">
-            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/40">
+            <span className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground/40">
               {slideLabels[slide]}
             </span>
           </div>
@@ -418,7 +418,7 @@ export default function ReportSlidesV1({
                   <div className="flex-1 px-4 py-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/50 mb-1">
+                        <p className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground/50 mb-1">
                           THREAT LEVEL
                         </p>
                         <p className={cn("text-[18px] font-black leading-none",
@@ -443,7 +443,7 @@ export default function ReportSlidesV1({
 
               {/* Top situations list */}
               <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground/40 mb-3">
                   TOP SITUATIONS
                 </p>
                 <div className="space-y-2">
@@ -455,7 +455,7 @@ export default function ReportSlidesV1({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-[12px] font-black text-foreground truncate">{sit.label}</p>
-                            <p className={cn("text-[9px] font-bold uppercase shrink-0 ml-2", colors.text)}>
+                            <p className={cn("text-[11px] font-bold uppercase shrink-0 ml-2", colors.text)}>
                               {sit.tier === "primary" ? "PRIMARY" : "SECONDARY"}
                             </p>
                           </div>
@@ -478,7 +478,7 @@ export default function ReportSlidesV1({
               className="flex flex-col overflow-y-auto px-6 pb-10 pt-4"
               style={{ width: `${100 / TOTAL_SLIDES}%` }}
             >
-              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-1">
+              <p className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground/40 mb-1">
                 {locale === "es" ? "¿QUÉ HARÁ?" : locale === "zh" ? "她会怎么做？" : "WHAT WILL THEY DO?"}
               </p>
               <h2 className="text-[20px] font-black text-foreground mb-3">{player.name || "—"}</h2>
@@ -514,7 +514,7 @@ export default function ReportSlidesV1({
                             )}
                           </div>
                           <div className={cn("inline-flex items-center px-2 py-0.5 rounded-full mb-2", colors.bg)}>
-                            <span className={cn("text-[9px] font-black uppercase tracking-wider", colors.text)}>
+                            <span className={cn("text-[11px] font-black uppercase tracking-wider", colors.text)}>
                               {sit.tier === "primary" ? "PRIMARY" : sit.tier === "secondary" ? "SECONDARY" : "SITUATIONAL"}
                             </span>
                           </div>
@@ -540,7 +540,7 @@ export default function ReportSlidesV1({
               className="flex flex-col overflow-y-auto px-6 pb-10 pt-4"
               style={{ width: `${100 / TOTAL_SLIDES}%` }}
             >
-              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-1">
+              <p className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground/40 mb-1">
                 {locale === "es" ? "¿QUÉ HAGO YO?" : locale === "zh" ? "我该怎么做？" : "WHAT DO I DO?"}
               </p>
               <h2 className="text-[20px] font-black text-foreground mb-3">{player.name || "—"}</h2>
@@ -553,7 +553,7 @@ export default function ReportSlidesV1({
                     <div className="border-l-[4px] border-red-500 px-4 pt-4 pb-3">
                       <div className="flex items-center gap-1.5 mb-1.5">
                         {(() => { const Icon = DEFENSE_ICONS["deny"]; return Icon ? <Icon className="w-3.5 h-3.5 text-red-500" /> : null; })()}
-                        <p className={cn("text-[10px] font-black uppercase tracking-[0.25em]", DENY_CLASSES.text)}>
+                        <p className={cn("text-[11px] font-black uppercase tracking-[0.15em]", DENY_CLASSES.text)}>
                           {finalReport.defense.deny.label}
                         </p>
                       </div>
@@ -598,7 +598,7 @@ export default function ReportSlidesV1({
                     <div className="border-l-[4px] border-amber-500 px-4 pt-4 pb-3">
                       <div className="flex items-center gap-1.5 mb-1.5">
                         {(() => { const Icon = DEFENSE_ICONS["force"]; return Icon ? <Icon className="w-3.5 h-3.5 text-amber-500" /> : null; })()}
-                        <p className={cn("text-[10px] font-black uppercase tracking-[0.25em]", FORCE_CLASSES.text)}>
+                        <p className={cn("text-[11px] font-black uppercase tracking-[0.15em]", FORCE_CLASSES.text)}>
                           {finalReport.defense.force.label}
                         </p>
                       </div>
@@ -637,7 +637,7 @@ export default function ReportSlidesV1({
                     <div className="border-l-[4px] border-emerald-500 px-4 pt-4 pb-3">
                       <div className="flex items-center gap-1.5 mb-1.5">
                         {(() => { const Icon = DEFENSE_ICONS["allow"]; return Icon ? <Icon className="w-3.5 h-3.5 text-emerald-500" /> : null; })()}
-                        <p className={cn("text-[10px] font-black uppercase tracking-[0.25em]", ALLOW_CLASSES.text)}>
+                        <p className={cn("text-[11px] font-black uppercase tracking-[0.15em]", ALLOW_CLASSES.text)}>
                           {finalReport.defense.allow.label}
                         </p>
                       </div>
@@ -652,7 +652,7 @@ export default function ReportSlidesV1({
               {/* ALSO WATCH / AWARE */}
               {topAlerts.length > 0 && (
                 <div className="mt-5">
-                  <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground/40 mb-3">
                     ALSO WATCH
                   </p>
                   <div className="space-y-2">
@@ -729,7 +729,7 @@ export default function ReportSlidesV1({
           </SheetHeader>
 
           <div className="mb-4 rounded-xl border border-border bg-muted/40 px-4 py-3">
-            <p className="mb-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">
+            <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-muted-foreground/60">
               {locale === "es" ? "Actual" : locale === "zh" ? "当前" : "Current"}
             </p>
             <p className="text-sm font-semibold text-foreground/80">
@@ -739,7 +739,7 @@ export default function ReportSlidesV1({
 
           {activeSheet && activeSheet.alternatives.length > 0 ? (
             <div className="space-y-2">
-              <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">
+              <p className="mb-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground/50">
                 {locale === "es" ? "Alternativas del motor" : locale === "zh" ? "引擎备选" : "Engine alternatives"}
               </p>
               {activeSheet.alternatives.map((alt, idx) => (

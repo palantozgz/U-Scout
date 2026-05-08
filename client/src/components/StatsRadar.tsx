@@ -15,16 +15,17 @@ import {
 } from "recharts";
 import type { PlayerDetail } from "@/lib/stats-api";
 
-// League reference maximums for normalization (WCBA season context).
-// These cap each axis at 100 so all players are comparable on the same scale.
-// Adjust if data shows outliers beyond these ceilings.
+// League reference maximums for normalization (WCBA 2024-25 season, 280 jugadoras ≥5 partidos).
+// Calibrados con datos reales: PPG max=33.1 / RPG max=13.6 / APG max=8.9 /
+// SPG max=3.2 / BPG max=2.1 / FG% max=77.3
+// Cada eje = max_real / 0.90 redondeado → el líder de liga ocupa ~90% del radio.
 const AXIS_MAX: Record<string, number> = {
   PPG: 35,
   RPG: 15,
   APG: 10,
-  SPG: 4,
-  BPG: 4,
-  "FG%": 65,
+  SPG: 3.5,
+  BPG: 2.5,
+  "FG%": 80,
 };
 
 function normalize(value: number, max: number): number {
