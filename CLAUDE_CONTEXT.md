@@ -82,7 +82,7 @@ function ModCard({ icon, title, subtitle, badge, dot, comingSoon, onClick })
 
 ---
 
-## Estado app — 8 mayo 2026 (sesión p24 — EN CURSO)
+## Estado app — 9 mayo 2026 (sesión p25 — CERRADA)
 
 ### Completado p23 ✅
 - **Redesign completo UI**: 3 temas (Dark/Classic/Office) en toda la navegación, todos los idiomas
@@ -97,13 +97,27 @@ function ModCard({ icon, title, subtitle, badge, dot, comingSoon, onClick })
 
 ### ✅ Completado p24
 - **Regla entrega código actualizada**: Claude edita directamente o da comandos/prompts Cursor, nunca texto manual
-- **Capacitor config**: `server.url` activado → apunta a Railway. Estrategia: remote URL (cero cambios de código, API funciona automáticamente)
-- **Responsive shell implementado**:
-  - `App.tsx`: `max-w-md` solo en mobile, `md:pl-16 lg:pl-56` para offset sidebar
-  - `ModuleNav.tsx`: dual render — bottom bar en mobile (sin cambios), sidebar vertical izquierda en `md+` (w-16 collapsed, lg:w-56 con labels)
-  - `ModulePage.tsx`: `pb-16 md:pb-0` + header inner `max-w-5xl mx-auto` centrado en desktop
-  - `Home.tsx`: `main` → `max-w-5xl mx-auto md:px-8 md:pb-10`, grid `grid-cols-2 md:grid-cols-4`, todos los `mx-4` con `md:mx-0`
-  - `OnboardingFlow.tsx`: bug fix `TUTORIAL_SLIDES` → `activeSlides`
+- **Capacitor config**: `server.url` activado → apunta a Railway
+- **Responsive shell**: App.tsx, ModuleNav.tsx, ModulePage.tsx, Home.tsx
+
+### ✅ Completado p25 — Logo D=25
+- **UScoutLogo.tsx** (main + ucore): D=25 — clip en y=427, connector `scaleY=102/77≈1.32468` anclado en y=544, SCOUT sin transform
+- **UScoutBrand.tsx** (main + ucore): paths separados (U_HORNS_D, U_CONN_D, U_SCOUT_D), UCoreLogoSvgLockup viewBox `260 290 510 270`, UCoreBootSplash con clip+scale
+- **ModuleHeader.tsx**: U_HORNS_PATH + U_CONN_PATH separados, SVG con clip+scale
+- **SVGs públicos** (client/public/ + ucore/client/public/): `logo.svg`, `favicon.svg`, `logo-scout/core/schedule/wellness.svg` actualizados; `logo-playbook.svg` CREADO (acento `#EF4444` rojo)
+- **Git push** a main ✅
+
+## Sistema de logos — referencia rápida
+```
+D=25: HORN_CLIP_Y=427, CONN_SCALE=translate(0,544) scale(1,1.32468) translate(0,-544)
+Paleta módulos:
+  core:     #6B6B9A (slate)
+  scout:    #3A81FE (blue)
+  schedule: #10B981 (emerald)
+  wellness: #A78BFA (lavender)
+  stats:    #F59E0B (amber)
+  playbook: #EF4444 (red)  ← nuevo, comingSoon
+```
 
 ### 🔴 PRÓXIMO — iOS en dispositivo físico (Xcode abierto)
 - Estado: `ios/` generado, Xcode abierto
@@ -119,6 +133,7 @@ function ModCard({ icon, title, subtitle, badge, dot, comingSoon, onClick })
   5. En iPhone: Settings → General → VPN & Device Management → Trust [tu email]
 - appId: `com.ucore.app` (cambiar si conflicto → `com.pablomgz.ucore`)
 - La app carga desde Railway (server.url en capacitor.config.ts) → requiere internet
+- **PENDIENTE**: app icon iOS (tarea #10) — reemplazar escudo genérico con el logo U Core
 
 ### 🔴 PRÓXIMO — Responsive fases siguientes (base implementada p24)
 - **Home.tsx**: grid más amplio en desktop (2-col o 3-col en lg+) → prompt Cursor (archivo grande)
@@ -129,7 +144,6 @@ function ModCard({ icon, title, subtitle, badge, dot, comingSoon, onClick })
 ### 🔴 BACKLOG
 
 #### Platform
-- Avatar jugador: `BasketballPlaceholderAvatar` feo → reemplazar con silueta limpia
 - Schedule scroll List→Planner: NO tocar más — intentado múltiples veces, comportamiento aceptable
 - Jugadoras extranjeras con `-` en name_zh: fix-player-names.js las salta → name_en null
 
