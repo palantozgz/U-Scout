@@ -128,7 +128,7 @@ export function PlayerTeamView() {
                       {p.name || "—"}
                     </p>
                     {p.position && (
-                      <p className="text-[10px] font-bold text-primary uppercase tracking-wider mt-0.5 truncate">
+                      <p className="text-[11px] font-bold text-primary uppercase tracking-wider mt-0.5 truncate">
                         {p.position}
                       </p>
                     )}

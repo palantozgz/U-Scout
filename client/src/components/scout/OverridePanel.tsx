@@ -254,19 +254,19 @@ export function OverridePanel({ playerId, coachId, locale, onOverrideChange }: O
       {expanded && (
         <div className="rounded-xl border border-border/60 bg-card/50 px-3 py-2 space-y-3">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground mb-1">
               {sectionTitles.situations}
             </p>
             {(["situation.0", "situation.1", "situation.2"] as const).map((k) => row(k))}
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground mb-1">
               {sectionTitles.defense}
             </p>
             {(["defense.deny", "defense.force", "defense.allow"] as const).map((k) => row(k))}
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground mb-1">
               {sectionTitles.alerts}
             </p>
             {(["alert.0", "alert.1"] as const).map((k) => row(k))}

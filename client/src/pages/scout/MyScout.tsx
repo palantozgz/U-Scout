@@ -405,7 +405,7 @@ export default function MyScout() {
                                   {localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) || "—"}
                                 </p>
                                 {isCanonical && (
-                                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                  <span className="text-[11px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                                     {L.officialBadge}
                                   </span>
                                 )}
@@ -518,7 +518,7 @@ export default function MyScout() {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm font-extrabold text-foreground truncate">{player.name || "—"}</p>
                         {isCanonical && (
-                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                          <span className="text-[11px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                             {L.officialBadge}
                           </span>
                         )}

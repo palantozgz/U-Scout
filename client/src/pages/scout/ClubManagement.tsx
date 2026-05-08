@@ -691,7 +691,7 @@ export default function ClubManagement() {
                         ))}
                     </div>
                     <div className="min-w-0 w-full space-y-1">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_name_label")}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_name_label")}</p>
                       {canEditBranding ? (
                         <Input
                           value={clubNameDraft}
@@ -710,7 +710,7 @@ export default function ClubManagement() {
                 </section>
 
                 <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_ctx_section")}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_ctx_section")}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">{t("club_ctx_hint")}</p>
                   {!canEditClubContext && (
                     <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-primary/40 pl-3">
@@ -930,7 +930,7 @@ export default function ClubManagement() {
                       )}
                       {upcoming.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                             {locale === "es" ? "Próximos" : locale === "zh" ? "即将到来" : "Upcoming"}
                           </p>
                           {upcoming.map((m: any, i: number) => (
@@ -950,7 +950,7 @@ export default function ClubManagement() {
                       )}
                       {past.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-50">
+                          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground opacity-50">
                             {locale === "es" ? "Jugados" : locale === "zh" ? "已完成" : "Past"}
                           </p>
                           {past.map((m: any) => (
@@ -978,7 +978,7 @@ export default function ClubManagement() {
                   const roster = q.data?.members?.filter((m) => m.role === "player" && m.status === "active") ?? [];
                   return roster.length > 0 ? (
                     <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">
+                      <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/60">
                         {locale === "zh" ? "球员名单" : locale === "es" ? "Jugadoras del club" : "Club players"}
                       </p>
                       {roster.map((m) => (

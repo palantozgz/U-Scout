@@ -133,7 +133,7 @@ export function UScoutWatermark({ position = "bottom-right", className = "" }: W
               <path d="M 84 84 L 116 84" />
             </g>
           </svg>
-          <span className="font-black text-[9px] tracking-[0.4em] text-current mt-0.5 pl-[0.4em] italic">
+          <span className="font-black text-[11px] tracking-[0.4em] text-current mt-0.5 pl-[0.4em] italic">
             SCOUT
           </span>
         </div>

@@ -1261,6 +1261,7 @@ const en = {
   player_home_title: "Home",
   player_reports_section: "Your scouting reports",
   player_no_reports: "No reports available yet.",
+  player_no_reports_sub: "Your coaching staff will publish your defensive analysis here once it's ready.",
   player_view_report: "View report",
   player_settings_aria: "Settings",
   player_settings_page_title: "Account",

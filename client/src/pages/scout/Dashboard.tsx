@@ -359,7 +359,7 @@ function PlayerRow({
         }
         {/* Badge: bottom-left of image, no overlap with buttons */}
         <span
-          className="absolute -bottom-1 -left-1 z-10 inline-flex min-w-[1.5rem] h-5 items-center justify-center px-1 text-[9px] font-black tracking-tight text-primary bg-secondary border border-border -skew-x-12 shadow-md"
+          className="absolute -bottom-1 -left-1 z-10 inline-flex min-w-[1.5rem] h-5 items-center justify-center px-1 text-[11px] font-black tracking-tight text-primary bg-secondary border border-border -skew-x-12 shadow-md"
           style={{ clipPath: "polygon(8% 0, 100% 0, 100% 100%, 0 100%, 0 28%)" }}
         >
           <span className="skew-x-12">{num}</span>

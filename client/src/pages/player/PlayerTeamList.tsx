@@ -72,7 +72,7 @@ export default function PlayerTeamList() {
 
         {isError && (
           <p className="text-sm text-destructive text-center py-8">
-            {es ? "Error al cargar los informes" : "Failed to load reports"}
+            {es ? "Error al cargar los informes" : zh ? "加载报告失败" : "Failed to load reports"}
           </p>
         )}
 

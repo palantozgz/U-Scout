@@ -1540,7 +1540,7 @@ export default function Schedule() {
             {isPlayer ? (
               <>
                 <div className="rounded-2xl border border-border bg-card p-4">
-                  <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                  <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                     {t("schedule_player_next_session")}
                   </p>
                   <div className="mt-2">
@@ -1577,7 +1577,7 @@ export default function Schedule() {
 
                 <div className="rounded-2xl border border-border bg-card p-4">
                   <p
-                    className="text-[10px] font-black tracking-widest uppercase text-muted-foreground"
+                    className="text-[11px] font-black tracking-widest uppercase text-muted-foreground"
                     data-today="true"
                   >
                     {t("schedule_section_today")}
@@ -1850,7 +1850,7 @@ export default function Schedule() {
 
                 {tomorrowEventsQ.isSuccess && (tomorrowEventsQ.data?.length ?? 0) > 0 ? (
                   <div className="rounded-2xl border border-border bg-card p-4">
-                    <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                    <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                       {t("schedule_section_tomorrow")}
                     </p>
                     <div className="mt-3 space-y-2">
@@ -1867,7 +1867,7 @@ export default function Schedule() {
 
                 {weekEventsQ.isSuccess && weekRestSessions.length > 0 ? (
                   <div className="rounded-2xl border border-border bg-card p-4">
-                    <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                    <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                       {t("schedule_section_week")}
                     </p>
                     <div className="mt-3 space-y-2">
@@ -1988,7 +1988,7 @@ export default function Schedule() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   {daySessionsAll.length >= 3 ? (
-                                    <span className="px-2 py-0.5 rounded-full border border-border bg-muted/40 text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                                    <span className="px-2 py-0.5 rounded-full border border-border bg-muted/40 text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                                       {t("schedule_overload" as any)}
                                     </span>
                                   ) : null}
@@ -2111,7 +2111,7 @@ export default function Schedule() {
                                   return chips.slice(0, 2).map((k) => (
                                     <span
                                       key={k}
-                                      className="px-1.5 py-0.5 rounded-full border border-border bg-muted/40 text-[9px] font-semibold text-muted-foreground"
+                                      className="px-1.5 py-0.5 rounded-full border border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground"
                                     >
                                       {t(k as any)}
                                     </span>
@@ -2123,7 +2123,7 @@ export default function Schedule() {
                           {slotDefs.map((slot) => (
                             <>
                               <div key={slot.key} className="flex items-center">
-                                <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                                <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                                   {t(slot.labelKey as any)}
                                 </p>
                               </div>
@@ -2278,7 +2278,7 @@ export default function Schedule() {
                   />
                 </div>
                 <div className="rounded-2xl border border-border bg-card p-4">
-                  <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                  <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                     {t("schedule_staff_timeline_title")}
                   </p>
                   <div className="mt-3 space-y-2">
@@ -2541,18 +2541,18 @@ export default function Schedule() {
                     const missing = staffWellnessSummary.missing;
                     return (
                       <div className="rounded-2xl border border-border bg-card p-4">
-                        <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                        <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                           {t("wellness_staff_today" as any)}
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-2">
                           <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                               {t("wellness_staff_missing_today_label" as any)}
                             </p>
                             <p className="mt-1 text-lg font-black text-foreground">{missing}</p>
                           </div>
                           <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                               {t("wellness_staff_top_risk_label" as any)}
                             </p>
                             <p className="mt-1 text-sm font-extrabold text-foreground truncate">
@@ -2570,7 +2570,7 @@ export default function Schedule() {
                   })()}
 
                   <div className="rounded-2xl border border-border bg-background/40 p-3">
-                    <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                    <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                       {t("wellness_staff_alerts_title" as any)}
                     </p>
                     <div className="mt-2 space-y-1.5">
@@ -2587,7 +2587,7 @@ export default function Schedule() {
                   </div>
 
                   <div className="rounded-2xl border border-border bg-card p-4">
-                    <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                    <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                       {t("wellness_schedule_correlations" as any)}
                     </p>
                     <div className="mt-2 space-y-1.5">
@@ -2656,7 +2656,7 @@ export default function Schedule() {
 
                   <div className="rounded-2xl border border-border bg-card p-4">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                      <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                         {t("wellness_staff_team_trends" as any)}
                       </p>
                       <ToggleGroup
@@ -2708,7 +2708,7 @@ export default function Schedule() {
 
                   <div className="rounded-2xl border border-border bg-card p-4">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                      <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                         {t("wellness_staff_priority_title" as any)}
                       </p>
                       <select
@@ -2885,7 +2885,7 @@ export default function Schedule() {
 
                   {entryQ.data && playerBaseline ? (
                     <div className="rounded-2xl border border-border bg-card p-4">
-                      <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                      <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                         {t("wellness_baseline_title" as any)}
                       </p>
                       <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
@@ -2903,7 +2903,7 @@ export default function Schedule() {
                           const deltaTxt = `${delta >= 0 ? "+" : ""}${(Math.round(delta * 10) / 10).toFixed(1)}`;
                           return (
                             <div key={x.key} className="rounded-lg border border-border bg-background/40 px-3 py-2">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground truncate">{x.label}</p>
+                              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{x.label}</p>
                               <div className="mt-1 flex items-baseline justify-between gap-2">
                                 <p className="text-lg font-black text-foreground">{x.today}</p>
                                 <p
@@ -2927,7 +2927,7 @@ export default function Schedule() {
 
                   <div className="rounded-2xl border border-border bg-card p-4">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                      <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                         {t("wellness_trends_title" as any)}
                       </p>
                       <ToggleGroup
@@ -3113,7 +3113,7 @@ export default function Schedule() {
           <div className="px-5 pb-24 max-h-[70dvh] overflow-y-auto">
             <div className="space-y-4 pb-4">
               <div className="rounded-xl border border-border bg-card px-3 py-2">
-                <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                   {t("schedule_create_context" as any).replace(
                     "{when}",
                     (() => {
@@ -4094,7 +4094,7 @@ export default function Schedule() {
             ) : null}
 
             <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+              <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                 {t("schedule_templates")}
               </p>
               {weekTemplatesSorted.length === 0 ? (
@@ -4332,7 +4332,7 @@ export default function Schedule() {
             const byDay = Array.from({ length: 7 }).map((_, i) => tpl.sessions.filter((s) => s.dayIndex === i).sort((a, b) => a.startMins - b.startMins));
             return (
               <div className="mt-4 rounded-xl border border-border bg-card p-3">
-                <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                   {t("schedule_template_preview" as any)}
                 </p>
                 <div className="mt-2 space-y-2">
@@ -4593,7 +4593,7 @@ function WellnessRow(props: {
 function Metric(props: { label: string; value: number }) {
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground truncate">{props.label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{props.label}</p>
       <p className="mt-1 text-lg font-black text-foreground">{props.value}</p>
     </div>
   );
@@ -4671,7 +4671,7 @@ function PlannerSessionCardButton(props: {
 function KpiCard(props: { title: string; value: string; subtitle?: string }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">{props.title}</p>
+      <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">{props.title}</p>
       <p className="mt-2 text-xl font-black tracking-tight text-foreground">{props.value}</p>
       {props.subtitle ? <p className="mt-1 text-[11px] text-muted-foreground">{props.subtitle}</p> : null}
     </div>

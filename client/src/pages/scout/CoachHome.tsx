@@ -303,7 +303,7 @@ export default function CoachHome() {
             {/* ── SEPARATOR ── */}
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-[9px] font-black tracking-widest text-muted-foreground/40 uppercase shrink-0">
+              <span className="text-[11px] font-black tracking-widest text-muted-foreground/40 uppercase shrink-0">
                 {L.workflow}
               </span>
               <div className="flex-1 h-px bg-border" />
@@ -313,7 +313,7 @@ export default function CoachHome() {
 
         {/* ── MY SCOUT ── */}
         {/* Flow indicator — encima del primer card del workflow */}
-        <div className="flex items-center justify-center gap-1 text-[9px] font-black tracking-widest text-muted-foreground/35 uppercase -mb-1">
+        <div className="flex items-center justify-center gap-1 text-[11px] font-black tracking-widest text-muted-foreground/35 uppercase -mb-1">
           <span>{locale === "zh" ? "我的报告" : locale === "es" ? "Mi Scout" : "My Scout"}</span>
           <ArrowRight className="w-3 h-3" />
           <span>{locale === "zh" ? "集体分析" : locale === "es" ? "Sala de análisis" : "Film Room"}</span>

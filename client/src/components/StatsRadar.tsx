@@ -137,7 +137,7 @@ export function StatsRadar({ player, locale }: StatsRadarProps) {
 
   return (
     <div className="rounded-2xl border border-border bg-card p-3 space-y-1">
-      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground px-0.5">
+      <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground px-0.5">
         {label}
       </p>
       <div className="w-full" style={{ height: 220 }}>

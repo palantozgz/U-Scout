@@ -408,7 +408,7 @@ function IsoCloseoutReactionSection({ inputs, ui }: { inputs: PlayerInput; ui: (
 function HalfCourtDiagram({ dominant }: { dominant?: "Right" | "Left" }) {
   return (
     <div className="rounded-xl border border-border bg-slate-50 p-3 space-y-2">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-center">Top view — player's back to the baseline</p>
+      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground text-center">Top view — player's back to the baseline</p>
       <svg viewBox="0 0 240 175" className="w-full max-w-xs mx-auto block" xmlns="http://www.w3.org/2000/svg">
         <rect x="10" y="18" width="220" height="140" fill="none" stroke="#94a3b8" strokeWidth="1.5" rx="3"/>
         <rect x="70" y="60" width="100" height="88" fill="none" stroke="#94a3b8" strokeWidth="1.2"/>
@@ -505,7 +505,7 @@ function PostQuadrantSelector({ value, onChange, dominantHand }: {
                 <SelectContent className="z-[100] max-h-64">
                   <SelectItem value="none"><span className="text-muted-foreground text-xs">{t("not_observed")}</span></SelectItem>
                   {moves.map(move => move.startsWith("—") ? (
-                    <div key={move} className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-t border-slate-100 mt-1 pt-2">Pass options</div>
+                    <div key={move} className="px-2 py-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground border-t border-slate-100 mt-1 pt-2">Pass options</div>
                   ) : (
                     <SelectItem key={move} value={move}>
                       <div className="flex flex-col py-0.5">
@@ -836,7 +836,7 @@ export default function PlayerEditor() {
                       className={`shrink-0 flex flex-col items-center justify-center gap-0.5 h-11 w-14 rounded-lg border transition-colors ${inputs.starPlayer === true ? "border-amber-400/60 bg-amber-500/15 text-amber-500" : "border-border text-muted-foreground bg-background hover:border-amber-300 hover:text-amber-400"}`}
                       onClick={() => ui("starPlayer", inputs.starPlayer !== true)} aria-label={t("editor.star_player")} aria-pressed={inputs.starPlayer === true}>
                       <Star className={`w-4 h-4 ${inputs.starPlayer === true ? "fill-amber-400 text-amber-400" : "fill-none"}`} strokeWidth={inputs.starPlayer === true ? 0 : 1.5} />
-                      <span className="text-[9px] font-bold leading-none">{inputs.starPlayer === true ? t("editor.star_player_badge_label") : t("star")}</span>
+                      <span className="text-[11px] font-bold leading-none">{inputs.starPlayer === true ? t("editor.star_player_badge_label") : t("star")}</span>
                     </button>
                   </div>
                   {/* Caption siempre debajo, mismo ancho */}

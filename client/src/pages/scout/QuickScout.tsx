@@ -653,7 +653,7 @@ export default function QuickScout({ playerId }: Props) {
         {/* Progress */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">
+            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/60">
               {es ? `Paso ${step + 1} de ${total}` : zh ? `第${step + 1}步，共${total}步` : `Step ${step + 1} of ${total}`}
             </p>
           </div>

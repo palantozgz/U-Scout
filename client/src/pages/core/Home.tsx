@@ -133,9 +133,9 @@ function SmartSlots(props: { slots: SmartSlot[]; onNavigate: (href: string) => v
               {s.icon}
             </span>
             <div className="min-w-0">
-              <p className="text-[10px] font-black leading-snug tracking-tight text-foreground line-clamp-2">{s.title}</p>
+              <p className="text-[11px] font-black leading-snug tracking-tight text-foreground line-clamp-2">{s.title}</p>
               {s.subtitle ? (
-                <p className="mt-0.5 text-[10px] font-semibold leading-snug text-muted-foreground line-clamp-2">{s.subtitle}</p>
+                <p className="mt-0.5 text-[11px] font-semibold leading-snug text-muted-foreground line-clamp-2">{s.subtitle}</p>
               ) : null}
             </div>
           </div>
@@ -434,7 +434,7 @@ export default function Home() {
                 return (
                   <div className="rounded-lg border border-border bg-card p-3">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+                      <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
                         {t("home_priorities_today")}
                       </p>
                       {secondary ? (
@@ -537,7 +537,7 @@ export default function Home() {
           ) : (
             <>
               <div className="rounded-lg border border-border bg-card p-4">
-                <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">{t("home_next_session")}</p>
+                <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">{t("home_next_session")}</p>
                 <p className="mt-2 text-sm font-extrabold text-foreground">
                   {(!todaySessionsQ.isSuccess || !tomorrowSessionsQ.isSuccess || !weekSessionsQ.isSuccess)
                     ? t("schedule_loading_today")

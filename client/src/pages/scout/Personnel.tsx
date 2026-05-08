@@ -929,11 +929,11 @@ export default function Personnel() {
                                   {localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) || "—"}
                                 </p>
                                 {isCanonical ? (
-                                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                  <span className="text-[11px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                                     {L.canonical}
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mt-0.5">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mt-0.5">
                                     ⚗ {L.sandboxLabel}
                                   </span>
                                 )}
@@ -963,7 +963,7 @@ export default function Personnel() {
                                     <Star className="w-3 h-3 mr-1" />
                                     {promotingId === player.id ? L.promoting : L.promoteLabel}
                                   </Button>
-                                  <p className="text-[9px] text-muted-foreground/60 max-w-[100px] text-right leading-tight">
+                                  <p className="text-[11px] text-muted-foreground/60 max-w-[100px] text-right leading-tight">
                                     {L.promoteTip}
                                   </p>
                                 </div>

@@ -1222,6 +1222,7 @@ const es = {
   player_home_title: "Inicio",
   player_reports_section: "Tus informes de scouting",
   player_no_reports: "No hay informes disponibles aún.",
+  player_no_reports_sub: "Tu cuerpo técnico publicará aquí tu análisis defensivo cuando esté listo.",
   player_view_report: "Ver informe",
   player_settings_aria: "Ajustes",
   player_settings_page_title: "Cuenta",

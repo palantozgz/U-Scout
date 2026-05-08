@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { ArrowLeft, Settings } from "lucide-react";
+import { ArrowLeft, Settings, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
@@ -7,9 +7,10 @@ import { usePlayerHome } from "@/lib/player-home";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
 import { ModuleNav } from "@/pages/core/ModuleNav";
+import { FirstVisitBanner } from "@/components/FirstVisitBanner";
 
 export default function PlayerHome() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [, setLocation] = useLocation();
   const { profile } = useAuth();
   const { data, isLoading, isError } = usePlayerHome();
@@ -55,6 +56,20 @@ export default function PlayerHome() {
       </header>
 
       <main className="flex-1 px-3 pb-10 space-y-4 pt-4">
+        <FirstVisitBanner
+          visitKey="player-home-v1"
+          icon={<ShieldCheck className="h-4 w-4" />}
+          title={
+            locale === "zh" ? "你的球探报告" :
+            locale === "es" ? "Tus informes defensivos" :
+            "Your Defensive Reports"
+          }
+          body={
+            locale === "zh" ? "教练团队已为你准备好对位球员的分析报告。点击报告卡片，了解如何防守你的对位球员。" :
+            locale === "es" ? "Tu cuerpo técnico ha preparado análisis de tus rivales. Toca cada tarjeta para saber cómo defenderles." :
+            "Your coaching staff has prepared opponent analysis for you. Tap a card to learn how to defend your match-up."
+          }
+        />
         <div className="bg-card rounded-2xl border border-border p-4 flex items-center gap-4 shadow-sm">
           <div className="relati shrink-0">
             {real ? (
@@ -80,7 +95,7 @@ export default function PlayerHome() {
           </div>
         </div>
 
-       <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground px-1">
+       <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground px-1">
           {t("player_reports_section")}
         </p>
 
@@ -95,8 +110,16 @@ export default function PlayerHome() {
         )}
 
         {!isLoading && !isError && data && data.reports.length === 0 && (
-          <div className="bg-muted/40 rounded-2xl border border-dashed border-border px-6 py-12 text-center">
-            <p className="text-sm font-medium text-muted-foreground">{t("player_no_reports")}</p>
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-14 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+              <ShieldCheck className="h-8 w-8 text-primary/60" />
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-sm font-bold text-foreground">{t("player_no_reports")}</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed max-w-[220px] mx-auto">
+                {t("player_no_reports_sub")}
+              </p>
+            </div>
           </div>
         )}
 
@@ -127,7 +150,7 @@ export default function PlayerHome() {
                 </div>
                 <div className="px-3 py-2.5">
                   <p className="font-extrabold text-sm text-foreground truncate">{r.opponentName || "—"}</p>
-                  <p className="text-[10px] font-bold text-primary uppercase tracking-wider mt-0.5 truncate">{r.opponentTeamName}</p>
+                  <p className="text-[11px] font-bold text-primary uppercase tracking-wider mt-0.5 truncate">{r.opponentTeamName}</p>
                 </div>
               </button>
             ))}

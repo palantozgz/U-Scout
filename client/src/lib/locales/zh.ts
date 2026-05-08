@@ -1220,6 +1220,7 @@ const zh = {
   player_home_title: "首页",
   player_reports_section: "你的球探报告",
   player_no_reports: "暂无可用报告。",
+  player_no_reports_sub: "您的教练团队准备好后，将在此处发布您的防守分析报告。",
   player_view_report: "查看报告",
   player_settings_aria: "设置",
   player_settings_page_title: "账户",

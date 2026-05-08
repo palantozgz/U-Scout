@@ -65,14 +65,14 @@ function MotorRunnerUpsReviewPanel({
   if (!sections.some((s) => s.list.length > 0)) return null;
   return (
     <div className="mt-4 w-full rounded-2xl border border-border bg-muted/50 px-4 py-3">
-      <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-0.5">
+      <p className="text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-0.5">
         {t("review_runner_ups_title")}
       </p>
       <p className="text-[11px] text-muted-foreground leading-snug mb-3">{t("review_runner_ups_hint")}</p>
       {sections.map((sec) =>
         sec.list.length === 0 ? null : (
           <div key={sec.titleKey} className="mb-3 last:mb-0">
-            <p className={`text-[10px] font-black uppercase tracking-widest mb-1.5 ${sec.accent}`}>
+            <p className={`text-[11px] font-black uppercase tracking-widest mb-1.5 ${sec.accent}`}>
               {sec.sym} {t(sec.titleKey)}
             </p>
             {sec.list.map((c, i) => {
@@ -228,7 +228,7 @@ function BulletCard({
       <div className="px-4 pt-3 pb-3 w-full">
         <p
           className={cn(
-            "text-[10px] font-black uppercase tracking-widest mb-3 border-b border-border pb-2",
+            "text-[11px] font-black uppercase tracking-widest mb-3 border-b border-border pb-2",
             accent,
           )}
         >
@@ -333,7 +333,7 @@ function PlanCard({
       <div className="px-4 pt-3 pb-3 w-full">
         <p
           className={cn(
-            "text-[10px] font-black uppercase tracking-widest mb-3 border-b border-border pb-2",
+            "text-[11px] font-black uppercase tracking-widest mb-3 border-b border-border pb-2",
             accent,
           )}
         >
@@ -441,7 +441,7 @@ function ScrollSlide({
           <div className="flex justify-center absolute bottom-3 w-full">
             <div className={`flex items-center gap-1 opacity-70 ${accentColor}`}>
               <svg viewBox="0 0 10 6" className="w-3 h-3 fill-current rotate-180"><path d="M5 0L10 6H0z"/></svg>
-              <span className="text-[9px] font-black uppercase tracking-widest">{t("scroll")}</span>
+              <span className="text-[11px] font-black uppercase tracking-widest">{t("scroll")}</span>
               <svg viewBox="0 0 10 6" className="w-3 h-3 fill-current rotate-180"><path d="M5 0L10 6H0z"/></svg>
             </div>
           </div>
@@ -759,7 +759,7 @@ export default function PlayerProfileViewer() {
 
       {/* Archetype + subarchetype */}
       <div className="w-full bg-primary/10 border border-primary/25 rounded-2xl px-5 py-4 text-left">
-        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">{t("archetype")}</p>
+        <p className="text-[11px] font-black uppercase tracking-widest text-primary mb-1">{t("archetype")}</p>
         <div className="flex gap-2 items-start justify-center">
           <ProfileReviewToggle
             reviewMode={isReviewMode}
@@ -1105,7 +1105,7 @@ export default function PlayerProfileViewer() {
           title={deepReport ? t("deep_report_on") : t("deep_report_off")}
         >
           <BookOpen className={`w-4 h-4 transition-colors ${deepReport ? "text-primary" : "text-muted-foreground"}`} />
-          <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${deepReport ? "text-primary" : "text-muted-foreground"}`}>
+          <span className={`text-[11px] font-black uppercase tracking-widest transition-colors ${deepReport ? "text-primary" : "text-muted-foreground"}`}>
             {deepReport ? t("deep") : t("basic")}
           </span>
         </button>

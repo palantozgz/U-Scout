@@ -149,13 +149,13 @@ export default function Login() {
               <button
                 key={r}
                 onClick={() => setRole(r)}
-                className={`h-10 rounded-xl border text-sm font-semibold transition-all ${
+                className={`h-11 rounded-xl border text-sm font-semibold transition-all ${
                   role === r
                     ? "bg-primary text-white border-primary"
                     : "bg-background border-border text-muted-foreground"
                 }`}
               >
-                {r === "head_coach" ? "Head Coach" : t("role_coach")}
+                {r === "head_coach" ? t("role_head_coach") : t("role_coach")}
               </button>
             ))}
           </div>
