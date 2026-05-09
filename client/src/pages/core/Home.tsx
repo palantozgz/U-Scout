@@ -69,7 +69,7 @@ function ModCard(props: {
       disabled={props.comingSoon}
       data-testid={props.testId}
       className={cn(
-        "group relative text-left rounded-xl border border-border bg-card p-4 md:p-6 flex flex-col gap-2 md:gap-3 min-h-[120px] md:min-h-[160px]",
+        "group relative text-left rounded-xl border border-border bg-card p-4 md:p-6 flex flex-col gap-2 md:gap-3 min-h-[120px] md:min-h-0 md:h-full",
         "transition-all duration-200",
         props.comingSoon
           ? "opacity-50 cursor-default"
@@ -328,7 +328,7 @@ export default function Home() {
   const kpiWellnessPct = wellnessPctQ.data?.pct ?? 0;
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background text-foreground overflow-hidden">
       <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-12 px-4 md:px-8">
 
         {/* ── Brand header — visible siempre ── */}
@@ -522,9 +522,9 @@ export default function Home() {
         ) : null}
 
         {/* ── Module grid 2×2 ── */}
-        <div className="mb-5">
+        <div className="mb-5 md:mb-0 md:flex-1 md:flex md:flex-col">
           <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground mb-3">{t("home_modules_label")}</p>
-          <div className="grid grid-cols-2 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 gap-3 md:gap-4 md:flex-1 md:[grid-auto-rows:1fr]">
             {mode === "staff" ? (
               <>
                 <ModCard

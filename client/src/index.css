@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Safe-area background: extends app color into iPhone notch/home bar areas */
+html, body {
+  background: hsl(var(--background));
+  min-height: 100dvh;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
