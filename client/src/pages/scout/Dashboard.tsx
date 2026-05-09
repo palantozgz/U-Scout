@@ -82,7 +82,7 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
 
   if (teamsLoading) {
     return (
-      <div className="relative flex flex-col min-h-[100dvh] bg-background items-center justify-center overflow-hidden">
+      <div className="relative flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background items-center justify-center overflow-hidden">
         <UScoutWatermark position="bottom-right" />
         <div className="relative z-10 w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
@@ -92,7 +92,7 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
   if (teams.length === 0 && !showAddTeam) {
     if (isEditor) {
       return (
-        <div className="relative flex flex-col min-h-[100dvh] bg-background items-center justify-center p-6 text-center overflow-hidden">
+        <div className="relative flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background items-center justify-center p-6 text-center overflow-hidden">
           <UScoutWatermark position="bottom-right" />
           <div className="relative z-10 flex flex-col items-center">
             <div className="w-16 h-16 bg-card border border-border rounded-lg flex items-center justify-center mb-4">
@@ -112,7 +112,7 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
       );
     }
     return (
-      <div className="relative flex flex-col min-h-[100dvh] bg-background overflow-hidden">
+      <div className="relative flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background overflow-hidden">
         <UScoutWatermark position="bottom-right" />
         <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -136,7 +136,7 @@ export default function CoachDashboard({ mode }: { mode: CoachDashboardMode }) {
   }
 
   return (
-    <div className="relative flex flex-col min-h-[100dvh] bg-background overflow-hidden pb-16">
+    <div className="relative flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background overflow-hidden pb-16 md:pb-0">
       <UScoutWatermark position="bottom-right" />
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">

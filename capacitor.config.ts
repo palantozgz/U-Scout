@@ -12,7 +12,7 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'always',        // respeta safe area (notch)
     scrollEnabled: true,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0d0d0d',
   },
   plugins: {
     SplashScreen: {

@@ -259,8 +259,8 @@ export default function CoachHome() {
     : L.alertAllGood;
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground overflow-hidden pb-16 md:pb-0">
-      <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 pb-6 landscape:pb-4 max-w-5xl mx-auto w-full gap-3 landscape:gap-2">
+    <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background text-foreground overflow-hidden pb-16 md:pb-0">
+      <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 pb-6 landscape:pb-4 max-w-5xl mx-auto w-full gap-3 landscape:gap-2 md:justify-center md:overflow-y-auto md:min-h-0">
         <ModuleHeader module="scout" tagline={
           locale === "zh" ? "个人防守侦察" :
           locale === "es" ? "Scouting defensivo individual" :

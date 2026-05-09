@@ -20,7 +20,7 @@ export function PlayerTeamView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+      <div className="flex items-center justify-center min-h-[100dvh] md:h-[100dvh] bg-background">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -28,7 +28,7 @@ export function PlayerTeamView() {
 
   if (isError || !data) {
     return (
-      <div className="flex flex-col min-h-[100dvh] bg-background px-4 pt-10">
+      <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background px-4 pt-10">
         <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="mb-4 w-10 h-10">
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -42,7 +42,7 @@ export function PlayerTeamView() {
   const { team, players } = data;
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-16">
+    <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background text-foreground pb-16 md:pb-0">
       <header className="sticky top-0 z-10 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
         <Button
           variant="ghost"

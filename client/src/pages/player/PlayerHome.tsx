@@ -26,7 +26,7 @@ export default function PlayerHome() {
   const real = isRealPhoto(avatarUrl);
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))]">
+    <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-3 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1 min-w-0">
           <Button
@@ -55,7 +55,7 @@ export default function PlayerHome() {
         </Button>
       </header>
 
-      <main className="flex-1 px-3 pb-10 space-y-4 pt-4">
+      <main className="flex-1 px-3 pb-10 space-y-4 pt-4 md:overflow-y-auto md:min-h-0">
         <FirstVisitBanner
           visitKey="player-home-v1"
           icon={<ShieldCheck className="h-4 w-4" />}

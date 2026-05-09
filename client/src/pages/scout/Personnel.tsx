@@ -514,7 +514,7 @@ export default function Personnel() {
 
   if (teamsLoading) {
     return (
-      <div className="flex flex-col min-h-[100dvh] bg-background pb-16">
+      <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background pb-16 md:pb-0">
         <div className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
@@ -616,7 +616,7 @@ export default function Personnel() {
         )}
       </header>
 
-      <main className="flex-1 px-4 py-4 landscape:py-2 space-y-4 max-w-5xl mx-auto w-full">
+      <main className="flex-1 px-4 py-4 landscape:py-2 space-y-4 max-w-5xl mx-auto w-full md:overflow-y-auto md:min-h-0">
 
         {!canCreateCanonical && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 space-y-1">

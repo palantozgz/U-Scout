@@ -89,7 +89,7 @@ export default function WellnessStandalone() {
   );
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-[calc(4rem+env(safe-area-inset-bottom))]">
+    <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background text-foreground pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
         <button
           type="button"
@@ -106,7 +106,7 @@ export default function WellnessStandalone() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-4 space-y-4 max-w-5xl mx-auto w-full">
+      <main className="flex-1 px-4 py-4 space-y-4 max-w-5xl mx-auto w-full md:overflow-y-auto md:min-h-0">
         <FirstVisitBanner
           visitKey="wellness-v1"
           icon={<Activity className="h-4 w-4" />}
