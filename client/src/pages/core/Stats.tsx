@@ -349,7 +349,7 @@ export default function Stats() {
           <BarChart3 className="w-5 h-5 text-primary/60 shrink-0" />
           <div>
             <p className="text-xs font-bold text-foreground">{locale === "es" ? "Datos WCBA en integración" : locale === "zh" ? "WCBA数据集成中" : "Live WCBA data coming soon"}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">{locale === "es" ? "Los datos en tiempo real llegarán en breve." : locale === "zh" ? "实时数据即将接入。" : "Real-time stats will appear here automatically."}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{locale === "es" ? "Los datos en tiempo real llegarán en breve." : locale === "zh" ? "实时数据即将接入。" : "Real-time stats will appear here automatically."}</p>
           </div>
         </div>
         <div className="flex items-center justify-end pt-2 pb-1">
@@ -402,11 +402,11 @@ export default function Stats() {
 
         <Tabs value={mainTab} onValueChange={(v) => setTabAndLocation(v as MainTab)} className="w-full">
           <TabsList className="h-10 w-full grid grid-cols-2 gap-0.5">
-            <TabsTrigger value="liga" className="text-[10px] sm:text-xs font-black px-1 gap-1">
+            <TabsTrigger value="liga" className="text-xs sm:text-xs font-black px-1 gap-1">
               <Trophy className="w-3.5 h-3.5 shrink-0 opacity-80" />
               {L.tabLiga}
             </TabsTrigger>
-            <TabsTrigger value="jugadoras" className="text-[10px] sm:text-xs font-black px-1 gap-1">
+            <TabsTrigger value="jugadoras" className="text-xs sm:text-xs font-black px-1 gap-1">
               <Users className="w-3.5 h-3.5 shrink-0 opacity-80" />
               {L.tabJugadoras}
             </TabsTrigger>
@@ -460,7 +460,7 @@ export default function Stats() {
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                    <div className="grid grid-cols-[0.3fr_1fr_0.5fr_0.4fr_0.4fr_0.4fr] gap-1 border-b border-border bg-muted/30 px-2 py-2 text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                    <div className="grid grid-cols-[0.3fr_1fr_0.5fr_0.4fr_0.4fr_0.4fr] gap-1 border-b border-border bg-muted/30 px-2 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
                       <span className="text-center">{L.colRank}</span>
                       <span>{L.colTeam}</span>
                       <span className="text-right">{L.colWL}</span>
@@ -471,7 +471,7 @@ export default function Stats() {
                     {standingsGroups.groups.map((group, gi) => (
                       <div key={`${group.label ?? "default"}-${gi}`}>
                         {standingsGroups.showHeaders && (
-                          <p className="px-2 py-1.5 text-[11px] font-black uppercase tracking-wider text-muted-foreground border-b border-border bg-muted/15">
+                          <p className="px-2 py-1.5 text-xs font-black uppercase tracking-wider text-muted-foreground border-b border-border bg-muted/15">
                             {group.label ?? "—"}
                           </p>
                         )}
@@ -537,7 +537,7 @@ export default function Stats() {
                       type="button"
                       onClick={() => setLeaderStat(k)}
                       className={cn(
-                        "rounded-full border px-2.5 py-1 text-[10px] font-black transition-colors",
+                        "rounded-full border px-2.5 py-1 text-xs font-black transition-colors",
                         leaderStat === k
                           ? "border-primary bg-primary/15 text-primary"
                           : "border-border bg-card text-muted-foreground hover:bg-muted/40",
@@ -553,7 +553,7 @@ export default function Stats() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-[10px] text-muted-foreground px-0.5 -mt-1">{L.leadersSubtitle}</p>
+                    <p className="text-xs text-muted-foreground px-0.5 -mt-1">{L.leadersSubtitle}</p>
                   <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
                     {leadersRows.slice(0, 10).map((row: LeaderRow, idx: number) => (
                       <button
@@ -562,12 +562,12 @@ export default function Stats() {
                         onClick={() => setPlayerSheetId(String(row.externalId))}
                         className="w-full flex items-center gap-3 px-3 py-2.5 touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors text-left"
                       >
-                        <span className="w-6 text-center text-[11px] font-black text-muted-foreground tabular-nums">{idx + 1}</span>
+                        <span className="w-6 text-center text-xs font-black text-muted-foreground tabular-nums">{idx + 1}</span>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-extrabold text-foreground truncate">
                             {displayLeaderPlayerName(row, preferEnLeaderName)}
                           </p>
-                          <p className="text-[10px] text-muted-foreground truncate">{row.teamName ?? "—"}</p>
+                          <p className="text-xs text-muted-foreground truncate">{row.teamName ?? "—"}</p>
                         </div>
                         <p className="text-sm font-black tabular-nums text-foreground shrink-0">
                           {formatLeaderValue(leadersQ.data?.stat ?? leaderStat, row.value)}
@@ -615,7 +615,7 @@ export default function Stats() {
                     type="button"
                     onClick={() => setJugadorasTeam("")}
                     className={cn(
-                      "scroll-snap-align-start shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors",
+                      "scroll-snap-align-start shrink-0 rounded-full border px-3 py-1.5 text-xs font-black transition-colors",
                       !jugadorasTeam.trim()
                         ? "border-primary bg-primary/15 text-primary"
                         : "border-border bg-card text-muted-foreground hover:bg-muted/40",
@@ -629,7 +629,7 @@ export default function Stats() {
                       type="button"
                       onClick={() => setJugadorasTeam(name)}
                       className={cn(
-                        "scroll-snap-align-start shrink-0 max-w-[200px] truncate rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors",
+                        "scroll-snap-align-start shrink-0 max-w-[200px] truncate rounded-full border px-3 py-1.5 text-xs font-black transition-colors",
                         jugadorasTeam === name
                           ? "border-primary bg-primary/15 text-primary"
                           : "border-border bg-card text-muted-foreground hover:bg-muted/40",
@@ -641,7 +641,7 @@ export default function Stats() {
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[2fr_0.4fr_0.6fr_0.6fr_0.6fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                  <div className="grid grid-cols-[2fr_0.4fr_0.6fr_0.6fr_0.6fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
                     <span className="text-left">{L.colPlayer}</span>
                     <span className="text-right">{L.colG}</span>
                     {(["ppg", "rpg", "apg"] as const).map((k) => (
@@ -650,7 +650,7 @@ export default function Stats() {
                         type="button"
                         onClick={() => handleJugadorasSortClick(k)}
                         className={cn(
-                          "text-right font-black uppercase tracking-wider text-[10px] touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                          "text-right font-black uppercase tracking-wider text-xs touch-manipulation flex items-center justify-end gap-0.5 w-full",
                           jugadorasSort === k ? "text-primary" : "text-muted-foreground",
                         )}
                       >
@@ -687,7 +687,7 @@ export default function Stats() {
                             <p className="text-sm font-extrabold text-foreground truncate">
                               {pickName(p.playerName, p.playerNameEn ?? null, locale)}
                             </p>
-                            <p className="text-[10px] text-muted-foreground/60 font-semibold truncate">
+                            <p className="text-xs text-muted-foreground/60 font-semibold truncate">
                               {pickName(p.teamName, p.teamNameEn ?? null, locale) || p.season}
                             </p>
                           </div>
@@ -856,7 +856,7 @@ function StatChip(props: { label: string; value: string; hero?: boolean }) {
         title={title}
         className="rounded-xl border border-border bg-card px-3 py-3 flex flex-col items-center justify-center cursor-help"
       >
-        <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/70">{props.label}</p>
+        <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/70">{props.label}</p>
         <p className="text-2xl font-black text-foreground tabular-nums mt-0.5">{props.value}</p>
       </div>
     );
@@ -866,7 +866,7 @@ function StatChip(props: { label: string; value: string; hero?: boolean }) {
       title={title}
       className="rounded-lg border border-border bg-card px-2.5 py-2 cursor-help"
     >
-      <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/60">{props.label}</p>
+      <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/60">{props.label}</p>
       <p className="text-[12px] font-black text-foreground tabular-nums mt-0.5">{props.value}</p>
     </div>
   );
@@ -1014,7 +1014,7 @@ function StatsPlayerSheet({
         <div className="flex-1 min-w-0">
           <p className="text-base font-black text-foreground truncate">{displayName}</p>
           {player && (
-            <div className="text-[11px] text-muted-foreground truncate flex flex-wrap items-center gap-x-1 gap-y-0.5 min-w-0">
+            <div className="text-xs text-muted-foreground truncate flex flex-wrap items-center gap-x-1 gap-y-0.5 min-w-0">
               {player.jerseyNumber != null && player.jerseyNumber !== "" ? (
                 <span>{`#${player.jerseyNumber} · `}</span>
               ) : null}
@@ -1031,7 +1031,7 @@ function StatsPlayerSheet({
                 <span>{pickName(player.teamName, player.teamNameEn, locale) || "—"}</span>
               )}
               {player.position && player.position.trim() && (
-                <span className="inline-block rounded-full bg-muted/50 border border-border text-[11px] font-black uppercase tracking-wide px-1.5 py-0 leading-4 shrink-0">
+                <span className="inline-block rounded-full bg-muted/50 border border-border text-xs font-black uppercase tracking-wide px-1.5 py-0 leading-4 shrink-0">
                   {translatePosition(player.position, locale)}
                 </span>
               )}
@@ -1040,13 +1040,13 @@ function StatsPlayerSheet({
         </div>
         {player && (
           <div className="shrink-0 text-right">
-            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+            <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">
               {player.games}G
             </p>
             {advStats && (advStats.isHot || advStats.isCold) && (
               <p
                 className={cn(
-                  "text-[11px] font-black tracking-wide",
+                  "text-xs font-black tracking-wide",
                   advStats.isHot ? "text-orange-500" : "text-blue-400",
                 )}
               >
@@ -1124,7 +1124,7 @@ function StatsPlayerSheet({
                     </div>
                   )}
                   {advStats && gameLog.length >= 5 && (
-                    <p className="text-[11px] text-muted-foreground/60 px-0.5">
+                    <p className="text-xs text-muted-foreground/60 px-0.5">
                       {es
                         ? `Consistencia: σ ${advStats.stdDev.toFixed(1)} pts`
                         : zh
@@ -1181,7 +1181,7 @@ function StatsPlayerSheet({
 
             {isLandscape ? (
               <div className="rounded-2xl border border-border bg-card p-4">
-                <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/60 mb-3">
+                <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/60 mb-3">
                   Shot Zones
                 </p>
                 <ShotZoneChart fgPct={player.fgPct ?? null} fg3Pct={player.fg3Pct ?? null} />
@@ -1196,11 +1196,11 @@ function StatsPlayerSheet({
               </div>
             ) : (
               <div className="space-y-1.5">
-                <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground px-0.5">
+                <p className="text-xs font-black uppercase tracking-wider text-muted-foreground px-0.5">
                   {L.gameLogTitle}
                 </p>
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 border-b border-border bg-muted/30 pl-2.5 pr-3 py-2 text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                  <div className="grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 border-b border-border bg-muted/30 pl-2.5 pr-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
                     <span>{L.dateCol}</span>
                     <span>{L.rivalCol}</span>
                     {(["pts", "reb", "ast"] as const).map((col) => (
@@ -1209,7 +1209,7 @@ function StatsPlayerSheet({
                         type="button"
                         onClick={() => handleGameLogSortClick(col)}
                         className={cn(
-                          "text-right font-black uppercase tracking-wider text-[11px] touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                          "text-right font-black uppercase tracking-wider text-xs touch-manipulation flex items-center justify-end gap-0.5 w-full",
                           gameLogSort === col ? "text-primary" : "text-muted-foreground",
                         )}
                       >
@@ -1352,7 +1352,7 @@ function StatsTeamSheet({
           <div className="min-w-0">
             <p className="text-base font-black text-foreground truncate">{teamName}</p>
             {team && (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {team.wins}-{team.losses}
                 {team.net != null && (
                   <span className={cn(
@@ -1368,7 +1368,7 @@ function StatsTeamSheet({
         </div>
         {team && (
           <div className="shrink-0 text-right">
-            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">#{team.rank}</p>
+            <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">#{team.rank}</p>
           </div>
         )}
       </div>
@@ -1449,11 +1449,11 @@ function StatsTeamSheet({
 
             {activePlayers.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground px-0.5">
+                <p className="text-xs font-black uppercase tracking-wider text-muted-foreground px-0.5">
                   {L.roster}
                 </p>
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[1.6fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                  <div className="grid grid-cols-[1.6fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
                     <span>{L.colPlayer}</span>
                     <span className="text-right">{L.colG}</span>
                     {(["ppg", "rpg", "apg"] as const).map((col) => (
@@ -1462,7 +1462,7 @@ function StatsTeamSheet({
                         type="button"
                         onClick={() => handleRosterSortClick(col)}
                         className={cn(
-                          "text-right font-black uppercase tracking-wider text-[11px] touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                          "text-right font-black uppercase tracking-wider text-xs touch-manipulation flex items-center justify-end gap-0.5 w-full",
                           rosterSort === col ? "text-primary" : "text-muted-foreground",
                         )}
                       >
@@ -1486,7 +1486,7 @@ function StatsTeamSheet({
                         <div className="min-w-0">
                           <p className="text-sm font-extrabold text-foreground truncate">{name}</p>
                           {p.jerseyNumber != null && p.jerseyNumber !== "" && (
-                            <p className="text-[11px] text-muted-foreground/60 font-semibold">#{p.jerseyNumber}</p>
+                            <p className="text-xs text-muted-foreground/60 font-semibold">#{p.jerseyNumber}</p>
                           )}
                         </div>
                         <p className="text-xs font-black text-foreground tabular-nums text-right">{p.games}</p>

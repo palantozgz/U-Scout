@@ -46,7 +46,7 @@ function AlertSlot({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-xl border px-3 py-2 text-left transition-colors active:scale-[0.99] w-full",
+        "rounded-xl border px-3 py-3 text-left transition-colors active:scale-[0.99] w-full",
         toneClass,
         onClick ? "cursor-pointer hover:brightness-95" : "cursor-default",
       )}
@@ -54,11 +54,11 @@ function AlertSlot({
       <div className="flex items-start gap-2">
         <span className="text-base leading-none mt-0.5">{icon}</span>
         <div className="min-w-0">
-          <p className={cn("text-[11px] font-black leading-snug tracking-tight line-clamp-2", textClass)}>
+          <p className={cn("text-xs font-black leading-snug tracking-tight line-clamp-2", textClass)}>
             {label}
           </p>
           {sub && (
-            <p className="mt-0.5 text-[10px] font-semibold leading-snug text-muted-foreground line-clamp-1">
+            <p className="mt-0.5 text-xs font-semibold leading-snug text-muted-foreground line-clamp-1">
               {sub}
             </p>
           )}
@@ -303,7 +303,7 @@ export default function CoachHome() {
             {/* ── SEPARATOR ── */}
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-[11px] font-black tracking-widest text-muted-foreground/40 uppercase shrink-0">
+              <span className="text-xs font-black tracking-widest text-muted-foreground/40 uppercase shrink-0">
                 {L.workflow}
               </span>
               <div className="flex-1 h-px bg-border" />
@@ -312,7 +312,7 @@ export default function CoachHome() {
         )}
 
         {/* ── WORKFLOW: My Scout → Film Room → Game Plan ── */}
-        <div className="flex items-center justify-center gap-1 text-[11px] font-black tracking-widest text-muted-foreground/35 uppercase -mb-1">
+        <div className="flex items-center justify-center gap-1 text-xs font-black tracking-widest text-muted-foreground/35 uppercase -mb-1">
           <span>{locale === "zh" ? "我的报告" : locale === "es" ? "Mi Scout" : "My Scout"}</span>
           <ArrowRight className="w-3 h-3" />
           <span>{locale === "zh" ? "集体分析" : locale === "es" ? "Sala de análisis" : "Film Room"}</span>

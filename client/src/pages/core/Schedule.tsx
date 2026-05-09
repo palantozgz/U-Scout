@@ -1531,7 +1531,7 @@ export default function Schedule() {
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="h-8"
+                  className="h-9"
                   onClick={() => void todayEventsQ.refetch()}
                   data-testid="schedule-retry"
                 >
@@ -1543,7 +1543,7 @@ export default function Schedule() {
               <>
                 <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
                   <div className="border-b border-border/60 bg-muted/15 px-4 py-2.5">
-                    <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                    <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                       {t("schedule_player_next_session")}
                     </p>
                   </div>
@@ -1595,7 +1595,7 @@ export default function Schedule() {
                               return (
                                 <span
                                   className={[
-                                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-black",
+                                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black",
                                     chipClass,
                                   ].join(" ")}
                                 >
@@ -1606,17 +1606,17 @@ export default function Schedule() {
                             })()
                           ) : null}
                           {nextSession.starts_at ? (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 text-[11px] font-bold text-foreground">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 text-xs font-bold text-foreground">
                               <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
                               {formatTime(nextSession.starts_at)}
                             </span>
                           ) : null}
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 text-[11px] font-bold text-foreground">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 text-xs font-bold text-foreground">
                             {nextSession.location?.trim() ? nextSession.location : t("schedule_location_tbd")}
                           </span>
                           <span
                             className={[
-                              "inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-black",
+                              "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-black",
                               submittedToday
                                 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
                                 : "border-amber-500/40 bg-amber-500/12 text-amber-950 dark:text-amber-100",
@@ -1634,7 +1634,7 @@ export default function Schedule() {
 
                 <div className="rounded-2xl border border-border bg-card p-4">
                   <p
-                    className="text-[11px] font-black tracking-widest uppercase text-muted-foreground"
+                    className="text-xs font-black tracking-widest uppercase text-muted-foreground"
                     data-today="true"
                   >
                     {t("schedule_section_today")}
@@ -1732,13 +1732,13 @@ export default function Schedule() {
                                         <div className="flex items-center gap-2">
                                           {isSignedUp ? (
                                             <>
-                                              <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-[11px] font-bold text-foreground">
+                                              <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-xs font-bold text-foreground">
                                                 {t("schedule_player_joined")}
                                               </span>
                                               <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="h-8"
+                                                className="h-9"
                                                 disabled={disabledCore}
                                                 onClick={() => {
                                                   if (!clubId || !userId) return;
@@ -1758,7 +1758,7 @@ export default function Schedule() {
                                             <Button
                                               size="sm"
                                               variant="secondary"
-                                              className="h-8"
+                                              className="h-9"
                                               disabled={disabledCore}
                                               onClick={() => {
                                                 if (!clubId || !userId) return;
@@ -1783,7 +1783,7 @@ export default function Schedule() {
                                         <div className="flex items-center gap-2">
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                              <Button size="sm" variant="secondary" className="h-8" disabled={disabledCore}>
+                                              <Button size="sm" variant="secondary" className="h-9" disabled={disabledCore}>
                                                 {chosenGroup
                                                   ? t("schedule_player_change_group")
                                                   : t("schedule_player_choose_group")}
@@ -1816,13 +1816,13 @@ export default function Schedule() {
 
                                           {chosenGroup ? (
                                             <>
-                                              <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-[11px] font-bold text-foreground">
+                                              <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-xs font-bold text-foreground">
                                                 {t("schedule_player_group").replace("{group}", chosenGroup)}
                                               </span>
                                               <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="h-8"
+                                                className="h-9"
                                                 disabled={disabledCore}
                                                 onClick={() => {
                                                   if (!clubId || !userId) return;
@@ -1847,14 +1847,14 @@ export default function Schedule() {
                                       return (
                                         <div className="flex items-center gap-2">
                                           {assignedGroupLabel ? (
-                                            <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-[11px] font-bold text-foreground">
+                                            <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-xs font-bold text-foreground">
                                               {t("schedule_player_assigned_group").replace("{group}", assignedGroupLabel)}
                                             </span>
                                           ) : null}
                                           <Button
                                             size="sm"
                                             variant="outline"
-                                            className="h-8"
+                                            className="h-9"
                                             disabled={disabledCore}
                                             onClick={() => setParticipantStatus("declined")}
                                           >
@@ -1868,7 +1868,7 @@ export default function Schedule() {
                                     return (
                                       <div className="flex items-center gap-2">
                                         {selectedMandatory ? (
-                                          <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-[11px] font-bold text-foreground">
+                                          <span className="px-2 py-1 rounded-full border border-border bg-background/40 text-xs font-bold text-foreground">
                                             {t("schedule_player_mandatory")}
                                           </span>
                                         ) : null}
@@ -1878,7 +1878,7 @@ export default function Schedule() {
                                               key={status}
                                               size="sm"
                                               variant={my?.status === status ? "secondary" : "outline"}
-                                              className="h-8 px-2.5"
+                                              className="h-9 px-2.5"
                                               disabled={disabledCore}
                                               onClick={() => setParticipantStatus(status)}
                                             >
@@ -1907,7 +1907,7 @@ export default function Schedule() {
 
                 {tomorrowEventsQ.isSuccess && (tomorrowEventsQ.data?.length ?? 0) > 0 ? (
                   <div className="rounded-2xl border border-border bg-card p-4">
-                    <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                    <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                       {t("schedule_section_tomorrow")}
                     </p>
                     <div className="mt-3 space-y-2">
@@ -1924,7 +1924,7 @@ export default function Schedule() {
 
                 {weekEventsQ.isSuccess && weekRestSessions.length > 0 ? (
                   <div className="rounded-2xl border border-border bg-card p-4">
-                    <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                    <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                       {t("schedule_section_week")}
                     </p>
                     <div className="mt-3 space-y-2">
@@ -1999,7 +1999,7 @@ export default function Schedule() {
                 {staffView === "planner" ? (
                   <>
                     <div className="mt-3 rounded-2xl border border-border bg-card p-4">
-                      <p className="text-[11px] font-semibold text-muted-foreground">{t("schedule_planner_hint")}</p>
+                      <p className="text-xs font-semibold text-muted-foreground">{t("schedule_planner_hint")}</p>
 
                     {!isLandscape ? (
                       <div className="mt-3 space-y-3">
@@ -2041,11 +2041,11 @@ export default function Schedule() {
                               <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0">
                                   <p className="text-sm font-extrabold text-foreground truncate">{label}</p>
-                                  <p className="text-[11px] font-semibold text-muted-foreground">{dateLabel}</p>
+                                  <p className="text-xs font-semibold text-muted-foreground">{dateLabel}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   {daySessionsAll.length >= 3 ? (
-                                    <span className="px-2 py-0.5 rounded-full border border-border bg-muted/40 text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                                    <span className="px-2 py-0.5 rounded-full border border-border bg-muted/40 text-xs font-black tracking-widest uppercase text-muted-foreground">
                                       {t("schedule_overload" as any)}
                                     </span>
                                   ) : null}
@@ -2082,7 +2082,7 @@ export default function Schedule() {
                                                   onOpenEdit={() => startEditing(ev)}
                                                 >
                                                   <p className="text-sm font-extrabold text-foreground truncate">{ev.title}</p>
-                                                  <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground truncate">
+                                                  <p className="mt-0.5 text-xs font-semibold text-muted-foreground truncate">
                                                     {formatTime(ev.starts_at)}
                                                     {ev.location ? ` · ${ev.location}` : ""}
                                                   </p>
@@ -2091,7 +2091,7 @@ export default function Schedule() {
                                                       {tags.map((tg) => (
                                                         <span
                                                           key={tg}
-                                                          className="px-1.5 py-0.5 rounded-full border border-border/70 bg-muted/10 text-[10px] font-bold text-muted-foreground"
+                                                          className="px-1.5 py-0.5 rounded-full border border-border/70 bg-muted/10 text-xs font-bold text-muted-foreground"
                                                         >
                                                           {tg}
                                                         </span>
@@ -2150,10 +2150,10 @@ export default function Schedule() {
                                 })(),
                               ].join(" ")}
                             >
-                              <p className="text-[11px] font-black text-foreground">
+                              <p className="text-xs font-black text-foreground">
                                 {new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d)}
                               </p>
-                              <p className="text-[10px] font-semibold text-muted-foreground">
+                              <p className="text-xs font-semibold text-muted-foreground">
                                 {new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d)}
                               </p>
                               <div className="mt-1 flex items-center justify-center gap-1 flex-wrap">
@@ -2168,7 +2168,7 @@ export default function Schedule() {
                                   return chips.slice(0, 2).map((k) => (
                                     <span
                                       key={k}
-                                      className="px-1.5 py-0.5 rounded-full border border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground"
+                                      className="px-1.5 py-0.5 rounded-full border border-border bg-muted/40 text-xs font-semibold text-muted-foreground"
                                     >
                                       {t(k as any)}
                                     </span>
@@ -2180,7 +2180,7 @@ export default function Schedule() {
                           {slotDefs.map((slot) => (
                             <>
                               <div key={slot.key} className="flex items-center">
-                                <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                                <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                                   {t(slot.labelKey as any)}
                                 </p>
                               </div>
@@ -2205,8 +2205,8 @@ export default function Schedule() {
                                         onOpenDetail={() => openSessionDetail(ev)}
                                         onOpenEdit={() => startEditing(ev)}
                                       >
-                                      <p className="text-[11px] font-extrabold text-foreground truncate">{ev.title}</p>
-                                      <p className="text-[10px] font-semibold text-muted-foreground truncate">
+                                      <p className="text-xs font-extrabold text-foreground truncate">{ev.title}</p>
+                                      <p className="text-xs font-semibold text-muted-foreground truncate">
                                       {formatTime(ev.starts_at)}
                                       {ev.location ? ` · ${ev.location}` : ""}
                                       </p>
@@ -2218,7 +2218,7 @@ export default function Schedule() {
                                         onClick={() => openCreatePrefilled(d, slot.hour)}
                                         className="w-full rounded-lg border border-dashed border-border bg-muted/20 px-2 py-2 text-left hover:bg-muted/30"
                                       >
-                                        <p className="text-[10px] font-semibold text-muted-foreground">
+                                        <p className="text-xs font-semibold text-muted-foreground">
                                           {t("schedule_planner_add")}
                                         </p>
                                       </button>
@@ -2335,7 +2335,7 @@ export default function Schedule() {
                   />
                 </div>
                 <div className="rounded-2xl border border-border bg-card p-4">
-                  <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                  <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                     {t("schedule_staff_timeline_title")}
                   </p>
                   <div className="mt-3 space-y-2">
@@ -2577,7 +2577,7 @@ export default function Schedule() {
 
               {!wellnessHintDismissed ? (
                 <div className="mt-3 rounded-xl border border-border bg-background/40 px-3 py-2.5 flex items-start justify-between gap-3">
-                  <p className="text-[11px] font-semibold text-muted-foreground">
+                  <p className="text-xs font-semibold text-muted-foreground">
                     {isPlayer ? t("onboarding_player_wellness_hint" as any) : t("onboarding_staff_wellness_hint" as any)}
                   </p>
                   <button
@@ -2599,25 +2599,25 @@ export default function Schedule() {
                     const missing = staffWellnessSummary.missing;
                     return (
                       <div className="rounded-2xl border border-border bg-card p-4">
-                        <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                        <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                           {t("wellness_staff_today" as any)}
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-2">
                           <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                               {t("wellness_staff_missing_today_label" as any)}
                             </p>
                             <p className="mt-1 text-lg font-black text-foreground">{missing}</p>
                           </div>
                           <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                               {t("wellness_staff_top_risk_label" as any)}
                             </p>
                             <p className="mt-1 text-sm font-extrabold text-foreground truncate">
                               {top ? top.name : t("wellness_staff_top_risk_none" as any)}
                             </p>
                             {top ? (
-                              <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">
+                              <p className="mt-0.5 text-xs font-semibold text-muted-foreground">
                                 {t("wellness_staff_priority_score" as any).replace("{score}", String(top.score))}
                               </p>
                             ) : null}
@@ -2628,7 +2628,7 @@ export default function Schedule() {
                   })()}
 
                   <div className="rounded-2xl border border-border bg-background/40 p-3">
-                    <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                    <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                       {t("wellness_staff_alerts_title" as any)}
                     </p>
                     <div className="mt-2 space-y-1.5">
@@ -2645,7 +2645,7 @@ export default function Schedule() {
                   </div>
 
                   <div className="rounded-2xl border border-border bg-card p-4">
-                    <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                    <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                       {t("wellness_schedule_correlations" as any)}
                     </p>
                     <div className="mt-2 space-y-1.5">
@@ -2714,7 +2714,7 @@ export default function Schedule() {
 
                   <div className="rounded-2xl border border-border bg-card p-4">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                      <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                         {t("wellness_staff_team_trends" as any)}
                       </p>
                       <ToggleGroup
@@ -2723,10 +2723,10 @@ export default function Schedule() {
                         onValueChange={(v) => setStaffTrendRange((v as any) || "7d")}
                         className="justify-end"
                       >
-                        <ToggleGroupItem value="7d" size="sm" variant="outline" className="h-8 px-2.5">
+                        <ToggleGroupItem value="7d" size="sm" variant="outline" className="h-9 px-2.5">
                           7d
                         </ToggleGroupItem>
-                        <ToggleGroupItem value="30d" size="sm" variant="outline" className="h-8 px-2.5">
+                        <ToggleGroupItem value="30d" size="sm" variant="outline" className="h-9 px-2.5">
                           30d
                         </ToggleGroupItem>
                       </ToggleGroup>
@@ -2775,7 +2775,7 @@ export default function Schedule() {
 
                   <div className="rounded-2xl border border-border bg-card p-4">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                      <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                         {t("wellness_staff_priority_title" as any)}
                       </p>
                       <select
@@ -2825,14 +2825,14 @@ export default function Schedule() {
                             <div key={p.userId} className="rounded-xl border border-border bg-background/40 px-3 py-3 min-h-[56px]">
                               <div className="flex items-center justify-between gap-2">
                                 <p className="text-sm font-extrabold text-foreground truncate">{p.name}</p>
-                                <p className="text-[11px] font-bold text-muted-foreground">{t("wellness_staff_priority_score" as any).replace("{score}", String(p.score))}</p>
+                                <p className="text-xs font-bold text-muted-foreground">{t("wellness_staff_priority_score" as any).replace("{score}", String(p.score))}</p>
                               </div>
                               <div className="mt-1 flex flex-wrap gap-1.5">
                                 {reasons.slice(0, 4).map((r) => (
                                   <span
                                     key={r}
                                     className={[
-                                      "px-2 py-0.5 rounded-full border text-[10px] font-black tracking-wide",
+                                      "px-2 py-0.5 rounded-full border text-xs font-black tracking-wide",
                                       r === t("wellness_reason_missing" as any)
                                         ? "border-sky-500/25 bg-sky-500/10 text-sky-900 dark:text-sky-200"
                                         : r === t("wellness_reason_high_soreness" as any) || r === t("wellness_reason_low_readiness" as any)
@@ -2844,7 +2844,7 @@ export default function Schedule() {
                                   </span>
                                 ))}
                                 {chips.slice(0, 2).map((c) => (
-                                  <span key={c} className="px-2 py-0.5 rounded-full border border-border bg-background/40 text-[10px] font-black tracking-wide text-muted-foreground">
+                                  <span key={c} className="px-2 py-0.5 rounded-full border border-border bg-background/40 text-xs font-black tracking-wide text-muted-foreground">
                                     {c}
                                   </span>
                                 ))}
@@ -2929,7 +2929,7 @@ export default function Schedule() {
                     </Button>
                   </div>
 
-                  <p className="mt-2 text-[11px] text-muted-foreground">{t("wellness_local_note")}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{t("wellness_local_note")}</p>
                 </>
               ) : entryQ.isLoading ? (
                 <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
@@ -2939,7 +2939,7 @@ export default function Schedule() {
                 <div className="mt-4 space-y-3">
                   <div className="rounded-xl border border-border bg-background/40 p-4">
                     <p className="text-xs font-bold text-foreground">{t("wellness_submitted_today")}</p>
-                    <p className="text-[11px] text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       {t("wellness_entry_date_label").replace("{date}", entryDate)}
                     </p>
                     <div className="mt-3 grid grid-cols-2 gap-2">
@@ -2950,16 +2950,16 @@ export default function Schedule() {
                     </div>
                     <div className="mt-3 rounded-lg border border-border bg-muted/20 px-3 py-2">
                       <p className="text-sm font-semibold text-foreground">{t("wellness_completed_title" as any)}</p>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">{t("wellness_completed_subtitle" as any)}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{t("wellness_completed_subtitle" as any)}</p>
                     </div>
                   </div>
 
                   {entryQ.data && playerBaseline ? (
                     <div className="rounded-2xl border border-border bg-card p-4">
-                      <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                      <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                         {t("wellness_baseline_title" as any)}
                       </p>
-                      <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
+                      <p className="mt-1 text-xs font-semibold text-muted-foreground">
                         {t("wellness_baseline_subtitle" as any).replace("{n}", String(playerBaseline.n))}
                       </p>
                       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -2974,19 +2974,19 @@ export default function Schedule() {
                           const deltaTxt = `${delta >= 0 ? "+" : ""}${(Math.round(delta * 10) / 10).toFixed(1)}`;
                           return (
                             <div key={x.key} className="rounded-lg border border-border bg-background/40 px-3 py-2">
-                              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{x.label}</p>
+                              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground truncate">{x.label}</p>
                               <div className="mt-1 flex items-baseline justify-between gap-2">
                                 <p className="text-lg font-black text-foreground">{x.today}</p>
                                 <p
                                   className={[
-                                    "text-[11px] font-bold",
+                                    "text-xs font-bold",
                                     dirGood ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400",
                                   ].join(" ")}
                                 >
                                   {t("wellness_vs_baseline" as any).replace("{delta}", deltaTxt)}
                                 </p>
                               </div>
-                              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                              <p className="mt-0.5 text-xs text-muted-foreground">
                                 {t("wellness_baseline_value" as any).replace("{v}", String(Math.round(x.base * 10) / 10))}
                               </p>
                             </div>
@@ -2998,7 +2998,7 @@ export default function Schedule() {
 
                   <div className="rounded-2xl border border-border bg-card p-4">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                      <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                         {t("wellness_trends_title" as any)}
                       </p>
                       <ToggleGroup
@@ -3007,10 +3007,10 @@ export default function Schedule() {
                         onValueChange={(v) => setWellnessTrendRange((v as any) || "7d")}
                         className="justify-end"
                       >
-                        <ToggleGroupItem value="7d" size="sm" variant="outline" className="h-8 px-2.5">
+                        <ToggleGroupItem value="7d" size="sm" variant="outline" className="h-9 px-2.5">
                           7d
                         </ToggleGroupItem>
-                        <ToggleGroupItem value="30d" size="sm" variant="outline" className="h-8 px-2.5">
+                        <ToggleGroupItem value="30d" size="sm" variant="outline" className="h-9 px-2.5">
                           30d
                         </ToggleGroupItem>
                       </ToggleGroup>
@@ -3073,7 +3073,7 @@ export default function Schedule() {
 
                   <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
                     <p className="text-sm font-extrabold text-foreground">{t("wellness_done_title" as any)}</p>
-                    <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">{t("wellness_done_subtitle" as any)}</p>
+                    <p className="mt-0.5 text-xs font-semibold text-muted-foreground">{t("wellness_done_subtitle" as any)}</p>
                   </div>
                 </div>
               ) : (
@@ -3157,7 +3157,7 @@ export default function Schedule() {
               </div>
 
               {backendAvailable ? (
-                <p className="mt-2 text-[11px] text-muted-foreground">{t("wellness_persistence_note")}</p>
+                <p className="mt-2 text-xs text-muted-foreground">{t("wellness_persistence_note")}</p>
               ) : null}
                 </>
               )}
@@ -3189,7 +3189,7 @@ export default function Schedule() {
           <div className="px-5 pb-24 max-h-[70dvh] overflow-y-auto">
             <div className="space-y-4 pb-4">
               <div className="rounded-xl border border-border bg-card px-3 py-2">
-                <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                   {t("schedule_create_context" as any).replace(
                     "{when}",
                     (() => {
@@ -3211,7 +3211,7 @@ export default function Schedule() {
               </div>
 
               <div>
-                <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                   {t("schedule_session_type")}
                 </p>
                 <ToggleGroup
@@ -3239,7 +3239,7 @@ export default function Schedule() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="min-w-0 rounded-xl border border-border bg-card p-3">
-                  <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                  <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                     {t("schedule_session_start_time")}
                   </p>
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
@@ -3279,7 +3279,7 @@ export default function Schedule() {
                 </div>
 
                 <div className="min-w-0 rounded-xl border border-border bg-card p-3">
-                  <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                  <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                     {t("schedule_duration_presets")}
                   </p>
                   {createSessionType === "travel" ? (
@@ -3344,7 +3344,7 @@ export default function Schedule() {
               </div>
 
               <div className="rounded-xl border border-border bg-card p-3">
-                <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                   {t("schedule_attendance_mode")}
                 </p>
                 <ToggleGroup
@@ -3357,16 +3357,16 @@ export default function Schedule() {
                   }}
                   className="mt-2 justify-start flex-wrap gap-2"
                 >
-                  <ToggleGroupItem value="all_team" size="sm" variant="outline" className="h-8 px-2.5">
+                  <ToggleGroupItem value="all_team" size="sm" variant="outline" className="h-9 px-2.5">
                     {t("schedule_attendance_mode_all_team")}
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="groups" size="sm" variant="outline" className="h-8 px-2.5">
+                  <ToggleGroupItem value="groups" size="sm" variant="outline" className="h-9 px-2.5">
                     {t("schedule_attendance_mode_groups")}
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="signup" size="sm" variant="outline" className="h-8 px-2.5">
+                  <ToggleGroupItem value="signup" size="sm" variant="outline" className="h-9 px-2.5">
                     {t("schedule_attendance_mode_signup")}
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="selected_players" size="sm" variant="outline" className="h-8 px-2.5">
+                  <ToggleGroupItem value="selected_players" size="sm" variant="outline" className="h-9 px-2.5">
                     {t("schedule_attendance_mode_selected_players")}
                   </ToggleGroupItem>
                 </ToggleGroup>
@@ -3443,7 +3443,7 @@ export default function Schedule() {
                           +
                         </Button>
                       </div>
-                      <p className="mt-1 text-[11px] text-muted-foreground">{t("schedule_capacity_unlimited_hint" as any)}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{t("schedule_capacity_unlimited_hint" as any)}</p>
                     </div>
                   </div>
 
@@ -3458,10 +3458,10 @@ export default function Schedule() {
                       }}
                       className="justify-end flex-wrap gap-2"
                     >
-                      <ToggleGroupItem value="coach_assign" size="sm" variant="outline" className="h-8 px-2.5">
+                      <ToggleGroupItem value="coach_assign" size="sm" variant="outline" className="h-9 px-2.5">
                         {t("schedule_groups_mode_coach_assign")}
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="auto_signup" size="sm" variant="outline" className="h-8 px-2.5">
+                      <ToggleGroupItem value="auto_signup" size="sm" variant="outline" className="h-9 px-2.5">
                         {t("schedule_groups_mode_auto_signup")}
                       </ToggleGroupItem>
                     </ToggleGroup>
@@ -3471,7 +3471,7 @@ export default function Schedule() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground">{t("schedule_coach_group_assign")}</p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {t("schedule_groups_assigned_count" as any).replace("{count}", String(Object.keys(coachGroupAssignments).length))}
                         </p>
                       </div>
@@ -3485,7 +3485,7 @@ export default function Schedule() {
                 <div className="rounded-xl border border-border bg-card p-3 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground">{t("schedule_selected_players_quick" as any)}</p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       {t("schedule_selected_players_hint").replace("{count}", String(selectedPlayerIds.size))}
                     </p>
                   </div>
@@ -3518,7 +3518,7 @@ export default function Schedule() {
                           {t("schedule_advanced_options" as any)}
                         </p>
                         {hasAdvanced && !showAdvancedCreate ? (
-                          <span className="text-[11px] font-semibold text-muted-foreground">•</span>
+                          <span className="text-xs font-semibold text-muted-foreground">•</span>
                         ) : null}
                       </div>
                     </summary>
@@ -3621,7 +3621,7 @@ export default function Schedule() {
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  className="h-8 w-8 px-0"
+                                  className="h-9 w-8 px-0"
                                   onClick={() =>
                                     setTargetAttendance((prev) => {
                                       const n = Math.max(0, Number(prev) || 0);
@@ -3638,7 +3638,7 @@ export default function Schedule() {
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  className="h-8 w-8 px-0"
+                                  className="h-9 w-8 px-0"
                                   onClick={() =>
                                     setTargetAttendance((prev) => {
                                       const n = Math.max(0, Number(prev) || 0);
@@ -3657,7 +3657,7 @@ export default function Schedule() {
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  className="h-8 w-8 px-0"
+                                  className="h-9 w-8 px-0"
                                   onClick={() =>
                                     setMaxCapacity((prev) => {
                                       const n = Math.max(0, Number(prev) || 0);
@@ -3674,7 +3674,7 @@ export default function Schedule() {
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  className="h-8 w-8 px-0"
+                                  className="h-9 w-8 px-0"
                                   onClick={() =>
                                     setMaxCapacity((prev) => {
                                       const n = Math.max(0, Number(prev) || 0);
@@ -3749,7 +3749,7 @@ export default function Schedule() {
                               })
                             )}
                           </div>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {t("schedule_selected_players_hint").replace("{count}", String(selectedPlayerIds.size))}
                           </p>
                         </div>
@@ -3880,7 +3880,7 @@ export default function Schedule() {
                 </Button>
             </div>
             {!canSubmitCreate ? (
-              <p className="mt-2 text-[11px] text-muted-foreground">{t("schedule_create_validation_hint")}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{t("schedule_create_validation_hint")}</p>
             ) : null}
           </div>
         </DialogContent>
@@ -3898,7 +3898,7 @@ export default function Schedule() {
           </DialogHeader>
           {sessionDetailEvent ? (
             <div className="space-y-3 text-sm">
-              <span className="inline-flex items-center rounded-full border border-border bg-background/40 px-2.5 py-1 text-[11px] font-bold text-foreground">
+              <span className="inline-flex items-center rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs font-bold text-foreground">
                 {t(ACTIVITY_TYPE_CONFIG[sessionDetailEvent.session_type].labelKey)}
               </span>
               <p className="text-muted-foreground font-medium">
@@ -3912,7 +3912,7 @@ export default function Schedule() {
               {sessionDetailEvent.location?.trim() ? (
                 <p className="text-foreground font-semibold">{sessionDetailEvent.location}</p>
               ) : (
-                <p className="text-[11px] text-muted-foreground">{t("schedule_location_tbd")}</p>
+                <p className="text-xs text-muted-foreground">{t("schedule_location_tbd")}</p>
               )}
               {(() => {
                 const detailNotes = readConstraintsFromNotes(sessionDetailEvent.notes ?? null).notesClean?.trim();
@@ -3921,7 +3921,7 @@ export default function Schedule() {
                 ) : null;
               })()}
               {sessionDetailEvent.attendance_required !== false ? (
-                <p className="text-[11px] text-muted-foreground">{t("schedule_session_attendance_required")}</p>
+                <p className="text-xs text-muted-foreground">{t("schedule_session_attendance_required")}</p>
               ) : null}
             </div>
           ) : null}
@@ -4170,7 +4170,7 @@ export default function Schedule() {
             ) : null}
 
             <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+              <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                 {t("schedule_templates")}
               </p>
               {weekTemplatesSorted.length === 0 ? (
@@ -4181,7 +4181,7 @@ export default function Schedule() {
                     <div key={tpl.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background/40 px-3 py-2">
                       <div className="min-w-0">
                         <p className="text-sm font-extrabold text-foreground truncate">{tpl.name}</p>
-                        <p className="text-[11px] font-semibold text-muted-foreground truncate">
+                        <p className="text-xs font-semibold text-muted-foreground truncate">
                           {t("schedule_week_template_sessions").replace("{count}", String(tpl.sessions.length))}
                           {tpl.lastUsedAt ? ` · ${t("schedule_week_template_last_used")}` : ""}
                         </p>
@@ -4202,7 +4202,7 @@ export default function Schedule() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          className="h-8"
+                          className="h-9"
                           disabled={!clubId || !userId}
                           onClick={() => {
                             setApplyTargetTemplateId(tpl.id);
@@ -4214,7 +4214,7 @@ export default function Schedule() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8"
+                          className="h-9"
                           onClick={() => {
                             setEditingWeekTemplateId(tpl.id);
                             setWeekTemplateName(tpl.name);
@@ -4229,7 +4229,7 @@ export default function Schedule() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8"
+                          className="h-9"
                           onClick={() => duplicateWeekTemplate(tpl)}
                         >
                           {t("schedule_week_template_duplicate")}
@@ -4237,7 +4237,7 @@ export default function Schedule() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 text-destructive border-destructive/30"
+                          className="h-9 text-destructive border-destructive/30"
                           onClick={() => deleteWeekTemplate(tpl.id)}
                         >
                           {t("delete")}
@@ -4408,7 +4408,7 @@ export default function Schedule() {
             const byDay = Array.from({ length: 7 }).map((_, i) => tpl.sessions.filter((s) => s.dayIndex === i).sort((a, b) => a.startMins - b.startMins));
             return (
               <div className="mt-4 rounded-xl border border-border bg-card p-3">
-                <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">
+                <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                   {t("schedule_template_preview" as any)}
                 </p>
                 <div className="mt-2 space-y-2">
@@ -4427,13 +4427,13 @@ export default function Schedule() {
                               const hh = String(Math.floor(s.startMins / 60)).padStart(2, "0");
                               const mm = String(s.startMins % 60).padStart(2, "0");
                               return (
-                                <p key={idx} className="text-[11px] font-semibold text-muted-foreground truncate">
+                                <p key={idx} className="text-xs font-semibold text-muted-foreground truncate">
                                   {hh}:{mm} · {s.title}
                                 </p>
                               );
                             })}
                             {list.length > 4 ? (
-                              <p className="text-[11px] font-semibold text-muted-foreground">
+                              <p className="text-xs font-semibold text-muted-foreground">
                                 {t("schedule_template_preview_more" as any).replace("{count}", String(list.length - 4))}
                               </p>
                             ) : null}
@@ -4514,7 +4514,7 @@ export default function Schedule() {
                             key={idx}
                             type="button"
                             className={[
-                              "h-8 w-8 rounded-md border text-xs font-black transition-colors",
+                              "h-9 w-8 rounded-md border text-xs font-black transition-colors",
                               current === idx
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-background/40 text-muted-foreground hover:bg-muted/40",
@@ -4555,7 +4555,7 @@ export default function Schedule() {
                           <p className="text-xs font-semibold text-muted-foreground">
                             {t("schedule_group_label" as any).replace("{group}", String.fromCharCode(65 + idx))}
                           </p>
-                          <p className="text-[11px] font-semibold text-muted-foreground">{inGroup(idx).length}</p>
+                          <p className="text-xs font-semibold text-muted-foreground">{inGroup(idx).length}</p>
                         </div>
                         <div className="mt-2 space-y-2">{inGroup(idx).map(PlayerRow)}</div>
                       </div>
@@ -4655,7 +4655,7 @@ function WellnessRow(props: {
             </span>
           ) : null}
         </div>
-        <p className="text-[11px] text-muted-foreground mt-0.5">{props.value ? `${props.value}/5` : "—"}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{props.value ? `${props.value}/5` : "—"}</p>
       </div>
       <ToggleGroup
         type="single"
@@ -4686,7 +4686,7 @@ function WellnessRow(props: {
 function Metric(props: { label: string; value: number }) {
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2">
-      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{props.label}</p>
+      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground truncate">{props.label}</p>
       <p className="mt-1 text-lg font-black text-foreground">{props.value}</p>
     </div>
   );
@@ -4745,7 +4745,7 @@ function WellnessTrendChart(props: {
   if (!hasSufficientData) {
     return (
       <div style={{ height: h }} className="flex items-center justify-center">
-        <p className="text-[10px] text-muted-foreground">—</p>
+        <p className="text-xs text-muted-foreground">—</p>
       </div>
     );
   }
@@ -4838,9 +4838,9 @@ function PlannerSessionCardButton(props: {
 function KpiCard(props: { title: string; value: string; subtitle?: string }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground">{props.title}</p>
+      <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">{props.title}</p>
       <p className="mt-2 text-xl font-black tracking-tight text-foreground">{props.value}</p>
-      {props.subtitle ? <p className="mt-1 text-[11px] text-muted-foreground">{props.subtitle}</p> : null}
+      {props.subtitle ? <p className="mt-1 text-xs text-muted-foreground">{props.subtitle}</p> : null}
     </div>
   );
 }
@@ -4879,7 +4879,7 @@ function SessionRow(props: {
         <div className="min-w-0">
           <p className="text-sm font-extrabold text-foreground truncate">{props.title}</p>
           {props.subtitle ? (
-            <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground truncate">{props.subtitle}</p>
+            <p className="mt-0.5 text-xs font-semibold text-muted-foreground truncate">{props.subtitle}</p>
           ) : null}
         </div>
         {props.right ? <div className="shrink-0">{props.right}</div> : null}
