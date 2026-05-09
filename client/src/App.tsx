@@ -366,7 +366,7 @@ function App() {
       <TooltipProvider>
         <OfflineBanner />
         <Toaster />
-        <div className="min-h-[100dvh] bg-background max-w-md mx-auto md:max-w-none md:ml-0 md:mr-0 md:pl-16 lg:pl-56 relative shadow-2xl md:shadow-none overflow-hidden overflow-y-auto border-x md:border-x-0 border-border pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+        <div className={`min-h-[100dvh] bg-background md:pl-16 lg:pl-56 relative overflow-hidden overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${typeof window !== "undefined" && (window as any).Capacitor?.isNativePlatform?.() ? "w-full" : "max-w-md mx-auto shadow-2xl border-x border-border md:max-w-none md:ml-0 md:mr-0 md:shadow-none md:border-x-0"}`}>
           {showSplash ? <UCoreBootSplash fadeOut={splashFadeOut} /> : null}
           {previewRole && previewRole !== profile?.role ? (
             <button

@@ -44,7 +44,7 @@ const en = {
   tagline_scout: "Scouting Platform",
   tagline_schedule: "Training & Wellbeing",
   tagline_stats: "Performance & Analytics",
-  ucore_card_scout_title: "U Scout",
+  ucore_card_scout_title: "Scout",
   ucore_card_scout_sub_staff: "Build scouting reports",
   ucore_card_scout_sub_player: "All reports",
   ucore_card_schedule_title: "U Schedule & Wellness",
