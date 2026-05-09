@@ -32,8 +32,8 @@ export default function Playbook() {
   const t = L[(locale as keyof typeof L) ?? "en"] ?? L.en;
 
   return (
-    <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background text-foreground overflow-hidden pb-16 md:pb-0">
-      <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 max-w-5xl mx-auto w-full md:overflow-y-auto md:min-h-0">
+    <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden pb-16 md:pb-0">
+      <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 max-w-5xl mx-auto w-full overflow-y-auto min-h-0">
 
         <ModuleHeader
           module="playbook"

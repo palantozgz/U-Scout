@@ -50,7 +50,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background">
+    <div className="flex flex-col h-[100dvh] bg-background">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-card/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3 shadow-sm">
         <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="-ml-2">
@@ -62,7 +62,7 @@ export default function Settings() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 space-y-4 max-w-lg mx-auto w-full md:overflow-y-auto md:min-h-0">
+      <main className="flex-1 p-4 space-y-4 max-w-lg mx-auto w-full overflow-y-auto min-h-0">
 
         {/* Visual Theme */}
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">

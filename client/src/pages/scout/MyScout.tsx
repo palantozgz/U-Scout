@@ -219,7 +219,7 @@ export default function MyScout() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background pb-16 md:pb-0">
+      <div className="flex flex-col h-[100dvh] bg-background pb-16 md:pb-0">
         <div className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
@@ -228,7 +228,7 @@ export default function MyScout() {
   }
 
   return (
-    <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background pb-16 md:pb-0">
+    <div className="flex flex-col h-[100dvh] bg-background pb-16 md:pb-0">
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -253,7 +253,7 @@ export default function MyScout() {
         </Button>
       </header>
 
-      <main className="flex-1 px-4 py-4 landscape:py-2 space-y-3 max-w-5xl mx-auto w-full md:overflow-y-auto md:min-h-0">
+      <main className="flex-1 px-4 py-4 landscape:py-2 space-y-3 max-w-5xl mx-auto w-full overflow-y-auto min-h-0">
 
         {/* Context banner */}
         {!showNewPlayer && sandboxPlayers.length === 0 && canonicalPlayers.length === 0 && (

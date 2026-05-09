@@ -328,7 +328,7 @@ export default function Home() {
   const kpiWellnessPct = wellnessPctQ.data?.pct ?? 0;
 
   return (
-    <div className="flex flex-col min-h-[100dvh] md:h-[100dvh] bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
       <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-12 px-4 md:px-8">
 
         {/* ── Brand header — visible siempre ── */}
