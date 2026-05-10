@@ -78,7 +78,7 @@ export default function GamePlan() {
           <h1 className="text-lg font-black text-foreground tracking-tight">
             {zh ? "比赛方案" : es ? "Plan de juego" : "Game Plan"}
           </h1>
-          <p className="text-[10px] text-muted-foreground font-medium">
+          <p className="text-[10px] md:text-sm text-muted-foreground font-medium">
             {zh ? "已发布给球员" : es ? "Publicados a jugadoras" : "Published to players"}
           </p>
         </div>
@@ -117,7 +117,7 @@ export default function GamePlan() {
             {/* Summary badge */}
             <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/8 px-3 py-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <p className="text-[11px] font-black text-emerald-700 dark:text-emerald-400">
+              <p className="text-[11px] md:text-sm font-black text-emerald-700 dark:text-emerald-400">
                 {publishedPlayers.length}{" "}
                 {es
                   ? `informe${publishedPlayers.length > 1 ? "s" : ""} publicado${publishedPlayers.length > 1 ? "s" : ""} al roster`
@@ -188,7 +188,7 @@ export default function GamePlan() {
                     <div className="border-t border-border px-4 py-2.5 flex items-center justify-between bg-background/40">
                       {isPendingConfirm ? (
                         <div className="flex items-center gap-2 w-full">
-                          <p className="text-[11px] text-muted-foreground flex-1">
+                          <p className="text-[11px] md:text-sm text-muted-foreground flex-1">
                             {es ? "¿Reiniciar ficha? El staff rehará sus informes." : zh ? "重新开始？教练团队将重新填写。" : "Restart scouting? Staff will redo their reports."}
                           </p>
                           <Button

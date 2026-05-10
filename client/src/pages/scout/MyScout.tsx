@@ -240,7 +240,7 @@ export default function MyScout() {
           </button>
           <div>
             <h1 className="text-lg font-black text-foreground tracking-tight">{L.title}</h1>
-            <p className="text-[10px] text-muted-foreground font-medium">{L.sub}</p>
+            <p className="text-[10px] md:text-sm text-muted-foreground font-medium">{L.sub}</p>
           </div>
         </div>
         <Button
@@ -358,7 +358,7 @@ export default function MyScout() {
                     <p className="text-sm font-black text-foreground truncate">
                       {localName(team.name, (team as any).nameEn ?? (team as any).name_en, locale)}
                     </p>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    <p className="text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       {L.playersCount.replace("{n}", String(teamCanon.length))}
                     </p>
                   </div>
@@ -408,7 +408,7 @@ export default function MyScout() {
                                   {localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) || "—"}
                                 </p>
                                 {isCanonical && (
-                                  <span className="text-[11px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                  <span className="text-[11px] md:text-xs font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                                     {L.officialBadge}
                                   </span>
                                 )}
@@ -481,7 +481,7 @@ export default function MyScout() {
           onClick={() => setSandboxOpen(o => !o)}
           className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20 text-left mt-2"
         >
-          <span className="text-[11px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
+          <span className="text-[11px] md:text-xs font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
             {"⚗️ "}
             {locale === "es" ? "Fichas de práctica" : locale === "zh" ? "练习档案" : "Practice profiles"}
             {sandboxPlayers.length > 0 && ` · ${sandboxPlayers.length}`}
@@ -521,7 +521,7 @@ export default function MyScout() {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm font-extrabold text-foreground truncate">{player.name || "—"}</p>
                         {isCanonical && (
-                          <span className="text-[11px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                          <span className="text-[11px] md:text-xs font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                             {L.officialBadge}
                           </span>
                         )}
@@ -530,7 +530,7 @@ export default function MyScout() {
                         #{player.number || "—"} · {teamName(player.teamId)}
                       </p>
                       {!isCanonical && (
-                        <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
+                        <p className="text-[10px] md:text-xs text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
                           {L.sandboxNote}
                         </p>
                       )}

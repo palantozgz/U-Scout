@@ -48,7 +48,7 @@ function DiscrepancyPanel({
 
   return (
     <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2 space-y-2">
-      <p className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
+      <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
         ⚠ {locale === "es" ? "Discrepancias" : locale === "zh" ? "分歧" : "Discrepancies"}
       </p>
       {conflicts.map(([key, v]) => {
@@ -56,7 +56,7 @@ function DiscrepancyPanel({
         const uniqueActions = Array.from(new Set(v.actions));
         return (
           <div key={key} className="rounded-md bg-background/50 px-2 py-1.5 space-y-0.5">
-            <p className="text-[11px] font-bold text-foreground">{itemLabel}</p>
+            <p className="text-[11px] md:text-sm font-bold text-foreground">{itemLabel}</p>
             <div className="flex flex-wrap gap-1">
               {uniqueActions.map((action) => (
                 <span
@@ -166,7 +166,7 @@ function FilmRoomCard({
           {!hasSubmittedMine && (
             <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
               <Lock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <p className="text-[11px] font-semibold text-muted-foreground">
+              <p className="text-[11px] md:text-sm font-semibold text-muted-foreground">
                 {es
                   ? "Entrega tu informe para ver los detalles del equipo"
                   : zh
@@ -285,7 +285,7 @@ export default function FilmRoom() {
           <h1 className="text-lg font-black text-foreground tracking-tight">
             {zh ? "集体分析" : es ? "Sala de análisis" : "Film Room"}
           </h1>
-          <p className="text-[10px] text-muted-foreground font-medium">
+          <p className="text-[10px] md:text-sm text-muted-foreground font-medium">
             {zh ? "集体审核 · 解决分歧" : es ? "Revisión colectiva · resolver discrepancias" : "Collective review · resolve discrepancies"}
           </p>
         </div>

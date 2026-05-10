@@ -54,11 +54,11 @@ function AlertSlot({
       <div className="flex items-start gap-2">
         <span className="text-base leading-none mt-0.5">{icon}</span>
         <div className="min-w-0">
-          <p className={cn("text-xs font-black leading-snug tracking-tight line-clamp-2", textClass)}>
+          <p className={cn("text-xs md:text-sm font-black leading-snug tracking-tight line-clamp-2", textClass)}>
             {label}
           </p>
           {sub && (
-            <p className="mt-0.5 text-xs font-semibold leading-snug text-muted-foreground line-clamp-1">
+            <p className="mt-0.5 text-xs md:text-sm font-semibold leading-snug text-muted-foreground line-clamp-1">
               {sub}
             </p>
           )}
@@ -99,7 +99,7 @@ function NavCard({
           <p className="text-base font-black text-foreground tracking-tight">{title}</p>
           {badge}
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5 font-medium">{sub}</p>
+        <p className="text-xs md:text-sm text-muted-foreground mt-0.5 font-medium">{sub}</p>
       </div>
       <div className="flex items-center pr-1 text-muted-foreground group-hover:text-primary transition-transform duration-200 group-hover:translate-x-1">
         <ChevronRight className="w-5 h-5" />
@@ -303,7 +303,7 @@ export default function CoachHome() {
             {/* ── SEPARATOR ── */}
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-xs font-black tracking-widest text-muted-foreground/40 uppercase shrink-0">
+              <span className="text-xs md:text-sm font-black tracking-widest text-muted-foreground/40 uppercase shrink-0">
                 {L.workflow}
               </span>
               <div className="flex-1 h-px bg-border" />
@@ -312,7 +312,7 @@ export default function CoachHome() {
         )}
 
         {/* ── WORKFLOW: My Scout → Film Room → Game Plan ── */}
-        <div className="flex items-center justify-center gap-1 text-xs font-black tracking-widest text-muted-foreground/35 uppercase -mb-1">
+        <div className="flex items-center justify-center gap-1 text-xs md:text-sm font-black tracking-widest text-muted-foreground/35 uppercase -mb-1">
           <span>{locale === "zh" ? "我的报告" : locale === "es" ? "Mi Scout" : "My Scout"}</span>
           <ArrowRight className="w-3 h-3" />
           <span>{locale === "zh" ? "集体分析" : locale === "es" ? "Sala de análisis" : "Film Room"}</span>
