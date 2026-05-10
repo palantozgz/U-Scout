@@ -5,6 +5,9 @@
 html, body {
   background: hsl(var(--background));
   min-height: 100dvh;
+  /* Elimina el bounce/rubber-band scroll de iOS WebView */
+  overscroll-behavior: none;
+  overflow: hidden;
 }
 
 @custom-variant dark (&:is(.dark *));
