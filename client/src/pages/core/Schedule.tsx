@@ -183,6 +183,7 @@ function SessionDetailPanel({
   t,
   intlLocale,
   notesClean,
+  locale,
 }: {
   event: ScheduleEvent | null;
   canEdit: boolean;
@@ -191,13 +192,14 @@ function SessionDetailPanel({
   t: (key: I18nKey) => string;
   intlLocale: string;
   notesClean?: string | null;
+  locale: string;
 }) {
   if (!event) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
         <CalendarDays className="h-8 w-8 text-muted-foreground/40" />
         <p className="text-xs font-semibold text-muted-foreground">
-          {(t as (key: string) => string)("schedule_select_event_hint") || "Select an event to see details"}
+          {locale === "zh" ? "选择一个活动以查看详情" : locale === "es" ? "Selecciona un evento para ver los detalles" : "Select an event to see details"}
         </p>
       </div>
     );
@@ -1647,6 +1649,7 @@ export default function Schedule() {
           }}
           t={t}
           intlLocale={intlLocale}
+          locale={locale}
         />
       }
       panelLabel="Event Detail"

@@ -64,7 +64,7 @@ export function ModulePageShell(
 
       {/* ── Header ── */}
       {moduleHeader ? (
-        <div className="w-full max-w-5xl mx-auto px-4 md:px-8 shrink-0">
+        <div className="w-full max-w-5xl mx-auto px-4 md:px-8 md:pt-1 shrink-0">
           <ModuleHeader
             module={moduleHeader.module}
             tagline={moduleHeader.tagline}
@@ -73,7 +73,7 @@ export function ModulePageShell(
         </div>
       ) : (
         <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border shrink-0">
-          <div className="w-full max-w-5xl mx-auto px-3 md:px-8 py-3 flex items-center justify-between gap-2">
+          <div className="w-full max-w-5xl mx-auto px-3 md:px-8 md:py-3.5 py-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               {showBack ? (
                 <Button
@@ -111,27 +111,27 @@ export function ModulePageShell(
       <div className="flex flex-1 min-h-0">
 
         {/* Main — scroll interno, padding para nav mobile */}
-        <main className="flex-1 min-h-0 overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-8">
+        <main className="flex-1 min-h-0 overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-10 md:pt-4 lg:pt-6">
           {children}
         </main>
 
         {/* Panel lateral — solo desktop, solo si se pasa la prop */}
         {panel && (
           <aside
-            className="hidden md:flex w-80 lg:w-96 shrink-0 flex-col min-h-0 overflow-y-auto"
+            className="hidden md:flex w-80 lg:w-96 shrink-0 flex-col min-h-0 overflow-y-auto bg-muted/10"
             style={{ borderLeft: "1px solid hsl(var(--border) / 0.7)" }}
           >
             {panelLabel && (
               <div
-                className="px-4 py-3 shrink-0"
+                className="px-5 py-3.5 shrink-0"
                 style={{ borderBottom: "1px solid hsl(var(--border) / 0.5)" }}
               >
-                <p className="text-[10px] font-black tracking-[2px] uppercase text-muted-foreground">
+                <p className="text-[10px] md:text-xs font-black tracking-[2px] md:tracking-[0.2em] uppercase text-muted-foreground">
                   {panelLabel}
                 </p>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {panel}
             </div>
           </aside>

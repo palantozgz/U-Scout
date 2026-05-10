@@ -78,12 +78,12 @@ export function ModuleNav() {
 
       {/* ── Desktop md+: sidebar vertical izquierda ────────────────── */}
       <nav
-        className="hidden md:flex fixed left-0 top-0 bottom-0 z-[90] w-16 lg:w-56 flex-col bg-card/95 backdrop-blur-md pt-5 pb-4 gap-1"
+        className="hidden md:flex fixed left-0 top-0 bottom-0 z-[90] w-16 lg:w-56 flex-col bg-card/95 backdrop-blur-md pt-6 pb-6 gap-0.5"
         style={{ borderRight: "1px solid hsl(var(--border) / 0.6)" }}
       >
         {/* Brand */}
         <div
-          className="flex items-center justify-center lg:justify-start lg:px-5 pb-4 mb-1"
+          className="flex items-center justify-center lg:justify-start lg:px-5 pb-3 mb-2"
           style={{ borderBottom: "1px solid hsl(var(--border) / 0.3)" }}
         >
           <span className="hidden lg:block text-sm font-black tracking-[3px] uppercase text-primary">U·CORE</span>
@@ -96,7 +96,7 @@ export function ModuleNav() {
             type="button"
             onClick={() => setLocation(it.href)}
             className={cn(
-              "mx-2 rounded-lg flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-3 transition-colors relative select-none",
+              "mx-1.5 lg:mx-2 min-h-11 rounded-lg flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 transition-colors relative select-none",
               it.active
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent",

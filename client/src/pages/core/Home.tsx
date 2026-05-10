@@ -46,7 +46,7 @@ function KpiCell({ value, label, color }: { value: string | number; label: strin
   return (
     <div className="flex flex-col items-center justify-center py-5 md:py-7 px-2">
       <span data-scoreboard="" className={cn("text-3xl md:text-4xl font-black leading-none tabular-nums", colorClass)}>{value}</span>
-      <span className="text-[8px] md:text-[9px] font-bold tracking-[1.5px] text-muted-foreground uppercase mt-1.5">{label}</span>
+      <span className="text-[8px] md:text-[11px] font-bold tracking-[1.5px] md:tracking-wide text-muted-foreground uppercase mt-1.5">{label}</span>
     </div>
   );
 }
@@ -69,7 +69,7 @@ function ModCard(props: {
       disabled={props.comingSoon}
       data-testid={props.testId}
       className={cn(
-        "group relative text-left rounded-xl border border-border bg-card p-4 md:p-6 flex flex-col gap-2 md:gap-3 min-h-[120px] md:min-h-0 md:h-full",
+        "group relative text-left rounded-xl border border-border bg-card p-4 md:p-6 flex flex-col gap-2 md:gap-3 min-h-[120px] md:h-[180px]",
         "transition-all duration-200",
         props.comingSoon
           ? "opacity-50 cursor-default"
@@ -130,7 +130,7 @@ function HomeAlertChip({
       onClick={onClick}
       disabled={!onClick}
       className={cn(
-        "flex-1 min-w-[220px] rounded-xl border px-3 py-2.5 text-left transition-colors",
+        "flex-1 min-w-[220px] md:flex-none md:min-w-0 md:max-w-xs rounded-xl border px-3 py-2.5 text-left transition-colors",
         toneClass,
         onClick ? "active:scale-[0.99] hover:brightness-95" : "cursor-default",
       )}
@@ -522,9 +522,9 @@ export default function Home() {
         ) : null}
 
         {/* ── Module grid 2×2 ── */}
-        <div className="mb-5 md:mb-0 md:flex-1 md:flex md:flex-col">
-          <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground mb-3">{t("home_modules_label")}</p>
-          <div className="grid grid-cols-2 gap-3 md:gap-4 md:flex-1 md:[grid-auto-rows:1fr]">
+        <div className="mb-5">
+          <p className="text-[9px] md:text-[11px] font-black tracking-[2px] uppercase text-muted-foreground mb-3">{t("home_modules_label")}</p>
+          <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-4">
             {mode === "staff" ? (
               <>
                 <ModCard
@@ -624,7 +624,7 @@ export default function Home() {
             <p className="text-xs font-semibold text-foreground">{displayName}</p>
             {roleLabel ? <p className="text-[10px] text-muted-foreground tracking-wide">{roleLabel}</p> : null}
           </div>
-          <span className="text-[9px] font-bold text-muted-foreground/50 tracking-widest uppercase">U SCOUT</span>
+          <span className="text-[9px] font-bold text-muted-foreground/50 tracking-widest uppercase">U CORE</span>
         </div>
 
       </main>

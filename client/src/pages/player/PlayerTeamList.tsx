@@ -35,7 +35,7 @@ export default function PlayerTeamList() {
     : "Your coaching staff will publish reports here before the game";
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground pb-16">
+    <div className="flex flex-col h-[100dvh] bg-background text-foreground pb-16 md:pb-0">
       {/* Logo */}
       <div className="flex flex-col items-center pt-5 pb-4 gap-1.5">
         <UScoutLogo size={100} animated={false} />
@@ -57,7 +57,7 @@ export default function PlayerTeamList() {
         </Button>
       </header>
 
-      <main className="flex-1 px-4 py-4 space-y-3 max-w-5xl mx-auto w-full">
+      <main className="flex-1 overflow-y-auto min-h-0 px-4 py-4 space-y-3 max-w-5xl mx-auto w-full">
         <FirstVisitBanner
           visitKey="scout-player-v1"
           icon={<ShieldCheck className="h-4 w-4" />}
