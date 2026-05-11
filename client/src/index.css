@@ -1,8 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Safe-area: fondo extendido a toda la pantalla incluyendo notch y home indicator */
+/* Safe-area iOS PWA fix.
+   Con black-translucent + viewport-fit=cover, iOS sube el documento
+   env(safe-area-inset-top) px, exponiendo el fondo del sistema en el bottom.
+   min-height en html garantiza que background cubra esa zona expuesta.
+   Referencias: https://dev.to/karmasakshi/make-your-pwas-look-handsome-on-ios-1o08 */
 html {
+  min-height: calc(100% + env(safe-area-inset-top));
   background: hsl(var(--background));
 }
 body {

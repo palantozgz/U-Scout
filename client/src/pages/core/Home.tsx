@@ -481,12 +481,12 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── Próximo evento ── */}
+        {/* ── Próximo evento — solo desktop ── */}
         {nextSession ? (
           <button
             type="button"
             onClick={() => setLocation("/schedule")}
-            className="mb-6 md:mb-8 w-full text-left rounded-xl border border-border bg-card p-4 md:p-5 hover:border-primary/50 md:shadow-sm md:shadow-black/[0.04] md:ring-1 md:ring-border/40 dark:md:shadow-none dark:md:ring-border/35 transition-colors active:scale-[0.99]"
+            className="hidden md:block mb-6 md:mb-8 w-full text-left rounded-xl border border-border bg-card p-4 md:p-5 hover:border-primary/50 md:shadow-sm md:shadow-black/[0.04] md:ring-1 md:ring-border/40 dark:md:shadow-none dark:md:ring-border/35 transition-colors active:scale-[0.99]"
             data-testid="ucore-home-next-event"
           >
             <div className="flex items-center gap-1.5 mb-2">
@@ -522,10 +522,10 @@ export default function Home() {
           </button>
         ) : null}
 
-        {/* ── Module grid 2×2 — flex-1 ocupa el espacio disponible ── */}
-        <div className="flex-1 min-h-0 flex flex-col md:mb-0 md:pb-2">
+        {/* ── Module grid 2×2 ── */}
+        <div className="mb-2 md:mb-0 md:flex-1 md:flex md:flex-col md:pb-2">
           <p className="text-[9px] md:text-[11px] font-black tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-2">{t("home_modules_label")}</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 grid-rows-2 md:grid-rows-1 gap-2 md:gap-4 flex-1 min-h-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 md:flex-1 md:[grid-auto-rows:1fr]">
             {mode === "staff" ? (
               <>
                 <ModCard

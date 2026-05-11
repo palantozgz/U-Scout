@@ -1,0 +1,12 @@
+
+[main 30e9a61] fix: UMark viewBox recortado 256 173 512 512 — logo visible a todos los tamaños
+ 1 file changed, 4 insertions(+), 13 deletions(-)
+Enumerating objects: 13, done.
+Counting objects: 100% (13/13), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (7/7), done.
+Writing objects: 100% (7/7), 671 bytes | 671.00 KiB/s, done.
+Total 7 (delta 5), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (5/5), completed with 5 local objects.
+To https://github.com/palantozgz/U-Scout.git
+   5d7647d..30e9a61  main -> main
