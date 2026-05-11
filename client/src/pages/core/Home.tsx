@@ -46,7 +46,7 @@ function KpiCell({ value, label, color }: { value: string | number; label: strin
   return (
     <div className="flex flex-col items-center justify-center py-5 md:py-8 px-2 md:px-3 min-h-[80px] md:min-h-[100px]">
       <span data-scoreboard="" className={cn("text-3xl md:text-4xl font-black leading-none tabular-nums", colorClass)}>{value}</span>
-      <span className="text-[8px] md:text-[11px] font-bold tracking-[1.5px] md:tracking-wide text-muted-foreground uppercase mt-1.5">{label}</span>
+      <span className="text-[9px] md:text-[11px] font-bold tracking-[1.5px] md:tracking-wide text-muted-foreground/80 uppercase mt-1.5">{label}</span>
     </div>
   );
 }
@@ -464,13 +464,13 @@ export default function Home() {
 
         {/* ── KPI bar — horizontal, siempre visible ── */}
         {mode === "staff" ? (
-          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden md:shadow-sm md:shadow-black/[0.03] dark:md:shadow-none">
+          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card dark:bg-card/80 dark:border-border/60 dark:ring-1 dark:ring-border/40 overflow-hidden">
             <KpiCell value={kpiPlayers}           label={t("home_kpi_players")}   color="default" />
             <KpiCell value={kpiWeekSessions}      label={t("home_kpi_week")}       color="primary" />
             <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")}  color="green"   />
           </div>
         ) : (
-          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden md:shadow-sm md:shadow-black/[0.03] dark:md:shadow-none">
+          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card dark:bg-card/80 dark:border-border/60 dark:ring-1 dark:ring-border/40 overflow-hidden">
             <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
             <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}       color="primary" />
             <KpiCell
