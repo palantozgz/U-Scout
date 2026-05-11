@@ -64,6 +64,13 @@ import {
   type ScheduleEvent,
 } from "@/lib/schedule";
 
+function localDateKey(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function useLongPress(onLongPress: () => void, ms = 500) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const start = () => {
@@ -577,7 +584,7 @@ export default function Schedule() {
 
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => mondayOf(new Date()));
   const currentWeekStart = useMemo(() => mondayOf(new Date()), []);
-  const isCurrentWeek = selectedWeekStart.toISOString().slice(0, 10) === currentWeekStart.toISOString().slice(0, 10);
+  const isCurrentWeek = localDateKey(selectedWeekStart) === localDateKey(currentWeekStart);
 
   const selectedWeekEnd = useMemo(() => {
     const d = new Date(selectedWeekStart);
@@ -1042,7 +1049,7 @@ export default function Schedule() {
 
   const scrollToToday = () => {
     const today = new Date();
-    const todayKey = today.toISOString().slice(0, 10);
+    const todayKey = localDateKey(today);
     setSelectedWeekStart(currentWeekStart);
     setHighlightDayKey(todayKey);
     window.setTimeout(() => setHighlightDayKey(null), 900);
@@ -1988,7 +1995,7 @@ export default function Schedule() {
                     {!isLandscape ? (
                       <div className="mt-3 max-h-[calc(100dvh-8rem)] min-h-0 overflow-y-auto space-y-3">
                         {days.map((d) => {
-                          const dayKey = d.toISOString().slice(0, 10);
+                          const dayKey = localDateKey(d);
                           const daySessionsAll = (plannerWeekQ.data ?? [])
                             .filter((s) => new Date(s.starts_at).toLocaleDateString("sv") === dayKey)
                             .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
@@ -2432,7 +2439,7 @@ export default function Schedule() {
                 <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "140px repeat(7, 1fr)", gap: 12 }}>
                   <div />
                   {days.map((d) => {
-                    const dayKey = d.toISOString().slice(0, 10);
+                    const dayKey = localDateKey(d);
                     const dayLabel = new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d);
                     const dateLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d);
                     return (
@@ -2467,7 +2474,7 @@ export default function Schedule() {
 
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12 }}>
                     {days.map((d) => {
-                      const dayKey = d.toISOString().slice(0, 10);
+                      const dayKey = localDateKey(d);
                       const daySessions = (plannerWeekQ.data ?? [])
                         .filter((ev) => ev.starts_at.slice(0, 10) === dayKey)
                         .slice()
