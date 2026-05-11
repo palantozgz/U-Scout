@@ -44,7 +44,7 @@ function KpiCell({ value, label, color }: { value: string | number; label: strin
     color === "green"   ? "text-emerald-500" :
     "text-foreground";
   return (
-    <div className="flex flex-col items-center justify-center py-5 md:py-8 px-2 md:px-3 min-h-[80px] md:min-h-[100px]">
+    <div className="flex flex-col items-center justify-center px-2 md:px-3" style={{ minHeight: 80, paddingTop: 20, paddingBottom: 20 }}>
       <span data-scoreboard="" className={cn("text-3xl md:text-4xl font-black leading-none tabular-nums", colorClass)}>{value}</span>
       <span className="text-[9px] md:text-[11px] font-bold tracking-[1.5px] md:tracking-wide text-muted-foreground/80 uppercase mt-1.5">{label}</span>
     </div>
@@ -464,13 +464,13 @@ export default function Home() {
 
         {/* ── KPI bar — horizontal, siempre visible ── */}
         {mode === "staff" ? (
-          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card overflow-hidden">
+          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card">
             <KpiCell value={kpiPlayers}           label={t("home_kpi_players")}   color="default" />
             <KpiCell value={kpiWeekSessions}      label={t("home_kpi_week")}       color="primary" />
             <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")}  color="green"   />
           </div>
         ) : (
-          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card overflow-hidden">
+          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card">
             <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
             <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}       color="primary" />
             <KpiCell
@@ -630,6 +630,8 @@ export default function Home() {
 
       </main>
       <ModuleNav />
+      {/* Cubre el safe-area-inset-bottom en iOS para evitar franja blanca */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card" style={{ height: "env(safe-area-inset-bottom)", zIndex: 89 }} />
     </div>
   );
 }
