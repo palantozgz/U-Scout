@@ -29,6 +29,16 @@ export type PlayerSeasonStats = {
   fgPct: number | null;
   fg3Pct: number | null;
   ftPct: number | null;
+  tsPct: number | null;
+  eFGPct: number | null;
+  astTovRatio: number | null;
+  ftRate: number | null;
+  usagePct: number | null;
+  orbPerGame: number | null;
+  drbPerGame: number | null;
+  pie: number | null;
+  homeSplit: { pts: number; reb: number; ast: number };
+  awaySplit: { pts: number; reb: number; ast: number };
 };
 
 export type GameLog = {
@@ -157,6 +167,16 @@ export interface PlayerDetail {
   fgPct: number | null;
   fg3Pct: number | null;
   ftPct: number | null;
+  tsPct: number | null;
+  eFGPct: number | null;
+  astTovRatio: number | null;
+  ftRate: number | null;
+  usagePct: number | null;
+  orbPerGame: number | null;
+  drbPerGame: number | null;
+  pie: number | null;
+  homeSplit: { pts: number; reb: number; ast: number };
+  awaySplit: { pts: number; reb: number; ast: number };
 }
 
 export interface GameLogEntry {
@@ -214,6 +234,12 @@ export interface TeamDetail {
   awayW?: number | null;
   awayL?: number | null;
   teamFgPct?: number | null;
+  eFGPct: number | null;
+  tovPct: number | null;
+  ftRate: number | null;
+  orbPct: number | null;
+  drbPct: number | null;
+  paceEst: number | null;
 }
 
 export function useTeamDetail(externalId: string | null | undefined, seasonId?: number) {
@@ -239,6 +265,52 @@ export function usePlayerDetail(externalId: string | null | undefined) {
     },
     enabled: Boolean(externalId),
     staleTime: 1000 * 60 * 5,
+    retry: 0,
+  });
+}
+
+export function useLeagueAverages(seasonId?: number) {
+  return useQuery({
+    queryKey: ["stats-league-averages", seasonId ?? 2092],
+    queryFn: async () => {
+      const r = await apiRequest("GET", `/api/stats/league-averages?seasonId=${seasonId ?? 2092}`);
+      return r.json() as Promise<{
+        ppg: number;
+        rpg: number;
+        apg: number;
+        spg: number;
+        bpg: number;
+        fgPct: number | null;
+        eFGPct: number | null;
+        tsPct: number | null;
+        tovPct: number | null;
+        ftRate: number | null;
+        orbPct: number | null;
+        orbPerGame: number | null;
+        drbPerGame: number | null;
+      }>;
+    },
+    staleTime: 1000 * 60 * 60,
+    retry: 0,
+  });
+}
+
+export function usePlayerPercentiles(seasonId?: number) {
+  return useQuery({
+    queryKey: ["stats-player-percentiles", seasonId ?? 2092],
+    queryFn: async () => {
+      const r = await apiRequest("GET", `/api/stats/player-percentiles?seasonId=${seasonId ?? 2092}`);
+      return r.json() as Promise<{
+        p95Ppg: number;
+        p95Rpg: number;
+        p95Apg: number;
+        p95Spg: number;
+        p95Bpg: number;
+        p95TsPct: number;
+        p95EFGPct: number;
+      }>;
+    },
+    staleTime: 1000 * 60 * 60 * 24,
     retry: 0,
   });
 }

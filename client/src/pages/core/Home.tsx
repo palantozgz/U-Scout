@@ -44,9 +44,9 @@ function KpiCell({ value, label, color }: { value: string | number; label: strin
     color === "green"   ? "text-emerald-500" :
     "text-foreground";
   return (
-    <div className="flex flex-col items-center justify-center py-5 md:py-7 px-2">
+    <div className="flex flex-col items-center justify-center py-5 md:py-8 px-2 md:px-3 min-h-[80px] md:min-h-[100px]">
       <span data-scoreboard="" className={cn("text-3xl md:text-4xl font-black leading-none tabular-nums", colorClass)}>{value}</span>
-      <span className="text-[8px] md:text-sm font-bold tracking-[1.5px] md:tracking-normal text-muted-foreground uppercase mt-1.5">{label}</span>
+      <span className="text-[8px] md:text-[11px] font-bold tracking-[1.5px] md:tracking-wide text-muted-foreground uppercase mt-1.5">{label}</span>
     </div>
   );
 }
@@ -69,7 +69,8 @@ function ModCard(props: {
       disabled={props.comingSoon}
       data-testid={props.testId}
       className={cn(
-        "group relative text-left rounded-xl border border-border bg-card p-4 md:p-6 flex flex-col gap-2 md:gap-3 min-h-[120px] md:h-[180px]",
+        "group relative text-left rounded-xl border border-border bg-card p-4 md:p-6 flex flex-col gap-2 md:gap-3 min-h-[120px] md:min-h-0 md:h-full",
+        "md:shadow-sm md:shadow-black/[0.04] md:ring-1 md:ring-border/50 dark:md:shadow-none dark:md:ring-border/40",
         "transition-all duration-200",
         props.comingSoon
           ? "opacity-50 cursor-default"
@@ -92,7 +93,7 @@ function ModCard(props: {
       <span className={cn("opacity-70 transition-opacity", props.comingSoon ? "text-muted-foreground" : "text-primary group-hover:opacity-100")}>{props.icon}</span>
       <div>
         <p className="text-sm md:text-base font-black text-foreground tracking-tight leading-tight">{props.title}</p>
-        <p className="text-[10px] md:text-sm text-muted-foreground mt-0.5 md:mt-1 leading-snug line-clamp-2">{props.subtitle}</p>
+        <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1 leading-snug line-clamp-2">{props.subtitle}</p>
       </div>
     </button>
   );
@@ -130,7 +131,7 @@ function HomeAlertChip({
       onClick={onClick}
       disabled={!onClick}
       className={cn(
-        "flex-1 min-w-[220px] md:flex-none md:min-w-0 md:max-w-xs rounded-xl border px-3 py-2.5 text-left transition-colors",
+        "flex-1 min-w-[220px] rounded-xl border px-3 py-2.5 text-left transition-colors",
         toneClass,
         onClick ? "active:scale-[0.99] hover:brightness-95" : "cursor-default",
       )}
@@ -138,8 +139,8 @@ function HomeAlertChip({
       <div className="flex items-start gap-2">
         <span className="text-base leading-none mt-0.5 shrink-0">{icon}</span>
         <div className="min-w-0">
-          <p className={cn("text-[11px] md:text-sm font-black leading-snug tracking-tight", textClass)}>{label}</p>
-          {sub && <p className="mt-0.5 text-[10px] md:text-sm font-semibold text-muted-foreground leading-snug">{sub}</p>}
+          <p className={cn("text-[11px] md:text-xs font-black leading-snug tracking-tight", textClass)}>{label}</p>
+          {sub && <p className="mt-0.5 text-[10px] md:text-xs font-semibold text-muted-foreground leading-snug">{sub}</p>}
         </div>
       </div>
     </button>
@@ -329,7 +330,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
-      <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-12 px-4 md:px-8">
+      <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-10 md:pt-2 px-4 md:px-8 bg-background">
 
         {/* ── Brand header — visible siempre ── */}
         <ModuleHeader
@@ -343,9 +344,9 @@ export default function Home() {
         />
 
         {/* ── Greeting ── */}
-        <div className="pb-4 md:pb-6 flex items-start justify-between gap-4">
+        <div className="pb-5 md:pb-8 flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] md:text-sm font-bold tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-1 truncate">
+            <p className="text-[10px] md:text-xs font-bold tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-1 truncate">
               {dateStr}
             </p>
             <h1 className="text-[28px] md:text-[42px] font-black tracking-tight leading-tight">
@@ -388,7 +389,7 @@ export default function Home() {
             club:       { icon: "👥", tone: "blue" as const, route: "/coach/club" },
           };
           return (
-            <div className="mb-5 flex flex-wrap gap-2">
+            <div className="mb-5 md:mb-8 flex flex-wrap gap-2 md:gap-4">
               {items.map((action) => {
                 const c = cfg[action.kind];
                 return (
@@ -458,18 +459,18 @@ export default function Home() {
           }
 
           if (!chips.length) return null;
-          return <div className="mb-5 flex flex-wrap gap-2">{chips}</div>;
+          return <div className="mb-5 md:mb-8 flex flex-wrap gap-2 md:gap-4">{chips}</div>;
         })()}
 
         {/* ── KPI bar — horizontal, siempre visible ── */}
         {mode === "staff" ? (
-          <div className="mb-6 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
+          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden md:shadow-sm md:shadow-black/[0.03] dark:md:shadow-none">
             <KpiCell value={kpiPlayers}           label={t("home_kpi_players")}   color="default" />
             <KpiCell value={kpiWeekSessions}      label={t("home_kpi_week")}       color="primary" />
             <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")}  color="green"   />
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden">
+          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card overflow-hidden md:shadow-sm md:shadow-black/[0.03] dark:md:shadow-none">
             <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
             <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}       color="primary" />
             <KpiCell
@@ -485,15 +486,15 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setLocation("/schedule")}
-            className="mb-6 w-full text-left rounded-xl border border-border bg-card p-4 md:p-5 hover:border-primary/50 transition-colors active:scale-[0.99]"
+            className="mb-6 md:mb-8 w-full text-left rounded-xl border border-border bg-card p-4 md:p-5 hover:border-primary/50 md:shadow-sm md:shadow-black/[0.04] md:ring-1 md:ring-border/40 dark:md:shadow-none dark:md:ring-border/35 transition-colors active:scale-[0.99]"
             data-testid="ucore-home-next-event"
           >
             <div className="flex items-center gap-1.5 mb-2">
               <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-              <span className="text-[9px] md:text-xs font-black tracking-[1.5px] uppercase text-primary">{t("home_next_event_label")}</span>
+              <span className="text-[9px] md:text-[11px] font-black tracking-[1.5px] uppercase text-primary">{t("home_next_event_label")}</span>
             </div>
             <p className="text-base md:text-lg font-black text-foreground tracking-tight leading-snug">{nextSession.title}</p>
-            <div className="flex items-center gap-3 mt-2 text-[10px] md:text-sm text-muted-foreground font-semibold">
+            <div className="flex items-center gap-3 mt-2 text-[10px] md:text-xs text-muted-foreground font-semibold">
               {nextSessionTimeStr && (
                 <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{nextSessionTimeStr}</span>
               )}
@@ -505,12 +506,12 @@ export default function Home() {
               <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/60">
                 <div>
                   <p className="text-sm font-black text-foreground">{daysUntilNext}</p>
-                  <p className="text-[8px] md:text-xs uppercase tracking-[1px] text-muted-foreground">{t("home_event_days")}</p>
+                  <p className="text-[8px] md:text-[10px] uppercase tracking-[1px] text-muted-foreground">{t("home_event_days")}</p>
                 </div>
                 {mode === "staff" && homeSignals.kpis.pendingAttendanceCount > 0 && (
                   <div>
                     <p className="text-sm font-black text-foreground">{homeSignals.kpis.pendingAttendanceCount}</p>
-                    <p className="text-[8px] md:text-xs uppercase tracking-[1px] text-muted-foreground">{t("home_event_pending")}</p>
+                    <p className="text-[8px] md:text-[10px] uppercase tracking-[1px] text-muted-foreground">{t("home_event_pending")}</p>
                   </div>
                 )}
                 <div className="ml-auto">
@@ -522,9 +523,9 @@ export default function Home() {
         ) : null}
 
         {/* ── Module grid 2×2 ── */}
-        <div className="mb-5">
-          <p className="text-[9px] md:text-sm font-black tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-3">{t("home_modules_label")}</p>
-          <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-4">
+        <div className="mb-5 md:mb-0 md:flex-1 md:flex md:flex-col md:pb-2">
+          <p className="text-[9px] md:text-[11px] font-black tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-3">{t("home_modules_label")}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 md:flex-1 md:[grid-auto-rows:1fr]">
             {mode === "staff" ? (
               <>
                 <ModCard
@@ -622,7 +623,7 @@ export default function Home() {
         <div className="pt-4 pb-2 md:pb-6 border-t border-border/50 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-foreground">{displayName}</p>
-            {roleLabel ? <p className="text-[10px] md:text-sm text-muted-foreground tracking-wide">{roleLabel}</p> : null}
+            {roleLabel ? <p className="text-[10px] text-muted-foreground tracking-wide">{roleLabel}</p> : null}
           </div>
           <span className="text-[9px] font-bold text-muted-foreground/50 tracking-widest uppercase">U CORE</span>
         </div>

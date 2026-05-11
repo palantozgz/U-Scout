@@ -1749,6 +1749,12 @@ export async function registerRoutes(
       topg: "AVG(pb.tov)",
       fgPct:
         "(CASE WHEN SUM(pb.fga) > 0 THEN (SUM(pb.fgm)::float / SUM(pb.fga) * 100) ELSE NULL END)",
+      tsPct:
+        "(CASE WHEN (SUM(pb.fga) + 0.44 * SUM(pb.fta)) > 0 THEN SUM(pb.pts)::float / (2 * (SUM(pb.fga) + 0.44 * SUM(pb.fta))) * 100 ELSE NULL END)",
+      eFGPct:
+        "(CASE WHEN SUM(pb.fga) > 0 THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::float / SUM(pb.fga) * 100 ELSE NULL END)",
+      astTovRatio: "(CASE WHEN SUM(pb.tov) > 0 THEN SUM(pb.ast)::float / SUM(pb.tov) ELSE NULL END)",
+      orbPerGame: "AVG(pb.off_reb)",
     };
     const statExpr = allowedStats[stat] ?? allowedStats["ppg"];
     try {
@@ -1862,7 +1868,35 @@ export async function registerRoutes(
             THEN SUM(pb.tpm)::numeric / SUM(pb.tpa) * 100 END, 1)             AS "fg3Pct",
         ROUND(
           CASE WHEN SUM(pb.fta) > 0
-            THEN SUM(pb.ftm)::numeric / SUM(pb.fta) * 100 END, 1)             AS "ftPct"
+            THEN SUM(pb.ftm)::numeric / SUM(pb.fta) * 100 END, 1)             AS "ftPct",
+        ROUND(
+          CASE WHEN (SUM(pb.fga) + 0.44 * SUM(pb.fta)) > 0
+            THEN SUM(pb.pts)::numeric / (2 * (SUM(pb.fga) + 0.44 * SUM(pb.fta))) * 100
+          END, 1
+        ) AS "tsPct",
+        ROUND(
+          CASE WHEN SUM(pb.fga) > 0
+            THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::numeric / SUM(pb.fga) * 100
+          END, 1
+        ) AS "eFGPct",
+        ROUND(
+          CASE WHEN SUM(pb.tov) > 0
+            THEN SUM(pb.ast)::numeric / SUM(pb.tov)
+          END, 2
+        ) AS "astTovRatio",
+        ROUND(
+          CASE WHEN SUM(pb.fga) > 0
+            THEN SUM(pb.fta)::numeric / SUM(pb.fga)
+          END, 3
+        ) AS "ftRate",
+        ROUND(
+          CASE WHEN SUM(pb.fga) + 0.44 * SUM(pb.fta) + SUM(pb.tov) > 0
+            THEN (SUM(pb.fga) + 0.44 * SUM(pb.fta) + SUM(pb.tov))::numeric /
+                 NULLIF(COUNT(pb.id) * 20.0, 0)
+          END, 3
+        ) AS "usagePct",
+        ROUND(AVG(pb.off_reb)::numeric, 1) AS "orbPerGame",
+        ROUND(AVG(pb.def_reb)::numeric, 1) AS "drbPerGame"
       FROM stats_players sp
       LEFT JOIN stats_teams st ON st.id = sp.team_id
       LEFT JOIN stats_player_boxscores pb ON pb.player_external_id = sp.external_id
@@ -1874,6 +1908,38 @@ export async function registerRoutes(
     `);
     const player = (playerRows as any).rows?.[0];
     if (!player) return res.status(404).json({ error: "Player not found" });
+
+    const pieRows = await db.execute(sql`
+      SELECT
+        ROUND(AVG(
+          (pb.pts + pb.fgm + pb.ftm - pb.fga - pb.fta + pb.def_reb + 0.5*pb.off_reb + pb.ast + pb.stl + 0.5*pb.blk - pb.fouls - pb.tov)::numeric /
+          NULLIF(game_totals.total_numerator, 0)
+        )::numeric, 3) AS pie
+      FROM stats_player_boxscores pb
+      JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
+      JOIN (
+        SELECT game_id,
+          SUM(pts + fgm + ftm - fga - fta + def_reb + 0.5*off_reb + ast + stl + 0.5*blk - fouls - tov) AS total_numerator
+        FROM stats_player_boxscores
+        GROUP BY game_id
+      ) game_totals ON game_totals.game_id = pb.game_id
+      WHERE pb.player_external_id::text = ${externalId}
+    `);
+    const pieRow = (pieRows as any).rows?.[0]?.pie;
+
+    const splitRows = await db.execute(sql`
+      SELECT
+        ROUND(AVG(CASE WHEN pb.team_external_id = sg.home_team_id::text THEN pb.pts END)::numeric, 1) AS "ptsHome",
+        ROUND(AVG(CASE WHEN pb.team_external_id != sg.home_team_id::text THEN pb.pts END)::numeric, 1) AS "ptsAway",
+        ROUND(AVG(CASE WHEN pb.team_external_id = sg.home_team_id::text THEN pb.reb END)::numeric, 1) AS "rebHome",
+        ROUND(AVG(CASE WHEN pb.team_external_id != sg.home_team_id::text THEN pb.reb END)::numeric, 1) AS "rebAway",
+        ROUND(AVG(CASE WHEN pb.team_external_id = sg.home_team_id::text THEN pb.ast END)::numeric, 1) AS "astHome",
+        ROUND(AVG(CASE WHEN pb.team_external_id != sg.home_team_id::text THEN pb.ast END)::numeric, 1) AS "astAway"
+      FROM stats_player_boxscores pb
+      JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
+      WHERE pb.player_external_id::text = ${externalId}
+    `);
+    const splitRow = (splitRows as any).rows?.[0] ?? {};
 
     const logRows = await db.execute(sql`
       SELECT
@@ -1942,6 +2008,24 @@ export async function registerRoutes(
         fgPct: player.fgPct != null ? Number(player.fgPct) : null,
         fg3Pct: player.fg3Pct != null ? Number(player.fg3Pct) : null,
         ftPct: player.ftPct != null ? Number(player.ftPct) : null,
+        tsPct: player.tsPct != null ? Number(player.tsPct) : null,
+        eFGPct: player.eFGPct != null ? Number(player.eFGPct) : null,
+        astTovRatio: player.astTovRatio != null ? Number(player.astTovRatio) : null,
+        ftRate: player.ftRate != null ? Number(player.ftRate) : null,
+        usagePct: player.usagePct != null ? Number(player.usagePct) : null,
+        orbPerGame: player.orbPerGame != null ? Number(player.orbPerGame) : null,
+        drbPerGame: player.drbPerGame != null ? Number(player.drbPerGame) : null,
+        pie: pieRow != null ? Number(pieRow) : null,
+        homeSplit: {
+          pts: Number(splitRow.ptsHome ?? 0),
+          reb: Number(splitRow.rebHome ?? 0),
+          ast: Number(splitRow.astHome ?? 0),
+        },
+        awaySplit: {
+          pts: Number(splitRow.ptsAway ?? 0),
+          reb: Number(splitRow.rebAway ?? 0),
+          ast: Number(splitRow.astAway ?? 0),
+        },
       },
       gameLog,
     });
@@ -2002,13 +2086,40 @@ export async function registerRoutes(
         ss.home_losses           AS "homeL",
         ss.away_wins             AS "awayW",
         ss.away_losses           AS "awayL",
-        (SELECT ROUND(SUM(sb.fgm)::numeric / NULLIF(SUM(sb.fga), 0) * 100, 1)
-         FROM stats_boxscores sb
-         JOIN stats_games sg ON sg.id = sb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-         WHERE sb.team_id = st.id) AS "teamFgPct"
+        (SELECT ROUND(SUM(pb_fg.fgm)::numeric / NULLIF(SUM(pb_fg.fga), 0) * 100, 1)
+         FROM stats_player_boxscores pb_fg
+         JOIN stats_games sg ON sg.id = pb_fg.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+         WHERE pb_fg.team_external_id = st.external_id::text) AS "teamFgPct",
+        adv."eFGPct",
+        adv."tovPct",
+        adv."ftRate",
+        adv."orbPct",
+        adv."drbPct",
+        adv."paceEst"
       FROM stats_teams st
       LEFT JOIN stats_standings ss
         ON ss.team_external_id = st.external_id AND ss.season_id = ${seasonId}
+      LEFT JOIN LATERAL (
+        SELECT
+          ROUND((SUM(pb2.fgm) + 0.5 * SUM(pb2.tpm))::numeric / NULLIF(SUM(pb2.fga), 0) * 100, 1) AS "eFGPct",
+          ROUND(SUM(pb2.tov)::numeric / NULLIF(SUM(pb2.fga) + 0.44 * SUM(pb2.fta) + SUM(pb2.tov), 0) * 100, 1) AS "tovPct",
+          ROUND(SUM(pb2.fta)::numeric / NULLIF(SUM(pb2.fga), 0), 3) AS "ftRate",
+          ROUND(SUM(pb2.off_reb)::numeric / NULLIF(SUM(pb2.off_reb) + SUM(pb2.def_reb), 0) * 100, 1) AS "orbPct",
+          ROUND(SUM(pb2.def_reb)::numeric / NULLIF(SUM(pb2.off_reb) + SUM(pb2.def_reb), 0) * 100, 1) AS "drbPct",
+          ROUND(
+            SUM(pb2.fga + 0.44 * pb2.fta + pb2.tov)::numeric
+            / NULLIF(
+              SUM(CASE WHEN pb2.minutes ~ '^\d+:\d{2}$'
+                THEN SPLIT_PART(pb2.minutes, ':', 1)::numeric + SPLIT_PART(pb2.minutes, ':', 2)::numeric / 60
+                ELSE 0 END) / 5.0,
+              0
+            ) * 40,
+            1
+          ) AS "paceEst"
+        FROM stats_player_boxscores pb2
+        JOIN stats_games sg2 ON sg2.id = pb2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+        WHERE pb2.team_external_id = st.external_id::text
+      ) adv ON true
       WHERE st.external_id = ${Number(externalId)}
       LIMIT 1
     `);
@@ -2071,9 +2182,125 @@ export async function registerRoutes(
         awayW: team.awayW != null ? Number(team.awayW) : null,
         awayL: team.awayL != null ? Number(team.awayL) : null,
         teamFgPct: team.teamFgPct != null ? Number(team.teamFgPct) : null,
+        eFGPct: team.eFGPct != null ? Number(team.eFGPct) : null,
+        tovPct: team.tovPct != null ? Number(team.tovPct) : null,
+        ftRate: team.ftRate != null ? Number(team.ftRate) : null,
+        orbPct: team.orbPct != null ? Number(team.orbPct) : null,
+        drbPct: team.drbPct != null ? Number(team.drbPct) : null,
+        paceEst: team.paceEst != null ? Number(team.paceEst) : null,
       },
       players,
     });
+  });
+
+  app.get("/api/stats/league-averages", requireAuth, async (req, res) => {
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    try {
+      const rows = await db.execute(sql`
+        SELECT
+          ROUND(AVG(pb.pts)::numeric, 1)  AS "avgPpg",
+          ROUND(AVG(pb.reb)::numeric, 1)  AS "avgRpg",
+          ROUND(AVG(pb.ast)::numeric, 1)  AS "avgApg",
+          ROUND(AVG(pb.stl)::numeric, 1)  AS "avgSpg",
+          ROUND(AVG(pb.blk)::numeric, 1)  AS "avgBpg",
+          ROUND(
+            CASE WHEN SUM(pb.fga) > 0
+              THEN SUM(pb.fgm)::numeric / SUM(pb.fga) * 100 END, 1
+          ) AS "avgFgPct",
+          ROUND(
+            CASE WHEN SUM(pb.fga) > 0
+              THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::numeric / SUM(pb.fga) * 100 END, 1
+          ) AS "avgEFGPct",
+          ROUND(
+            CASE WHEN (SUM(pb.fga) + 0.44 * SUM(pb.fta)) > 0
+              THEN SUM(pb.pts)::numeric / (2 * (SUM(pb.fga) + 0.44 * SUM(pb.fta))) * 100 END, 1
+          ) AS "avgTsPct",
+          ROUND(
+            CASE WHEN (SUM(pb.fga) + 0.44 * SUM(pb.fta) + SUM(pb.tov)) > 0
+              THEN SUM(pb.tov)::numeric / (SUM(pb.fga) + 0.44 * SUM(pb.fta) + SUM(pb.tov)) * 100 END, 1
+          ) AS "avgTovPct",
+          ROUND(
+            CASE WHEN SUM(pb.fga) > 0
+              THEN SUM(pb.fta)::numeric / SUM(pb.fga) END, 3
+          ) AS "avgFtRate",
+          ROUND(
+            CASE WHEN (SUM(pb.off_reb) + SUM(pb.def_reb)) > 0
+              THEN SUM(pb.off_reb)::numeric / (SUM(pb.off_reb) + SUM(pb.def_reb)) * 100 END, 1
+          ) AS "avgOrbPct",
+          ROUND(AVG(pb.off_reb)::numeric, 1) AS "avgOrbPerGame",
+          ROUND(AVG(pb.def_reb)::numeric, 1) AS "avgDrbPerGame"
+        FROM stats_player_boxscores pb
+        JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      `);
+      const row = (rows as any).rows?.[0] ?? {};
+      return res.json({
+        ppg: Number(row.avgPpg ?? 0),
+        rpg: Number(row.avgRpg ?? 0),
+        apg: Number(row.avgApg ?? 0),
+        spg: Number(row.avgSpg ?? 0),
+        bpg: Number(row.avgBpg ?? 0),
+        fgPct: row.avgFgPct != null ? Number(row.avgFgPct) : null,
+        eFGPct: row.avgEFGPct != null ? Number(row.avgEFGPct) : null,
+        tsPct: row.avgTsPct != null ? Number(row.avgTsPct) : null,
+        tovPct: row.avgTovPct != null ? Number(row.avgTovPct) : null,
+        ftRate: row.avgFtRate != null ? Number(row.avgFtRate) : null,
+        orbPct: row.avgOrbPct != null ? Number(row.avgOrbPct) : null,
+        orbPerGame: row.avgOrbPerGame != null ? Number(row.avgOrbPerGame) : null,
+        drbPerGame: row.avgDrbPerGame != null ? Number(row.avgDrbPerGame) : null,
+      });
+    } catch (err: any) {
+      console.error("[stats/league-averages] error:", err?.message ?? err);
+      return res.status(500).json({ error: "Failed to load league averages" });
+    }
+  });
+
+  app.get("/api/stats/player-percentiles", requireAuth, async (req, res) => {
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    try {
+      const rows = await db.execute(sql`
+        WITH player_avgs AS (
+          SELECT
+            pb.player_external_id,
+            AVG(pb.pts)  AS ppg,
+            AVG(pb.reb)  AS rpg,
+            AVG(pb.ast)  AS apg,
+            AVG(pb.stl)  AS spg,
+            AVG(pb.blk)  AS bpg,
+            CASE WHEN (SUM(pb.fga) + 0.44 * SUM(pb.fta)) > 0
+              THEN SUM(pb.pts)::float / (2 * (SUM(pb.fga) + 0.44 * SUM(pb.fta))) * 100
+            END AS ts_pct,
+            CASE WHEN SUM(pb.fga) > 0
+              THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::float / SUM(pb.fga) * 100
+            END AS efg_pct
+          FROM stats_player_boxscores pb
+          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          GROUP BY pb.player_external_id
+          HAVING COUNT(DISTINCT pb.game_id) >= 5
+        )
+        SELECT
+          percentile_cont(0.95) WITHIN GROUP (ORDER BY ppg)    AS "p95Ppg",
+          percentile_cont(0.95) WITHIN GROUP (ORDER BY rpg)    AS "p95Rpg",
+          percentile_cont(0.95) WITHIN GROUP (ORDER BY apg)    AS "p95Apg",
+          percentile_cont(0.95) WITHIN GROUP (ORDER BY spg)    AS "p95Spg",
+          percentile_cont(0.95) WITHIN GROUP (ORDER BY bpg)    AS "p95Bpg",
+          percentile_cont(0.95) WITHIN GROUP (ORDER BY ts_pct) AS "p95TsPct",
+          percentile_cont(0.95) WITHIN GROUP (ORDER BY efg_pct) AS "p95EFGPct"
+        FROM player_avgs
+      `);
+      const row = (rows as any).rows?.[0] ?? {};
+      return res.json({
+        p95Ppg: row.p95Ppg != null ? Number(row.p95Ppg) : 25,
+        p95Rpg: row.p95Rpg != null ? Number(row.p95Rpg) : 12,
+        p95Apg: row.p95Apg != null ? Number(row.p95Apg) : 7,
+        p95Spg: row.p95Spg != null ? Number(row.p95Spg) : 3,
+        p95Bpg: row.p95Bpg != null ? Number(row.p95Bpg) : 2.5,
+        p95TsPct: row.p95TsPct != null ? Number(row.p95TsPct) : 65,
+        p95EFGPct: row.p95EFGPct != null ? Number(row.p95EFGPct) : 60,
+      });
+    } catch (err: any) {
+      console.error("[stats/player-percentiles] error:", err?.message ?? err);
+      return res.status(500).json({ error: "Failed to load percentiles" });
+    }
   });
 
   return httpServer;

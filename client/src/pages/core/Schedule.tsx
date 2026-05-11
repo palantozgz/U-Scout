@@ -1,5 +1,5 @@
 import { ModulePageShell } from "./ModulePage";
-import { useLocale, type I18nKey } from "@/lib/i18n";
+import { useLocale } from "@/lib/i18n";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/useAuth";
@@ -155,120 +155,6 @@ const ACTIVITY_TYPE_CONFIG: Record<ScheduleEvent["session_type"], ActivityTypeCo
   },
 };
 
-const STAFF_SESSION_ROW_ACCENT: Record<
-  ScheduleEvent["session_type"],
-  { panel: string; icon: string }
-> = {
-  training: { panel: "bg-sky-500/15 border-sky-500/25", icon: "text-sky-600 dark:text-sky-400" },
-  recovery: { panel: "bg-rose-500/15 border-rose-500/25", icon: "text-rose-600 dark:text-rose-400" },
-  match: { panel: "bg-amber-500/15 border-amber-500/30", icon: "text-amber-700 dark:text-amber-300" },
-  travel: { panel: "bg-cyan-500/15 border-cyan-500/25", icon: "text-cyan-700 dark:text-cyan-300" },
-  meeting: { panel: "bg-violet-500/15 border-violet-500/25", icon: "text-violet-700 dark:text-violet-300" },
-  other: { panel: "bg-muted/50 border-border", icon: "text-muted-foreground" },
-};
-
-function formatTime(iso: string): string {
-  try {
-    return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function SessionDetailPanel({
-  event,
-  canEdit,
-  onClose,
-  onEdit,
-  t,
-  intlLocale,
-  notesClean,
-  locale,
-}: {
-  event: ScheduleEvent | null;
-  canEdit: boolean;
-  onClose: () => void;
-  onEdit: (ev: ScheduleEvent) => void;
-  t: (key: I18nKey) => string;
-  intlLocale: string;
-  notesClean?: string | null;
-  locale: string;
-}) {
-  if (!event) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-        <CalendarDays className="h-8 w-8 text-muted-foreground/40" />
-        <p className="text-xs font-semibold text-muted-foreground">
-          {locale === "zh" ? "选择一个活动以查看详情" : locale === "es" ? "Selecciona un evento para ver los detalles" : "Select an event to see details"}
-        </p>
-      </div>
-    );
-  }
-  const TypeIcon = ACTIVITY_TYPE_CONFIG[event.session_type].icon;
-  const accent = STAFF_SESSION_ROW_ACCENT[event.session_type];
-  return (
-    <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center gap-2">
-        <span className={["flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border", accent.panel].join(" ")}>
-          <TypeIcon className={["h-4 w-4", accent.icon].join(" ")} />
-        </span>
-        <div>
-          <p className="text-sm font-black text-foreground">{event.title}</p>
-          <p className="text-xs text-muted-foreground">{t(ACTIVITY_TYPE_CONFIG[event.session_type].labelKey)}</p>
-        </div>
-        <button
-          type="button"
-          className="ml-auto shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-          onClick={onClose}
-          aria-label="Close"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-xs">
-        <p className="font-bold text-foreground">
-          {new Intl.DateTimeFormat(intlLocale, { weekday: "long", month: "short", day: "numeric" }).format(new Date(event.starts_at))}
-        </p>
-        <p className="text-muted-foreground mt-0.5">
-          {formatTime(event.starts_at)}
-          {event.ends_at ? ` – ${formatTime(event.ends_at)}` : ""}
-        </p>
-      </div>
-
-      <div className="text-xs">
-        <p className="font-black uppercase tracking-widest text-muted-foreground mb-1">Location</p>
-        <p className="font-semibold text-foreground">
-          {event.location?.trim() || t("schedule_location_tbd")}
-        </p>
-      </div>
-
-      {notesClean ? (
-        <div className="text-xs">
-          <p className="font-black uppercase tracking-widest text-muted-foreground mb-1">Notes</p>
-          <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{notesClean}</p>
-        </div>
-      ) : null}
-
-      {event.attendance_required !== false ? (
-        <p className="text-xs text-muted-foreground border border-border/50 rounded-lg px-3 py-2">
-          {t("schedule_session_attendance_required")}
-        </p>
-      ) : null}
-
-      {canEdit ? (
-        <Button
-          size="sm"
-          className="w-full mt-2"
-          onClick={() => onEdit(event)}
-        >
-          {t("schedule_edit")}
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
 export default function Schedule() {
   const { t, locale } = useLocale();
   const { profile } = useAuth();
@@ -391,13 +277,6 @@ export default function Schedule() {
   const [highlightDayKey, setHighlightDayKey] = useState<string | null>(null);
   const portraitDayRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const landscapeDayRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
   const [repeatWeeks, setRepeatWeeks] = useState<1 | 2 | 3 | 4 | 6 | 8>(4);
   const [repeatWeekdays, setRepeatWeekdays] = useState<Set<number>>(() => new Set([1, 3, 5])); // Mon/Wed/Fri
@@ -1169,25 +1048,9 @@ export default function Schedule() {
     window.setTimeout(() => setHighlightDayKey(null), 900);
     window.setTimeout(() => {
       const el = (portraitDayRefs.current[todayKey] ?? landscapeDayRefs.current[todayKey]) as HTMLElement | null;
-      el?.scrollIntoView({ behavior: "smooth", block: "start", inline: "center" });
+      el?.scrollIntoView({ block: "nearest", inline: "nearest" });
     }, 50);
   };
-
-  useEffect(() => {
-    if (staffView !== "planner") return;
-    const todayStr = new Date().toLocaleDateString("sv");
-    let attempts = 0;
-    const tryScroll = () => {
-      const el = (portraitDayRefs.current[todayStr] ?? landscapeDayRefs.current[todayStr]) as HTMLElement | null;
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-      } else if (attempts < 15) {
-        attempts++;
-        window.setTimeout(tryScroll, 100);
-      }
-    };
-    window.setTimeout(tryScroll, 300);
-  }, [staffView]);
 
   useEffect(() => {
     if (staffView !== "list") return;
@@ -1195,7 +1058,7 @@ export default function Schedule() {
     const tryScroll = () => {
       const el = document.querySelector(`[data-today="true"]`) as HTMLElement | null;
       if (el) {
-        el.scrollIntoView({ behavior: "instant", block: "start" });
+        el.scrollIntoView({ block: "nearest", inline: "nearest" });
       } else if (attempts < 20) {
         attempts++;
         window.setTimeout(tryScroll, 150);
@@ -1630,31 +1493,8 @@ export default function Schedule() {
   const playerGroupKey = (club: string, eventId: string, user: string) => `uscout-schedule:group:${club}:${eventId}:${user}`;
 
   return (
-    <ModulePageShell
-      title={t("ucore_card_schedule_title")}
-      moduleHeader={{ module: "schedule", tagline: t("tagline_schedule") }}
-      panel={
-        <SessionDetailPanel
-          event={sessionDetailEvent}
-          canEdit={!!canCreateSession}
-          notesClean={
-            sessionDetailEvent
-              ? readConstraintsFromNotes(sessionDetailEvent.notes ?? null).notesClean?.trim() ?? null
-              : null
-          }
-          onClose={() => setSessionDetailEvent(null)}
-          onEdit={(ev) => {
-            setSessionDetailEvent(null);
-            startEditing(ev);
-          }}
-          t={t}
-          intlLocale={intlLocale}
-          locale={locale}
-        />
-      }
-      panelLabel="Event Detail"
-    >
-      <div className="p-4 md:px-8 pb-10 max-w-5xl mx-auto w-full">
+    <ModulePageShell title={t("ucore_card_schedule_title")} moduleHeader={{ module: "schedule", tagline: t("tagline_schedule") }}>
+      <div className="p-4 pb-10 md:px-8 md:pt-5 max-w-5xl mx-auto w-full">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "schedule" | "wellness")}>
           <div className="flex items-center justify-between gap-3">
             <TabsList className="h-10">
@@ -1668,7 +1508,7 @@ export default function Schedule() {
             {/* No external create entry points. Session creation starts from empty planner slots only. */}
           </div>
 
-          <TabsContent value="schedule" className="mt-4 space-y-4">
+          <TabsContent value="schedule" className="mt-4 space-y-4 md:mt-6 md:space-y-5">
             {todayEventsQ.isError ? (
               <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold text-muted-foreground">{t("schedule_load_failed")}</p>
@@ -2146,7 +1986,7 @@ export default function Schedule() {
                       <p className="text-xs font-semibold text-muted-foreground">{t("schedule_planner_hint")}</p>
 
                     {!isLandscape ? (
-                      <div className="mt-3 space-y-3">
+                      <div className="mt-3 max-h-[calc(100dvh-8rem)] min-h-0 overflow-y-auto space-y-3">
                         {days.map((d) => {
                           const dayKey = d.toISOString().slice(0, 10);
                           const daySessionsAll = (plannerWeekQ.data ?? [])
@@ -2272,7 +2112,7 @@ export default function Schedule() {
                         })}
                       </div>
                     ) : (
-                      <div className="mt-3 overflow-x-auto">
+                      <div className="mt-3 max-h-[calc(100dvh-8rem)] min-h-0 overflow-x-auto overflow-y-auto">
                         <div className="min-w-[560px]">
                           <div className="grid grid-cols-8 gap-2">
                           <div />
@@ -2712,7 +2552,7 @@ export default function Schedule() {
             </div>
           ) : null}
 
-          <TabsContent value="wellness" className="mt-4 space-y-4">
+          <TabsContent value="wellness" className="mt-4 space-y-4 md:mt-6 md:space-y-5">
             <div className="rounded-2xl border border-border bg-card p-4">
               <p className="text-sm font-black tracking-tight text-foreground">{t("wellness_title")}</p>
               <p className="text-xs text-muted-foreground mt-1 font-medium">
@@ -4031,7 +3871,7 @@ export default function Schedule() {
       </Dialog>
 
       <Dialog
-        open={sessionDetailEvent !== null && !isDesktop}
+        open={sessionDetailEvent !== null}
         onOpenChange={(open) => {
           if (!open) setSessionDetailEvent(null);
         }}
@@ -4989,6 +4829,18 @@ function KpiCard(props: { title: string; value: string; subtitle?: string }) {
   );
 }
 
+const STAFF_SESSION_ROW_ACCENT: Record<
+  ScheduleEvent["session_type"],
+  { panel: string; icon: string }
+> = {
+  training: { panel: "bg-sky-500/15 border-sky-500/25", icon: "text-sky-600 dark:text-sky-400" },
+  recovery: { panel: "bg-rose-500/15 border-rose-500/25", icon: "text-rose-600 dark:text-rose-400" },
+  match: { panel: "bg-amber-500/15 border-amber-500/30", icon: "text-amber-700 dark:text-amber-300" },
+  travel: { panel: "bg-cyan-500/15 border-cyan-500/25", icon: "text-cyan-700 dark:text-cyan-300" },
+  meeting: { panel: "bg-violet-500/15 border-violet-500/25", icon: "text-violet-700 dark:text-violet-300" },
+  other: { panel: "bg-muted/50 border-border", icon: "text-muted-foreground" },
+};
+
 function SessionRow(props: {
   title: string;
   subtitle?: string;
@@ -5018,5 +4870,13 @@ function SessionRow(props: {
       </div>
     </div>
   );
+}
+
+function formatTime(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
 }
 
