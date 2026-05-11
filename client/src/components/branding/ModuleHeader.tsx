@@ -43,24 +43,15 @@ export interface ModuleHeaderProps {
   className?: string;
 }
 
-function UMark({ size, clipId }: { size: number; clipId: string }) {
+function UMark({ size, clipId: _clipId }: { size: number; clipId: string }) {
   return (
     <svg
-      viewBox="0 0 1024 1024"
+      viewBox="256 173 512 512"
       style={{ height: size, width: size, display: "block", color: "currentColor", flexShrink: 0 }}
       aria-hidden
     >
-      <defs>
-        <clipPath id={clipId}>
-          <rect x={0} y={0} width={1024} height={427} />
-        </clipPath>
-      </defs>
-      <g clipPath={`url(#${clipId})`}>
-        <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={U_HORNS_PATH} />
-      </g>
-      <g transform="translate(0,544) scale(1,1.32468) translate(0,-544)">
-        <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={U_CONN_PATH} />
-      </g>
+      <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={U_HORNS_PATH} />
+      <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={U_CONN_PATH} />
     </svg>
   );
 }
