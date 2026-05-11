@@ -308,3 +308,44 @@ node fix-player-names.js     — ya ejecutado, no repetir
 - standings: campo "loses" (no "losses") en API
 - Pi: pm2 restart NO recompila — usa dist/ tal cual
 - syncNewPlayerBoxscores SALTA juegos ya en boxDone → TRUNCATE para re-sync completo
+
+---
+
+## Repo y deploy
+- **Repo real:** `/Users/palant/Downloads/U scout/ucore/` ← SIEMPRE trabajar aquí
+- **GitHub:** https://github.com/palantozgz/U-Scout.git
+- `/Users/palant/Downloads/U scout/` es wrapper — NO tocar
+
+## U Stats — Estado sesión 2026-05-11
+
+### Fase 0 ✅ Schema auditado
+- shot_x/shot_y: ❌ 0 filas (hotspotdata no sincronizado)
+- stint_id: ✅ 116.700, rebound_type: ✅ 17.140, off_reb/def_reb: ✅
+
+### Fase 1 ✅ Backend completado
+- /api/stats/team/:id: +eFGPct, tovPct, ftRate, orbPct, drbPct, paceEst
+- /api/stats/player/:id: +tsPct, eFGPct, astTovRatio, ftRate, usagePct, orbPerGame, drbPerGame, pie, homeSplit, awaySplit
+- /api/stats/leaders: +tsPct, eFGPct, astTovRatio, orbPerGame
+- /api/stats/league-averages: nuevo
+- /api/stats/player-percentiles: nuevo
+- stats-api.ts: +useLeagueAverages, usePlayerPercentiles
+
+### Fase 2 PENDIENTE — UI Stats
+- TeamSheet: Cuatro Factores vs liga
+- PlayerSh home/away split
+- StatsRadar: calibrar AXIS_MAX con percentiles reales
+- Standings: +eFG% + racha visual
+- Tooltips StatChip, Shot zones rediseño SVG
+
+### Fase 3 PENDIENTE — Nuevas pantallas
+- Bubble chart (FGA/g vs TS%)
+- Comparador 3 jugadoras
+- Stats Home dashboard coaching
+
+### Fase 4 PENDIENTE — Pi hotspotdata
+
+## Bugs resueltos 2026-05-11
+- ✅ scrollElementIntoOverflowParents eliminada (Planner scroll iOS)
+- ✅ KPI bar: min-h-[80px] + dark visibility
+- ✅ Nav: quitado max-w-md + theme-color meta
+- ✅ -webkit-tap-highlight-color: transparent
