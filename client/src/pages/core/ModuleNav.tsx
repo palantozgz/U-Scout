@@ -41,12 +41,16 @@ export function ModuleNav() {
 
   return (
     <>
-      {/* ── Mobile: bottom bar (comportamiento original sin cambios) ── */}
+      {/* ── Mobile: bottom bar ── */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-[90] bg-card backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[90] bg-card"
         style={{ borderTop: "1px solid hsl(var(--border) / 0.6)" }}
       >
-        <div className={cn("grid", isFive ? "grid-cols-5" : "grid-cols-4")}>
+        {/* paddingBottom cubre el home indicator físico del iPhone */}
+        <div
+          className={cn("grid", isFive ? "grid-cols-5" : "grid-cols-4")}
+          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        >
           {navItems.map((it) => (
             <button
               key={it.key}

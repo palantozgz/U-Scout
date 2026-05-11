@@ -1,14 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Safe-area + iOS PWA black-translucent fix.
-   Con viewport-fit=cover + black-translucent, iOS sube el documento
-   env(safe-area-inset-top) px, dejando una franja del color del sistema
-   en el bottom. El fix estándar: min-height compensado + bg en html. */
+/* Safe-area: fondo extendido a toda la pantalla incluyendo notch y home indicator */
 html {
   background: hsl(var(--background));
-  min-height: calc(100% + env(safe-area-inset-top));
-  padding-bottom: env(safe-area-inset-bottom);
 }
 body {
   background: hsl(var(--background));

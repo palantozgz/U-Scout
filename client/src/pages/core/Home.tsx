@@ -525,7 +525,7 @@ export default function Home() {
         {/* ── Module grid 2×2 — flex-1 ocupa el espacio disponible ── */}
         <div className="flex-1 min-h-0 flex flex-col md:mb-0 md:pb-2">
           <p className="text-[9px] md:text-[11px] font-black tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-2">{t("home_modules_label")}</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 flex-1 min-h-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 grid-rows-2 md:grid-rows-1 gap-2 md:gap-4 flex-1 min-h-0">
             {mode === "staff" ? (
               <>
                 <ModCard
