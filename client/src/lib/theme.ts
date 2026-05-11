@@ -18,6 +18,23 @@ export function normalizeStoredTheme(raw: string | null): Theme {
   return DEFAULT_THEME;
 }
 
+// bg-card color por tema — sincroniza el UIWindow nativo con el nav bar
+const THEME_NATIVE_COLORS: Record<Theme, string> = {
+  gamenight: "#131318",
+  office:    "#ffffff",
+  oldschool: "#3D2410",
+};
+
+/** Llama al plugin nativo ThemePlugin para cambiar UIWindow.backgroundColor */
+function syncNativeBackground(color: string) {
+  try {
+    const cap = (window as any).Capacitor;
+    if (cap?.isNativePlatform?.()) {
+      cap.Plugins?.Theme?.setBackgroundColor?.({ color });
+    }
+  } catch { /* ignore */ }
+}
+
 /** Apply theme classes on `<html>` (used by onboarding before `useTheme` mounts). */
 export function applyThemeToDocument(theme: Theme) {
   const root = document.documentElement;
@@ -26,21 +43,8 @@ export function applyThemeToDocument(theme: Theme) {
   if (theme === "office") root.classList.add("theme-office");
   if (theme === "oldschool") root.classList.add("theme-oldschool");
 
-  // Sync native iOS background color (covers the 34px home indicator area outside WKWebView)
-  // Uses the bg-card color of each theme to match the nav bar
-  const themeColors: Record<Theme, string> = {
-    gamenight: "#131318",  // card: 228 16% 9%
-    office:    "#ffffff",  // card: 0 0% 100%
-    oldschool: "#3D2410",  // card: 30 50% 15%
-  };
-  const color = themeColors[theme];
-  // Capacitor StatusBar plugin — sets background color of native UI areas
-  try {
-    const cap = (window as any).Capacitor;
-    if (cap?.isNativePlatform?.()) {
-      cap.Plugins?.StatusBar?.setBackgroundColor?.({ color });
-    }
-  } catch { /* ignore if plugin not available */ }
+  // Sincroniza el color nativo del UIWindow con el tema activo
+  syncNativeBackground(THEME_NATIVE_COLORS[theme]);
 }
 
 function applyTheme(theme: Theme) {

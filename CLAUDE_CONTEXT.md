@@ -10,44 +10,37 @@
 - URL: https://u-scout-production.up.railway.app
 - Deploy: Railway, auto-deploy en push a `main`
 - DB: Supabase (PostgreSQL)
-- Repo local: `/Users/palant/Downloads/U scout`
+- **Repo real:** `/Users/palant/Downloads/U scout/ucore/` ← SIEMPRE trabajar aquí
+- **GitHub:** https://github.com/palantozgz/U-Scout.git
+- `/Users/palant/Downloads/U scout/` es wrapper vacío — NO tocar
 
 ## Stack
 React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/ui · Tailwind v4
+Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ## Archivos clave
 - `client/src/lib/motor-v4.ts` — scoring layer
 - `client/src/lib/motor-v2.1.ts` — motor base
 - `client/src/lib/reportTextRenderer.ts` — texto EN/ES/ZH con gender
+- `client/src/lib/theme.ts` — gestión temas + **sincronización nativa iOS via ThemePlugin**
 - `client/src/pages/scout/ReportSlidesV1.tsx` — 3 slides
 - `client/src/pages/scout/ReportViewV4.tsx` — shell coach_review con OverridePanel
 - `client/src/pages/scout/PlayerEditor.tsx` — editor inputs jugador
-- `client/src/pages/scout/Personnel.tsx` — gestión plantillas + import WCBA + import liga + borrar todo ✅
-- `client/src/pages/scout/MyScout.tsx` — fichas coach (canónicas + sandbox) + StatsMiniChip ✅
+- `client/src/pages/scout/Personnel.tsx` — gestión plantillas
+- `client/src/pages/scout/MyScout.tsx` — fichas coach
 - `client/src/pages/core/Schedule.tsx` — god file ~228KB (U Schedule + Wellness como tabs)
-- `client/src/pages/core/Stats.tsx` — U Stats: 2 tabs (Liga/Jugadoras) + SeasonPicker + deep link + radar ✅
-- `client/src/pages/core/Home.tsx` — **REESCRITO p27** — 2-col desktop (KPIs sidebar derecha), logos en todas las pantallas, justify-between para repartir espacio vertical
-- `client/src/pages/core/ModuleNav.tsx` — **REESCRITO p27** — 5 items iguales para todos: Home/Schedule/Scout/Stats/Playbook (BookOpen)
-- `client/src/pages/core/Playbook.tsx` — **NUEVO p27** — "en desarrollo" page, mobile + desktop
-- `client/src/pages/scout/CoachHome.tsx` — **p27** — logos visibles desktop, workflow cards 3-col en md+
-- `client/src/pages/core/ModulePage.tsx` — **p27** — logos visibles en todas las pantallas
-- `client/src/index.css` — **REESCRITO p23** — sistema 3 temas via CSS variables
-- `client/src/lib/stats-api.ts` — hooks completos ✅
-- `client/src/components/StatsRadar.tsx` — radar 6 ejes recharts ✅
+- `client/src/pages/core/Stats.tsx` — U Stats: 2 tabs (Liga/Jugadoras) + SeasonPicker
+- `client/src/pages/core/Home.tsx` — Home con KPI bar + grid módulos
+- `client/src/pages/core/ModuleNav.tsx` — nav 5 items fijos
+- `client/src/pages/core/ModulePage.tsx` — shell módulos
+- `client/src/pages/core/Playbook.tsx` — "en desarrollo"
+- `client/src/components/branding/ModuleHeader.tsx` — header centrado con logo SVG
+- `client/src/index.css` — sistema 3 temas via CSS variables
+- `client/src/lib/stats-api.ts` — hooks stats completos
 - `server/routes.ts` — rutas API Express
 - `server/stats-ingest.ts` — ingest endpoint Pi → Railway → Supabase
-- `collector/src/sync/boxscores.ts` — FIELD MAPPING FIJO ✅
-- `collector/src/sync/pbp.ts` — URL /api/v2/game/${gameId}/actions ✅
-- `collector/src/sync/standings.ts` — URL /datahub/cbamatch/rank/teamrankfirst ✅
-
-## i18n — arquitectura
-- `client/src/lib/i18n-core.ts` — runtime lazy: EN estático, ES/ZH async
-- `client/src/lib/locales/en.ts` · `es.ts` · `zh.ts` — fuertemente tipados vía `I18nKey`
-- Todas las claves `home_*` y `ucore_nav_*` añadidas en p23 ✅
-
-## Tailwind v4
-- NO hay tailwind.config.js — usa `@theme inline` en `client/src/index.css`
-- Animaciones en `index.css`, NO en tailwind.config
+- `ios/App/App/ThemePlugin.swift` — **NUEVO** plugin nativo iOS para sincronizar UIWindow.backgroundColor con tema
+- `ios/App/App.xcodeproj/project.pbxproj` — **MODIFICADO** — ThemePlugin registrado en Sources
 
 ## NUNCA tocar
 - `Profile.tsx` · `schema.ts` · `migrations/`
@@ -55,137 +48,164 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 
 ---
 
-## Sistema de Temas — implementado p23 ✅
+## Estado sesión 2026-05-12 (sesión activa)
 
+### ✅ Completado hoy
+
+#### U Stats — Fase 0 y 1
+- Schema auditado: shot_x/shot_y ❌ (0 filas), stint_id ✅ 116.700, rebound_type ✅ 17.140, off_reb/def_reb ✅
+- Backend Fase 1 completo en `routes.ts`:
+  - `/api/stats/team/:id`: +eFGPct, tovPct, ftRate, orbPct, drbPct, paceEst
+  - `/api/stats/player/:id`: +tsPct, eFGPct, astTovRatio, ftRate, usagePct, orbPerGame, drbPerGame, pie, homeSplit, awaySplit
+  - `/api/stats/leaders`: +tsPct, eFGPct, astTovRatio, orbPerGame
+  - `/api/stats/league-averages`: nuevo endpoint
+  - `/api/stats/player-percentiles`: nuevo endpoint
+  - `stats-api.ts`: +useLeagueAverages, usePlayerPercentiles
+
+#### iOS fixes
+- **ThemePlugin.swift** creado y registrado en Xcode — sincroniza `UIWindow.backgroundColor` con el tema activo (gamenight/office/oldschool) via bridge JS→nativo. Resuelve la franja blanca del home indicator.
+- `theme.ts` actualizado — llama a `cap.Plugins.Theme.setBackgroundColor` al cambiar de tema
+- `AppDelegate.swift` limpiado — eliminado código incorrecto de UserDefaults
+- **App icon** regenerado — logo ocupa ~85% del canvas (vs ~50% anterior), centrado verticalmente
+- **Schedule día incorrecto** — `localDateKey()` helper reemplaza `toISOString().slice(0,10)` en 5 puntos del Schedule.tsx. Usa hora local, no UTC. Fix para China (UTC+8).
+
+#### UI/UX fixes Home
+- KPI bar visible en Dark: `border-2 border-primary/20` + `min-h` via inline style
+- Grid módulos: quita `flex-1` problemático, usa layout natural
+- Mi Club siempre visible
+- Header centrado con logo 56px móvil / 88px desktop
+- `ModuleHeader.tsx` — logo SVG con `viewBox="256 280 512 360"` correcto
+
+#### Otros fixes
+- Planner scroll: eliminada `scrollElementIntoOverflowParents` → `scrollIntoView({block:"nearest"})`
+- Nav: `bg-card` sin `backdrop-blur`, `pb-[env(safe-area-inset-bottom)]` en div interior
+- `body::after` con `hsl(var(--background))` cubre home indicator (complementa ThemePlugin)
+- `capacitor.config.ts`: `contentInset: 'never'`
+
+### 🔴 PENDIENTE — Franja blanca home indicator
+- **Estado**: ThemePlugin implementado y compilando. Pendiente verificar en dispositivo que el UIWindow.backgroundColor se actualiza correctamente al cambiar tema.
+- Si persiste: el problema es que UIWindow.backgroundColor solo afecta al fondo nativo, no al WKWebView frame. Solución definitiva = `ViewController.swift` subclasando `CAPBridgeViewController` con constraints `view.bottomAnchor` (no `safeAreaLayoutGuide`). Requiere añadir a Xcode y cambiar storyboard.
+
+---
+
+## U Stats — Plan completo de implementación
+
+### Fase 2 PENDIENTE — UI con métricas avanzadas
+- TeamSheet: Cuatro Factores (eFG%, TOV%, FT Rate, ORB%, Pace) vs media liga con semáforo
+- PlayerSheet: chips TS%/eFG%/PIE/AST-TOV/Usage + home/away split
+- StatsRadar: calibrar AXIS_MAX con percentiles reales (endpoint ya existe)
+- Standings: +eFG% + racha visual (●●○●●)
+- Tooltips: tap en StatChip → popover con definición + fórmula
+- Shot zones: rediseño SVG FIBA correcto + CSS vars (sin datos reales aún)
+
+### Fase 3 PENDIENTE — Nuevas pantallas
+- Bubble chart `/stats`: FGA/g vs TS%, burbuja=MIN/g (Recharts ya en bundle)
+- Comparador: radar superpuesto hasta 3 jugadoras
+- Stats Home dashboard coaching: Próximo rival / L5 propio / Alerta liga
+- Team game log completo (click equipo → standings + historial partidos)
+
+### Fase 4 PENDIENTE — Pi hotspotdata
+- Activar sync de hotspotdata en collector → poblar shot_x/shot_y/shot_zone
+- Shot chart individual: dots sobre half-court SVG calibrado
+
+---
+
+## Desktop UI/UX — PENDIENTE (alta prioridad)
+
+Estado actual: **terrible** según Pablo. Base responsive implementada pero sin diseño real para pantallas grandes.
+
+### Módulos que necesitan diseño desktop dedicado:
+1. **Home.tsx** — actualmente escala el layout móvil. Necesita: sidebar con KPIs, grid 2×2 más amplio, próximo partido prominente
+2. **Schedule.tsx** — split view horizontal: lista sesiones izquierda, detalle derecha. God file ~228KB → prompt Cursor
+3. **Stats.tsx** — panel lateral en lg+: standings a la izquierda, líderes a la derecha
+4. **CoachHome.tsx (Scout)** — 3 cards workflow ya en md:grid-cols-3 ✅ parcial
+5. **PlayerEditor.tsx** — formulario en columnas en desktop
+6. **ReportViewV4.tsx** — pendiente rediseño 3 slides (móvil Y desktop)
+
+### Principios desktop (no implementados sistemáticamente):
+- Tipografía mínima `md:text-sm` en todos los labels (ya barrido en p24 pero incompleto)
+- Padding `md:px-8` en contenedores principales
+- Sidebar pattern para contenido que en móvil es scroll vertical
+- No dejar páginas con contenido flotando en el centro en pantallas anchas
+
+---
+
+## U Scout — Mejoras pendientes
+
+### APIs y datos
+- Endpoints WCBA para datos en tiempo real de partidos (ya scrapeados, falta surfacing en UI)
+- `report_overrides`: tabla y endpoint `POST /api/players/:id/overrides` existen pero sin frontend (OverridePanel pendiente de integración)
+- `hasReport` fix: prompt preparado pero no aplicado
+
+### Motor y reports
+- Motor v2.1 es server-side pendiente (actualmente client-side — deuda técnica)
+- ReportViewV4.tsx → rediseño 3 slides aprobado:
+  - Slide 1: ¿Quién es? (archetype + tagline + threat)
+  - Slide 2: ¿Qué hará? (top 3 situaciones primarias)
+  - Slide 3: ¿Qué hago yo? (DENY/FORCE/ALLOW + max 2 AWARE)
+- Approval flow (spec aprobada): Edit → Propose → Staff debate → Approve → Publish
+
+### Bundle
+- Tamaño actual: ~509KB gzip. Target TestFlight: <300KB
+- Plan: lazy i18n por locale (−120KB) + React.lazy code splitting (−100KB)
+
+---
+
+## U Playbook — Implementación pendiente
+
+Actualmente: página placeholder "en desarrollo" con feature pills.
+
+### Spec pendiente de diseño:
+- Play designer: diagramas de jugadas con canvas/SVG
+- Tactical board: pizarra interactiva
+- Shared game plans: publicar a jugadoras
+- Video links: integración con clips de vídeo
+- Defensive systems builder (ya existe `defensive-system-builder-elite.html` como referencia)
+
+---
+
+## U Schedule & Wellness — Specs pendientes
+
+### Schedule
+- Desktop split view: lista izquierda, detalle sesión derecha
+- Kebab menu: tap = detalle, long-press = editar (actualmente mezclado)
+- Exportar semana como imagen (funcionalidad existe, bugs)
+
+### Wellness
+- Trend charts: implementados en p26 pero necesitan revisión visual en desktop
+- Alertas de wellness: lógica existe, falta prominencia en Home
+
+---
+
+## Sistema de Temas
 Tres temas CSS vía clases en `<html>`:
-- `.dark` (Game Night) — amber gold `#F5A623`, fondo near-black `228 18% 5%`
-- `.theme-office` — indigo `#4563E9`, fondo blanco limpio `220 33% 96%`
-- `.theme-oldschool` (Classic) — naranja `28 90% 52%` + teal complementario `178 55% 28%`, fondo mahogany cálido, fuente Space Mono, líneas de cancha vía CSS gradients, LED glow en `[data-scoreboard]` via `text-shadow`
+- `.dark` (Game Night) — amber gold `#F5A623`, fondo near-black `228 18% 5%`, card `228 16% 9%` = `#131318`
+- `.theme-office` — indigo `#4563E9`, fondo blanco, card `#ffffff`
+- `.theme-oldschool` (Classic) — naranja + teal, fondo mahogany, fuente Space Mono, card `#3D2410`
 
-### Cómo aplican
-- Variables CSS en `client/src/index.css`: `--primary`, `--background`, `--card`, `--border`, `--foreground`, `--muted`, etc.
-- Selector activador: `html.dark`, `html.theme-office`, `html.theme-oldschool`
-- Font Space Mono: cargada en `client/index.html` via Google Fonts
-- `[data-scoreboard]` → en Classic aplica LED glow. Usar en elementos numéricos prominentes.
-- `[data-teal]` → en Classic aplica color teal secundario. Usar para acentos secundarios.
-- Settings.tsx controla el cambio de tema via localStorage + clase en `document.documentElement`
-
-### Componentes Home.tsx (p23)
-```tsx
-// KPI bar chip
-function KpiCell({ value, label, color }) → <span data-scoreboard="" ...>
-
-// 2×2 module card
-function ModCard({ icon, title, subtitle, badge, dot, comingSoon, onClick })
-// comingSoon=true → disabled + opacity-50
-
-// Layout staff: KPI(players/sessions/wellness%) + próximo evento + grid(Schedule&Wellness, Scout, Stats, UPlaybook[comingSoon]) + Mi Club button
-// Layout player: KPI(days/reports/wellness%) + próximo evento + grid(Schedule, Wellness, Scout, Stats)
+### Colores nativos por tema (ThemePlugin)
+```
+gamenight: #131318  (UIWindow background)
+office:    #ffffff
+oldschool: #3D2410
 ```
 
 ---
 
-## Estado app — 9 mayo 2026 (sesión p26 — CERRADA)
-
-### Completado p23 ✅
-- **Redesign completo UI**: 3 temas (Dark/Classic/Office) en toda la navegación, todos los idiomas
-- **Home.tsx reescrito**: KPI bar + próximo evento + 2×2 module grid + Mi Club button (staff)
-- **ModuleNav.tsx reescrito**: 4 items (player) / 5 items + Mi Club (staff), dot activo, tamaños dinámicos
-- **Bug fix**: Schedule y Wellness unificados en una sola tarjeta → /schedule (pestañas internas)
-- **Bug fix**: U Playbook card (comingSoon) sustituye la tarjeta Wellness redundante en grid staff
-- **Bug fix**: Mi Club desaparecido para head coach → añadido en ModuleNav (5th item) + botón explícito bajo grid en Home
-- **CSS Classic mode**: court lines background, LED glow en [data-scoreboard], teal complementario, Space Mono
-- **i18n**: claves `home_*` y `ucore_nav_club` en en/es/zh
-- **Git push**: cambios pusheados a main → Railway deploy ✅
-
-### ✅ Completado p24
-- **Regla entrega código actualizada**: Claude edita directamente o da comandos/prompts Cursor, nunca texto manual
-- **Capacitor config**: `server.url` activado → apunta a Railway
-- **Responsive shell**: App.tsx, ModuleNav.tsx, ModulePage.tsx, Home.tsx
-
-### ✅ Completado p25 — Logo D=25
-- **UScoutLogo.tsx** (main + ucore): D=25 — clip en y=427, connector `scaleY=102/77≈1.32468` anclado en y=544, SCOUT sin transform
-- **UScoutBrand.tsx** (main + ucore): paths separados (U_HORNS_D, U_CONN_D, U_SCOUT_D), UCoreLogoSvgLockup viewBox `260 290 510 270`, UCoreBootSplash con clip+scale
-- **ModuleHeader.tsx**: U_HORNS_PATH + U_CONN_PATH separados, SVG con clip+scale
-- **SVGs públicos** (client/public/ + ucore/client/public/): `logo.svg`, `favicon.svg`, `logo-scout/core/schedule/wellness.svg` actualizados; `logo-playbook.svg` CREADO (acento `#EF4444` rojo)
-- **Git push** a main ✅
-
-## Sistema de logos — referencia rápida
+## Logo SVG — referencia
 ```
 D=25: HORN_CLIP_Y=427, CONN_SCALE=translate(0,544) scale(1,1.32468) translate(0,-544)
+viewBox icono compacto: "256 280 512 360"
+viewBox favicon/app icon: "256 173 512 512"
+
 Paleta módulos:
   core:     #6B6B9A (slate)
   scout:    #3A81FE (blue)
   schedule: #10B981 (emerald)
   wellness: #A78BFA (lavender)
   stats:    #F59E0B (amber)
-  playbook: #EF4444 (red)  ← nuevo, comingSoon
+  playbook: #EF4444 (red)
 ```
-
-### ✅ Completado p26
-- **Bug fix CoachHome.tsx**: `(weekEvents ?? [])` en useMemo — U Scout ya no peta con null
-- **Home.tsx**: U mark D=25 (40px) + "U CORE" wordmark centrado sobre el greeting — logo restaurado
-- **capabilities.ts**: `canManageClub` solo para head_coach/master/owner — coaches excluidos de Mi Club
-- **capabilities.test.ts**: tests actualizados reflejando la restricción (coach + operationsAccess también excluidos)
-- **Schedule.tsx (Cursor)**: recharts importado; `WellnessTrendChart` (AreaChart con gradiente, eje X fechas, Y 1-5, ReferenceLine en 3, tooltip CSS vars); `WellnessRow` con prop `goodUp` y semántica de color rojo→verde; tendencias jugadora → WellnessTrendChart con colores blue/amber/red/emerald; tendencias staff → idem; tarjeta "próxima sesión" jugadora con countdown + icono tipo + chips de hora/location/wellness; `SessionRow` staff con columna izquierda de color por tipo de sesión
-- **Backup**: `backup/schedule-ui-wellness-may9-2026` en GitHub
-
-### ✅ Completado p27
-- **ModuleNav.tsx**: "Mi Club" → "U Playbook" (BookOpen icon), mismo nav para todos los users (5 items fijos)
-- **App icon iOS**: 1024×1024 PNG generado con Python cairosvg + PIL — fondo `#0A0C14`, U mark centrado (512,415) ancho 430px, glow radial purple, "CORE" wordmark y=660
-  - Nested SVG math: `W=972, X=26, Y=13` — verificado: horns blancas, gap oscuro ✅
-  - Archivo: `ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`
-- **Home.tsx desktop layout**: 2-col `lg:grid-cols-[1fr_220px]`, logos visibles en TODO (no md:hidden), `flex-1 justify-between` para repartir espacio vertical, KPIs en sidebar derecha desktop
-- **CoachHome.tsx (Scout)**: logos visibles desktop, workflow cards en `md:grid-cols-3`
-- **ModulePage.tsx**: logos visibles en móvil Y desktop
-- **Playbook.tsx**: nueva página "en desarrollo" con halo icon, feature pills, i18n EN/ES/ZH
-- **App.tsx**: ruta `/playbook` → `UCorePlaybook` añadida
-- **TypeScript**: `npx tsc --noEmit` → 0 errores ✅
-
-### 🔴 PRÓXIMO — iOS en dispositivo físico (Xcode abierto)
-- Estado: `ios/` generado, Xcode abierto
-- Cuenta actual: Apple Developer FREE (sin pagar $99 aún)
-  - ✅ Puede correr en iPhone propio via USB (válido 7 días, luego re-instalar)
-  - ❌ No puede usar TestFlight ni distribuir a otros
-  - ✅ Para TestFlight: pagar $99/año en developer.apple.com → cambiar Team en Xcode → Archive → Distribute
-- Para correr HOY sin pagar:
-  1. Conectar iPhone por USB
-  2. Xcode: seleccionar el iPhone como target (no simulador)
-  3. Signing & Capabilities → Team: seleccionar cuenta personal gratuita
-  4. Product → Run (Cmd+R)
-  5. En iPhone: Settings → General → VPN & Device Management → Trust [tu email]
-- appId: `com.ucore.app` (cambiar si conflicto → `com.pablomgz.ucore`)
-- La app carga desde Railway (server.url en capacitor.config.ts) → requiere internet
-- **PENDIENTE**: app icon iOS (tarea #10) — reemplazar escudo genérico con el logo U Core
-
-### 🔴 PRÓXIMO — Responsive fases siguientes (base implementada p24)
-- **Home.tsx**: grid más amplio en desktop (2-col o 3-col en lg+) → prompt Cursor (archivo grande)
-- **Schedule.tsx**: split view horizontal en desktop → prompt Cursor (god file ~228KB)
-- **Stats.tsx**: panel lateral o columnas en desktop → prompt Cursor
-- **Scout**: idem
-
-### 🔴 BACKLOG
-
-#### Platform
-- Schedule scroll List→Planner: NO tocar más — intentado múltiples veces, comportamiento aceptable
-- Jugadoras extranjeras con `-` en name_zh: fix-player-names.js las salta → name_en null
-
-#### U Stats — backlog completo (identificado p24, requieren sesiones Cursor dedicadas)
-- **Radar / "hide radar"**: se ve feo, necesita fix visual
-- **Shoot zones**: diagrama mal dibujado, colores no funcionan en theme-oldschool, rediseñar desde cero
-- **Landscape**: no aporta nada respecto a portrait, necesita layout dedicado (split view o landscape chart)
-- **Tooltips stats**: al click en cada stat → tooltip con definición + fórmula de cálculo (todas las stats, incluso las básicas)
-- **Stats avanzadas de equipos**: faltan muchas, ver blueprints/conversaciones previas
-- **Team slide**: click en equipo → slide con datos completos del equipo, botón Roster → scroll del roster
-- StatsRadar AXIS_MAX son estimaciones — verificar contra datos reales
-- StatsComparator landscape split view
-
-#### U Scout
-- PlayerEditor: auditoría completa campos
-- ReportViewV4 → diseño 3 slides
-
-#### Personnel
-- Migración asistida (sesión dedicada de diseño)
 
 ---
 
@@ -193,15 +213,13 @@ Paleta módulos:
 - IP: 192.168.1.59 · SSH: pablo@192.168.1.59
 - Node 20 + PM2 · Collector en ~/ucore/collector
 - **dist/ sincronizado desde Mac** — NUNCA compilar en el Pi
-- Deploy Pi: `npm run build` en Mac → `scp -r dist/ pablo@192.168.1.59:~/ucore/collector/dist/` → `pm2 restart`
 
-## Workflow Pi — REGLA FIJA
+## Workflow Pi
 ```bash
 cd "/Users/palant/Downloads/U scout/collector"
 npm run build
 scp -r dist/ pablo@192.168.1.59:~/ucore/collector/dist/
 ssh pablo@192.168.1.59 "cd ~/ucore/collector && pm2 restart ucore-collector"
-ssh pablo@192.168.1.59 "cd ~/ucore/collector && node test-sync-one.js"
 ```
 
 ## API WCBA — URLs confirmadas
@@ -209,7 +227,6 @@ ssh pablo@192.168.1.59 "cd ~/ucore/collector && node test-sync-one.js"
 BASE: https://www.cba.net.cn
 standings:    GET /datahub/cbamatch/rank/teamrankfirst?competitionId=56&seasonId=2092
 phasemenus:   GET /datahub/cbamatch/games/phasemenus?seasonId=2092
-matchmenus:   GET /datahub/cbamatch/games/matchmenusschedule?competitionId=56&seasonId=2092&phaseId=X
 schedule:     GET /datahub/cbamatch/games/matchschedules?competitionId=56&seasonId=2092&phaseId=X&roundId=X&teamId=''
 boxscore:     GET /datahub/cbamatch/games/matchinfoscores?matchId=X&gameId=X
 playerbox:    GET /datahub/cbamatch/games/player/playerdata?gameId=X
@@ -219,65 +236,15 @@ pbp:          GET /api/v2/game/${gameId}/actions → array directo
 ⚠ /datahub/wcba/* dan 404 — usar /datahub/cbamatch/*
 ```
 
-## API WCBA — field mapping player boxscore (CONFIRMADO)
-```
-p.points → pts · p.rebound → reb · p.assists → ast · p.steals → stl
-p.blocks → blk · p.turnover → tov · p.fouls → fouls
-p.shot → "6-17 (35.3%)" → parseShotStr → [fgm, fga]
-p.threePoints → parseShotStr → [tpm, tpa]
-p.foulShot → parseShotStr → [ftm, fta]
-p.positiveNegativeValue → plusMinus
-p.isStartLineUp → boolean
-⚠ teamId NO viene en player data
-```
-
-## API WCBA — field mapping standings (CONFIRMADO)
-```
-r.teamId/teamName/rank/wins · r.loses (no "losses") · r.pts → ptsPerGame
-r.losePts → ptsAgainstPerGame · r.phaseName/phaseId · r.goalDifference
-r.winLoss → streak · r.last10Win/last10Loses · r.homeWin/homeLoses
-```
-
-## Supabase — estado tablas (8 mayo 2026)
+## Supabase — estado tablas
 ```
 stats_games:            223 partidos status=4, season_id=2092
-stats_teams:            18 equipos (name_en pinyin ✅)
-stats_players:          307 jugadoras (name_en pinyin ✅)
-stats_standings:        18 filas ✅
-stats_player_boxscores: 5312 rows, avg_scorers=9.7, max_pts=51 ✅
+stats_teams:            18 equipos
+stats_players:          307 jugadoras
+stats_standings:        18 filas
+stats_player_boxscores: 5312 rows ✅
 stats_pbp:              116.700 eventos ✅
-```
-
-## Endpoints Railway implementados
-```
-GET  /api/stats/seasons       ✅
-GET  /api/stats/standings     ✅ teamName (zh) + teamNameEn (pinyin)
-GET  /api/stats/leaders       ✅ (HAVING games >= 5)
-GET  /api/stats/players       ✅ teamName (zh) + teamNameEn (pinyin)
-GET  /api/stats/player/:id    ✅ ppg/rpg/apg + teamNameEn + try/catch
-GET  /api/stats/team/:id      ✅ nameZh + nameEn
-GET  /api/stats/player-link   ✅
-GET  /api/stats/games         ✅
-GET  /api/stats/sync-status   ✅ Bearer STATS_INGEST_KEY
-POST /api/stats/ingest        ✅ Bearer STATS_INGEST_KEY
-GET  /api/stats/teams         ✅ lista 18 equipos WCBA
-POST /api/stats/import-team   ✅ importa jugadoras de un equipo
-POST /api/stats/import-league ✅ importa los 18 equipos
-DELETE /api/personnel/reset   ✅ headCoach only, confirmación "CONFIRMAR"
-```
-
-## Collector — lógica sync (trampa crítica)
-```
-syncNewPlayerBoxscores → fetchSyncStatus() → boxDone[]
-Si gameId ya tiene filas → en boxDone → se SALTA
-⚠ Para re-sync completo: TRUNCATE stats_player_boxscores en Supabase → pm2 restart
-```
-
-## Scripts Pi disponibles
-```
-node test-sync-one.js        — ingesta 1 partido
-node audit-end-to-end.js     — audit completo 34/34 ✅
-node fix-player-names.js     — ya ejecutado, no repetir
+shot_x/shot_y:          0 filas (hotspotdata no sincronizado)
 ```
 
 ## Club INNER MONGOLIA
@@ -286,66 +253,21 @@ node fix-player-names.js     — ya ejecutado, no repetir
 
 ---
 
-## Reglas entrega código
-- NUNCA texto para copiar/pegar en archivos — Pablo no edita archivos manualmente
-- Claude SIEMPRE: edita directamente con Edit/Write, O da comandos de terminal, O da prompt para el agente Cursor
-- Cuando el archivo es grande (Schedule.tsx, Stats.tsx, routes.ts): prompt Cursor
-- Cuando el archivo es pequeño o el cambio es quirúrgico: Edit/Write directo
-- NUNCA "añade estas líneas aquí" — siempre archivo completo, O Edit quirúrgico, O comando terminal, O prompt Cursor
-- `npm run check` después de cada cambio
-- Migrations destructivas: raw SQL Supabase, nunca drizzle-kit push
-- Pi: NUNCA compilar en Pi — build en Mac + scp dist/
-- Tailwind v4: animaciones en index.css, NO en tailwind.config
+## Reglas entrega código (NO NEGOCIABLES)
+- Claude edita directamente con filesystem:write_file / Filesystem:edit_file
+- O da comandos de terminal exactos
+- O da prompt completo para agente Cursor
+- NUNCA texto para copiar/pegar manualmente
+- `npm run check` después de cada cambio (exit 0 antes de commit)
 - Stats.tsx, routes.ts, Schedule.tsx → preferir prompt Cursor (archivos grandes)
-- bash_tool corre en Linux — NO accede al Mac directamente
-- Cursor duplica handlers en routes.ts — verificar siempre
+- Cursor duplica handlers en routes.ts — verificar siempre últimas 50-80 líneas
 
-## Notas (trampas conocidas)
+## Trampas conocidas
 - `stats_player_boxscores.minutes` = TEXT "MM:SS"
 - /datahub/wcba/* → 404. Usar /datahub/cbamatch/*
 - matchschedules requiere teamId='' obligatorio
-- player boxscore: teamId NO viene en player data
 - standings: campo "loses" (no "losses") en API
 - Pi: pm2 restart NO recompila — usa dist/ tal cual
-- syncNewPlayerBoxscores SALTA juegos ya en boxDone → TRUNCATE para re-sync completo
-
----
-
-## Repo y deploy
-- **Repo real:** `/Users/palant/Downloads/U scout/ucore/` ← SIEMPRE trabajar aquí
-- **GitHub:** https://github.com/palantozgz/U-Scout.git
-- `/Users/palant/Downloads/U scout/` es wrapper — NO tocar
-
-## U Stats — Estado sesión 2026-05-11
-
-### Fase 0 ✅ Schema auditado
-- shot_x/shot_y: ❌ 0 filas (hotspotdata no sincronizado)
-- stint_id: ✅ 116.700, rebound_type: ✅ 17.140, off_reb/def_reb: ✅
-
-### Fase 1 ✅ Backend completado
-- /api/stats/team/:id: +eFGPct, tovPct, ftRate, orbPct, drbPct, paceEst
-- /api/stats/player/:id: +tsPct, eFGPct, astTovRatio, ftRate, usagePct, orbPerGame, drbPerGame, pie, homeSplit, awaySplit
-- /api/stats/leaders: +tsPct, eFGPct, astTovRatio, orbPerGame
-- /api/stats/league-averages: nuevo
-- /api/stats/player-percentiles: nuevo
-- stats-api.ts: +useLeagueAverages, usePlayerPercentiles
-
-### Fase 2 PENDIENTE — UI Stats
-- TeamSheet: Cuatro Factores vs liga
-- PlayerSh home/away split
-- StatsRadar: calibrar AXIS_MAX con percentiles reales
-- Standings: +eFG% + racha visual
-- Tooltips StatChip, Shot zones rediseño SVG
-
-### Fase 3 PENDIENTE — Nuevas pantallas
-- Bubble chart (FGA/g vs TS%)
-- Comparador 3 jugadoras
-- Stats Home dashboard coaching
-
-### Fase 4 PENDIENTE — Pi hotspotdata
-
-## Bugs resueltos 2026-05-11
-- ✅ scrollElementIntoOverflowParents eliminada (Planner scroll iOS)
-- ✅ KPI bar: min-h-[80px] + dark visibility
-- ✅ Nav: quitado max-w-md + theme-color meta
-- ✅ -webkit-tap-highlight-color: transparent
+- Schedule.tsx es 228KB — leer en chunks, nunca completo
+- bash_tool corre en Linux — NO accede al Mac directamente
+- Path con espacio `/U scout/` — siempre comillas en bash

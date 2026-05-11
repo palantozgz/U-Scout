@@ -1,32 +1,68 @@
-# Prompt — Nueva conversación Claude / Cowork
+# Prompt — Nueva sesión Claude / U Core
 
-## Contexto del proyecto
-Estamos construyendo **U Core**, una app de gestión deportiva (basketball) con React + TypeScript + Vite + Tailwind v4 + Capacitor 8.x (iOS + Mac Catalyst). El CLAUDE.md en la raíz del proyecto tiene TODO el contexto técnico actualizado. Léelo primero antes de hacer nada.
+## Ritual de inicio (OBLIGATORIO)
+Lee `/Users/palant/Downloads/U scout/ucore/CLAUDE_CONTEXT.md` completo antes de cualquier acción.
 
-## Trabajo de hoy — prioridad decidida
+---
 
-### 1. Stats module (alta prioridad)
-El módulo Stats (`/stats`) es actualmente un placeholder vacío. Hay que implementarlo.
+## Prioridades de esta sesión (ordenadas)
 
-Antes de escribir código, necesito que:
-- Leas `client/src/pages/core/Home.tsx` para ver cómo están estructuradas las páginas activas
-- Leas `client/src/lib/club-api.ts` para ver qué endpoints existen en el backend
-- Leas `client/src/lib/wellness.ts` y `client/src/lib/schedule.ts` para entender los datos disponibles
-- Leas la página placeholder actual de Stats (búscala en `client/src/pages/`)
+### 1. Verificar ThemePlugin iOS (5 min)
+Confirmar con Pablo si la franja blanca inferior desapareció tras el build con ThemePlugin.
+Si persiste → implementar ViewController.swift con constraints `view.bottomAnchor` (instrucciones en CLAUDE_CONTEXT.md sección "Franja blanca pendiente").
 
-Luego propones el diseño MVP antes de implementar. El módulo debe mostrar:
-- KPIs de temporada por jugador (asistencia a entrenamientos, wellness promedio)
-- Filtros por período (semana / mes / temporada)
-- Layout compatible con las reglas de scroll del CLAUDE.md (h-[100dvh] + overflow-y-auto en main)
-- Tipografía desktop mínimo `md:text-sm` en todos los labels
+### 2. Desktop UI/UX — ALTA PRIORIDAD
+El layout desktop está en mal estado. Atacar en este orden:
 
-### 2. Si Stats queda pendiente de datos de backend
-Si el backend no expone los endpoints necesarios para Stats, cambia a:
-- **Desktop content density en CoachHome** — Las 3 NavCards (My Scout, Film Room, Game Plan) deben mostrar info contextual: contador de items pendientes de cada sección, último acceso. Lee `client/src/pages/scout/CoachHome.tsx` y los hooks relevantes.
+**2A — Home.tsx desktop**
+- 2 columnas en lg+: contenido principal izquierda, sidebar KPIs + próximo partido derecha
+- Grid módulos 2×2 que aprovecha el espacio real del desktop
+- Leer archivo completo antes de proponer (usar filesystem:read_text_file con head/tail)
 
-## Reglas de trabajo
-- Lee CLAUDE.md completo al inicio de la sesión
-- No rompas las reglas de scroll (h-[100dvh] + overflow-y-auto min-h-0)
-- Tipografía desktop: mínimo `md:text-sm` (14px) — nunca dejes labels a 8-11px en desktop
-- Cuando termines cambios: dar el comando git completo para que yo lo ejecute
-- Actualiza CLAUDE.md al final de la sesión con los cambios aplicados y nuevos pendientes
+**2B — Stats.tsx desktop**
+- Panel lateral en lg+: standings a la izquierda, líderes + PlayerSheet a la derecha
+- Aprovechar el espacio horizontal que actualmente se desperdicia
+- Archivo grande → prompt Cursor
+
+**2C — Schedule.tsx desktop**
+- Split view horizontal: lista sesiones izquierda, detalle sesión derecha
+- God file ~228KB → prompt Cursor con contexto muy específico
+
+### 3. U Stats — Fase 2 UI
+Backend completo. Falta la UI con las métricas avanzadas:
+- TeamSheet: Cuatro Factores (eFG%, TOV%, FT Rate, ORB%, Pace) con semáforo vs liga
+- PlayerSheet: PIE, TS%, eFG%, AST/TOV, Usage, home/away split
+- Bubble chart: FGA/g vs TS% con Recharts (datos ya en cache, sin backend nuevo)
+- Comparador: radar superpuesto 3 jugadoras
+
+### 4. U Stats — Fase 3 nuevas pantallas
+- Dashboard coaching en `/stats` home: Próximo rival / L5 propio / Alerta liga
+- StatsRadar calibración: percentiles reales ya en `/api/stats/player-percentiles`
+
+### 5. U Scout — mejoras
+- OverridePanel: integrar al frontend (backend `report_overrides` existe)
+- ReportViewV4 → rediseño 3 slides (spec aprobada, ver CLAUDE_CONTEXT.md)
+- hasReport fix (prompt preparado)
+- Motor v2.1 mover a server-side
+
+### 6. U Playbook — implementación
+Ver spec en CLAUDE_CONTEXT.md. Empezar por el diseño antes de implementar.
+
+### 7. Bundle optimization
+Target <300KB gzip para TestFlight:
+- Lazy i18n por locale (−120KB)
+- React.lazy code splitting (−100KB)
+
+---
+
+## Contexto técnico clave para esta sesión
+- Repo: `/Users/palant/Downloads/U scout/ucore/`
+- ThemePlugin.swift: añadido al proyecto Xcode esta sesión
+- Stats backend Fase 1: completado, todos los endpoints con métricas avanzadas activos
+- Schedule día correcto: `localDateKey()` helper implementado (fix UTC→local)
+- App icon: regenerado con logo al 85% del canvas
+
+## NO hacer sin investigar primero
+- No tocar `ViewController.swift` en Xcode sin leer el estado del storyboard primero
+- No tocar `Schedule.tsx` sin leer chunks específicos primero (228KB)
+- No hacer fixes de prueba/error — diagnosticar completamente antes de implementar
