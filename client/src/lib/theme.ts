@@ -25,6 +25,22 @@ export function applyThemeToDocument(theme: Theme) {
   if (theme === "gamenight") root.classList.add("dark");
   if (theme === "office") root.classList.add("theme-office");
   if (theme === "oldschool") root.classList.add("theme-oldschool");
+
+  // Sync native iOS background color (covers the 34px home indicator area outside WKWebView)
+  // Uses the bg-card color of each theme to match the nav bar
+  const themeColors: Record<Theme, string> = {
+    gamenight: "#131318",  // card: 228 16% 9%
+    office:    "#ffffff",  // card: 0 0% 100%
+    oldschool: "#3D2410",  // card: 30 50% 15%
+  };
+  const color = themeColors[theme];
+  // Capacitor StatusBar plugin — sets background color of native UI areas
+  try {
+    const cap = (window as any).Capacitor;
+    if (cap?.isNativePlatform?.()) {
+      cap.Plugins?.StatusBar?.setBackgroundColor?.({ color });
+    }
+  } catch { /* ignore if plugin not available */ }
 }
 
 function applyTheme(theme: Theme) {

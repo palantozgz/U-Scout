@@ -7,7 +7,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Set window background color to match the app theme
+        // This covers the 34px home indicator area outside the WKWebView
+        // Default to gamenight (dark) theme color; JS will update via StatusBar plugin on theme change
+        let storedTheme = UserDefaults.standard.string(forKey: "uscout-theme") ?? "gamenight"
+        switch storedTheme {
+        case "office":
+            window?.backgroundColor = UIColor.white
+        case "oldschool":
+            window?.backgroundColor = UIColor(red: 0.239, green: 0.141, blue: 0.063, alpha: 1.0) // #3D2410
+        default: // gamenight
+            window?.backgroundColor = UIColor(red: 0.074, green: 0.074, blue: 0.094, alpha: 1.0) // #131318
+        }
         return true
     }
 
