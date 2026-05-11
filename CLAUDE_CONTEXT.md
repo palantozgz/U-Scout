@@ -82,9 +82,10 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 - `body::after` con `hsl(var(--background))` cubre home indicator (complementa ThemePlugin)
 - `capacitor.config.ts`: `contentInset: 'never'`
 
-### 🔴 PENDIENTE — Franja blanca home indicator
-- **Estado**: ThemePlugin implementado y compilando. Pendiente verificar en dispositivo que el UIWindow.backgroundColor se actualiza correctamente al cambiar tema.
-- Si persiste: el problema es que UIWindow.backgroundColor solo afecta al fondo nativo, no al WKWebView frame. Solución definitiva = `ViewController.swift` subclasando `CAPBridgeViewController` con constraints `view.bottomAnchor` (no `safeAreaLayoutGuide`). Requiere añadir a Xcode y cambiar storyboard.
+### ✅ Franja blanca home indicator — RESUELTA
+- ThemePlugin.swift sincroniza UIWindow.backgroundColor con el tema activo
+- `body::after` CSS cubre el área del home indicator
+- Verificado en dispositivo físico iPhone 16 Plus
 
 ---
 

@@ -5,64 +5,61 @@ Lee `/Users/palant/Downloads/U scout/ucore/CLAUDE_CONTEXT.md` completo antes de 
 
 ---
 
-## Prioridades de esta sesión (ordenadas)
+## Estado al inicio de esta sesión
+- ✅ Franja blanca home indicator: RESUELTA (ThemePlugin + body::after)
+- ✅ App icon iOS: logo al 85% del canvas, verificado
+- ✅ U Stats backend Fase 1: completo
+- ✅ Schedule día correcto (UTC→local fix)
+- ✅ Planner scroll bug: resuelto
 
-### 1. Verificar ThemePlugin iOS (5 min)
-Confirmar con Pablo si la franja blanca inferior desapareció tras el build con ThemePlugin.
-Si persiste → implementar ViewController.swift con constraints `view.bottomAnchor` (instrucciones en CLAUDE_CONTEXT.md sección "Franja blanca pendiente").
+---
+
+## Prioridades (en orden)
+
+### 1. Bug Settings.tsx — scroll bloqueado (rápido)
+Settings no permite hacer scroll hasta el final en móvil — el botón de logout es inaccesible.
+Leer Settings.tsx, identificar el contenedor de scroll y corregir el `pb` o `overflow`.
 
 ### 2. Desktop UI/UX — ALTA PRIORIDAD
-El layout desktop está en mal estado. Atacar en este orden:
+El layout desktop está en mal estado en todos los módulos. Atacar en orden:
 
 **2A — Home.tsx desktop**
-- 2 columnas en lg+: contenido principal izquierda, sidebar KPIs + próximo partido derecha
-- Grid módulos 2×2 que aprovecha el espacio real del desktop
-- Leer archivo completo antes de proponer (usar filesystem:read_text_file con head/tail)
+- 2 columnas en lg+: contenido izquierda, sidebar KPIs + próximo partido derecha
+- Grid módulos que aprovecha el espacio real del desktop
 
 **2B — Stats.tsx desktop**
-- Panel lateral en lg+: standings a la izquierda, líderes + PlayerSheet a la derecha
-- Aprovechar el espacio horizontal que actualmente se desperdicia
+- Panel lateral en lg+: standings izquierda, líderes + PlayerSheet derecha
 - Archivo grande → prompt Cursor
 
 **2C — Schedule.tsx desktop**
 - Split view horizontal: lista sesiones izquierda, detalle sesión derecha
-- God file ~228KB → prompt Cursor con contexto muy específico
+- God file 228KB → prompt Cursor con contexto muy específico
 
 ### 3. U Stats — Fase 2 UI
-Backend completo. Falta la UI con las métricas avanzadas:
+Backend completo. Falta la UI con métricas avanzadas:
 - TeamSheet: Cuatro Factores (eFG%, TOV%, FT Rate, ORB%, Pace) con semáforo vs liga
 - PlayerSheet: PIE, TS%, eFG%, AST/TOV, Usage, home/away split
-- Bubble chart: FGA/g vs TS% con Recharts (datos ya en cache, sin backend nuevo)
+- Bubble chart: FGA/g vs TS% (Recharts, sin backend nuevo)
 - Comparador: radar superpuesto 3 jugadoras
+- StatsRadar: calibrar AXIS_MAX con percentiles reales (endpoint `/api/stats/player-percentiles` ya activo)
 
 ### 4. U Stats — Fase 3 nuevas pantallas
-- Dashboard coaching en `/stats` home: Próximo rival / L5 propio / Alerta liga
-- StatsRadar calibración: percentiles reales ya en `/api/stats/player-percentiles`
+- Dashboard coaching en `/stats` home
+- Shot zones: rediseño SVG FIBA correcto
 
 ### 5. U Scout — mejoras
-- OverridePanel: integrar al frontend (backend `report_overrides` existe)
-- ReportViewV4 → rediseño 3 slides (spec aprobada, ver CLAUDE_CONTEXT.md)
-- hasReport fix (prompt preparado)
-- Motor v2.1 mover a server-side
+- OverridePanel: integrar al frontend
+- ReportViewV4 → rediseño 3 slides (spec en CLAUDE_CONTEXT.md)
+- Bundle optimization: lazy i18n + React.lazy (target <300KB para TestFlight)
 
 ### 6. U Playbook — implementación
-Ver spec en CLAUDE_CONTEXT.md. Empezar por el diseño antes de implementar.
-
-### 7. Bundle optimization
-Target <300KB gzip para TestFlight:
-- Lazy i18n por locale (−120KB)
-- React.lazy code splitting (−100KB)
+Diseñar antes de implementar. Ver spec en CLAUDE_CONTEXT.md.
 
 ---
 
-## Contexto técnico clave para esta sesión
-- Repo: `/Users/palant/Downloads/U scout/ucore/`
-- ThemePlugin.swift: añadido al proyecto Xcode esta sesión
-- Stats backend Fase 1: completado, todos los endpoints con métricas avanzadas activos
-- Schedule día correcto: `localDateKey()` helper implementado (fix UTC→local)
-- App icon: regenerado con logo al 85% del canvas
-
-## NO hacer sin investigar primero
-- No tocar `ViewController.swift` en Xcode sin leer el estado del storyboard primero
-- No tocar `Schedule.tsx` sin leer chunks específicos primero (228KB)
-- No hacer fixes de prueba/error — diagnosticar completamente antes de implementar
+## Reglas de trabajo
+- Leer archivos antes de proponer cambios. Siempre.
+- Diagnosticar completamente antes de implementar. Sin prueba/error.
+- filesystem:write_file / Filesystem:edit_file para cambios directos
+- Prompt Cursor para archivos grandes (Schedule.tsx, Stats.tsx, routes.ts)
+- npm run check → exit 0 → git commit → git push
