@@ -43,7 +43,7 @@ export function ModuleNav() {
     <>
       {/* ── Mobile: bottom bar (comportamiento original sin cambios) ── */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-[90] max-w-md mx-auto bg-card/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[90] bg-card backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
         style={{ borderTop: "1px solid hsl(var(--border) / 0.6)" }}
       >
         <div className={cn("grid", isFive ? "grid-cols-5" : "grid-cols-4")}>

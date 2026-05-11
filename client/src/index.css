@@ -5,6 +5,7 @@
 html, body {
   background: hsl(var(--background));
   min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
   /* Elimina el bounce/rubber-band scroll de iOS WebView */
   overscroll-behavior: none;
   overflow: hidden;
