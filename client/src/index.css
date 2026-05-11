@@ -4,7 +4,7 @@
 /* Safe-area iOS PWA fix.
    Con black-translucent + viewport-fit=cover, iOS sube el documento
    env(safe-area-inset-top) px, exponiendo el fondo del sistema en el bottom.
-   min-height en html garantiza que background cubra esa zona expuesta.
+   El pseudo-elemento cubre esa franja con el color correcto.
    Referencias: https://dev.to/karmasakshi/make-your-pwas-look-handsome-on-ios-1o08 */
 html {
   min-height: calc(100% + env(safe-area-inset-top));
@@ -15,6 +15,16 @@ body {
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
   overflow: hidden;
+}
+body::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom);
+  background: hsl(var(--background));
+  z-index: 999;
 }
 
 @custom-variant dark (&:is(.dark *));

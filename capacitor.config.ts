@@ -10,7 +10,7 @@ const config: CapacitorConfig = {
     cleartext: false,
   },
   ios: {
-    contentInset: 'always',        // respeta safe area (notch)
+    contentInset: 'never',         // la app gestiona safe areas via CSS env(safe-area-inset-bottom)
     scrollEnabled: true,
     backgroundColor: '#0d0d0d',
   },
