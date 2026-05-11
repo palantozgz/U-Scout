@@ -44,8 +44,8 @@ function KpiCell({ value, label, color }: { value: string | number; label: strin
     color === "green"   ? "text-emerald-500" :
     "text-foreground";
   return (
-    <div className="flex flex-col items-center justify-center px-2 md:px-3" style={{ minHeight: 80, paddingTop: 20, paddingBottom: 20 }}>
-      <span data-scoreboard="" className={cn("text-3xl md:text-4xl font-black leading-none tabular-nums", colorClass)}>{value}</span>
+    <div className="flex flex-col items-center justify-center px-2 md:px-3" style={{ minHeight: 64, paddingTop: 12, paddingBottom: 12 }}>
+      <span data-scoreboard="" className={cn("text-2xl md:text-4xl font-black leading-none tabular-nums", colorClass)}>{value}</span>
       <span className="text-[9px] md:text-[11px] font-bold tracking-[1.5px] md:tracking-wide text-muted-foreground/80 uppercase mt-1.5">{label}</span>
     </div>
   );
@@ -69,7 +69,7 @@ function ModCard(props: {
       disabled={props.comingSoon}
       data-testid={props.testId}
       className={cn(
-        "group relative text-left rounded-xl border border-border bg-card p-4 md:p-6 flex flex-col gap-2 md:gap-3 min-h-[120px] md:min-h-0 md:h-full",
+        "group relative text-left rounded-xl border border-border bg-card p-3 md:p-6 flex flex-col gap-1 md:gap-3 h-full",
         "md:shadow-sm md:shadow-black/[0.04] md:ring-1 md:ring-border/50 dark:md:shadow-none dark:md:ring-border/40",
         "transition-all duration-200",
         props.comingSoon
@@ -330,7 +330,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
-      <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-10 md:pt-2 px-4 md:px-8 bg-background">
+      <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-10 md:pt-2 px-3 md:px-8 bg-background">
 
         {/* ── Brand header — visible siempre ── */}
         <ModuleHeader
@@ -344,12 +344,12 @@ export default function Home() {
         />
 
         {/* ── Greeting ── */}
-        <div className="pb-5 md:pb-8 flex items-start justify-between gap-4">
+        <div className="pb-2 md:pb-8 flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] md:text-xs font-bold tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-1 truncate">
               {dateStr}
             </p>
-            <h1 className="text-[28px] md:text-[42px] font-black tracking-tight leading-tight">
+            <h1 className="text-[24px] md:text-[42px] font-black tracking-tight leading-tight">
               {t("home_greeting_hi")}, <span className="text-primary">{firstName}</span> 👋
             </h1>
           </div>
@@ -389,7 +389,7 @@ export default function Home() {
             club:       { icon: "👥", tone: "blue" as const, route: "/coach/club" },
           };
           return (
-            <div className="mb-5 md:mb-8 flex flex-wrap gap-2 md:gap-4">
+            <div className="mb-3 md:mb-8 flex flex-wrap gap-2 md:gap-4">
               {items.map((action) => {
                 const c = cfg[action.kind];
                 return (
@@ -459,18 +459,18 @@ export default function Home() {
           }
 
           if (!chips.length) return null;
-          return <div className="mb-5 md:mb-8 flex flex-wrap gap-2 md:gap-4">{chips}</div>;
+          return <div className="mb-3 md:mb-8 flex flex-wrap gap-2 md:gap-4">{chips}</div>;
         })()}
 
         {/* ── KPI bar — horizontal, siempre visible ── */}
         {mode === "staff" ? (
-          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card">
+          <div className="mb-3 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card">
             <KpiCell value={kpiPlayers}           label={t("home_kpi_players")}   color="default" />
             <KpiCell value={kpiWeekSessions}      label={t("home_kpi_week")}       color="primary" />
             <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")}  color="green"   />
           </div>
         ) : (
-          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card">
+          <div className="mb-3 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card">
             <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
             <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}       color="primary" />
             <KpiCell
@@ -522,10 +522,10 @@ export default function Home() {
           </button>
         ) : null}
 
-        {/* ── Module grid 2×2 ── */}
-        <div className="mb-5 md:mb-0 md:flex-1 md:flex md:flex-col md:pb-2">
-          <p className="text-[9px] md:text-[11px] font-black tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-3">{t("home_modules_label")}</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 md:flex-1 md:[grid-auto-rows:1fr]">
+        {/* ── Module grid 2×2 — flex-1 ocupa el espacio disponible ── */}
+        <div className="flex-1 min-h-0 flex flex-col md:mb-0 md:pb-2">
+          <p className="text-[9px] md:text-[11px] font-black tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-2">{t("home_modules_label")}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 flex-1 min-h-0">
             {mode === "staff" ? (
               <>
                 <ModCard
@@ -600,13 +600,13 @@ export default function Home() {
 
         {/* ── Mi Club — staff only ── */}
         {mode === "staff" && (
-          <div className="mb-4">
+          <div className="mb-2">
             <button
               type="button"
               onClick={() => setLocation("/coach/club")}
               data-testid="ucore-home-mi-club"
               className={cn(
-                "w-full flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/60 px-4 py-3 md:py-4",
+                "w-full flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/60 px-4 py-2.5 md:py-4",
                 "text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-card transition-colors",
               )}
             >
@@ -619,8 +619,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── User footer ── */}
-        <div className="pt-4 pb-2 md:pb-6 border-t border-border/50 flex items-center justify-between">
+        {/* ── User footer — solo desktop ── */}
+        <div className="hidden md:flex pt-4 pb-2 md:pb-6 border-t border-border/50 items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-foreground">{displayName}</p>
             {roleLabel ? <p className="text-[10px] text-muted-foreground tracking-wide">{roleLabel}</p> : null}
@@ -630,8 +630,6 @@ export default function Home() {
 
       </main>
       <ModuleNav />
-      {/* Cubre el safe-area-inset-bottom en iOS para evitar franja blanca */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card" style={{ height: "env(safe-area-inset-bottom)", zIndex: 89 }} />
     </div>
   );
 }

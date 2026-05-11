@@ -1,17 +1,18 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Safe-area background: extends app color into iPhone notch/home bar areas */
+/* Safe-area + iOS PWA black-translucent fix.
+   Con viewport-fit=cover + black-translucent, iOS sube el documento
+   env(safe-area-inset-top) px, dejando una franja del color del sistema
+   en el bottom. El fix estándar: min-height compensado + bg en html. */
 html {
   background: hsl(var(--background));
-  /* Fills iOS home indicator area with app background color */
-  background-attachment: fixed;
+  min-height: calc(100% + env(safe-area-inset-top));
+  padding-bottom: env(safe-area-inset-bottom);
 }
-html, body {
+body {
   background: hsl(var(--background));
-  min-height: 100dvh;
   -webkit-tap-highlight-color: transparent;
-  /* Elimina el bounce/rubber-band scroll de iOS WebView */
   overscroll-behavior: none;
   overflow: hidden;
 }

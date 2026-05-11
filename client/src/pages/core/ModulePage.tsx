@@ -139,8 +139,6 @@ export function ModulePageShell(
       </div>
 
       <ModuleNav />
-      {/* Cubre el safe-area-inset-bottom en iOS para evitar franja blanca */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card" style={{ height: "env(safe-area-inset-bottom)", zIndex: 89 }} />
     </div>
   );
 }
