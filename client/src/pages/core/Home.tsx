@@ -464,13 +464,13 @@ export default function Home() {
 
         {/* ── KPI bar — horizontal, siempre visible ── */}
         {mode === "staff" ? (
-          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card dark:bg-card/80 dark:border-border/60 dark:ring-1 dark:ring-border/40 overflow-hidden">
+          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card overflow-hidden">
             <KpiCell value={kpiPlayers}           label={t("home_kpi_players")}   color="default" />
             <KpiCell value={kpiWeekSessions}      label={t("home_kpi_week")}       color="primary" />
             <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")}  color="green"   />
           </div>
         ) : (
-          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card dark:bg-card/80 dark:border-border/60 dark:ring-1 dark:ring-border/40 overflow-hidden">
+          <div className="mb-6 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card overflow-hidden">
             <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
             <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}       color="primary" />
             <KpiCell

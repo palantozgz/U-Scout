@@ -2,6 +2,11 @@
 @import "tw-animate-css";
 
 /* Safe-area background: extends app color into iPhone notch/home bar areas */
+html {
+  background: hsl(var(--background));
+  /* Fills iOS home indicator area with app background color */
+  background-attachment: fixed;
+}
 html, body {
   background: hsl(var(--background));
   min-height: 100dvh;
