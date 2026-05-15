@@ -50,7 +50,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background">
+    <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-card/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3 shadow-sm">
         <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="-ml-2">
