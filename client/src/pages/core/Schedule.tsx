@@ -1,9 +1,12 @@
+import { lazy, Suspense } from "react";
 import { ModulePageShell } from "./ModulePage";
 import { useLocale } from "@/lib/i18n";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState } from "react";
+
+const ScheduleDesktopLazy = lazy(() => import("./ScheduleDesktop"));
 import { useAuth } from "@/lib/useAuth";
 import { useCapabilities, type ClubMembership } from "@/lib/capabilities";
 import { useClub } from "@/lib/club-api";
@@ -164,7 +167,7 @@ const ACTIVITY_TYPE_CONFIG: Record<ScheduleEvent["session_type"], ActivityTypeCo
   },
 };
 
-export default function Schedule() {
+function ScheduleInner() {
   const { t, locale } = useLocale();
   const { profile } = useAuth();
   const clubQ = useClub();
@@ -5089,3 +5092,15 @@ function formatTime(iso: string): string {
   }
 }
 
+
+// ── Thin router — desktop vs mobile ──────────────────────────
+export default function Schedule() {
+  const isDesktop = useIsDesktop();
+  return isDesktop ? (
+    <Suspense fallback={null}>
+      <ScheduleDesktopLazy />
+    </Suspense>
+  ) : (
+    <ScheduleInner />
+  );
+}
