@@ -245,6 +245,7 @@ export default function Schedule() {
 
   const [activeTab, setActiveTab] = useState<"schedule" | "wellness">("schedule");
   const [staffView, setStaffView] = useState<"list" | "planner">("list");
+  const [plannerScrollTick, setPlannerScrollTick] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [sessionDetailEvent, setSessionDetailEvent] = useState<ScheduleEvent | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -1074,7 +1075,7 @@ export default function Schedule() {
     window.setTimeout(tryScroll, 500);
   }, [staffView]);
 
-  // Auto-scroll to today when portrait planner is shown
+  // Auto-scroll to today when portrait planner is shown (or re-clicked)
   useEffect(() => {
     if (staffView !== "planner" || isLandscape) return;
     const timer = window.setTimeout(() => {
@@ -1083,12 +1084,12 @@ export default function Schedule() {
       el?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 200);
     return () => window.clearTimeout(timer);
-  }, [staffView, isLandscape]);
+  }, [staffView, isLandscape, plannerScrollTick]);
 
   const fmtWeekRange = (start: Date) => {
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
-    const fmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+    const fmt = new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" });
     return `${fmt.format(start)} – ${fmt.format(end)}`;
   };
 
@@ -1947,13 +1948,26 @@ export default function Schedule() {
                   <ToggleGroup
                     type="single"
                     value={staffView}
-                    onValueChange={(v) => setStaffView((v as any) || "list")}
+                    onValueChange={(v) => {
+                      if (!v) return; // prevent deselection — tabs always keep a value
+                      setStaffView(v as "list" | "planner");
+                      if (v === "planner") setPlannerScrollTick(t => t + 1);
+                    }}
                     className="justify-start"
                   >
                     <ToggleGroupItem value="list" size="sm" variant="outline" className="h-9 px-3">
                       {t("schedule_view_list")}
                     </ToggleGroupItem>
-                    <ToggleGroupItem value="planner" size="sm" variant="outline" className="h-9 px-3">
+                    <ToggleGroupItem
+                      value="planner"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 px-3"
+                      onClick={() => {
+                        // re-trigger scroll if already on planner (onValueChange won't fire in that case)
+                        if (staffView === "planner") setPlannerScrollTick(t => t + 1);
+                      }}
+                    >
                       {t("schedule_view_planner")}
                     </ToggleGroupItem>
                   </ToggleGroup>
@@ -2156,7 +2170,7 @@ export default function Schedule() {
                                 {new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d)}
                               </p>
                               <p className="text-xs font-semibold text-muted-foreground">
-                                {new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d)}
+                                {new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" }).format(d)}
                               </p>
                               <div className="mt-1 flex items-center justify-center gap-1 flex-wrap">
                                 {(() => {
@@ -2452,7 +2466,7 @@ export default function Schedule() {
                   {days.map((d) => {
                     const dayKey = localDateKey(d);
                     const dayLabel = new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d);
-                    const dateLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d);
+                    const dateLabel = new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" }).format(d);
                     return (
                       <div key={dayKey} style={{ padding: "8px 10px" }}>
                         <div style={{ fontSize: 13, fontWeight: 800 }}>{dayLabel}</div>
@@ -2562,7 +2576,7 @@ export default function Schedule() {
 
                 <div style={{ marginTop: 22, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af" }}>
-                    {new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" }).format(new Date())}
+                    {new Intl.DateTimeFormat(intlLocale, { year: "numeric", month: "short", day: "numeric" }).format(new Date())}
                   </div>
                   <div style={{ fontSize: 11, fontWeight: 800, color: "#9ca3af" }}>U Core</div>
                 </div>
@@ -3197,7 +3211,7 @@ export default function Schedule() {
                     (() => {
                       const d = createDate ? new Date(`${createDate}T00:00`) : null;
                       const labelDay = d ? new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d) : "";
-                      const labelDate = d ? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d) : "";
+                      const labelDate = d ? new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" }).format(d) : "";
                       const mins = typeof createStartMins === "number" ? createStartMins : null;
                       const hour = typeof mins === "number" ? Math.floor(mins / 60) : null;
                       const slot =
@@ -4012,7 +4026,7 @@ export default function Schedule() {
                   start.setDate(start.getDate() + offset * 7);
                   const end = new Date(start);
                   end.setDate(end.getDate() + 6);
-                  const label = `${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(start)}–${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(end)}`;
+                  const label = `${new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" }).format(start)}–${new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" }).format(end)}`;
                   const checked = repeatWeekPlanSelected.has(offset);
                   return (
                     <label key={offset} className="flex items-center justify-between gap-3 text-sm">
