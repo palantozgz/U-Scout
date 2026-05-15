@@ -366,7 +366,7 @@ function App() {
       <TooltipProvider>
         <OfflineBanner />
         <Toaster />
-        <div className={`h-[100dvh] bg-background md:pl-16 lg:pl-56 relative overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${typeof window !== "undefined" && (window as any).Capacitor?.isNativePlatform?.() ? "w-full" : "max-w-md mx-auto shadow-2xl border-x border-border md:max-w-none md:ml-0 md:mr-0 md:shadow-none md:border-x-0"}`}>
+        <div className={`h-[100dvh] bg-background md:pl-12 lg:pl-48 relative overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${typeof window !== "undefined" && (window as any).Capacitor?.isNativePlatform?.() ? "w-full" : "max-w-md mx-auto shadow-2xl border-x border-border md:max-w-none md:ml-0 md:mr-0 md:shadow-none md:border-x-0"}`}>
           {showSplash ? <UCoreBootSplash fadeOut={splashFadeOut} /> : null}
           {previewRole && previewRole !== profile?.role ? (
             <button

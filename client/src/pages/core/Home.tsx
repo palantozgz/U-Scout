@@ -149,6 +149,7 @@ function HomeAlertChip({
 
 export default function Home() {
   const { t, locale } = useLocale();
+  const intlLocale = locale === "es" ? "es" : locale === "zh" ? "zh-CN" : "en";
   const [, setLocation] = useLocation();
   const mode = useHomeMode();
   const { profile, effectiveRole, previewRole } = useAuth();
@@ -299,11 +300,11 @@ export default function Home() {
 
   const dateStr = useMemo(() => {
     try {
-      return new Intl.DateTimeFormat(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date());
+      return new Intl.DateTimeFormat(intlLocale, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date());
     } catch {
       return "";
     }
-  }, []);
+  }, [intlLocale]);
 
   const nextSession = homeSignals.kpis.nextSession;
 
@@ -332,7 +333,7 @@ export default function Home() {
     <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
       <main className="relative z-10 flex flex-col flex-1 w-full max-w-5xl mx-auto overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-10 md:pt-2 px-3 md:px-8 bg-background">
 
-        {/* ── Brand header — visible siempre ── */}
+        {/* ── Brand header — mobile only ── */}
         <ModuleHeader
           module="core"
           tagline={
@@ -340,292 +341,408 @@ export default function Home() {
             locale === "es" ? "Centro de gestión del equipo" :
             "Team management hub"
           }
-          className="md:py-4"
+          className="md:hidden"
         />
 
-        {/* ── Greeting ── */}
-        <div className="pb-2 md:pb-8 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] md:text-xs font-bold tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-1 truncate">
-              {dateStr}
-            </p>
-            <h1 className="text-[24px] md:text-[42px] font-black tracking-tight leading-tight">
-              {t("home_greeting_hi")}, <span className="text-primary">{firstName}</span> 👋
-            </h1>
-          </div>
-        </div>
+        {/* ── Desktop 2-column layout wrapper ── */}
+        <div className="md:flex md:gap-6 lg:gap-8 md:flex-1 md:min-h-0">
 
-        {/* ── Smart alerts ── */}
-        {mode === "staff" ? (() => {
-          const ranking = homeSignals.smartActionsRanking;
-          if (!ranking) return null;
-          const items = [ranking.primary, ranking.secondary].filter(Boolean) as typeof ranking.primary[];
-          const L = {
-            attendance: locale === "zh"
-              ? `${homeSignals.kpis.pendingAttendanceCount} 人未确认今日出勤`
-              : locale === "es"
-              ? `${homeSignals.kpis.pendingAttendanceCount} confirmaciones de asistencia pendientes`
-              : `${homeSignals.kpis.pendingAttendanceCount} attendance responses pending today`,
-            wellness: locale === "zh"
-              ? `Wellness ${kpiWellnessPct}% · 部分队员未提交`
-              : locale === "es"
-              ? `Wellness al ${kpiWellnessPct}% — revisar antes del entreno`
-              : `Team wellness at ${kpiWellnessPct}% — check before training`,
-            createSession: locale === "zh"
-              ? "今天没有安排训练 — 规划本周"
-              : locale === "es"
-              ? "Sin sesiones hoy — planifica la semana"
-              : "No sessions today — plan the week",
-            club: locale === "zh"
-              ? "球队名单有变动"
-              : locale === "es"
-              ? "Cambios en la plantilla"
-              : "Roster changes to review",
-          };
-          const cfg = {
-            attendance: { icon: "⚠️", tone: "amber" as const, route: "/schedule" },
-            wellness:   { icon: "🫀", tone: "amber" as const, route: "/schedule" },
-            createSession: { icon: "📅", tone: "neutral" as const, route: "/schedule" },
-            club:       { icon: "👥", tone: "blue" as const, route: "/coach/club" },
-          };
-          return (
-            <div className="mb-3 md:mb-8 flex flex-wrap gap-2 md:gap-4">
-              {items.map((action) => {
-                const c = cfg[action.kind];
+          {/* ── LEFT column: greeting + next event + module grid ── */}
+          <div className="md:flex md:flex-col md:flex-1 md:min-w-0">
+
+            {/* Greeting */}
+            <div className="pb-2 md:pb-8 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] md:text-xs font-bold tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-1 truncate">
+                  {dateStr}
+                </p>
+                <h1 className="text-[24px] md:text-[42px] font-black tracking-tight leading-tight">
+                  {t("home_greeting_hi")}, <span className="text-primary">{firstName}</span> 👋
+                </h1>
+              </div>
+            </div>
+
+            {/* ── Mobile-only: smart alerts + KPI bar ── */}
+            <div className="md:hidden">
+              {mode === "staff" ? (() => {
+                const ranking = homeSignals.smartActionsRanking;
+                if (!ranking) return null;
+                const items = [ranking.primary, ranking.secondary].filter(Boolean) as typeof ranking.primary[];
+                const L = {
+                  attendance: locale === "zh"
+                    ? `${homeSignals.kpis.pendingAttendanceCount} 人未确认今日出勤`
+                    : locale === "es"
+                    ? `${homeSignals.kpis.pendingAttendanceCount} confirmaciones de asistencia pendientes`
+                    : `${homeSignals.kpis.pendingAttendanceCount} attendance responses pending today`,
+                  wellness: locale === "zh"
+                    ? `Wellness ${kpiWellnessPct}% · 部分队员未提交`
+                    : locale === "es"
+                    ? `Wellness al ${kpiWellnessPct}% — revisar antes del entreno`
+                    : `Team wellness at ${kpiWellnessPct}% — check before training`,
+                  createSession: locale === "zh"
+                    ? "今天没有安排训练 — 规划本周"
+                    : locale === "es"
+                    ? "Sin sesiones hoy — planifica la semana"
+                    : "No sessions today — plan the week",
+                  club: locale === "zh"
+                    ? "球队名单有变动"
+                    : locale === "es"
+                    ? "Cambios en la plantilla"
+                    : "Roster changes to review",
+                };
+                const cfg = {
+                  attendance: { icon: "⚠️", tone: "amber" as const, route: "/schedule" },
+                  wellness:   { icon: "🫀", tone: "amber" as const, route: "/schedule" },
+                  createSession: { icon: "📅", tone: "neutral" as const, route: "/schedule" },
+                  club:       { icon: "👥", tone: "blue" as const, route: "/coach/club" },
+                };
                 return (
-                  <HomeAlertChip
-                    key={action.kind}
-                    icon={c.icon}
-                    label={L[action.kind]}
-                    tone={c.tone}
-                    onClick={() => setLocation(c.route)}
-                  />
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {items.map((action) => {
+                      const c = cfg[action.kind];
+                      return (
+                        <HomeAlertChip
+                          key={action.kind}
+                          icon={c.icon}
+                          label={L[action.kind]}
+                          tone={c.tone}
+                          onClick={() => setLocation(c.route)}
+                        />
+                      );
+                    })}
+                  </div>
                 );
-              })}
-            </div>
-          );
-        })() : (() => {
-          const entry = wellnessEntryQ.data;
-          const chips: ReactNode[] = [];
+              })() : (() => {
+                const entry = wellnessEntryQ.data;
+                const chips: ReactNode[] = [];
+                if (!wellnessSubmittedToday) {
+                  const label = locale === "zh" ? "记得发送今日健康状态"
+                    : locale === "es" ? "Pendiente: envía tu wellness de hoy"
+                    : "Don't forget to log your wellness today";
+                  chips.push(<HomeAlertChip key="wellness-pending" icon="🫀" label={label} tone="amber" onClick={() => setLocation("/schedule")} />);
+                } else if (entry) {
+                  const sleep = entry.sleep_quality;
+                  const readiness = entry.mental_readiness;
+                  const energy = entry.energy_level;
+                  let label: string;
+                  let sub: string | undefined;
+                  if (sleep <= 2) {
+                    label = locale === "zh" ? "今天睡眠不足 — 注意休息" : locale === "es" ? "Parece que el descanso está costando" : "Looks like rest has been tough lately";
+                    sub = locale === "zh" ? "睡眠好才能表现好 ✓" : locale === "es" ? "Wellness enviado · cuídate esta noche" : "Wellness logged · take care tonight";
+                  } else if (readiness >= 4 && energy >= 4) {
+                    label = locale === "zh" ? "今天感觉很好 💪" : locale === "es" ? "Te sientes bien hoy · sigue así" : "You're feeling strong today · keep it up";
+                    sub = locale === "zh" ? "健康状态已提交 ✓" : locale === "es" ? "Wellness enviado ✓" : "Wellness logged ✓";
+                  } else {
+                    label = locale === "zh" ? "健康状态已提交 ✓" : locale === "es" ? "Wellness de hoy enviado ✓" : "Today's wellness logged ✓";
+                  }
+                  chips.push(<HomeAlertChip key="wellness-done" icon="✅" label={label} sub={sub} tone="emerald" />);
+                }
+                if ((newReportsCount ?? 0) > 0) {
+                  const label = locale === "zh"
+                    ? `${newReportsCount} 份新球探报告`
+                    : locale === "es"
+                    ? `${newReportsCount} informe${(newReportsCount ?? 0) > 1 ? "s" : ""} nuevo${(newReportsCount ?? 0) > 1 ? "s" : ""} en Scout`
+                    : `${newReportsCount} new report${(newReportsCount ?? 0) > 1 ? "s" : ""} in Scout`;
+                  chips.push(<HomeAlertChip key="reports" icon="📋" label={label} tone="blue" onClick={() => setLocation("/scout")} />);
+                }
+                if (!chips.length) return null;
+                return <div className="mb-3 flex flex-wrap gap-2">{chips}</div>;
+              })()}
 
-          if (!wellnessSubmittedToday) {
-            const label = locale === "zh" ? "记得发送今日健康状态"
-              : locale === "es" ? "Pendiente: envía tu wellness de hoy"
-              : "Don't forget to log your wellness today";
-            chips.push(
-              <HomeAlertChip key="wellness-pending" icon="🫀" label={label} tone="amber"
-                onClick={() => setLocation("/schedule")} />
-            );
-          } else if (entry) {
-            const sleep = entry.sleep_quality;
-            const readiness = entry.mental_readiness;
-            const energy = entry.energy_level;
-            let label: string;
-            let sub: string | undefined;
-            if (sleep <= 2) {
-              label = locale === "zh" ? "今天睡眠不足 — 注意休息"
-                : locale === "es" ? "Parece que el descanso está costando"
-                : "Looks like rest has been tough lately";
-              sub = locale === "zh" ? "睡眠好才能表现好 ✓"
-                : locale === "es" ? "Wellness enviado · cuídate esta noche"
-                : "Wellness logged · take care tonight";
-            } else if (readiness >= 4 && energy >= 4) {
-              label = locale === "zh" ? "今天感觉很好 💪"
-                : locale === "es" ? "Te sientes bien hoy · sigue así"
-                : "You're feeling strong today · keep it up";
-              sub = locale === "zh" ? "健康状态已提交 ✓"
-                : locale === "es" ? "Wellness enviado ✓"
-                : "Wellness logged ✓";
-            } else {
-              label = locale === "zh" ? "健康状态已提交 ✓"
-                : locale === "es" ? "Wellness de hoy enviado ✓"
-                : "Today's wellness logged ✓";
-            }
-            chips.push(
-              <HomeAlertChip key="wellness-done" icon="✅" label={label} sub={sub} tone="emerald" />
-            );
-          }
-
-          if ((newReportsCount ?? 0) > 0) {
-            const label = locale === "zh"
-              ? `${newReportsCount} 份新球探报告`
-              : locale === "es"
-              ? `${newReportsCount} informe${(newReportsCount ?? 0) > 1 ? "s" : ""} nuevo${(newReportsCount ?? 0) > 1 ? "s" : ""} en Scout`
-              : `${newReportsCount} new report${(newReportsCount ?? 0) > 1 ? "s" : ""} in Scout`;
-            chips.push(
-              <HomeAlertChip key="reports" icon="📋" label={label} tone="blue"
-                onClick={() => setLocation("/scout")} />
-            );
-          }
-
-          if (!chips.length) return null;
-          return <div className="mb-3 md:mb-8 flex flex-wrap gap-2 md:gap-4">{chips}</div>;
-        })()}
-
-        {/* ── KPI bar — horizontal, siempre visible ── */}
-        {mode === "staff" ? (
-          <div className="mb-3 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card">
-            <KpiCell value={kpiPlayers}           label={t("home_kpi_players")}   color="default" />
-            <KpiCell value={kpiWeekSessions}      label={t("home_kpi_week")}       color="primary" />
-            <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")}  color="green"   />
-          </div>
-        ) : (
-          <div className="mb-3 md:mb-8 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card">
-            <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
-            <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}       color="primary" />
-            <KpiCell
-              value={wellnessSubmittedToday ? "✓" : "!"}
-              label={t("home_kpi_wellness")}
-              color={wellnessSubmittedToday ? "green" : "primary"}
-            />
-          </div>
-        )}
-
-        {/* ── Próximo evento — solo desktop ── */}
-        {nextSession ? (
-          <button
-            type="button"
-            onClick={() => setLocation("/schedule")}
-            className="hidden md:block mb-6 md:mb-8 w-full text-left rounded-xl border border-border bg-card p-4 md:p-5 hover:border-primary/50 md:shadow-sm md:shadow-black/[0.04] md:ring-1 md:ring-border/40 dark:md:shadow-none dark:md:ring-border/35 transition-colors active:scale-[0.99]"
-            data-testid="ucore-home-next-event"
-          >
-            <div className="flex items-center gap-1.5 mb-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-              <span className="text-[9px] md:text-[11px] font-black tracking-[1.5px] uppercase text-primary">{t("home_next_event_label")}</span>
-            </div>
-            <p className="text-base md:text-lg font-black text-foreground tracking-tight leading-snug">{nextSession.title}</p>
-            <div className="flex items-center gap-3 mt-2 text-[10px] md:text-xs text-muted-foreground font-semibold">
-              {nextSessionTimeStr && (
-                <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{nextSessionTimeStr}</span>
-              )}
-              {nextSession.location?.trim() && (
-                <span className="flex items-center gap-1 truncate"><MapPin className="w-3 h-3 shrink-0" />{nextSession.location}</span>
-              )}
-            </div>
-            {daysUntilNext !== null && (
-              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/60">
-                <div>
-                  <p className="text-sm font-black text-foreground">{daysUntilNext}</p>
-                  <p className="text-[8px] md:text-[10px] uppercase tracking-[1px] text-muted-foreground">{t("home_event_days")}</p>
+              {mode === "staff" ? (
+                <div className="mb-3 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card">
+                  <KpiCell value={kpiPlayers}           label={t("home_kpi_players")}   color="default" />
+                  <KpiCell value={kpiWeekSessions}      label={t("home_kpi_week")}       color="primary" />
+                  <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")}  color="green"   />
                 </div>
-                {mode === "staff" && homeSignals.kpis.pendingAttendanceCount > 0 && (
-                  <div>
-                    <p className="text-sm font-black text-foreground">{homeSignals.kpis.pendingAttendanceCount}</p>
-                    <p className="text-[8px] md:text-[10px] uppercase tracking-[1px] text-muted-foreground">{t("home_event_pending")}</p>
+              ) : (
+                <div className="mb-3 grid grid-cols-3 divide-x divide-border rounded-xl border-2 border-primary/20 bg-card">
+                  <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
+                  <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}       color="primary" />
+                  <KpiCell
+                    value={wellnessSubmittedToday ? "✓" : "!"}
+                    label={t("home_kpi_wellness")}
+                    color={wellnessSubmittedToday ? "green" : "primary"}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* ── Next event — desktop left col ── */}
+            {nextSession ? (
+              <button
+                type="button"
+                onClick={() => setLocation("/schedule")}
+                className="hidden md:block mb-8 w-full text-left rounded-xl border border-border bg-card p-5 hover:border-primary/50 shadow-sm shadow-black/[0.04] ring-1 ring-border/40 dark:shadow-none dark:ring-border/35 transition-colors active:scale-[0.99]"
+                data-testid="ucore-home-next-event"
+              >
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  <span className="text-[11px] font-black tracking-[1.5px] uppercase text-primary">{t("home_next_event_label")}</span>
+                </div>
+                <p className="text-lg font-black text-foreground tracking-tight leading-snug">{nextSession.title}</p>
+                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground font-semibold">
+                  {nextSessionTimeStr && (
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{nextSessionTimeStr}</span>
+                  )}
+                  {nextSession.location?.trim() && (
+                    <span className="flex items-center gap-1 truncate"><MapPin className="w-3 h-3 shrink-0" />{nextSession.location}</span>
+                  )}
+                </div>
+                {daysUntilNext !== null && (
+                  <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/60">
+                    <div>
+                      <p className="text-sm font-black text-foreground">{daysUntilNext}</p>
+                      <p className="text-[10px] uppercase tracking-[1px] text-muted-foreground">{t("home_event_days")}</p>
+                    </div>
+                    {mode === "staff" && homeSignals.kpis.pendingAttendanceCount > 0 && (
+                      <div>
+                        <p className="text-sm font-black text-foreground">{homeSignals.kpis.pendingAttendanceCount}</p>
+                        <p className="text-[10px] uppercase tracking-[1px] text-muted-foreground">{t("home_event_pending")}</p>
+                      </div>
+                    )}
+                    <div className="ml-auto">
+                      <span className="text-[9px] font-bold text-emerald-500">● {t("home_event_ok")}</span>
+                    </div>
                   </div>
                 )}
-                <div className="ml-auto">
-                  <span className="text-[9px] font-bold text-emerald-500">● {t("home_event_ok")}</span>
-                </div>
+              </button>
+            ) : null}
+
+            {/* ── Module grid 2×2 ── */}
+            <div className="mb-2 md:mb-0 md:flex-1 md:flex md:flex-col md:pb-2">
+              <p className="text-[9px] md:text-[11px] font-black tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-2">{t("home_modules_label")}</p>
+              <div className="grid grid-cols-2 gap-2 md:gap-4 md:flex-1 md:[grid-auto-rows:1fr]">
+                {mode === "staff" ? (
+                  <>
+                    <ModCard
+                      icon={<CalendarDays className="w-6 h-6 md:w-7 md:h-7" />}
+                      title={t("ucore_card_schedule_title")}
+                      subtitle={homeSignals.kpis.sessionsTodayCount > 0
+                        ? t("home_sessions_today_count").replace("{count}", String(homeSignals.kpis.sessionsTodayCount))
+                        : t("schedule_empty_next_sessions")}
+                      badge={homeSignals.kpis.sessionsTodayCount > 0 ? t("home_badge_today") : undefined}
+                      onClick={() => setLocation("/schedule")}
+                      testId="ucore-home-card-schedule"
+                    />
+                    <ModCard
+                      icon={<Target className="w-6 h-6 md:w-7 md:h-7" />}
+                      title={t("ucore_card_scout_title")}
+                      subtitle={t("ucore_card_scout_sub_staff")}
+                      onClick={() => setLocation("/scout")}
+                      testId="ucore-home-card-scout"
+                    />
+                    <ModCard
+                      icon={<BarChart3 className="w-6 h-6 md:w-7 md:h-7" />}
+                      title={t("ucore_card_stats_title")}
+                      subtitle={t("ucore_card_stats_sub")}
+                      onClick={() => setLocation("/stats")}
+                      testId="ucore-home-card-stats"
+                    />
+                    <ModCard
+                      icon={<BookOpen className="w-6 h-6 md:w-7 md:h-7" />}
+                      title="U Playbook"
+                      subtitle={t("home_playbook_sub")}
+                      comingSoon
+                      onClick={() => {}}
+                      testId="ucore-home-card-playbook"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ModCard
+                      icon={<CalendarDays className="w-6 h-6 md:w-7 md:h-7" />}
+                      title={t("ucore_card_schedule_title")}
+                      subtitle={nextSession ? nextSession.title : t("schedule_empty_next_sessions")}
+                      onClick={() => setLocation("/schedule")}
+                      testId="ucore-home-card-schedule"
+                    />
+                    <ModCard
+                      icon={<Heart className="w-6 h-6 md:w-7 md:h-7" />}
+                      title={t("home_wellness_today")}
+                      subtitle={wellnessSubmittedToday ? t("schedule_wellness_submitted") : t("schedule_wellness_pending")}
+                      onClick={() => setLocation("/player/wellness")}
+                      testId="ucore-home-card-wellness"
+                    />
+                    <ModCard
+                      icon={<Target className="w-6 h-6 md:w-7 md:h-7" />}
+                      title={t("ucore_card_scout_title")}
+                      subtitle={(newReportsCount ?? 0) > 0
+                        ? t("ucore_slot_reports_count").replace("{count}", String(newReportsCount ?? 0))
+                        : t("ucore_card_scout_sub_player")}
+                      onClick={() => setLocation("/scout")}
+                      testId="ucore-home-card-scout"
+                    />
+                    <ModCard
+                      icon={<BarChart3 className="w-6 h-6 md:w-7 md:h-7" />}
+                      title={t("ucore_card_stats_title")}
+                      subtitle={t("ucore_card_stats_sub")}
+                      onClick={() => setLocation("/stats")}
+                      testId="ucore-home-card-stats"
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Mi Club — mobile only */}
+            {mode === "staff" && (
+              <div className="md:hidden mb-2">
+                <button
+                  type="button"
+                  onClick={() => setLocation("/coach/club")}
+                  data-testid="ucore-home-mi-club"
+                  className={cn(
+                    "w-full flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/60 px-4 py-2.5",
+                    "text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-card transition-colors",
+                  )}
+                >
+                  <Building2 className="w-4 h-4" />
+                  <span>{t("ucore_nav_club")}</span>
+                  {showClubActivityDot && (
+                    <span className="w-2 h-2 rounded-full bg-destructive ml-1" />
+                  )}
+                </button>
               </div>
             )}
-          </button>
-        ) : null}
 
-        {/* ── Module grid 2×2 ── */}
-        <div className="mb-2 md:mb-0 md:flex-1 md:flex md:flex-col md:pb-2">
-          <p className="text-[9px] md:text-[11px] font-black tracking-[2px] md:tracking-wide uppercase text-muted-foreground mb-2">{t("home_modules_label")}</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 md:flex-1 md:[grid-auto-rows:1fr]">
+          </div>
+
+          {/* ── RIGHT column — desktop only ── */}
+          <div className="hidden md:flex flex-col gap-4 w-64 lg:w-72 shrink-0 pt-1">
+
+            {/* KPI bar — vertical stack */}
             {mode === "staff" ? (
-              <>
-                <ModCard
-                  icon={<CalendarDays className="w-6 h-6 md:w-7 md:h-7" />}
-                  title={t("ucore_card_schedule_title")}
-                  subtitle={homeSignals.kpis.sessionsTodayCount > 0
-                    ? t("home_sessions_today_count").replace("{count}", String(homeSignals.kpis.sessionsTodayCount))
-                    : t("schedule_empty_next_sessions")}
-                  badge={homeSignals.kpis.sessionsTodayCount > 0 ? t("home_badge_today") : undefined}
-                  onClick={() => setLocation("/schedule")}
-                  testId="ucore-home-card-schedule"
-                />
-                <ModCard
-                  icon={<Target className="w-6 h-6 md:w-7 md:h-7" />}
-                  title={t("ucore_card_scout_title")}
-                  subtitle={t("ucore_card_scout_sub_staff")}
-                  onClick={() => setLocation("/scout")}
-                  testId="ucore-home-card-scout"
-                />
-                <ModCard
-                  icon={<BarChart3 className="w-6 h-6 md:w-7 md:h-7" />}
-                  title={t("ucore_card_stats_title")}
-                  subtitle={t("ucore_card_stats_sub")}
-                  onClick={() => setLocation("/stats")}
-                  testId="ucore-home-card-stats"
-                />
-                <ModCard
-                  icon={<BookOpen className="w-6 h-6 md:w-7 md:h-7" />}
-                  title="U Playbook"
-                  subtitle={t("home_playbook_sub")}
-                  comingSoon
-                  onClick={() => {}}
-                  testId="ucore-home-card-playbook"
-                />
-              </>
+              <div className="rounded-xl border-2 border-primary/20 bg-card overflow-hidden divide-y divide-border">
+                <KpiCell value={kpiPlayers}           label={t("home_kpi_players")}   color="default" />
+                <KpiCell value={kpiWeekSessions}      label={t("home_kpi_week")}       color="primary" />
+                <KpiCell value={`${kpiWellnessPct}%`} label={t("home_kpi_wellness")}  color="green"   />
+              </div>
             ) : (
-              <>
-                <ModCard
-                  icon={<CalendarDays className="w-6 h-6 md:w-7 md:h-7" />}
-                  title={t("ucore_card_schedule_title")}
-                  subtitle={nextSession ? nextSession.title : t("schedule_empty_next_sessions")}
-                  onClick={() => setLocation("/schedule")}
-                  testId="ucore-home-card-schedule"
+              <div className="rounded-xl border-2 border-primary/20 bg-card overflow-hidden divide-y divide-border">
+                <KpiCell value={daysUntilNext ?? "—"} label={t("home_kpi_next_session")} color="default" />
+                <KpiCell value={newReportsCount ?? 0} label={t("home_kpi_reports")}       color="primary" />
+                <KpiCell
+                  value={wellnessSubmittedToday ? "✓" : "!"}
+                  label={t("home_kpi_wellness")}
+                  color={wellnessSubmittedToday ? "green" : "primary"}
                 />
-                <ModCard
-                  icon={<Heart className="w-6 h-6 md:w-7 md:h-7" />}
-                  title={t("home_wellness_today")}
-                  subtitle={wellnessSubmittedToday ? t("schedule_wellness_submitted") : t("schedule_wellness_pending")}
-                  onClick={() => setLocation("/player/wellness")}
-                  testId="ucore-home-card-wellness"
-                />
-                <ModCard
-                  icon={<Target className="w-6 h-6 md:w-7 md:h-7" />}
-                  title={t("ucore_card_scout_title")}
-                  subtitle={(newReportsCount ?? 0) > 0
-                    ? t("ucore_slot_reports_count").replace("{count}", String(newReportsCount ?? 0))
-                    : t("ucore_card_scout_sub_player")}
-                  onClick={() => setLocation("/scout")}
-                  testId="ucore-home-card-scout"
-                />
-                <ModCard
-                  icon={<BarChart3 className="w-6 h-6 md:w-7 md:h-7" />}
-                  title={t("ucore_card_stats_title")}
-                  subtitle={t("ucore_card_stats_sub")}
-                  onClick={() => setLocation("/stats")}
-                  testId="ucore-home-card-stats"
-                />
-              </>
+              </div>
             )}
-          </div>
-        </div>
 
-        {/* ── Mi Club — staff only ── */}
-        {mode === "staff" && (
-          <div className="mb-2">
-            <button
-              type="button"
-              onClick={() => setLocation("/coach/club")}
-              data-testid="ucore-home-mi-club"
-              className={cn(
-                "w-full flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/60 px-4 py-2.5 md:py-4",
-                "text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-card transition-colors",
-              )}
-            >
-              <Building2 className="w-4 h-4" />
-              <span>{t("ucore_nav_club")}</span>
-              {showClubActivityDot && (
-                <span className="w-2 h-2 rounded-full bg-destructive ml-1" />
-              )}
-            </button>
-          </div>
-        )}
+            {/* Smart alerts — desktop */}
+            <div className="flex flex-col gap-2">
+              {mode === "staff" ? (() => {
+                const ranking = homeSignals.smartActionsRanking;
+                if (!ranking) return null;
+                const items = [ranking.primary, ranking.secondary].filter(Boolean) as typeof ranking.primary[];
+                const L = {
+                  attendance: locale === "zh"
+                    ? `${homeSignals.kpis.pendingAttendanceCount} 人未确认今日出勤`
+                    : locale === "es"
+                    ? `${homeSignals.kpis.pendingAttendanceCount} confirmaciones de asistencia pendientes`
+                    : `${homeSignals.kpis.pendingAttendanceCount} attendance responses pending today`,
+                  wellness: locale === "zh"
+                    ? `Wellness ${kpiWellnessPct}% · 部分队员未提交`
+                    : locale === "es"
+                    ? `Wellness al ${kpiWellnessPct}% — revisar antes del entreno`
+                    : `Team wellness at ${kpiWellnessPct}% — check before training`,
+                  createSession: locale === "zh"
+                    ? "今天没有安排训练 — 规划本周"
+                    : locale === "es"
+                    ? "Sin sesiones hoy — planifica la semana"
+                    : "No sessions today — plan the week",
+                  club: locale === "zh"
+                    ? "球队名单有变动"
+                    : locale === "es"
+                    ? "Cambios en la plantilla"
+                    : "Roster changes to review",
+                };
+                const cfg = {
+                  attendance: { icon: "⚠️", tone: "amber" as const, route: "/schedule" },
+                  wellness:   { icon: "🫀", tone: "amber" as const, route: "/schedule" },
+                  createSession: { icon: "📅", tone: "neutral" as const, route: "/schedule" },
+                  club:       { icon: "👥", tone: "blue" as const, route: "/coach/club" },
+                };
+                return (
+                  <>
+                    {items.map((action) => {
+                      const c = cfg[action.kind];
+                      return (
+                        <HomeAlertChip
+                          key={action.kind}
+                          icon={c.icon}
+                          label={L[action.kind]}
+                          tone={c.tone}
+                          onClick={() => setLocation(c.route)}
+                        />
+                      );
+                    })}
+                  </>
+                );
+              })() : (() => {
+                const entry = wellnessEntryQ.data;
+                const chips: ReactNode[] = [];
+                if (!wellnessSubmittedToday) {
+                  const label = locale === "zh" ? "记得发送今日健康状态" : locale === "es" ? "Pendiente: envía tu wellness de hoy" : "Don't forget to log your wellness today";
+                  chips.push(<HomeAlertChip key="wellness-pending" icon="🫀" label={label} tone="amber" onClick={() => setLocation("/schedule")} />);
+                } else if (entry) {
+                  const sleep = entry.sleep_quality;
+                  const readiness = entry.mental_readiness;
+                  const energy = entry.energy_level;
+                  let label: string;
+                  let sub: string | undefined;
+                  if (sleep <= 2) {
+                    label = locale === "zh" ? "今天睡眠不足 — 注意休息" : locale === "es" ? "Parece que el descanso está costando" : "Looks like rest has been tough lately";
+                    sub = locale === "zh" ? "睡眠好才能表现好 ✓" : locale === "es" ? "Wellness enviado · cuídate esta noche" : "Wellness logged · take care tonight";
+                  } else if (readiness >= 4 && energy >= 4) {
+                    label = locale === "zh" ? "今天感觉很好 💪" : locale === "es" ? "Te sientes bien hoy · sigue así" : "You're feeling strong today · keep it up";
+                    sub = locale === "zh" ? "健康状态已提交 ✓" : locale === "es" ? "Wellness enviado ✓" : "Wellness logged ✓";
+                  } else {
+                    label = locale === "zh" ? "健康状态已提交 ✓" : locale === "es" ? "Wellness de hoy enviado ✓" : "Today's wellness logged ✓";
+                  }
+                  chips.push(<HomeAlertChip key="wellness-done" icon="✅" label={label} sub={sub} tone="emerald" />);
+                }
+                if ((newReportsCount ?? 0) > 0) {
+                  const label = locale === "zh"
+                    ? `${newReportsCount} 份新球探报告`
+                    : locale === "es"
+                    ? `${newReportsCount} informe${(newReportsCount ?? 0) > 1 ? "s" : ""} nuevo${(newReportsCount ?? 0) > 1 ? "s" : ""} en Scout`
+                    : `${newReportsCount} new report${(newReportsCount ?? 0) > 1 ? "s" : ""} in Scout`;
+                  chips.push(<HomeAlertChip key="reports" icon="📋" label={label} tone="blue" onClick={() => setLocation("/scout")} />);
+                }
+                return chips.length ? <>{chips}</> : null;
+              })()}
+            </div>
 
-        {/* ── User footer — solo desktop ── */}
-        <div className="hidden md:flex pt-4 pb-2 md:pb-6 border-t border-border/50 items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-foreground">{displayName}</p>
-            {roleLabel ? <p className="text-[10px] text-muted-foreground tracking-wide">{roleLabel}</p> : null}
+            {/* Mi Club — staff desktop */}
+            {mode === "staff" && (
+              <button
+                type="button"
+                onClick={() => setLocation("/coach/club")}
+                data-testid="ucore-home-mi-club"
+                className={cn(
+                  "w-full flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/60 px-4 py-3",
+                  "text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-card transition-colors",
+                )}
+              >
+                <Building2 className="w-4 h-4" />
+                <span>{t("ucore_nav_club")}</span>
+                {showClubActivityDot && (
+                  <span className="w-2 h-2 rounded-full bg-destructive ml-1" />
+                )}
+              </button>
+            )}
+
+            {/* User footer */}
+            <div className="mt-auto pt-4 pb-2 border-t border-border/50">
+              <p className="text-xs font-semibold text-foreground">{displayName}</p>
+              {roleLabel ? <p className="text-[10px] text-muted-foreground tracking-wide">{roleLabel}</p> : null}
+              <span className="text-[9px] font-bold text-muted-foreground/50 tracking-widest uppercase block mt-1">U CORE</span>
+            </div>
+
           </div>
-          <span className="text-[9px] font-bold text-muted-foreground/50 tracking-widest uppercase">U CORE</span>
+
         </div>
 
       </main>

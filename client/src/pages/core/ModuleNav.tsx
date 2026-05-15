@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Home, Target, CalendarDays, BarChart3, BookOpen } from "lucide-react";
 import { useLocale } from "@/lib/i18n";
+import { useAuth } from "@/lib/useAuth";
 
 type NavItem = {
   key: string;
@@ -30,6 +31,14 @@ export function ModuleNav() {
   const [loc, setLocation] = useLocation();
   const items = useModuleNavItems();
   const isFive = items.length === 5;
+  const { profile, effectiveRole } = useAuth();
+
+  const firstName = (profile?.username?.trim() || "").split(" ")[0] || profile?.email?.split("@")[0] || "";
+  const roleStr =
+    effectiveRole === "head_coach" ? "Head Coach" :
+    effectiveRole === "coach"      ? "Coach" :
+    effectiveRole === "player"     ? "Player" :
+    effectiveRole === "master"     ? "Admin" : "";
 
   const navItems = items.map((it) => {
     const active =
@@ -82,7 +91,7 @@ export function ModuleNav() {
 
       {/* ── Desktop md+: sidebar vertical izquierda ────────────────── */}
       <nav
-        className="hidden md:flex fixed left-0 top-0 bottom-0 z-[90] w-16 lg:w-56 flex-col bg-card/95 backdrop-blur-md pt-6 pb-6 gap-0.5"
+        className="hidden md:flex fixed left-0 top-0 bottom-0 z-[90] w-12 lg:w-48 flex-col bg-card/95 backdrop-blur-md pt-6 pb-6 gap-0.5"
         style={{ borderRight: "1px solid hsl(var(--border) / 0.6)" }}
       >
         {/* Brand */}
@@ -100,7 +109,7 @@ export function ModuleNav() {
             type="button"
             onClick={() => setLocation(it.href)}
             className={cn(
-              "mx-1.5 lg:mx-2 min-h-11 rounded-lg flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 transition-colors relative select-none",
+              "mx-1 lg:mx-2 min-h-11 rounded-lg flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 transition-colors relative select-none",
               it.active
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent",
@@ -115,6 +124,17 @@ export function ModuleNav() {
             <span className="hidden lg:block text-sm font-semibold leading-none truncate">{it.label}</span>
           </button>
         ))}
+
+        {/* User footer — expanded sidebar (lg) only */}
+        {firstName && (
+          <div
+            className="hidden lg:block mt-auto pt-3 mx-3"
+            style={{ borderTop: "1px solid hsl(var(--border) / 0.3)" }}
+          >
+            <p className="text-xs font-semibold text-foreground truncate">{firstName}</p>
+            {roleStr && <p className="text-[10px] text-muted-foreground tracking-wide truncate">{roleStr}</p>}
+          </div>
+        )}
       </nav>
     </>
   );
