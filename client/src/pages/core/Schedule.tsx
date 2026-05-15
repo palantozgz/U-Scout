@@ -1,6 +1,8 @@
 import { ModulePageShell } from "./ModulePage";
 import { useLocale } from "@/lib/i18n";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
+import { useIsDesktop } from "@/lib/useIsDesktop";
+import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/useAuth";
 import { useCapabilities, type ClubMembership } from "@/lib/capabilities";
@@ -184,6 +186,7 @@ export default function Schedule() {
 
   const caps = useCapabilities({ membership });
   const isPlayer = caps.canUsePlayerUX;
+  const isDesktop = useIsDesktop();
   const canCreateSession = caps.canCreateEvent;
   const canExportWeekImage =
     !isPlayer &&
@@ -1511,8 +1514,122 @@ export default function Schedule() {
   const playerSignupKey = (club: string, eventId: string, user: string) => `uscout-schedule:signup:${club}:${eventId}:${user}`;
   const playerGroupKey = (club: string, eventId: string, user: string) => `uscout-schedule:group:${club}:${eventId}:${user}`;
 
+  // ── Desktop week strip & panel data ──────────────────────────
+  const schedWeekDays = useMemo(() => {
+    const now = new Date();
+    const dow = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((dow + 6) % 7));
+    monday.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return d;
+    });
+  }, []);
+
+  const schedSessionDateSet = useMemo(() => {
+    const s = new Set<string>();
+    (weekEventsQ.data ?? []).forEach((ev) => s.add(new Date(ev.starts_at).toDateString()));
+    return s;
+  }, [weekEventsQ.data]);
+
+  const schedTodayKey = new Date().toDateString();
+
+  const kpiWellnessPct = wellnessPctQ.data?.pct ?? 0;
+
+  const desktopPanel = isDesktop ? (
+    <div className="flex flex-col gap-5 p-5">
+      {/* Week strip */}
+      <div>
+        <p className="text-[10px] font-black tracking-[2px] uppercase text-muted-foreground mb-3">
+          {locale === "zh" ? "本周" : locale === "es" ? "Esta semana" : "This week"}
+        </p>
+        <div className="flex gap-1">
+          {schedWeekDays.map((d) => {
+            const isToday = d.toDateString() === schedTodayKey;
+            const hasSess = schedSessionDateSet.has(d.toDateString());
+            const dayName = new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d);
+            return (
+              <div key={d.toDateString()} className={cn(
+                "flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-xl flex-1",
+                isToday ? "bg-primary/10" : "",
+              )}>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wide", isToday ? "text-primary" : "text-muted-foreground")}>{dayName}</span>
+                <span className={cn("text-sm font-black leading-none", isToday ? "text-primary" : "text-foreground/70")}>{d.getDate()}</span>
+                <span className={cn("w-1.5 h-1.5 rounded-full", hasSess ? isToday ? "bg-primary" : "bg-primary/50" : "bg-transparent")} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Today's sessions */}
+      <div>
+        <p className="text-[10px] font-black tracking-[2px] uppercase text-muted-foreground mb-3">
+          {locale === "zh" ? "今天" : locale === "es" ? "Hoy" : "Today"}
+        </p>
+        {(todayEventsQ.data ?? []).length === 0 ? (
+          <p className="text-sm text-muted-foreground font-semibold">
+            {locale === "zh" ? "今天没有安排" : locale === "es" ? "Sin sesiones hoy" : "No sessions today"}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {(todayEventsQ.data ?? []).map((ev) => {
+              const timeStr = ev.starts_at
+                ? new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(ev.starts_at))
+                : "";
+              const confirmed = (todayParticipantsQ.data ?? []).filter((p) => p.event_id === ev.id && p.status === "confirmed").length;
+              const pending   = (todayParticipantsQ.data ?? []).filter((p) => p.event_id === ev.id && p.status !== "confirmed").length;
+              return (
+                <div key={ev.id} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    <span className="text-[10px] font-black tracking-[1.5px] uppercase text-primary">{timeStr}</span>
+                  </div>
+                  <p className="text-sm font-black text-foreground leading-tight mb-1">{ev.title}</p>
+                  {ev.location?.trim() && (
+                    <p className="text-xs text-muted-foreground font-semibold">{ev.location}</p>
+                  )}
+                  {!isPlayer && (confirmed + pending) > 0 && (
+                    <div className="flex gap-3 mt-2 pt-2 border-t border-border/60">
+                      <div><p className="text-sm font-black text-foreground">{confirmed}</p><p className="text-[10px] uppercase tracking-[1px] text-muted-foreground">{locale === "es" ? "Confirm." : "Conf."}</p></div>
+                      {pending > 0 && <div><p className="text-sm font-black text-amber-500">{pending}</p><p className="text-[10px] uppercase tracking-[1px] text-muted-foreground">{locale === "es" ? "Pendiente" : "Pending"}</p></div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* KPIs */}
+      {!isPlayer && (
+        <div className="flex flex-col gap-2">
+          <p className="text-[10px] font-black tracking-[2px] uppercase text-muted-foreground">
+            {locale === "zh" ? "概况" : locale === "es" ? "Resumen" : "Overview"}
+          </p>
+          <div className="rounded-xl border border-border bg-card flex items-center gap-4 px-4 py-3">
+            <span className="text-2xl font-black text-primary">{weekEventsQ.data?.length ?? 0}</span>
+            <span className="text-xs font-bold uppercase tracking-[1.5px] text-muted-foreground leading-tight">{t("home_kpi_week")}</span>
+          </div>
+          <div className="rounded-xl border border-border bg-card flex items-center gap-4 px-4 py-3">
+            <span className="text-2xl font-black text-emerald-500">{kpiWellnessPct}%</span>
+            <span className="text-xs font-bold uppercase tracking-[1.5px] text-muted-foreground leading-tight">{t("home_kpi_wellness")}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  ) : undefined;
+
   return (
-    <ModulePageShell title={t("ucore_card_schedule_title")} moduleHeader={{ module: "schedule", tagline: t("tagline_schedule") }}>
+    <ModulePageShell
+      title={t("ucore_card_schedule_title")}
+      moduleHeader={{ module: "schedule", tagline: t("tagline_schedule") }}
+      panel={desktopPanel}
+      panelLabel={isDesktop ? (locale === "zh" ? "概况" : locale === "es" ? "DETALLE" : "OVERVIEW") : undefined}
+    >
       <div className="p-4 pb-10 md:px-8 md:pt-5 max-w-5xl mx-auto w-full">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "schedule" | "wellness")}>
           <div className="flex items-center justify-between gap-3">
@@ -1528,6 +1645,66 @@ export default function Schedule() {
           </div>
 
           <TabsContent value="schedule" className="mt-4 space-y-4 md:mt-6 md:space-y-5">
+
+            {/* ── Desktop week calendar grid ── */}
+            {isDesktop && (
+              <div className="hidden md:block mb-6">
+                {/* Day headers */}
+                <div className="grid grid-cols-7 gap-1 mb-1">
+                  {schedWeekDays.map((d) => {
+                    const name = new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d);
+                    const isToday = d.toDateString() === schedTodayKey;
+                    return (
+                      <div key={d.toDateString()} className="text-center py-1">
+                        <span className={cn("text-[10px] font-medium uppercase tracking-wide",
+                          isToday ? "text-primary" : "text-muted-foreground/70")}>{name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Day cells */}
+                <div className="grid grid-cols-7 gap-1">
+                  {schedWeekDays.map((d) => {
+                    const key = d.toDateString();
+                    const isToday = key === schedTodayKey;
+                    const dayEvents = (weekEventsQ.data ?? []).filter(
+                      (ev) => new Date(ev.starts_at).toDateString() === key,
+                    );
+                    const EVENT_COLORS: Record<string, string> = {
+                      training: "bg-primary/15 text-primary",
+                      match:    "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+                      recovery: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+                      meeting:  "bg-muted text-muted-foreground",
+                      travel:   "bg-muted text-muted-foreground",
+                    };
+                    return (
+                      <div
+                        key={key}
+                        className={cn(
+                          "min-h-[72px] rounded-xl border p-1.5 flex flex-col gap-1",
+                          isToday
+                            ? "border-primary/30 bg-primary/4"
+                            : "border-border/30 bg-card",
+                        )}
+                      >
+                        <span className={cn("text-[11px] font-medium leading-none mb-0.5",
+                          isToday ? "text-primary" : "text-muted-foreground/70")}>{d.getDate()}</span>
+                        {dayEvents.map((ev) => {
+                          const timeStr = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(ev.starts_at));
+                          const colorClass = EVENT_COLORS[(ev as any).type ?? "training"] ?? EVENT_COLORS.training;
+                          return (
+                            <div key={ev.id} className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight truncate", colorClass)}>
+                              {timeStr} {ev.title}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {todayEventsQ.isError ? (
               <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold text-muted-foreground">{t("schedule_load_failed")}</p>
