@@ -1,24 +1,27 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/useAuth";
 import { useCapabilities } from "@/lib/capabilities";
+import { useIsDesktop } from "@/lib/useIsDesktop";
 
-/**
- * U Core Scout module entrypoint.
- * Safe redirect into legacy U Scout roots.
- * (Legacy pages render their own UI; we add bottom nav directly on those pages.)
- */
+const ScoutDesktop = lazy(() => import("./ScoutDesktop"));
+
 export default function Scout() {
   const { profile, loading } = useAuth();
   const caps = useCapabilities();
+  const isDesktop = useIsDesktop();
   const [, setLocation] = useLocation();
+
+  const isPlayer = caps.canUsePlayerUX;
 
   useEffect(() => {
     if (loading) return;
-    if (!profile) setLocation("/login");
-    if (caps.canUsePlayerUX) setLocation("/player");
-    else setLocation("/coach");
-  }, [caps.canUsePlayerUX, loading, profile, setLocation]);
+    if (!profile) { setLocation("/login"); return; }
+    // Players always go to /player
+    if (isPlayer) { setLocation("/player"); return; }
+    // Staff on mobile go to CoachHome
+    if (!isDesktop) { setLocation("/coach"); return; }
+  }, [loading, profile, isPlayer, isDesktop, setLocation]);
 
   if (loading) {
     return (
@@ -28,6 +31,14 @@ export default function Scout() {
     );
   }
 
+  // Staff + desktop: render split view
+  if (!isPlayer && isDesktop && profile) {
+    return (
+      <Suspense fallback={null}>
+        <ScoutDesktop />
+      </Suspense>
+    );
+  }
+
   return null;
 }
-
