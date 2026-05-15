@@ -1074,6 +1074,17 @@ export default function Schedule() {
     window.setTimeout(tryScroll, 500);
   }, [staffView]);
 
+  // Auto-scroll to today when portrait planner is shown
+  useEffect(() => {
+    if (staffView !== "planner" || isLandscape) return;
+    const timer = window.setTimeout(() => {
+      const todayKey = localDateKey(new Date());
+      const el = portraitDayRefs.current[todayKey] as HTMLElement | null;
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [staffView, isLandscape]);
+
   const fmtWeekRange = (start: Date) => {
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
@@ -1999,8 +2010,8 @@ export default function Schedule() {
                           const daySessionsAll = (plannerWeekQ.data ?? [])
                             .filter((s) => new Date(s.starts_at).toLocaleDateString("sv") === dayKey)
                             .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
-                          const label = new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(d);
-                          const dateLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d);
+                          const label = new Intl.DateTimeFormat(intlLocale, { weekday: "long" }).format(d);
+                          const dateLabel = new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" }).format(d);
 
                           const sessionsInSlot = (hour: number) => {
                             const slotStart = new Date(d);
