@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useState, useRef, lazy, Suspense } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Trophy, Users } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
-import { useIsDesktop } from "@/lib/useIsDesktop";
 import { ModulePageShell } from "./ModulePage";
-
-const StatsDesktopLazy = lazy(() => import("./StatsDesktop"));
 import { LandscapeHint, useIsLandscape } from "@/components/LandscapeHint";
 import { StatsRadar } from "@/components/StatsRadar";
 import { useLocale } from "@/lib/i18n";
@@ -109,7 +106,7 @@ function translatePosition(pos: string | null | undefined, locale: string): stri
   return map[pos] ?? pos;
 }
 
-function StatsInner() {
+export default function Stats() {
   const { t, locale } = useLocale();
   const es = locale === "es";
   const zh = locale === "zh";
@@ -1511,17 +1508,5 @@ function StatsTeamSheet({
         )}
       </div>
     </div>
-  );
-}
-
-// ── Thin router — desktop vs mobile ──────────────────────────
-export default function Stats() {
-  const isDesktop = useIsDesktop();
-  return isDesktop ? (
-    <Suspense fallback={null}>
-      <StatsDesktopLazy />
-    </Suspense>
-  ) : (
-    <StatsInner />
   );
 }
