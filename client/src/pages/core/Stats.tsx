@@ -6,6 +6,7 @@ import { LandscapeHint, useIsLandscape } from "@/components/LandscapeHint";
 import { StatsRadar } from "@/components/StatsRadar";
 import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { useIsDesktop } from "@/lib/useIsDesktop";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -111,6 +112,7 @@ export default function Stats() {
   const es = locale === "es";
   const zh = locale === "zh";
   const preferEnLeaderName = locale === "en" || locale === "es";
+  const isDesktop = useIsDesktop();
 
   const search = useSearch();
   const [, setLocation] = useLocation();
@@ -341,8 +343,48 @@ export default function Stats() {
     void leadersQ.refetch();
   };
 
+  const closePlayerSheet = () => {
+    setPlayerSheetId(null);
+    const raw2 = search.startsWith("?") ? search.slice(1) : search;
+    const qs2 = new URLSearchParams(raw2);
+    qs2.delete("player");
+    const newSearch = qs2.toString();
+    setLocation(newSearch ? `/stats?${newSearch}` : "/stats");
+    if (returnToTeamId) {
+      setTeamSheetId(returnToTeamId);
+      setReturnToTeamId(null);
+    }
+  };
+
+  const desktopPanel = isDesktop ? (
+    <StatsDesktopPanel
+      playerSheetId={playerSheetId}
+      teamSheetId={teamSheetId}
+      seasonId={effectiveSeasonId}
+      locale={locale}
+      returnToTeamId={returnToTeamId}
+      onClosePlayer={closePlayerSheet}
+      onCloseTeam={() => setTeamSheetId(null)}
+      onTeamTapFromPlayer={(teamId) => {
+        setPlayerSheetId(null);
+        setReturnToTeamId(null);
+        setTeamSheetId(teamId);
+      }}
+      onPlayerTapFromTeam={(id) => {
+        setReturnToTeamId(teamSheetId);
+        setTeamSheetId(null);
+        setPlayerSheetId(id);
+      }}
+    />
+  ) : undefined;
+
   return (
-    <ModulePageShell title={t("ucore_card_stats_title")} moduleHeader={{ module: "stats", tagline: t("tagline_stats") }}>
+    <ModulePageShell
+      title={t("ucore_card_stats_title")}
+      moduleHeader={{ module: "stats", tagline: t("tagline_stats") }}
+      panel={desktopPanel}
+      panelLabel={isDesktop ? (locale === "zh" ? "详情" : locale === "es" ? "DETALLE" : "DETAIL") : undefined}
+    >
       <>
       <div className="px-4 md:px-8 pb-10 max-w-5xl mx-auto w-full">
         <div className="mt-3 mb-1 rounded-xl border border-border bg-muted/40 px-4 py-3 flex items-center gap-3">
@@ -713,37 +755,15 @@ export default function Stats() {
       </div>
 
       <Sheet
-        open={Boolean(playerSheetId)}
+        open={!isDesktop && Boolean(playerSheetId)}
         onOpenChange={(open) => {
-          if (!open) {
-            setPlayerSheetId(null);
-            const raw2 = search.startsWith("?") ? search.slice(1) : search;
-            const qs2 = new URLSearchParams(raw2);
-            qs2.delete("player");
-            const newSearch = qs2.toString();
-            setLocation(newSearch ? `/stats?${newSearch}` : "/stats");
-            if (returnToTeamId) {
-              setTeamSheetId(returnToTeamId);
-              setReturnToTeamId(null);
-            }
-          }
+          if (!open) closePlayerSheet();
         }}
       >
         <SheetContent side="bottom" className="h-[92dvh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full">
           <StatsPlayerSheet
             externalId={playerSheetId}
-            onClose={() => {
-              setPlayerSheetId(null);
-              const raw2 = search.startsWith("?") ? search.slice(1) : search;
-              const qs2 = new URLSearchParams(raw2);
-              qs2.delete("player");
-              const newSearch = qs2.toString();
-              setLocation(newSearch ? `/stats?${newSearch}` : "/stats");
-              if (returnToTeamId) {
-                setTeamSheetId(returnToTeamId);
-                setReturnToTeamId(null);
-              }
-            }}
+            onClose={closePlayerSheet}
             onTeamTap={(teamId) => {
               setPlayerSheetId(null);
               setReturnToTeamId(null);
@@ -755,7 +775,12 @@ export default function Stats() {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={Boolean(teamSheetId)} onOpenChange={(open) => { if (!open) setTeamSheetId(null); }}>
+      <Sheet
+        open={!isDesktop && Boolean(teamSheetId)}
+        onOpenChange={(open) => {
+          if (!open) setTeamSheetId(null);
+        }}
+      >
         <SheetContent side="bottom" className="h-[92dvh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full">
           <StatsTeamSheet
             externalId={teamSheetId}
@@ -868,6 +893,58 @@ function StatChip(props: { label: string; value: string; hero?: boolean }) {
     >
       <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/60">{props.label}</p>
       <p className="text-[12px] font-black text-foreground tabular-nums mt-0.5">{props.value}</p>
+    </div>
+  );
+}
+
+function StatsDesktopPanel(props: {
+  playerSheetId: string | null;
+  teamSheetId: string | null;
+  seasonId: number;
+  locale: string;
+  returnToTeamId: string | null;
+  onClosePlayer: () => void;
+  onCloseTeam: () => void;
+  onTeamTapFromPlayer: (teamId: string) => void;
+  onPlayerTapFromTeam: (id: string) => void;
+}) {
+  const es = props.locale === "es";
+  const zh = props.locale === "zh";
+
+  if (!props.playerSheetId && !props.teamSheetId) {
+    return (
+      <div className="flex flex-col items-center justify-center flex-1 min-h-[12rem] p-8 text-center gap-3">
+        <BarChart3 className="w-10 h-10 text-muted-foreground/40" aria-hidden />
+        <p className="text-sm font-semibold text-muted-foreground">
+          {es ? "Selecciona un equipo o jugadora" : zh ? "选择球队或球员" : "Select a team or player"}
+        </p>
+      </div>
+    );
+  }
+
+  if (props.playerSheetId) {
+    return (
+      <div className="flex flex-col h-full min-h-0">
+        <StatsPlayerSheet
+          externalId={props.playerSheetId}
+          onClose={props.onClosePlayer}
+          onTeamTap={props.onTeamTapFromPlayer}
+          returnToTeamId={props.returnToTeamId}
+          locale={props.locale}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      <StatsTeamSheet
+        externalId={props.teamSheetId}
+        seasonId={props.seasonId}
+        onClose={props.onCloseTeam}
+        onPlayerTap={props.onPlayerTapFromTeam}
+        locale={props.locale}
+      />
     </div>
   );
 }
