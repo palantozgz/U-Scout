@@ -1,5 +1,5 @@
 import { ModulePageShell } from "./ModulePage";
-import { useLocale } from "@/lib/i18n";
+import { useLocale, type I18nKey } from "@/lib/i18n";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { cn } from "@/lib/utils";
@@ -251,6 +251,7 @@ export default function Schedule() {
   const [plannerScrollTick, setPlannerScrollTick] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [sessionDetailEvent, setSessionDetailEvent] = useState<ScheduleEvent | null>(null);
+  const [desktopSelectedEvent, setDesktopSelectedEvent] = useState<ScheduleEvent | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const isEditing = Boolean(editingSessionId);
   const [showAdvancedCreate, setShowAdvancedCreate] = useState(false);
@@ -1001,7 +1002,11 @@ export default function Schedule() {
   };
 
   const openSessionDetail = (ev: ScheduleEvent) => {
-    setSessionDetailEvent(ev);
+    if (isDesktop) {
+      setDesktopSelectedEvent(ev);
+    } else {
+      setSessionDetailEvent(ev);
+    }
   };
 
   const startEditing = (ev: ScheduleEvent) => {
@@ -1528,100 +1533,23 @@ export default function Schedule() {
     });
   }, []);
 
-  const schedSessionDateSet = useMemo(() => {
-    const s = new Set<string>();
-    (weekEventsQ.data ?? []).forEach((ev) => s.add(new Date(ev.starts_at).toDateString()));
-    return s;
-  }, [weekEventsQ.data]);
-
   const schedTodayKey = new Date().toDateString();
 
-  const kpiWellnessPct = wellnessPctQ.data?.pct ?? 0;
-
   const desktopPanel = isDesktop ? (
-    <div className="flex flex-col gap-5 p-5">
-      {/* Week strip */}
-      <div>
-        <p className="text-[10px] font-black tracking-[2px] uppercase text-muted-foreground mb-3">
-          {locale === "zh" ? "本周" : locale === "es" ? "Esta semana" : "This week"}
-        </p>
-        <div className="flex gap-1">
-          {schedWeekDays.map((d) => {
-            const isToday = d.toDateString() === schedTodayKey;
-            const hasSess = schedSessionDateSet.has(d.toDateString());
-            const dayName = new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d);
-            return (
-              <div key={d.toDateString()} className={cn(
-                "flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-xl flex-1",
-                isToday ? "bg-primary/10" : "",
-              )}>
-                <span className={cn("text-[10px] font-bold uppercase tracking-wide", isToday ? "text-primary" : "text-muted-foreground")}>{dayName}</span>
-                <span className={cn("text-sm font-black leading-none", isToday ? "text-primary" : "text-foreground/70")}>{d.getDate()}</span>
-                <span className={cn("w-1.5 h-1.5 rounded-full", hasSess ? isToday ? "bg-primary" : "bg-primary/50" : "bg-transparent")} />
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Today's sessions */}
-      <div>
-        <p className="text-[10px] font-black tracking-[2px] uppercase text-muted-foreground mb-3">
-          {locale === "zh" ? "今天" : locale === "es" ? "Hoy" : "Today"}
-        </p>
-        {(todayEventsQ.data ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground font-semibold">
-            {locale === "zh" ? "今天没有安排" : locale === "es" ? "Sin sesiones hoy" : "No sessions today"}
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {(todayEventsQ.data ?? []).map((ev) => {
-              const timeStr = ev.starts_at
-                ? new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(ev.starts_at))
-                : "";
-              const confirmed = (todayParticipantsQ.data ?? []).filter((p) => p.event_id === ev.id && p.status === "confirmed").length;
-              const pending   = (todayParticipantsQ.data ?? []).filter((p) => p.event_id === ev.id && p.status !== "confirmed").length;
-              return (
-                <div key={ev.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span className="text-[10px] font-black tracking-[1.5px] uppercase text-primary">{timeStr}</span>
-                  </div>
-                  <p className="text-sm font-black text-foreground leading-tight mb-1">{ev.title}</p>
-                  {ev.location?.trim() && (
-                    <p className="text-xs text-muted-foreground font-semibold">{ev.location}</p>
-                  )}
-                  {!isPlayer && (confirmed + pending) > 0 && (
-                    <div className="flex gap-3 mt-2 pt-2 border-t border-border/60">
-                      <div><p className="text-sm font-black text-foreground">{confirmed}</p><p className="text-[10px] uppercase tracking-[1px] text-muted-foreground">{locale === "es" ? "Confirm." : "Conf."}</p></div>
-                      {pending > 0 && <div><p className="text-sm font-black text-amber-500">{pending}</p><p className="text-[10px] uppercase tracking-[1px] text-muted-foreground">{locale === "es" ? "Pendiente" : "Pending"}</p></div>}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* KPIs */}
-      {!isPlayer && (
-        <div className="flex flex-col gap-2">
-          <p className="text-[10px] font-black tracking-[2px] uppercase text-muted-foreground">
-            {locale === "zh" ? "概况" : locale === "es" ? "Resumen" : "Overview"}
-          </p>
-          <div className="rounded-xl border border-border bg-card flex items-center gap-4 px-4 py-3">
-            <span className="text-2xl font-black text-primary">{weekEventsQ.data?.length ?? 0}</span>
-            <span className="text-xs font-bold uppercase tracking-[1.5px] text-muted-foreground leading-tight">{t("home_kpi_week")}</span>
-          </div>
-          <div className="rounded-xl border border-border bg-card flex items-center gap-4 px-4 py-3">
-            <span className="text-2xl font-black text-emerald-500">{kpiWellnessPct}%</span>
-            <span className="text-xs font-bold uppercase tracking-[1.5px] text-muted-foreground leading-tight">{t("home_kpi_wellness")}</span>
-          </div>
-        </div>
-      )}
-    </div>
+    <ScheduleDesktopPanel
+      event={desktopSelectedEvent}
+      locale={locale}
+      intlLocale={intlLocale}
+      t={t}
+      canCreateSession={canCreateSession}
+      readConstraintsFromNotes={readConstraintsFromNotes}
+      onEdit={(ev) => {
+        setDesktopSelectedEvent(null);
+        startEditing(ev);
+      }}
+    />
   ) : undefined;
+
 
   return (
     <ModulePageShell
@@ -4080,7 +4008,7 @@ export default function Schedule() {
       </Dialog>
 
       <Dialog
-        open={sessionDetailEvent !== null}
+        open={!isDesktop && sessionDetailEvent !== null}
         onOpenChange={(open) => {
           if (!open) setSessionDetailEvent(null);
         }}
@@ -4090,33 +4018,12 @@ export default function Schedule() {
             <DialogTitle className="pr-8">{sessionDetailEvent?.title ?? ""}</DialogTitle>
           </DialogHeader>
           {sessionDetailEvent ? (
-            <div className="space-y-3 text-sm">
-              <span className="inline-flex items-center rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs font-bold text-foreground">
-                {t(ACTIVITY_TYPE_CONFIG[sessionDetailEvent.session_type].labelKey)}
-              </span>
-              <p className="text-muted-foreground font-medium">
-                {new Intl.DateTimeFormat(intlLocale, { weekday: "long", month: "short", day: "numeric" }).format(
-                  new Date(sessionDetailEvent.starts_at),
-                )}
-                {" · "}
-                {formatTime(sessionDetailEvent.starts_at)}
-                {sessionDetailEvent.ends_at ? ` – ${formatTime(sessionDetailEvent.ends_at)}` : ""}
-              </p>
-              {sessionDetailEvent.location?.trim() ? (
-                <p className="text-foreground font-semibold">{sessionDetailEvent.location}</p>
-              ) : (
-                <p className="text-xs text-muted-foreground">{t("schedule_location_tbd")}</p>
-              )}
-              {(() => {
-                const detailNotes = readConstraintsFromNotes(sessionDetailEvent.notes ?? null).notesClean?.trim();
-                return detailNotes ? (
-                  <p className="text-[13px] text-muted-foreground whitespace-pre-wrap">{detailNotes}</p>
-                ) : null;
-              })()}
-              {sessionDetailEvent.attendance_required !== false ? (
-                <p className="text-xs text-muted-foreground">{t("schedule_session_attendance_required")}</p>
-              ) : null}
-            </div>
+            <ScheduleSessionDetailBody
+              event={sessionDetailEvent}
+              intlLocale={intlLocale}
+              t={t}
+              readConstraintsFromNotes={readConstraintsFromNotes}
+            />
           ) : null}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setSessionDetailEvent(null)}>
@@ -4996,6 +4903,86 @@ function WellnessTrendChart(props: {
         />
       </AreaChart>
     </ResponsiveContainer>
+  );
+}
+
+type ScheduleConstraintsReader = (notes: string | null | undefined) => {
+  notesClean: string | null;
+  constraints: Record<string, unknown>;
+};
+
+function ScheduleSessionDetailBody(props: {
+  event: ScheduleEvent;
+  intlLocale: string;
+  t: (key: I18nKey) => string;
+  readConstraintsFromNotes: ScheduleConstraintsReader;
+}) {
+  const { event, intlLocale, t, readConstraintsFromNotes } = props;
+  return (
+    <div className="space-y-3 text-sm">
+      <span className="inline-flex items-center rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs font-bold text-foreground">
+        {t(ACTIVITY_TYPE_CONFIG[event.session_type].labelKey)}
+      </span>
+      <p className="text-muted-foreground font-medium">
+        {new Intl.DateTimeFormat(intlLocale, { weekday: "long", month: "short", day: "numeric" }).format(
+          new Date(event.starts_at),
+        )}
+        {" · "}
+        {formatTime(event.starts_at)}
+        {event.ends_at ? ` – ${formatTime(event.ends_at)}` : ""}
+      </p>
+      {event.location?.trim() ? (
+        <p className="text-foreground font-semibold">{event.location}</p>
+      ) : (
+        <p className="text-xs text-muted-foreground">{t("schedule_location_tbd")}</p>
+      )}
+      {(() => {
+        const detailNotes = readConstraintsFromNotes(event.notes ?? null).notesClean?.trim();
+        return detailNotes ? (
+          <p className="text-[13px] text-muted-foreground whitespace-pre-wrap">{detailNotes}</p>
+        ) : null;
+      })()}
+      {event.attendance_required !== false ? (
+        <p className="text-xs text-muted-foreground">{t("schedule_session_attendance_required")}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function ScheduleDesktopPanel(props: {
+  event: ScheduleEvent | null;
+  locale: string;
+  intlLocale: string;
+  t: (key: I18nKey) => string;
+  canCreateSession: boolean;
+  readConstraintsFromNotes: ScheduleConstraintsReader;
+  onEdit: (ev: ScheduleEvent) => void;
+}) {
+  if (!props.event) {
+    return (
+      <div className="flex flex-col items-center justify-center flex-1 min-h-[12rem] p-8 text-center gap-3">
+        <CalendarDays className="w-10 h-10 text-muted-foreground/40" aria-hidden />
+        <p className="text-sm font-semibold text-muted-foreground">
+          {props.locale === "zh" ? "选择一场训练" : props.locale === "es" ? "Selecciona una sesión" : "Select a session"}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-4 p-5">
+      <h2 className="text-base font-black tracking-tight text-foreground pr-2">{props.event.title}</h2>
+      <ScheduleSessionDetailBody
+        event={props.event}
+        intlLocale={props.intlLocale}
+        t={props.t}
+        readConstraintsFromNotes={props.readConstraintsFromNotes}
+      />
+      {props.canCreateSession ? (
+        <Button className="w-full" onClick={() => props.onEdit(props.event!)}>
+          {props.t("schedule_edit")}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
