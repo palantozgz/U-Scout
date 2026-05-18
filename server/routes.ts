@@ -1713,20 +1713,34 @@ export async function registerRoutes(
     try {
       const rows = await db.execute(sql`
         SELECT
-          st.external_id     AS "teamExternalId",
-          st.name_zh         AS "teamName",
-          st.name_en         AS "teamNameEn",
-          st.logo_url        AS "logoUrl",
+          st.external_id          AS "teamExternalId",
+          st.name_zh              AS "teamName",
+          st.name_en              AS "teamNameEn",
+          st.logo_url             AS "logoUrl",
           ss.rank,
           ss.wins,
           ss.losses,
-          ss.win_pct         AS "winPct",
-          ss.pts_per_game    AS "ppg",
+          ss.win_pct              AS "winPct",
+          ss.pts_per_game         AS "ppg",
           ss.pts_against_per_game AS "oppg",
-          ss.phase_name      AS "phaseName"
+          ss.phase_name           AS "phaseName",
+          ss.streak,
+          ROUND(
+            CASE WHEN SUM(pb.fga) > 0
+              THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::numeric / SUM(pb.fga) * 100
+            END, 1
+          ) AS "eFGPct"
         FROM stats_standings ss
         JOIN stats_teams st ON st.external_id = ss.team_external_id
+        LEFT JOIN stats_player_boxscores pb
+          ON pb.team_external_id = st.external_id::text
+        LEFT JOIN stats_games sg
+          ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
         WHERE ss.season_id = ${seasonId}
+        GROUP BY
+          st.external_id, st.name_zh, st.name_en, st.logo_url,
+          ss.rank, ss.wins, ss.losses, ss.win_pct,
+          ss.pts_per_game, ss.pts_against_per_game, ss.phase_name, ss.streak
         ORDER BY ss.rank ASC
       `);
       return res.json({ standings: (rows as any).rows ?? [] });

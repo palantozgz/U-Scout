@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Trophy, Users } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { ModulePageShell } from "./ModulePage";
@@ -7,6 +8,8 @@ import { StatsRadar } from "@/components/StatsRadar";
 import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useIsDesktop } from "@/lib/useIsDesktop";
+import { useAuth } from "@/lib/useAuth";
+import { useCapabilities } from "@/lib/capabilities";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -17,6 +20,7 @@ import {
   useLeaders,
   usePlayerDetail,
   useTeamDetail,
+  useLeagueAverages,
   toTitleCase,
   type PlayerSeasonStats,
   type LeaderRow,
@@ -113,6 +117,11 @@ export default function Stats() {
   const zh = locale === "zh";
   const preferEnLeaderName = locale === "en" || locale === "es";
   const isDesktop = useIsDesktop();
+  const { profile } = useAuth();
+  const { canUsePlayerUX } = useCapabilities();
+  const myExternalId = canUsePlayerUX
+    ? ((profile as { wcba_external_id?: string | null })?.wcba_external_id ?? null)
+    : null;
 
   const search = useSearch();
   const [, setLocation] = useLocation();
@@ -173,8 +182,14 @@ export default function Stats() {
 
   const LEADER_STAT_KEYS: LeaderStatKey[] = ["ppg", "rpg", "apg", "spg", "bpg", "fgPct"];
 
-  const [mainTab, setMainTab] = useState<MainTab>(() => parseMainTab(search));
+  const [mainTab, setMainTab] = useState<MainTab>(() => {
+    const fromUrl = parseMainTab(search);
+    const raw = search.startsWith("?") ? search.slice(1) : search;
+    if (new URLSearchParams(raw).has("tab")) return fromUrl;
+    return canUsePlayerUX ? "jugadoras" : "liga";
+  });
   const [ligaSegment, setLigaSegment] = useState<LigaSegment>("clasificacion");
+  const [showCoachDash, setShowCoachDash] = useState(false);
   const [leaderStat, setLeaderStat] = useState<LeaderStatKey>("ppg");
   const [jugadorasTeam, setJugadorasTeam] = useState<string>("");
   const chipsScrollRef = useRef<HTMLDivElement>(null);
@@ -302,6 +317,50 @@ export default function Stats() {
 
   const standingsRows = standingsQ.data?.standings ?? [];
   const leadersRows = leadersQ.data?.leaders ?? [];
+
+  const matchesQ = useQuery({
+    queryKey: ["club-matches"],
+    queryFn: async () => {
+      const res = await fetch("/api/club/matches", { credentials: "include" });
+      if (!res.ok) return { matches: [] };
+      return res.json() as Promise<
+        { id: number; rivalName: string; matchDate: string; location: string | null; matchType: string }[]
+      >;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const nextMatch = useMemo(() => {
+    const now = Date.now();
+    const upcoming = (Array.isArray(matchesQ.data) ? matchesQ.data : [])
+      .filter((m) => new Date(m.matchDate).getTime() > now)
+      .sort((a, b) => new Date(a.matchDate).getTime() - new Date(b.matchDate).getTime());
+    return upcoming[0] ?? null;
+  }, [matchesQ.data]);
+
+  const rivalStanding = useMemo(() => {
+    if (!nextMatch || standingsRows.length === 0) return null;
+    const rivalLower = nextMatch.rivalName.toLowerCase();
+    return (
+      standingsRows.find(
+        (r) =>
+          (r.teamName ?? "").toLowerCase().includes(rivalLower) ||
+          (r.teamNameEn ?? "").toLowerCase().includes(rivalLower),
+      ) ?? null
+    );
+  }, [nextMatch, standingsRows]);
+
+  const ownL5 = useMemo(() => {
+    if (standingsRows.length === 0) return null;
+    const ownTeamName = "Inner Mongolia";
+    const own =
+      standingsRows.find(
+        (r) =>
+          (r.teamName ?? "").toLowerCase().includes(ownTeamName.toLowerCase()) ||
+          (r.teamNameEn ?? "").toLowerCase().includes(ownTeamName.toLowerCase()),
+      ) ?? null;
+    return own;
+  }, [standingsRows]);
 
   const standingsGroups = useMemo(() => {
     const rows = standingsRows;
@@ -471,6 +530,117 @@ export default function Stats() {
             )}
 
           <TabsContent value="liga" className={cn("mt-4 space-y-3", showGlobalSpinner && "hidden")}>
+            {!canUsePlayerUX && nextMatch && (
+              <button
+                type="button"
+                onClick={() => setShowCoachDash((v) => !v)}
+                className={cn(
+                  "w-full rounded-xl border px-4 py-3 text-left transition-colors",
+                  showCoachDash
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted/30",
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wider mb-0.5">
+                      {es ? "Dashboard coaching" : zh ? "教练仪表盘" : "Coaching dashboard"}
+                    </p>
+                    <p className="text-sm font-black text-foreground">
+                      {es
+                        ? `Próximo: ${nextMatch.rivalName}`
+                        : zh
+                          ? `下场: ${nextMatch.rivalName}`
+                          : `Next: ${nextMatch.rivalName}`}
+                    </p>
+                  </div>
+                  <ChevronDown
+                    className={cn("w-4 h-4 transition-transform", showCoachDash && "rotate-180")}
+                  />
+                </div>
+              </button>
+            )}
+
+            {!canUsePlayerUX && showCoachDash && nextMatch && (
+              <div className="rounded-xl border border-border bg-card p-4 space-y-3 -mt-2">
+                <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-wider text-blue-500 mb-1">
+                    {es ? "Próximo rival" : zh ? "下场对手" : "Next opponent"}
+                  </p>
+                  <p className="text-lg font-black text-foreground">{nextMatch.rivalName}</p>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                    <span>
+                      {new Date(nextMatch.matchDate).toLocaleDateString(
+                        locale === "zh" ? "zh-CN" : locale === "es" ? "es-ES" : "en-GB",
+                        { weekday: "short", day: "numeric", month: "short" },
+                      )}
+                    </span>
+                    {nextMatch.location && <span>· {nextMatch.location}</span>}
+                    {rivalStanding && (
+                      <span className="font-black text-foreground">
+                        · #{rivalStanding.rank} · {rivalStanding.wins}-{rivalStanding.losses}
+                      </span>
+                    )}
+                  </div>
+                  {rivalStanding?.eFGPct != null && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      eFG%{" "}
+                      <span className="font-black text-foreground">
+                        {rivalStanding.eFGPct.toFixed(1)}
+                      </span>
+                      {rivalStanding.streak != null && rivalStanding.streak !== 0 && (
+                        <span
+                          className={cn(
+                            "ml-2 font-black",
+                            rivalStanding.streak > 0
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-destructive",
+                          )}
+                        >
+                          {rivalStanding.streak > 0
+                            ? `W${rivalStanding.streak}`
+                            : `L${Math.abs(rivalStanding.streak)}`}
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </div>
+
+                {ownL5 && (
+                  <div className="rounded-xl border border-border bg-muted/20 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+                      {es ? "Nuestro registro" : zh ? "我方战绩" : "Our record"}
+                    </p>
+                    <p className="text-lg font-black text-foreground">
+                      {ownL5.wins}-{ownL5.losses}
+                      <span className="text-sm font-semibold text-muted-foreground ml-2">
+                        #{ownL5.rank}
+                      </span>
+                    </p>
+                    {ownL5.streak != null && ownL5.streak !== 0 && (
+                      <p
+                        className={cn(
+                          "text-xs font-black mt-0.5",
+                          ownL5.streak > 0
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-destructive",
+                        )}
+                      >
+                        {ownL5.streak > 0
+                          ? `${es ? "Racha" : zh ? "连胜" : "Streak"} W${ownL5.streak}`
+                          : `${es ? "Racha" : zh ? "连败" : "Streak"} L${Math.abs(ownL5.streak)}`}
+                      </p>
+                    )}
+                    {ownL5.eFGPct != null && (
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        eFG% <span className="font-black text-foreground">{ownL5.eFGPct.toFixed(1)}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex rounded-xl border border-border bg-muted/20 p-1">
               <button
                 type="button"
@@ -502,13 +672,14 @@ export default function Stats() {
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                    <div className="grid grid-cols-[0.3fr_1fr_0.5fr_0.4fr_0.4fr_0.4fr] gap-1 border-b border-border bg-muted/30 px-2 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    <div className="grid grid-cols-[0.3fr_1fr_0.5fr_0.35fr_0.35fr_0.4fr_auto] gap-1 border-b border-border bg-muted/30 px-2 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
                       <span className="text-center">{L.colRank}</span>
                       <span>{L.colTeam}</span>
                       <span className="text-right">{L.colWL}</span>
                       <span className="text-right">{L.colPPG}</span>
                       <span className="text-right">{L.colOPPG}</span>
                       <span className="text-right">{L.colNET}</span>
+                      <span className="text-right">eFG%</span>
                     </div>
                     {standingsGroups.groups.map((group, gi) => (
                       <div key={`${group.label ?? "default"}-${gi}`}>
@@ -528,18 +699,32 @@ export default function Stats() {
                             key={String(row.teamExternalId)}
                             type="button"
                             onClick={() => setTeamSheetId(String(row.teamExternalId))}
-                            className="w-full grid grid-cols-[0.3fr_1fr_0.5fr_0.4fr_0.4fr_0.4fr] gap-1 items-center px-2 py-2 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/25 active:bg-muted/40 active:opacity-90 transition-colors"
+                            className="w-full grid grid-cols-[0.3fr_1fr_0.5fr_0.35fr_0.35fr_0.4fr_auto] gap-1 items-center px-2 py-2 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/25 active:bg-muted/40 active:opacity-90 transition-colors"
                           >
                             <p className="text-center font-black tabular-nums text-muted-foreground">{row.rank}</p>
-                            <div className="min-w-0 flex items-center gap-2">
+                            <div className="min-w-0 flex items-center gap-1.5">
                               {row.logoUrl ? (
                                 <img src={row.logoUrl} alt="" className="w-7 h-7 rounded-md object-contain bg-muted/30 shrink-0" />
                               ) : (
                                 <div className="w-7 h-7 rounded-md bg-muted/40 shrink-0" />
                               )}
-                              <p className="font-bold text-foreground truncate">
-                                {pickName(row.teamName, row.teamNameEn, locale)}
-                              </p>
+                              <div className="min-w-0">
+                                <p className="font-bold text-foreground truncate">
+                                  {pickName(row.teamName, row.teamNameEn, locale)}
+                                </p>
+                                {row.streak != null && row.streak !== 0 && (
+                                  <p
+                                    className={cn(
+                                      "text-[9px] font-black",
+                                      row.streak > 0
+                                        ? "text-green-600 dark:text-green-400"
+                                        : "text-destructive",
+                                    )}
+                                  >
+                                    {row.streak > 0 ? `W${row.streak}` : `L${Math.abs(row.streak)}`}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                             <p className="text-right font-black tabular-nums">
                               {row.wins}-{row.losses}
@@ -559,6 +744,9 @@ export default function Stats() {
                               )}
                             >
                               {netStr}
+                            </p>
+                            <p className="text-right font-black tabular-nums text-xs">
+                              {row.eFGPct != null ? `${row.eFGPct.toFixed(1)}` : "—"}
                             </p>
                           </button>
                           );
@@ -624,6 +812,29 @@ export default function Stats() {
           </TabsContent>
 
           <TabsContent value="jugadoras" className={cn("mt-4 space-y-3", showGlobalSpinner && "hidden")}>
+            {canUsePlayerUX && myExternalId && (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={() => setPlayerSheetId(myExternalId)}
+                  className="w-full rounded-2xl border border-primary/30 bg-primary/5 p-4 text-left hover:bg-primary/10 transition-colors active:opacity-80 touch-manipulation"
+                >
+                  <p className="text-[10px] font-black uppercase tracking-wider text-primary mb-1">
+                    {es ? "Mis estadísticas" : zh ? "我的数据" : "My stats"}
+                  </p>
+                  <p className="text-base font-black text-foreground">
+                    {es ? "Ver mi ficha completa →" : zh ? "查看我的完整数据 →" : "View my full profile →"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {es
+                      ? "Percentiles · Home/Away · Forma reciente"
+                      : zh
+                        ? "百分位 · 主客场 · 近期状态"
+                        : "Percentiles · Home/Away · Recent form"}
+                  </p>
+                </button>
+              </div>
+            )}
             {showJugadorasEmpty && (
               <div className="rounded-2xl border border-border bg-card p-6 text-center space-y-2">
                 <div className="w-12 h-12 rounded-2xl bg-muted/50 border border-border flex items-center justify-center mx-auto">
@@ -698,7 +909,7 @@ export default function Stats() {
                       >
                         {k === "ppg" ? L.sortPPG : k === "rpg" ? L.sortRPG : L.sortAPG}
                         {jugadorasSort === k && (
-                          <span className="text-[8px]">{jugadorasSortDir === "desc" ? "▼" : "▲"}</span>
+                          <span className="text-[8px] md:text-xs">{jugadorasSortDir === "desc" ? "▼" : "▲"}</span>
                         )}
                       </button>
                     ))}
@@ -721,7 +932,7 @@ export default function Stats() {
                               alt=""
                             />
                           ) : (
-                            <div className="w-7 h-7 rounded-full bg-muted/40 shrink-0 flex items-center justify-center text-[8px] font-black text-muted-foreground">
+                            <div className="w-7 h-7 rounded-full bg-muted/40 shrink-0 flex items-center justify-center text-[8px] md:text-sm font-black text-muted-foreground">
                               {(pickName(p.playerName, p.playerNameEn ?? null, locale) || "?")[0].toUpperCase()}
                             </div>
                           )}
@@ -819,7 +1030,10 @@ const STAT_FULL: Record<string, string> = {
   AWAY: "Away Record",
   L10: "Last 10 Games",
   "TS%": "True Shooting % = PTS / (2 × (FGA + 0.44×FTA))",
-  "eFG%": "Effective FG% = (FGM + 0.5×3PM) / FGA",
+  "eFG%": "Effective FG% = (FGM + 0.5×3PM) / FGA — pondera los triples",
+  "TOV%": "Turnover Rate — % de posesiones que terminan en pérdida de balón",
+  "FT Rate": "Free Throw Rate = FTA / FGA — cuántos tiros libres genera por tiro de campo",
+  "ORB%": "Offensive Rebound % — % de rebotes ofensivos disponibles capturados",
   DD: "Double-Doubles",
   TD: "Triple-Doubles",
 };
@@ -1028,6 +1242,23 @@ function StatsPlayerSheet({
     return { eFGPct, tsPct, dd, td, stdDev, isHot, isCold, last5Avg, meanPts: mean };
   }, [gameLog]);
 
+  const leagueAvgQ = useLeagueAverages();
+  const leagueAvg = leagueAvgQ.data;
+
+  const playerTovPct = useMemo(() => {
+    if (gameLog.length === 0) return null;
+    let tov = 0;
+    let fga = 0;
+    let fta = 0;
+    for (const g of gameLog) {
+      tov += g.tov ?? 0;
+      fga += g.fga ?? 0;
+      fta += g.fta ?? 0;
+    }
+    const poss = fga + 0.44 * fta + tov;
+    return poss > 0 ? (tov / poss) * 100 : null;
+  }, [gameLog]);
+
   const displayName =
     (locale === "en" || locale === "es") && player?.nameEn?.trim()
       ? (toTitleCase(player.nameEn) ?? player.nameEn.trim())
@@ -1211,6 +1442,172 @@ function StatsPlayerSheet({
                   )}
                 </>
               )}
+              {advStats && (
+                <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+                  <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/70 px-0.5">
+                    {es ? "Cuatro Factores vs Liga" : zh ? "四因素 vs 联赛均值" : "Four Factors vs League"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      {
+                        label: "eFG%",
+                        val: player.eFGPct ?? advStats.eFGPct,
+                        lgVal: leagueAvg?.eFGPct ?? null,
+                        higherIsBetter: true,
+                        fmt: (v: number) => `${v.toFixed(1)}%`,
+                      },
+                      {
+                        label: "TOV%",
+                        val: playerTovPct,
+                        lgVal: leagueAvg?.tovPct ?? null,
+                        higherIsBetter: false,
+                        fmt: (v: number) => `${v.toFixed(1)}%`,
+                      },
+                      {
+                        label: "FT Rate",
+                        val: player.ftRate,
+                        lgVal: leagueAvg?.ftRate ?? null,
+                        higherIsBetter: true,
+                        fmt: (v: number) => v.toFixed(2),
+                      },
+                      {
+                        label: "TS%",
+                        val: player.tsPct ?? advStats.tsPct,
+                        lgVal: leagueAvg?.tsPct ?? null,
+                        higherIsBetter: true,
+                        fmt: (v: number) => `${v.toFixed(1)}%`,
+                      },
+                    ].map(({ label, val, lgVal, higherIsBetter, fmt }) => {
+                      const better =
+                        val != null && lgVal != null
+                          ? higherIsBetter
+                            ? val > lgVal
+                            : val < lgVal
+                          : null;
+                      const color =
+                        better === true
+                          ? "text-green-600 dark:text-green-400"
+                          : better === false
+                            ? "text-destructive"
+                            : "text-foreground";
+                      const dot =
+                        better === true
+                          ? "bg-green-500"
+                          : better === false
+                            ? "bg-destructive"
+                            : "bg-muted-foreground/40";
+                      return (
+                        <div key={label} className="rounded-xl border border-border bg-muted/20 p-2.5">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">
+                            {label}
+                          </p>
+                          <p className={cn("text-lg font-black tabular-nums mt-0.5", color)}>
+                            {val != null ? fmt(val) : "—"}
+                          </p>
+                          {lgVal != null && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dot)} />
+                              <span className="text-[9px] text-muted-foreground">
+                                {es ? "Liga" : zh ? "联赛" : "Lg"}: {fmt(lgVal)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {player.homeSplit && player.awaySplit && (
+                <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+                  <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/70 px-0.5">
+                    {es ? "Casa vs Fuera" : zh ? "主客场对比" : "Home vs Away"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-2.5">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-green-600 dark:text-green-400 mb-1">
+                        {es ? "🏠 Casa" : zh ? "主场" : "🏠 Home"}
+                      </p>
+                      <p className="text-lg font-black text-foreground tabular-nums">
+                        {player.homeSplit.pts.toFixed(1)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        PPG · {player.homeSplit.reb.toFixed(1)} RPG · {player.homeSplit.ast.toFixed(1)} APG
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
+                        {es ? "✈️ Fuera" : zh ? "客场" : "✈️ Away"}
+                      </p>
+                      <p className="text-lg font-black text-foreground tabular-nums">
+                        {player.awaySplit.pts.toFixed(1)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        PPG · {player.awaySplit.reb.toFixed(1)} RPG · {player.awaySplit.ast.toFixed(1)} APG
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {advStats &&
+                gameLog.length >= 3 &&
+                (() => {
+                  const last5 = [...gameLog]
+                    .sort(
+                      (a, b) =>
+                        new Date(b.gameDate ?? 0).getTime() - new Date(a.gameDate ?? 0).getTime(),
+                    )
+                    .slice(0, 5);
+                  const maxPts = Math.max(...last5.map((g) => g.pts ?? 0), 1);
+                  return (
+                    <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/70">
+                          {es ? "Forma reciente" : zh ? "近期状态" : "Recent form"} · L{last5.length}
+                        </p>
+                        {advStats.isHot && (
+                          <span className="text-[10px] font-black text-green-600 dark:text-green-400">
+                            🔥 {es ? "En racha" : zh ? "状态火热" : "Hot streak"}
+                          </span>
+                        )}
+                        {advStats.isCold && (
+                          <span className="text-[10px] font-black text-destructive">
+                            ❄️ {es ? "Bajón" : zh ? "状态低迷" : "Cold"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-end gap-1.5 h-10">
+                        {[...last5].reverse().map((g, i) => (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                            <div
+                              className="w-full rounded-sm bg-primary/40"
+                              style={{
+                                height: `${Math.round(((g.pts ?? 0) / maxPts) * 100)}%`,
+                                minHeight: 4,
+                              }}
+                            />
+                            <span className="text-[8px] font-black text-muted-foreground tabular-nums">
+                              {g.pts}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {advStats.last5Avg != null && (
+                        <p className="text-[10px] text-muted-foreground">
+                          {es ? "Media L5" : zh ? "近5场均值" : "L5 avg"}:{" "}
+                          <span className="font-black text-foreground">
+                            {advStats.last5Avg.toFixed(1)} PTS
+                          </span>
+                          {" · "}
+                          {es ? "temporada" : zh ? "赛季" : "season"}: {advStats.meanPts.toFixed(1)}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -1320,7 +1717,7 @@ function StatsPlayerSheet({
                         <div className="min-w-0">
                           <p className="font-bold text-foreground tabular-nums">{date}</p>
                           {g.isStart && (
-                            <span className="inline-block rounded-full bg-primary/15 text-primary text-[8px] font-black uppercase tracking-wide px-1.5 py-0 leading-4">
+                            <span className="inline-block rounded-full bg-primary/15 text-primary text-[8px] md:text-xs font-black uppercase tracking-wide px-1.5 py-0 leading-4">
                               {L.starter}
                             </span>
                           )}
@@ -1377,6 +1774,8 @@ function StatsTeamSheet({
   const zh = locale === "zh";
   const preferEn = locale === "en" || locale === "es";
   const { data, isLoading, isError } = useTeamDetail(externalId, seasonId);
+  const leagueAvgQ = useLeagueAverages(seasonId);
+  const leagueAvg = leagueAvgQ.data;
 
   const team = data?.team;
   const players = data?.players ?? [];
@@ -1472,6 +1871,79 @@ function StatsTeamSheet({
                 <StatChip label="NET" value={team.net != null ? (team.net > 0 ? `+${team.net}` : String(team.net)) : "—"} />
               </div>
             </div>
+
+            {(team.eFGPct != null || team.tovPct != null || team.ftRate != null || team.orbPct != null) && (
+              <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+                <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/70 px-0.5">
+                  {es ? "Cuatro Factores vs Liga" : zh ? "四因素 vs 联赛均值" : "Four Factors vs League"}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      label: "eFG%",
+                      val: team.eFGPct,
+                      lgVal: leagueAvg?.eFGPct ?? null,
+                      better: true,
+                      fmt: (v: number) => `${v.toFixed(1)}%`,
+                    },
+                    {
+                      label: "TOV%",
+                      val: team.tovPct,
+                      lgVal: leagueAvg?.tovPct ?? null,
+                      better: false,
+                      fmt: (v: number) => `${v.toFixed(1)}%`,
+                    },
+                    {
+                      label: "FT Rate",
+                      val: team.ftRate,
+                      lgVal: leagueAvg?.ftRate ?? null,
+                      better: true,
+                      fmt: (v: number) => v.toFixed(2),
+                    },
+                    {
+                      label: "ORB%",
+                      val: team.orbPct,
+                      lgVal: leagueAvg?.orbPct ?? null,
+                      better: true,
+                      fmt: (v: number) => `${v.toFixed(1)}%`,
+                    },
+                  ].map(({ label, val, lgVal, better, fmt }) => {
+                    const isGood =
+                      val != null && lgVal != null ? (better ? val > lgVal : val < lgVal) : null;
+                    const color =
+                      isGood === true
+                        ? "text-green-600 dark:text-green-400"
+                        : isGood === false
+                          ? "text-destructive"
+                          : "text-foreground";
+                    const dot =
+                      isGood === true
+                        ? "bg-green-500"
+                        : isGood === false
+                          ? "bg-destructive"
+                          : "bg-muted-foreground/40";
+                    return (
+                      <div key={label} className="rounded-xl border border-border bg-muted/20 p-2.5">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">
+                          {label}
+                        </p>
+                        <p className={cn("text-lg font-black tabular-nums mt-0.5", color)}>
+                          {val != null ? fmt(val) : "—"}
+                        </p>
+                        {lgVal != null && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dot)} />
+                            <span className="text-[9px] text-muted-foreground">
+                              {es ? "Liga" : zh ? "联赛" : "Lg"}: {fmt(lgVal)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
               <div className="grid grid-cols-3 gap-2">

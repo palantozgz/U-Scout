@@ -1584,7 +1584,7 @@ export default function Schedule() {
                     const isToday = d.toDateString() === schedTodayKey;
                     return (
                       <div key={d.toDateString()} className="text-center py-1">
-                        <span className={cn("text-[10px] font-medium uppercase tracking-wide",
+                        <span className={cn("text-[10px] md:text-xs font-medium uppercase tracking-wide",
                           isToday ? "text-primary" : "text-muted-foreground/70")}>{name}</span>
                       </div>
                     );
@@ -1615,13 +1615,13 @@ export default function Schedule() {
                             : "border-border/30 bg-card",
                         )}
                       >
-                        <span className={cn("text-[11px] font-medium leading-none mb-0.5",
+                        <span className={cn("text-[11px] md:text-sm font-medium leading-none mb-0.5",
                           isToday ? "text-primary" : "text-muted-foreground/70")}>{d.getDate()}</span>
                         {dayEvents.map((ev) => {
                           const timeStr = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(ev.starts_at));
                           const colorClass = EVENT_COLORS[(ev as any).type ?? "training"] ?? EVENT_COLORS.training;
                           return (
-                            <div key={ev.id} className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight truncate", colorClass)}>
+                            <div key={ev.id} className={cn("rounded px-1.5 py-0.5 text-[10px] md:text-sm font-medium leading-tight truncate", colorClass)}>
                               {timeStr} {ev.title}
                             </div>
                           );

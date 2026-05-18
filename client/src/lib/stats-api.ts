@@ -96,6 +96,8 @@ export interface StandingsRow {
   ppg: number | null;
   oppg: number | null;
   phaseName: string | null;
+  streak?: number | null;
+  eFGPct?: number | null;
 }
 
 export interface LeaderRow {
