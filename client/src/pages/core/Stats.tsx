@@ -746,7 +746,11 @@ export default function Stats() {
                           <button
                             key={String(row.teamExternalId)}
                             type="button"
-                            onClick={() => setTeamSheetId(String(row.teamExternalId))}
+                            onClick={() => {
+                              setPlayerSheetId(null);
+                              setReturnToTeamId(null);
+                              setTeamSheetId(String(row.teamExternalId));
+                            }}
                             className={cn(
                               "w-full gap-1 items-center px-2 py-2 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/25 active:bg-muted/40 active:opacity-90 transition-colors",
                               isLevel3
@@ -1922,6 +1926,26 @@ function StatsPlayerSheet({
     }
   };
 
+  // 3PT volume per game for the insight label
+  const tpaPerGame = useMemo(() => {
+    if (!player || gameLog.length === 0) return null;
+    const total = gameLog.reduce((s, g) => s + (g.tpa ?? 0), 0);
+    return total / player.games;
+  }, [player, gameLog]);
+
+  const tpaVolumeLabel = useMemo(() => {
+    const tpa = tpaPerGame;
+    const pc  = percentilesQ.data;
+    if (tpa == null || !pc) return null;
+    const es = locale === "es";
+    const zh = locale === "zh";
+    if (tpa < pc.p25Tpa)  return { key: "veryLow",  label: es ? "Muy poco vol." : zh ? "极低出手量" : "Very low vol.",  gradient: "from-slate-500 to-slate-400",   text: "text-slate-400"   };
+    if (tpa < pc.p50Tpa)  return { key: "low",       label: es ? "Poco volumen"  : zh ? "低出手量"   : "Low volume",      gradient: "from-blue-500 to-blue-400",     text: "text-blue-400"    };
+    if (tpa < pc.p75Tpa)  return { key: "mid",       label: es ? "Vol. normal"   : zh ? "中等出手量" : "Normal vol.",      gradient: "from-emerald-500 to-teal-400",  text: "text-emerald-400" };
+    if (tpa < pc.p90Tpa)  return { key: "high",      label: es ? "Alto volumen"  : zh ? "高出手量"   : "High volume",      gradient: "from-amber-500 to-yellow-400",  text: "text-amber-400"   };
+    return                       { key: "veryHigh",  label: es ? "Tirador élite" : zh ? "顶级射手"   : "Elite shooter",   gradient: "from-orange-500 to-red-400",    text: "text-orange-400"  };
+  }, [tpaPerGame, percentilesQ.data, locale]);
+
   const statBars = useMemo(() => {
     if (!player) return [];
     type BarColor = "amber" | "green" | "purple" | "blue" | "red" | "muted";
@@ -2192,6 +2216,14 @@ function StatsPlayerSheet({
                       style={{ width: `${bar.pct}%` }}
                     />
                   </div>
+                  {bar.key === "3P%" && tpaVolumeLabel && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <div className={cn("h-1.5 w-6 rounded-full bg-gradient-to-r shrink-0", tpaVolumeLabel.gradient)} />
+                      <span className={cn("text-[8px] font-bold", tpaVolumeLabel.text)}>
+                        {tpaVolumeLabel.label}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
               {vsPills.length > 0 && (

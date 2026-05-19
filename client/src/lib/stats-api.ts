@@ -291,11 +291,12 @@ export function usePlayerDetail(externalId: string | null | undefined) {
   });
 }
 
-export function useLeagueAverages(seasonId?: number) {
+export function useLeagueAverages(seasonId?: number, position?: string | null) {
   return useQuery({
-    queryKey: ["stats-league-averages", seasonId ?? 2092],
+    queryKey: ["stats-league-averages", seasonId ?? 2092, position ?? "all"],
     queryFn: async () => {
-      const r = await apiRequest("GET", `/api/stats/league-averages?seasonId=${seasonId ?? 2092}`);
+      const pos = position ? `&position=${encodeURIComponent(position)}` : "";
+      const r = await apiRequest("GET", `/api/stats/league-averages?seasonId=${seasonId ?? 2092}${pos}`);
       return r.json() as Promise<{
         ppg: number;
         rpg: number;
@@ -317,11 +318,12 @@ export function useLeagueAverages(seasonId?: number) {
   });
 }
 
-export function usePlayerPercentiles(seasonId?: number) {
+export function usePlayerPercentiles(seasonId?: number, position?: string | null) {
   return useQuery({
-    queryKey: ["stats-player-percentiles", seasonId ?? 2092],
+    queryKey: ["stats-player-percentiles", seasonId ?? 2092, position ?? "all"],
     queryFn: async () => {
-      const r = await apiRequest("GET", `/api/stats/player-percentiles?seasonId=${seasonId ?? 2092}`);
+      const pos = position ? `&position=${encodeURIComponent(position)}` : "";
+      const r = await apiRequest("GET", `/api/stats/player-percentiles?seasonId=${seasonId ?? 2092}${pos}`);
       return r.json() as Promise<{
         p95Ppg: number;
         p95Rpg: number;
@@ -330,6 +332,10 @@ export function usePlayerPercentiles(seasonId?: number) {
         p95Bpg: number;
         p95TsPct: number;
         p95EFGPct: number;
+        p25Tpa: number;
+        p50Tpa: number;
+        p75Tpa: number;
+        p90Tpa: number;
       }>;
     },
     staleTime: 1000 * 60 * 60 * 24,

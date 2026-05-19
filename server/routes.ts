@@ -2317,6 +2317,9 @@ export async function registerRoutes(
 
   app.get("/api/stats/league-averages", requireAuth, async (req, res) => {
     const seasonId = Number(req.query.seasonId ?? 2092);
+    const position = typeof req.query.position === "string" && req.query.position.trim()
+      ? req.query.position.trim()
+      : null;
     try {
       const rows = await db.execute(sql`
         SELECT
@@ -2353,6 +2356,7 @@ export async function registerRoutes(
           ROUND(AVG(pb.def_reb)::numeric, 1) AS "avgDrbPerGame"
         FROM stats_player_boxscores pb
         JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        ${position ? sql`JOIN stats_players sp ON sp.external_id = pb.player_external_id AND sp.position = ${position}` : sql``}
       `);
       const row = (rows as any).rows?.[0] ?? {};
       return res.json({
@@ -2378,6 +2382,9 @@ export async function registerRoutes(
 
   app.get("/api/stats/player-percentiles", requireAuth, async (req, res) => {
     const seasonId = Number(req.query.seasonId ?? 2092);
+    const positionPct = typeof req.query.position === "string" && req.query.position.trim()
+      ? req.query.position.trim()
+      : null;
     try {
       const rows = await db.execute(sql`
         WITH player_avgs AS (
@@ -2393,9 +2400,11 @@ export async function registerRoutes(
             END AS ts_pct,
             CASE WHEN SUM(pb.fga) > 0
               THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::float / SUM(pb.fga) * 100
-            END AS efg_pct
+            END AS efg_pct,
+          SUM(pb.tpa)::float / COUNT(DISTINCT pb.game_id) AS tpa_per_game
           FROM stats_player_boxscores pb
           JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          ${positionPct ? sql`JOIN stats_players sp ON sp.external_id = pb.player_external_id AND sp.position = ${positionPct}` : sql``}
           GROUP BY pb.player_external_id
           HAVING COUNT(DISTINCT pb.game_id) >= 5
         )
@@ -2406,7 +2415,11 @@ export async function registerRoutes(
           percentile_cont(0.95) WITHIN GROUP (ORDER BY spg)    AS "p95Spg",
           percentile_cont(0.95) WITHIN GROUP (ORDER BY bpg)    AS "p95Bpg",
           percentile_cont(0.95) WITHIN GROUP (ORDER BY ts_pct) AS "p95TsPct",
-          percentile_cont(0.95) WITHIN GROUP (ORDER BY efg_pct) AS "p95EFGPct"
+          percentile_cont(0.95) WITHIN GROUP (ORDER BY efg_pct) AS "p95EFGPct",
+          percentile_cont(0.25) WITHIN GROUP (ORDER BY tpa_per_game) AS "p25Tpa",
+          percentile_cont(0.50) WITHIN GROUP (ORDER BY tpa_per_game) AS "p50Tpa",
+          percentile_cont(0.75) WITHIN GROUP (ORDER BY tpa_per_game) AS "p75Tpa",
+          percentile_cont(0.90) WITHIN GROUP (ORDER BY tpa_per_game) AS "p90Tpa"
         FROM player_avgs
       `);
       const row = (rows as any).rows?.[0] ?? {};
@@ -2418,6 +2431,10 @@ export async function registerRoutes(
         p95Bpg: row.p95Bpg != null ? Number(row.p95Bpg) : 2.5,
         p95TsPct: row.p95TsPct != null ? Number(row.p95TsPct) : 65,
         p95EFGPct: row.p95EFGPct != null ? Number(row.p95EFGPct) : 60,
+        p25Tpa: row.p25Tpa != null ? Number(row.p25Tpa) : 0.5,
+        p50Tpa: row.p50Tpa != null ? Number(row.p50Tpa) : 1.5,
+        p75Tpa: row.p75Tpa != null ? Number(row.p75Tpa) : 3.0,
+        p90Tpa: row.p90Tpa != null ? Number(row.p90Tpa) : 5.0,
       });
     } catch (err: any) {
       console.error("[stats/player-percentiles] error:", err?.message ?? err);
