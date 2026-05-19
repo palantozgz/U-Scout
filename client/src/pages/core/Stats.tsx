@@ -1940,11 +1940,12 @@ function StatsPlayerSheet({
     const es = locale === "es";
     const zh = locale === "zh";
     // Cuánto tira de 3 — volumen de intentos vs la liga
-    if (tpa < pc.p25Tpa)  return { key: "veryLow",  label: es ? "Casi no tira" : zh ? "极少出手" : "Rarely shoots",   gradient: "from-slate-600 to-slate-500",   text: "text-slate-400"   };
-    if (tpa < pc.p50Tpa)  return { key: "low",       label: es ? "Tira poco"    : zh ? "少量出手" : "Low volume",       gradient: "from-blue-600 to-blue-500",     text: "text-blue-400"    };
-    if (tpa < pc.p75Tpa)  return { key: "mid",       label: es ? "Tira normal"  : zh ? "正常出手" : "Regular shooter",  gradient: "from-emerald-600 to-teal-500",  text: "text-emerald-400" };
-    if (tpa < pc.p90Tpa)  return { key: "high",      label: es ? "Tira mucho"   : zh ? "频繁出手" : "High volume",       gradient: "from-amber-500 to-yellow-400",  text: "text-amber-400"   };
-    return                       { key: "veryHigh",  label: es ? "Tiradora top" : zh ? "顶级出手" : "Top shooter",      gradient: "from-orange-500 to-red-400",    text: "text-orange-400"  };
+    if (tpa === 0)         return { key: "zero",    label: es ? "Sin intentos"   : zh ? "无出手"   : "No attempts",      gradient: "from-slate-700 to-slate-600",  text: "text-slate-500"   };
+    if (tpa < pc.p25Tpa)  return { key: "veryLow", label: es ? "Muy pocos (bot25%)" : zh ? "极少" : "Very few (bot 25%)", gradient: "from-slate-600 to-slate-500",  text: "text-slate-400"   };
+    if (tpa < pc.p50Tpa)  return { key: "low",      label: es ? "Pocos intentos"  : zh ? "出手较少" : "Below average",      gradient: "from-blue-600 to-blue-500",    text: "text-blue-400"    };
+    if (tpa < pc.p75Tpa)  return { key: "mid",      label: es ? "Intentos medios" : zh ? "中等出手" : "Average volume",     gradient: "from-emerald-600 to-teal-500", text: "text-emerald-400" };
+    if (tpa < pc.p90Tpa)  return { key: "high",     label: es ? "Muchos intentos" : zh ? "频繁出手" : "High attempts",      gradient: "from-amber-500 to-yellow-400", text: "text-amber-400"   };
+    return                       { key: "veryHigh", label: es ? "Volumen élite"   : zh ? "顶级出手量" : "Elite attempts",    gradient: "from-orange-500 to-red-400",   text: "text-orange-400"  };
   }, [tpaPerGame, percentilesQ.data, locale]);
 
   const statBars = useMemo(() => {
