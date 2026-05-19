@@ -239,12 +239,19 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
       });
     }, 2_000);
 
-    // Phase 3 (4s): Stats — least time-sensitive, large payload
+    // Phase 3 (4s): Stats — prefetch JS chunk + seasons + player stats
     const t3 = window.setTimeout(() => {
+      // Prefetch the Stats JS chunk so navigation is instant
+      void import("@/pages/core/Stats").catch(() => {});
       queryClient.prefetchQuery({
         queryKey: ["stats-seasons"],
         queryFn: () => apiRequest("GET", "/api/stats/seasons").then(r => r.json()).catch(() => ({ seasons: [] })),
         staleTime: 3_600_000,
+      });
+      queryClient.prefetchQuery({
+        queryKey: ["/api/stats/players"],
+        queryFn: () => apiRequest("GET", "/api/stats/players").then(r => r.json()).catch(() => ({ players: [] })),
+        staleTime: 5 * 60_000,
       });
     }, 4_000);
 
