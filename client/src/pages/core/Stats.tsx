@@ -1940,12 +1940,12 @@ function StatsPlayerSheet({
     const es = locale === "es";
     const zh = locale === "zh";
     // Cuánto tira de 3 — volumen de intentos vs la liga
-    if (tpa === 0)         return { key: "zero",    label: es ? "Sin intentos"  : zh ? "无出手"   : "No attempts",   gradient: "from-slate-700 to-slate-600",  text: "text-slate-500"   };
-    if (tpa < pc.p25Tpa)  return { key: "veryLow", label: es ? "Muy pocos"     : zh ? "极少"     : "Very few",      gradient: "from-slate-600 to-slate-500",  text: "text-slate-400"   };
-    if (tpa < pc.p50Tpa)  return { key: "low",      label: es ? "Pocos"         : zh ? "较少"     : "Few",           gradient: "from-blue-600 to-blue-500",    text: "text-blue-400"    };
-    if (tpa < pc.p75Tpa)  return { key: "mid",      label: es ? "Cantidad media": zh ? "中等"     : "Moderate",      gradient: "from-emerald-600 to-teal-500", text: "text-emerald-400" };
-    if (tpa < pc.p90Tpa)  return { key: "high",     label: es ? "Muchos"        : zh ? "较多"     : "Many",          gradient: "from-amber-500 to-yellow-400", text: "text-amber-400"   };
-    return                       { key: "veryHigh", label: es ? "Mucísimos"     : zh ? "极多"     : "Very many",     gradient: "from-orange-500 to-red-400",   text: "text-orange-400"  };
+    if (tpa === 0)         return { key: "zero",    adv: es ? "ninguno"        : zh ? "无"       : "none",          gradient: "from-slate-700 to-slate-600",  text: "text-slate-500"   };
+    if (tpa < pc.p25Tpa)  return { key: "veryLow", adv: es ? "muy pocos"      : zh ? "极少"     : "very few",      gradient: "from-slate-600 to-slate-500",  text: "text-slate-400"   };
+    if (tpa < pc.p50Tpa)  return { key: "low",      adv: es ? "pocos"          : zh ? "较少"     : "few",           gradient: "from-blue-600 to-blue-500",    text: "text-blue-400"    };
+    if (tpa < pc.p75Tpa)  return { key: "mid",      adv: es ? "normal"         : zh ? "中等"     : "average",       gradient: "from-emerald-600 to-teal-500", text: "text-emerald-400" };
+    if (tpa < pc.p90Tpa)  return { key: "high",     adv: es ? "muchos"         : zh ? "较多"     : "many",          gradient: "from-amber-500 to-yellow-400", text: "text-amber-400"   };
+    return                       { key: "veryHigh", adv: es ? "muchísimos"     : zh ? "极多"     : "loads",         gradient: "from-orange-500 to-red-400",   text: "text-orange-400"  };
   }, [tpaPerGame, percentilesQ.data, locale]);
 
   const statBars = useMemo(() => {
@@ -2221,8 +2221,11 @@ function StatsPlayerSheet({
                   {bar.key === "3P%" && tpaVolumeLabel && (
                     <div className="flex items-center gap-1 mt-0.5">
                       <div className={cn("h-1.5 w-6 rounded-full bg-gradient-to-r shrink-0", tpaVolumeLabel.gradient)} />
-                      <span className={cn("text-[8px] font-bold", tpaVolumeLabel.text)}>
-                        {tpaVolumeLabel.label}
+                      <span className="text-[8px] font-bold text-muted-foreground/50">
+                        {es ? "Intentos de 3:" : zh ? "三分出手:" : "3s attempted:"}
+                      </span>
+                      <span className={cn("text-[8px] font-black", tpaVolumeLabel.text)}>
+                        {tpaVolumeLabel.adv}
                       </span>
                     </div>
                   )}
