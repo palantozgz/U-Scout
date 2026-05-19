@@ -48,7 +48,29 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## Estado sesión 2026-05-19 (activa)
+## Estado sesión 2026-05-19 (cerrada)
+
+### ✅ Completado esta sesión
+
+#### U Stats — Bug: Tab Avanzado en blanco
+- **Root cause**: `team_external_id` en `stats_player_boxscores` era NULL en los 5312 registros.
+  El collector extraía `p.teamId` desde el objeto jugador pero la API WCBA lo pone en el objeto padre del equipo.
+- **Fix datos (Supabase SQL)**: Dos UPDATE — primero desde `stats_players.team_id`, luego desde `stats_games` para las 368 jugadoras sin roster.
+- **Fix collector** (`collector/src/sync/boxscores.ts`): `mapPlayers` ahora recibe `teamExternalId` como parámetro extraído del objeto `homeTeam`/`awayTeam`.
+- **Fix routes.ts**: Bloque ORTG/DRTG reescrito con `let ortg/drtg/...` fuera del try, `const rtg` dentro, catch con log. WHERE clause usa subselect en lugar de cast directo.
+- **Fix Stats.tsx**: `eFGPct.toFixed()` → `num(eFGPct).toFixed()` en 4 lugares (string de PostgreSQL ROUND no es number JS).
+- **Fix gamelog fecha**: `g.date.slice(5)` → `g.date.slice(5, 10)` (evita mostrar hora y timezone).
+- **Fix gamelog rivales i18n**: Backend añade `opponentNameEn`, `TeamGameLogEntry` tipado, frontend usa `pickName(g.opponentName, g.opponentNameEn, locale)`.
+- `npm run check` → exit 0. Commit y push a main ✅.
+
+#### Collector Pi — PENDIENTE
+- Fix aplicado en source y compilado localmente (`npm run build` ✅).
+- **SCP + pm2 restart pendiente**: Pi apagado/desconectado (192.168.1.59 no responde).
+- Cuando Pi esté online:
+  ```bash
+  scp -r "/Users/palant/Downloads/U scout/ucore/collector/dist/" pablo@192.168.1.59:~/ucore/collector/dist/
+  ssh pablo@192.168.1.59 "pm2 restart ucore-collector"
+  ```
 
 ### ✅ Completado sesión 2026-05-19
 
