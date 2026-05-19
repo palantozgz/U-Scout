@@ -1939,11 +1939,12 @@ function StatsPlayerSheet({
     if (tpa == null || !pc) return null;
     const es = locale === "es";
     const zh = locale === "zh";
-    if (tpa < pc.p25Tpa)  return { key: "veryLow",  label: es ? "Muy poco vol." : zh ? "极低出手量" : "Very low vol.",  gradient: "from-slate-500 to-slate-400",   text: "text-slate-400"   };
-    if (tpa < pc.p50Tpa)  return { key: "low",       label: es ? "Poco volumen"  : zh ? "低出手量"   : "Low volume",      gradient: "from-blue-500 to-blue-400",     text: "text-blue-400"    };
-    if (tpa < pc.p75Tpa)  return { key: "mid",       label: es ? "Vol. normal"   : zh ? "中等出手量" : "Normal vol.",      gradient: "from-emerald-500 to-teal-400",  text: "text-emerald-400" };
-    if (tpa < pc.p90Tpa)  return { key: "high",      label: es ? "Alto volumen"  : zh ? "高出手量"   : "High volume",      gradient: "from-amber-500 to-yellow-400",  text: "text-amber-400"   };
-    return                       { key: "veryHigh",  label: es ? "Tirador élite" : zh ? "顶级射手"   : "Elite shooter",   gradient: "from-orange-500 to-red-400",    text: "text-orange-400"  };
+    // Cuánto tira de 3 — volumen de intentos vs la liga
+    if (tpa < pc.p25Tpa)  return { key: "veryLow",  label: es ? "Casi no tira" : zh ? "极少出手" : "Rarely shoots",   gradient: "from-slate-600 to-slate-500",   text: "text-slate-400"   };
+    if (tpa < pc.p50Tpa)  return { key: "low",       label: es ? "Tira poco"    : zh ? "少量出手" : "Low volume",       gradient: "from-blue-600 to-blue-500",     text: "text-blue-400"    };
+    if (tpa < pc.p75Tpa)  return { key: "mid",       label: es ? "Tira normal"  : zh ? "正常出手" : "Regular shooter",  gradient: "from-emerald-600 to-teal-500",  text: "text-emerald-400" };
+    if (tpa < pc.p90Tpa)  return { key: "high",      label: es ? "Tira mucho"   : zh ? "频繁出手" : "High volume",       gradient: "from-amber-500 to-yellow-400",  text: "text-amber-400"   };
+    return                       { key: "veryHigh",  label: es ? "Tiradora top" : zh ? "顶级出手" : "Top shooter",      gradient: "from-orange-500 to-red-400",    text: "text-orange-400"  };
   }, [tpaPerGame, percentilesQ.data, locale]);
 
   const statBars = useMemo(() => {
