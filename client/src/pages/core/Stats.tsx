@@ -94,9 +94,37 @@ function minutesToDisplay(minutes: string | null): string {
   return minutes;
 }
 
+const WCBA_TEAM_EN: Record<string, string> = {
+  "山西": "Shanxi",
+  "广东": "Guangdong",
+  "内蒙古": "Inner Mongolia",
+  "四川": "Sichuan",
+  "新疆": "Xinjiang",
+  "山东": "Shandong",
+  "上海": "Shanghai",
+  "江苏": "Jiangsu",
+  "武汉": "Wuhan",
+  "石家庄": "Shijiazhuang",
+  "北京": "Beijing",
+  "陕西": "Shaanxi",
+  "浙江": "Zhejiang",
+  "合肥": "Hefei",
+  "河南": "Henan",
+  "福建": "Fujian",
+  "辽宁": "Liaoning",
+  "天津": "Tianjin",
+};
+
 function pickName(nameZh: string | null | undefined, nameEn: string | null | undefined, locale: string): string {
   if (locale === "zh") return nameZh ?? nameEn ?? "";
-  return nameEn ?? nameZh ?? "";
+  if (nameEn?.trim()) return nameEn.trim();
+  // Fallback: match Chinese name against known WCBA teams
+  if (nameZh) {
+    for (const [zh, en] of Object.entries(WCBA_TEAM_EN)) {
+      if (nameZh.includes(zh)) return en;
+    }
+  }
+  return nameZh ?? "";
 }
 
 function translatePosition(pos: string | null | undefined, locale: string): string {
@@ -417,6 +445,9 @@ export default function Stats() {
     }
   };
 
+  // Level 3: player opened from team roster — show minimal standings
+  const isLevel3 = isDesktop && Boolean(playerSheetId && returnToTeamId);
+
   const desktopPanel = isDesktop ? (
     <StatsDesktopPanel
       playerSheetId={playerSheetId}
@@ -680,20 +711,29 @@ export default function Stats() {
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                    <div className="grid grid-cols-[0.3fr_1fr_0.5fr_0.35fr_0.35fr_0.4fr_auto] gap-1 border-b border-border bg-muted/30 px-2 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    <div className={cn(
+                      "gap-1 border-b border-border bg-muted/30 px-2 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground",
+                      isLevel3
+                        ? "grid grid-cols-[0.3fr_1fr_0.5fr]"
+                        : "grid grid-cols-[0.3fr_1fr_0.5fr_0.35fr_0.35fr_0.4fr_auto]"
+                    )}>
                       <span className="text-center">{L.colRank}</span>
                       <span>{L.colTeam}</span>
                       <span className="text-right">{L.colWL}</span>
-                      <span className="text-right">{L.colPPG}</span>
-                      <span className="text-right">{L.colOPPG}</span>
-                      <span className="text-right">{L.colNET}</span>
-                      <span className="text-right">eFG%</span>
+                      {!isLevel3 && <span className="text-right">{L.colPPG}</span>}
+                      {!isLevel3 && <span className="text-right">{L.colOPPG}</span>}
+                      {!isLevel3 && <span className="text-right">{L.colNET}</span>}
+                      {!isLevel3 && <span className="text-right">eFG%</span>}
                     </div>
                     {standingsGroups.groups.map((group, gi) => (
                       <div key={`${group.label ?? "default"}-${gi}`}>
                         {standingsGroups.showHeaders && (
                           <p className="px-2 py-1.5 text-xs font-black uppercase tracking-wider text-muted-foreground border-b border-border bg-muted/15">
-                            {group.label ?? "—"}
+                            {group.label
+                              ? (locale !== "zh" && (locale as string) !== "zh-CN"
+                                  ? (group.label.includes("A组") ? "Group A" : group.label.includes("B组") ? "Group B" : group.label.includes("季后赛") ? "Playoffs" : group.label.includes("常规赛") ? "Regular season" : group.label)
+                                  : group.label)
+                              : "—"}
                           </p>
                         )}
                         {group.rows.map((row: StandingsRow) => {
@@ -707,7 +747,12 @@ export default function Stats() {
                             key={String(row.teamExternalId)}
                             type="button"
                             onClick={() => setTeamSheetId(String(row.teamExternalId))}
-                            className="w-full grid grid-cols-[0.3fr_1fr_0.5fr_0.35fr_0.35fr_0.4fr_auto] gap-1 items-center px-2 py-2 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/25 active:bg-muted/40 active:opacity-90 transition-colors"
+                            className={cn(
+                              "w-full gap-1 items-center px-2 py-2 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/25 active:bg-muted/40 active:opacity-90 transition-colors",
+                              isLevel3
+                                ? "grid grid-cols-[0.3fr_1fr_0.5fr]"
+                                : "grid grid-cols-[0.3fr_1fr_0.5fr_0.35fr_0.35fr_0.4fr_auto]"
+                            )}
                           >
                             <p className="text-center font-black tabular-nums text-muted-foreground">{row.rank}</p>
                             <div className="min-w-0 flex items-center gap-1.5">
@@ -737,25 +782,15 @@ export default function Stats() {
                             <p className="text-right font-black tabular-nums">
                               {row.wins}-{row.losses}
                             </p>
-                            <p className="text-right font-black tabular-nums">{row.ppg != null ? num(row.ppg).toFixed(1) : "—"}</p>
-                            <p className="text-right font-black tabular-nums">{row.oppg != null ? num(row.oppg).toFixed(1) : "—"}</p>
-                            <p
-                              className={cn(
-                                "text-right font-black tabular-nums",
-                                netNum == null
-                                  ? "text-muted-foreground"
-                                  : netNum > 0
-                                    ? "text-green-600 dark:text-green-400"
-                                    : netNum < 0
-                                      ? "text-destructive"
-                                      : "text-muted-foreground",
-                              )}
-                            >
-                              {netStr}
-                            </p>
-                            <p className="text-right font-black tabular-nums text-xs">
+                            {!isLevel3 && <p className="text-right font-black tabular-nums">{row.ppg != null ? num(row.ppg).toFixed(1) : "—"}</p>}
+                            {!isLevel3 && <p className="text-right font-black tabular-nums">{row.oppg != null ? num(row.oppg).toFixed(1) : "—"}</p>}
+                            {!isLevel3 && <p className={cn(
+                              "text-right font-black tabular-nums",
+                              netNum == null ? "text-muted-foreground" : netNum > 0 ? "text-green-600 dark:text-green-400" : netNum < 0 ? "text-destructive" : "text-muted-foreground"
+                            )}>{netStr}</p>}
+                            {!isLevel3 && <p className="text-right font-black tabular-nums text-xs">
                               {row.eFGPct != null ? `${num(row.eFGPct).toFixed(1)}` : "—"}
-                            </p>
+                            </p>}
                           </button>
                           );
                         })}
@@ -1808,8 +1843,10 @@ function StatsPlayerSheet({
   const zh = locale === "zh";
 
   const { data, isLoading, isError } = usePlayerDetail(externalId);
-  const leagueAvgQ = useLeagueAverages();
-  const percentilesQ = usePlayerPercentiles();
+  const [byPosition, setByPosition] = useState(false);
+  const filterPos = byPosition ? (data?.player?.position ?? null) : null;
+  const leagueAvgQ   = useLeagueAverages(undefined, filterPos);
+  const percentilesQ = usePlayerPercentiles(undefined, filterPos);
 
   const player = data?.player;
   const gameLog = data?.gameLog ?? [];
@@ -2096,7 +2133,16 @@ function StatsPlayerSheet({
               <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground/60 mb-1 self-start px-1">
                 {es ? "Perfil visual" : zh ? "视觉概况" : "Visual profile"}
               </p>
-              <StatsRadar player={player} locale={locale} compact={!isDesktop} positionLabel={translatePosition(player.position, locale)} />
+              <StatsRadar
+                player={player}
+                locale={locale}
+                compact={!isDesktop}
+                positionLabel={translatePosition(player.position, locale)}
+                byPosition={byPosition}
+                onTogglePosition={() => setByPosition((v) => !v)}
+                leagueAvgData={leagueAvgQ.data ?? null}
+                percentilesData={percentilesQ.data ?? null}
+              />
             </div>
 
             {/* Stat bars side */}
@@ -2340,34 +2386,59 @@ function StatsPlayerSheet({
                   );
                 })()}
 
-              {advStats && (
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: "DD", val: String(advStats.dd) },
-                    { label: "TD", val: String(advStats.td) },
-                    { label: "σ PTS", val: advStats.stdDev.toFixed(1) },
-                    {
-                      label: "PIE",
-                      val: advStats.pie != null ? `${advStats.pie.toFixed(1)}%` : "—",
-                    },
-                  ].map(({ label, val }) => (
-                    <div key={label} className="rounded-xl border border-border bg-muted/10 p-2.5 text-center">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">
-                        {label}
-                      </p>
-                      <p className={cn("font-black tabular-nums mt-0.5", isDesktop ? "text-lg" : "text-base")}>
-                        {val}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
           {/* Tab: Deep stats */}
           {deepTab === "deep" && (
             <div className={cn("space-y-4", isDesktop ? "p-4" : "p-3")}>
+              {advStats && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60 mb-2">
+                    {es ? "Perfil de temporada" : zh ? "赛季概况" : "Season profile"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-border bg-muted/10 p-3">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
+                        {es ? "Doble-dobles" : zh ? "两双" : "Double-doubles"}
+                      </p>
+                      <p className={cn("font-black tabular-nums", isDesktop ? "text-xl" : "text-lg")}>{advStats.dd}</p>
+                      <p className="text-[8px] text-muted-foreground/40 mt-1">
+                        {es ? "≥10 en 2 categorías" : zh ? "2项达到两位数" : "10+ in 2 categories"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-muted/10 p-3">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
+                        {es ? "Triple-dobles" : zh ? "三双" : "Triple-doubles"}
+                      </p>
+                      <p className={cn("font-black tabular-nums", isDesktop ? "text-xl" : "text-lg")}>{advStats.td}</p>
+                      <p className="text-[8px] text-muted-foreground/40 mt-1">
+                        {es ? "≥10 en 3 categorías" : zh ? "3项达到两位数" : "10+ in 3 categories"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-muted/10 p-3">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
+                        {es ? "Consistencia" : zh ? "稳定性" : "Consistency"}
+                      </p>
+                      <p className={cn("font-black tabular-nums", isDesktop ? "text-xl" : "text-lg")}>{advStats.stdDev.toFixed(1)}</p>
+                      <p className="text-[8px] text-muted-foreground/40 mt-1">
+                        {es ? "Desv. típica en puntos — cuanto menor, más regular" : zh ? "得分标准差——越低越稳定" : "Scoring std dev — lower = more consistent"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-muted/10 p-3">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
+                        {es ? "Impacto global" : zh ? "综合影响力" : "Player impact"}
+                      </p>
+                      <p className={cn("font-black tabular-nums", isDesktop ? "text-xl" : "text-lg")}>
+                        {advStats.pie != null ? `${advStats.pie.toFixed(1)}%` : "—"}
+                      </p>
+                      <p className="text-[8px] text-muted-foreground/40 mt-1">
+                        {es ? "PIE — contribución al resultado del partido" : zh ? "PIE——对比赛结果的贡献度" : "PIE — contribution to game outcome"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               {advStats && (
                 <div>
                   <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50 mb-2">
