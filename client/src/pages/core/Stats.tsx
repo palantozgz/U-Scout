@@ -28,6 +28,7 @@ import {
   type GameLogEntry,
   type TeamDetail,
   type TeamRosterPlayer,
+  type TeamGameLogEntry,
 } from "@/lib/stats-api";
 
 type MainTab = "liga" | "jugadoras";
@@ -586,7 +587,7 @@ export default function Stats() {
                     <p className="text-[10px] text-muted-foreground mt-1">
                       eFG%{" "}
                       <span className="font-black text-foreground">
-                        {rivalStanding.eFGPct.toFixed(1)}
+                        {num(rivalStanding.eFGPct).toFixed(1)}
                       </span>
                       {rivalStanding.streak != null && rivalStanding.streak !== 0 && (
                         <span
@@ -633,7 +634,7 @@ export default function Stats() {
                     )}
                     {ownL5.eFGPct != null && (
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        eFG% <span className="font-black text-foreground">{ownL5.eFGPct.toFixed(1)}</span>
+                        eFG% <span className="font-black text-foreground">{num(ownL5.eFGPct).toFixed(1)}</span>
                       </p>
                     )}
                   </div>
@@ -746,7 +747,7 @@ export default function Stats() {
                               {netStr}
                             </p>
                             <p className="text-right font-black tabular-nums text-xs">
-                              {row.eFGPct != null ? `${row.eFGPct.toFixed(1)}` : "—"}
+                              {row.eFGPct != null ? `${num(row.eFGPct).toFixed(1)}` : "—"}
                             </p>
                           </button>
                           );
@@ -1038,51 +1039,623 @@ const STAT_FULL: Record<string, string> = {
   TD: "Triple-Doubles",
 };
 
-function ShotZoneChart({ fgPct, fg3Pct }: { fgPct: number | null; fg3Pct: number | null }) {
-  function zoneColor(pct: number | null, base: number) {
-    if (pct == null) return "hsl(var(--muted))";
-    const delta = pct - base;
-    if (delta > 5) return "#22c55e";
-    if (delta > 0) return "#86efac";
-    if (delta > -5) return "#fca5a5";
-    return "#ef4444";
+// ─────────────────────────────────────────────────────────────────────────
+// ShotZoneChart — 10 zonas estándar NBA
+// Sistema de coordenadas: NBA stats API (hoop=origen, 1ft=10u), escala=0.6
+// SVG: W=300 H=282 | sx(x)=(x+250)*0.6 | sy(y)=(422.5-y)*0.6
+//
+// Zonas 3PT: Corner-L/R, Wing-L/R, Center-3
+// Zonas 2PT: RA, Paint, Mid-Left/Center/Right
+//
+// Colores por tema:
+//  dark (.dark):        fondo #0c1018, líneas rgba(255,255,255,0.22)
+//  office (.theme-office):  fondo #c8d0e0, líneas rgba(0,0,0,0.22)
+//  oldschool (.theme-oldschool): fondo #1a0c02, líneas rgba(240,224,168,0.22)
+//
+// Verde/Ámbar/Rojo son universales a los tres temas.
+// ─────────────────────────────────────────────────────────────────────────
+
+interface ShotZoneData {
+  pct: number | null;
+  lg: number;
+  fgm?: number;
+  fga?: number;
+}
+
+interface ShotZoneChartProps {
+  fgPct?: number | null;
+  fg3Pct?: number | null;
+  zones?: {
+    ra?: ShotZoneData;
+    paint?: ShotZoneData;
+    mid2L?: ShotZoneData;
+    mid2C?: ShotZoneData;
+    mid2R?: ShotZoneData;
+    c3L?: ShotZoneData;
+    wg3L?: ShotZoneData;
+    ctr3?: ShotZoneData;
+    wg3R?: ShotZoneData;
+    c3R?: ShotZoneData;
+  };
+  showLabels?: boolean;
+}
+
+function ShotZoneChart({ fgPct, fg3Pct, zones, showLabels = true }: ShotZoneChartProps) {
+  function zf(pct: number | null, lg: number): string {
+    if (pct == null) return "rgba(128,128,128,0.08)";
+    const d = pct - lg;
+    if (d > 3) return "rgba(34,197,94,0.62)";
+    if (d > -3) return "rgba(234,179,8,0.55)";
+    return "rgba(239,68,68,0.60)";
   }
-  const paint2Color = zoneColor(fgPct, 45);
-  const mid2Color = zoneColor(fgPct, 38);
-  const threeColor = zoneColor(fg3Pct, 33);
+
+  const Z = {
+    ra: zones?.ra ?? { pct: fgPct ?? null, lg: 63.0 },
+    paint: zones?.paint ?? { pct: fgPct ?? null, lg: 46.0 },
+    mid2L: zones?.mid2L ?? { pct: fgPct ?? null, lg: 38.0 },
+    mid2C: zones?.mid2C ?? { pct: fgPct ?? null, lg: 38.0 },
+    mid2R: zones?.mid2R ?? { pct: fgPct ?? null, lg: 38.0 },
+    c3L: zones?.c3L ?? { pct: fg3Pct ?? null, lg: 35.5 },
+    wg3L: zones?.wg3L ?? { pct: fg3Pct ?? null, lg: 34.0 },
+    ctr3: zones?.ctr3 ?? { pct: fg3Pct ?? null, lg: 34.0 },
+    wg3R: zones?.wg3R ?? { pct: fg3Pct ?? null, lg: 34.0 },
+    c3R: zones?.c3R ?? { pct: fg3Pct ?? null, lg: 35.5 },
+  };
+
+  const hasData = fgPct != null || fg3Pct != null || zones != null;
+
+  const W = 300,
+    H = 282;
+  const HX = 150,
+    HY = 253.5;
+  const PLX = 102,
+    PRX = 198;
+  const FTY = 168;
+  const FTR = 36;
+  const RAR = 24;
+  const C3L = 18,
+    C3R = 282;
+  const C3Y = 200;
+  const ARC_R = 142.5;
+  const ASX = 282.1,
+    ASY = 200.1;
+  const AEX = 17.9,
+    AEY = 200.1;
+  const WING_L = 102,
+    WING_R = 198;
+
+  const clipId = `arc2pt_sz`;
+
   return (
-    <svg viewBox="0 0 300 160" className="w-full max-w-xs mx-auto" aria-label="Shot zones">
-      {/* Half court outline */}
-      <rect x="10" y="10" width="280" height="140" rx="4" fill="none" stroke="hsl(var(--border))" strokeWidth="1.5" />
-      {/* 3PT zone background */}
-      <rect x="10" y="10" width="280" height="140" rx="4" fill={threeColor} opacity="0.25" />
-      {/* 2PT mid-range */}
-      <path
-        d="M 90 10 A 100 100 0 0 1 210 10 L 210 150 L 90 150 Z"
-        fill={mid2Color}
-        opacity="0.3"
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full"
+      style={{ display: "block", borderRadius: 6, overflow: "hidden" }}
+      aria-label="Shot zone chart"
+    >
+      <defs>
+        <clipPath id={clipId}>
+          <path d={`M ${ASX} ${ASY} A ${ARC_R} ${ARC_R} 0 0 0 ${AEX} ${AEY} L 0 ${H} L ${W} ${H} Z`} />
+        </clipPath>
+      </defs>
+
+      <rect width={W} height={H} fill="hsl(var(--muted))" opacity="0.15" rx="3" />
+
+      <rect
+        x={0}
+        y={C3Y}
+        width={C3L}
+        height={H - C3Y}
+        fill={zf(Z.c3L.pct, Z.c3L.lg)}
+        opacity={hasData ? 0.84 : 0.3}
       />
-      {/* Paint */}
-      <rect x="110" y="10" width="80" height="65" fill={paint2Color} opacity="0.4" />
-      {/* Labels */}
-      <text x="150" y="52" textAnchor="middle" fontSize="11" fontWeight="900" fill="hsl(var(--foreground))">
-        {fgPct != null ? `${fgPct.toFixed(1)}%` : "—"}
-      </text>
-      <text x="150" y="64" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">
-        PAINT
-      </text>
-      <text x="55" y="90" textAnchor="middle" fontSize="10" fontWeight="800" fill="hsl(var(--foreground))">
-        {fg3Pct != null ? `${fg3Pct.toFixed(1)}%` : "—"}
-      </text>
-      <text x="55" y="101" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">
-        3PT
-      </text>
-      <text x="245" y="90" textAnchor="middle" fontSize="10" fontWeight="800" fill="hsl(var(--foreground))">
-        {fg3Pct != null ? `${fg3Pct.toFixed(1)}%` : "—"}
-      </text>
-      <text x="245" y="101" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">
-        3PT
-      </text>
+      <rect
+        x={C3L}
+        y={0}
+        width={WING_L - C3L}
+        height={H}
+        fill={zf(Z.wg3L.pct, Z.wg3L.lg)}
+        opacity={hasData ? 0.72 : 0.3}
+      />
+      <rect
+        x={WING_L}
+        y={0}
+        width={WING_R - WING_L}
+        height={FTY}
+        fill={zf(Z.ctr3.pct, Z.ctr3.lg)}
+        opacity={hasData ? 0.72 : 0.3}
+      />
+      <rect
+        x={WING_R}
+        y={0}
+        width={C3R - WING_R}
+        height={H}
+        fill={zf(Z.wg3R.pct, Z.wg3R.lg)}
+        opacity={hasData ? 0.72 : 0.3}
+      />
+      <rect
+        x={C3R}
+        y={C3Y}
+        width={W - C3R}
+        height={H - C3Y}
+        fill={zf(Z.c3R.pct, Z.c3R.lg)}
+        opacity={hasData ? 0.84 : 0.3}
+      />
+
+      <rect
+        x={C3L}
+        y={0}
+        width={WING_L - C3L}
+        height={H}
+        fill={zf(Z.mid2L.pct, Z.mid2L.lg)}
+        clipPath={`url(#${clipId})`}
+        opacity={hasData ? 0.78 : 0.3}
+      />
+      <rect
+        x={WING_L}
+        y={0}
+        width={WING_R - WING_L}
+        height={FTY}
+        fill={zf(Z.mid2C.pct, Z.mid2C.lg)}
+        clipPath={`url(#${clipId})`}
+        opacity={hasData ? 0.78 : 0.3}
+      />
+      <rect
+        x={WING_R}
+        y={0}
+        width={C3R - WING_R}
+        height={H}
+        fill={zf(Z.mid2R.pct, Z.mid2R.lg)}
+        clipPath={`url(#${clipId})`}
+        opacity={hasData ? 0.78 : 0.3}
+      />
+      <rect
+        x={PLX}
+        y={FTY}
+        width={PRX - PLX}
+        height={H - FTY}
+        fill={zf(Z.paint.pct, Z.paint.lg)}
+        opacity={hasData ? 0.88 : 0.3}
+      />
+      <circle
+        cx={HX}
+        cy={HY}
+        r={RAR}
+        fill={zf(Z.ra.pct, Z.ra.lg)}
+        opacity={hasData ? 0.94 : 0.3}
+      />
+
+      <rect
+        width={W}
+        height={H}
+        fill="none"
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.18"
+        strokeWidth="1.4"
+        rx="3"
+      />
+      <rect
+        x={PLX}
+        y={FTY}
+        width={PRX - PLX}
+        height={H - FTY}
+        fill="none"
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.18"
+        strokeWidth="1.4"
+      />
+      <rect
+        x={114}
+        y={FTY}
+        width={72}
+        height={H - FTY}
+        fill="none"
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.18"
+        strokeWidth="1.4"
+      />
+      <line
+        x1={PLX}
+        y1={FTY}
+        x2={PRX}
+        y2={FTY}
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.18"
+        strokeWidth="1.4"
+      />
+      <path
+        d={`M ${HX - FTR} ${FTY} A ${FTR} ${FTR} 0 0 1 ${HX + FTR} ${FTY}`}
+        fill="none"
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.18"
+        strokeWidth="1.4"
+      />
+      <path
+        d={`M ${HX - FTR} ${FTY} A ${FTR} ${FTR} 0 0 0 ${HX + FTR} ${FTY}`}
+        fill="none"
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.08"
+        strokeWidth="1"
+        strokeDasharray="4 3"
+      />
+      <path
+        d={`M ${HX - RAR} ${HY} A ${RAR} ${RAR} 0 0 1 ${HX + RAR} ${HY}`}
+        fill="none"
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.18"
+        strokeWidth="1.4"
+      />
+      <line
+        x1={C3L}
+        y1={H}
+        x2={C3L}
+        y2={C3Y}
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.18"
+        strokeWidth="1.4"
+      />
+      <line
+        x1={C3R}
+        y1={H}
+        x2={C3R}
+        y2={C3Y}
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.18"
+        strokeWidth="1.4"
+      />
+      <path
+        d={`M ${ASX} ${ASY} A ${ARC_R} ${ARC_R} 0 0 0 ${AEX} ${AEY}`}
+        fill="none"
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.18"
+        strokeWidth="1.4"
+      />
+      <line
+        x1={WING_L}
+        y1={FTY}
+        x2={WING_L}
+        y2={0}
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.08"
+        strokeWidth="1"
+        strokeDasharray="4 3"
+      />
+      <line
+        x1={WING_R}
+        y1={FTY}
+        x2={WING_R}
+        y2={0}
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.08"
+        strokeWidth="1"
+        strokeDasharray="4 3"
+      />
+      <path
+        d="M 110 0 A 60 60 0 0 0 190 0"
+        fill="none"
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.08"
+        strokeWidth="1"
+        strokeDasharray="4 3"
+      />
+      <line
+        x1={132}
+        y1={H - 22}
+        x2={168}
+        y2={H - 22}
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.22"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <circle
+        cx={HX}
+        cy={HY}
+        r={7.5}
+        fill="none"
+        stroke="hsl(var(--foreground))"
+        strokeOpacity="0.18"
+        strokeWidth="1.4"
+      />
+
+      {showLabels && (
+        <>
+          {Z.ra.pct != null && (
+            <>
+              <text
+                x={HX}
+                y={253}
+                textAnchor="middle"
+                fontSize={11}
+                fontWeight="900"
+                fill="hsl(var(--foreground))"
+                fontFamily="-apple-system,system-ui,sans-serif"
+              >
+                {Z.ra.pct.toFixed(1)}%
+              </text>
+              {Z.ra.fga && (
+                <text
+                  x={HX}
+                  y={264}
+                  textAnchor="middle"
+                  fontSize={8.5}
+                  fontWeight="700"
+                  fill="hsl(var(--foreground))"
+                  fillOpacity="0.52"
+                  fontFamily="-apple-system,system-ui,sans-serif"
+                >
+                  {Z.ra.fgm}/{Z.ra.fga}
+                </text>
+              )}
+            </>
+          )}
+          {Z.paint.pct != null && (
+            <>
+              <text
+                x={HX}
+                y={192}
+                textAnchor="middle"
+                fontSize={9}
+                fontWeight="900"
+                fill="hsl(var(--foreground))"
+                fontFamily="-apple-system,system-ui,sans-serif"
+              >
+                {Z.paint.pct.toFixed(1)}%
+              </text>
+              {Z.paint.fga && (
+                <text
+                  x={HX}
+                  y={202}
+                  textAnchor="middle"
+                  fontSize={7.5}
+                  fontWeight="700"
+                  fill="hsl(var(--foreground))"
+                  fillOpacity="0.52"
+                  fontFamily="-apple-system,system-ui,sans-serif"
+                >
+                  {Z.paint.fgm}/{Z.paint.fga}
+                </text>
+              )}
+            </>
+          )}
+          {Z.mid2L.pct != null && (
+            <>
+              <text
+                x={60}
+                y={165}
+                textAnchor="middle"
+                fontSize={9}
+                fontWeight="900"
+                fill="hsl(var(--foreground))"
+                fontFamily="-apple-system,system-ui,sans-serif"
+              >
+                {Z.mid2L.pct.toFixed(1)}%
+              </text>
+              {Z.mid2L.fga && (
+                <text
+                  x={60}
+                  y={175}
+                  textAnchor="middle"
+                  fontSize={7.5}
+                  fontWeight="700"
+                  fill="hsl(var(--foreground))"
+                  fillOpacity="0.52"
+                  fontFamily="-apple-system,system-ui,sans-serif"
+                >
+                  {Z.mid2L.fgm}/{Z.mid2L.fga}
+                </text>
+              )}
+            </>
+          )}
+          {Z.mid2C.pct != null && (
+            <>
+              <text
+                x={HX}
+                y={134}
+                textAnchor="middle"
+                fontSize={9}
+                fontWeight="900"
+                fill="hsl(var(--foreground))"
+                fontFamily="-apple-system,system-ui,sans-serif"
+              >
+                {Z.mid2C.pct.toFixed(1)}%
+              </text>
+              {Z.mid2C.fga && (
+                <text
+                  x={HX}
+                  y={144}
+                  textAnchor="middle"
+                  fontSize={7.5}
+                  fontWeight="700"
+                  fill="hsl(var(--foreground))"
+                  fillOpacity="0.52"
+                  fontFamily="-apple-system,system-ui,sans-serif"
+                >
+                  {Z.mid2C.fgm}/{Z.mid2C.fga}
+                </text>
+              )}
+            </>
+          )}
+          {Z.mid2R.pct != null && (
+            <>
+              <text
+                x={240}
+                y={165}
+                textAnchor="middle"
+                fontSize={9}
+                fontWeight="900"
+                fill="hsl(var(--foreground))"
+                fontFamily="-apple-system,system-ui,sans-serif"
+              >
+                {Z.mid2R.pct.toFixed(1)}%
+              </text>
+              {Z.mid2R.fga && (
+                <text
+                  x={240}
+                  y={175}
+                  textAnchor="middle"
+                  fontSize={7.5}
+                  fontWeight="700"
+                  fill="hsl(var(--foreground))"
+                  fillOpacity="0.52"
+                  fontFamily="-apple-system,system-ui,sans-serif"
+                >
+                  {Z.mid2R.fgm}/{Z.mid2R.fga}
+                </text>
+              )}
+            </>
+          )}
+          {Z.wg3L.pct != null && (
+            <>
+              <text
+                x={60}
+                y={72}
+                textAnchor="middle"
+                fontSize={9}
+                fontWeight="900"
+                fill="hsl(var(--foreground))"
+                fontFamily="-apple-system,system-ui,sans-serif"
+              >
+                {Z.wg3L.pct.toFixed(1)}%
+              </text>
+              {Z.wg3L.fga && (
+                <text
+                  x={60}
+                  y={82}
+                  textAnchor="middle"
+                  fontSize={7.5}
+                  fontWeight="700"
+                  fill="hsl(var(--foreground))"
+                  fillOpacity="0.52"
+                  fontFamily="-apple-system,system-ui,sans-serif"
+                >
+                  {Z.wg3L.fgm}/{Z.wg3L.fga}
+                </text>
+              )}
+            </>
+          )}
+          {Z.ctr3.pct != null && (
+            <>
+              <text
+                x={HX}
+                y={55}
+                textAnchor="middle"
+                fontSize={11}
+                fontWeight="900"
+                fill="hsl(var(--foreground))"
+                fontFamily="-apple-system,system-ui,sans-serif"
+              >
+                {Z.ctr3.pct.toFixed(1)}%
+              </text>
+              {Z.ctr3.fga && (
+                <text
+                  x={HX}
+                  y={67}
+                  textAnchor="middle"
+                  fontSize={8.5}
+                  fontWeight="700"
+                  fill="hsl(var(--foreground))"
+                  fillOpacity="0.52"
+                  fontFamily="-apple-system,system-ui,sans-serif"
+                >
+                  {Z.ctr3.fgm}/{Z.ctr3.fga}
+                </text>
+              )}
+            </>
+          )}
+          {Z.wg3R.pct != null && (
+            <>
+              <text
+                x={240}
+                y={72}
+                textAnchor="middle"
+                fontSize={9}
+                fontWeight="900"
+                fill="hsl(var(--foreground))"
+                fontFamily="-apple-system,system-ui,sans-serif"
+              >
+                {Z.wg3R.pct.toFixed(1)}%
+              </text>
+              {Z.wg3R.fga && (
+                <text
+                  x={240}
+                  y={82}
+                  textAnchor="middle"
+                  fontSize={7.5}
+                  fontWeight="700"
+                  fill="hsl(var(--foreground))"
+                  fillOpacity="0.52"
+                  fontFamily="-apple-system,system-ui,sans-serif"
+                >
+                  {Z.wg3R.fgm}/{Z.wg3R.fga}
+                </text>
+              )}
+            </>
+          )}
+          {Z.c3L.pct != null && (
+            <>
+              <text
+                x={9}
+                y={241}
+                textAnchor="middle"
+                fontSize={8}
+                fontWeight="900"
+                fill="hsl(var(--foreground))"
+                fontFamily="-apple-system,system-ui,sans-serif"
+                transform="rotate(-90 9 241)"
+              >
+                {Z.c3L.pct.toFixed(1)}%
+              </text>
+              {Z.c3L.fga && (
+                <text
+                  x={9}
+                  y={252}
+                  textAnchor="middle"
+                  fontSize={6.5}
+                  fontWeight="700"
+                  fill="hsl(var(--foreground))"
+                  fillOpacity="0.52"
+                  fontFamily="-apple-system,system-ui,sans-serif"
+                  transform="rotate(-90 9 252)"
+                >
+                  {Z.c3L.fgm}/{Z.c3L.fga}
+                </text>
+              )}
+            </>
+          )}
+          {Z.c3R.pct != null && (
+            <>
+              <text
+                x={291}
+                y={241}
+                textAnchor="middle"
+                fontSize={8}
+                fontWeight="900"
+                fill="hsl(var(--foreground))"
+                fontFamily="-apple-system,system-ui,sans-serif"
+                transform="rotate(90 291 241)"
+              >
+                {Z.c3R.pct.toFixed(1)}%
+              </text>
+              {Z.c3R.fga && (
+                <text
+                  x={291}
+                  y={252}
+                  textAnchor="middle"
+                  fontSize={6.5}
+                  fontWeight="700"
+                  fill="hsl(var(--foreground))"
+                  fillOpacity="0.52"
+                  fontFamily="-apple-system,system-ui,sans-serif"
+                  transform="rotate(90 291 252)"
+                >
+                  {Z.c3R.fgm}/{Z.c3R.fga}
+                </text>
+              )}
+            </>
+          )}
+        </>
+      )}
     </svg>
   );
 }
@@ -1425,7 +1998,7 @@ function StatsPlayerSheet({
                       />
                       <StatChip
                         label="eFG%"
-                        value={advStats.eFGPct != null ? `${advStats.eFGPct.toFixed(1)}%` : "—"}
+                        value={advStats.eFGPct != null ? `${num(advStats.eFGPct).toFixed(1)}%` : "—"}
                       />
                       <StatChip label="DD" value={String(advStats.dd)} />
                       <StatChip label="TD" value={String(advStats.td)} />
@@ -1779,17 +2352,13 @@ function StatsTeamSheet({
 
   const team = data?.team;
   const players = data?.players ?? [];
+  const teamGameLog: TeamGameLogEntry[] = team?.gameLog ?? [];
+  const pointsByZone = team?.pointsByZone ?? null;
+
+  const [activeTab, setActiveTab] = useState<"ficha" | "avanzado" | "partidos">("ficha");
+  const [rosterOpen, setRosterOpen] = useState(false);
   const [rosterSort, setRosterSort] = useState<"ppg" | "rpg" | "apg">("ppg");
   const [rosterSortDir, setRosterSortDir] = useState<"asc" | "desc">("desc");
-
-  const handleRosterSortClick = (col: "ppg" | "rpg" | "apg") => {
-    if (rosterSort === col) {
-      setRosterSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    } else {
-      setRosterSort(col);
-      setRosterSortDir("desc");
-    }
-  };
 
   const activePlayers = [...players.filter((p) => p.games > 0)].sort((a, b) => {
     const diff = (b[rosterSort] ?? 0) - (a[rosterSort] ?? 0);
@@ -1797,6 +2366,15 @@ function StatsTeamSheet({
   });
 
   const teamName = pickName(team?.nameZh, team?.nameEn, locale) || "—";
+
+  const l5 = teamGameLog.slice(0, 5);
+  const l5Avg =
+    l5.length > 0
+      ? {
+          pts: l5.reduce((s, g) => s + g.teamScore, 0) / l5.length,
+          opp: l5.reduce((s, g) => s + g.oppScore, 0) / l5.length,
+        }
+      : null;
 
   const L = {
     close: es ? "Volver" : zh ? "返回" : "Back",
@@ -1806,7 +2384,68 @@ function StatsTeamSheet({
     colPlayer: es ? "Jugadora" : zh ? "球员" : "Player",
     colG: es ? "PJ" : zh ? "场" : "G",
     teamNoPlayerStats: es ? "Sin estadísticas disponibles" : zh ? "暂无统计数据" : "No statistics available",
+    tabFicha: es ? "Ficha" : zh ? "概况" : "Overview",
+    tabAvanzado: es ? "Avanzado" : zh ? "高级" : "Advanced",
+    tabPartidos: es ? "Partidos" : zh ? "赛程" : "Games",
+    fourFactors: es ? "Cuatro Factores vs Liga" : zh ? "四因素 vs 联赛均值" : "Four Factors vs League",
+    homeAway: es ? "Casa vs Fuera" : zh ? "主客场" : "Home / Away",
+    form: es ? "Forma reciente · L5" : zh ? "近5场" : "Recent Form · L5",
+    efficiency: es ? "Eficiencia global" : zh ? "整体效率" : "Efficiency",
+    perPossession: es ? "Por posesión" : zh ? "每次进攻" : "Per Possession",
+    reboundsLabel: es ? "Rebotes · Asistencias · Eficiencia" : zh ? "篮板助攻效率" : "Reb · Ast · Efficiency",
+    pointsZone: es ? "Puntos por zona" : zh ? "得分区域" : "Points by Zone",
+    lineups: es ? "Quintetos · +/−" : zh ? "阵容正负值" : "Lineups +/−",
+    piPending: es ? "Disponible cuando Pi sincronice" : zh ? "Pi数据同步后可用" : "Available when Pi syncs",
+    showRoster: es ? "Ver plantilla completa" : zh ? "查看完整名单" : "View full roster",
+    players14: (n: number) => (es ? `${n} jugadoras` : zh ? `${n}名球员` : `${n} players`),
+    lg: es ? "Liga" : zh ? "联赛" : "Lg",
   };
+
+  function FactorChip({
+    label,
+    val,
+    lgVal,
+    better,
+    fmt,
+    center,
+  }: {
+    label: string;
+    val: number | null | undefined;
+    lgVal: number | null;
+    better: boolean;
+    fmt: (v: number) => string;
+    center?: boolean;
+  }) {
+    const isGood = val != null && lgVal != null ? (better ? val > lgVal : val < lgVal) : null;
+    const valColor =
+      isGood === true
+        ? "text-green-600 dark:text-green-400"
+        : isGood === false
+          ? "text-destructive"
+          : "text-foreground";
+    const dotColor =
+      isGood === true
+        ? "bg-green-500"
+        : isGood === false
+          ? "bg-destructive"
+          : "bg-muted-foreground/40";
+    return (
+      <div className={cn("rounded-xl border border-border bg-muted/20 p-2.5", center && "text-center")}>
+        <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">{label}</p>
+        <p className={cn("text-lg font-black tabular-nums mt-0.5", valColor)}>
+          {val != null ? fmt(val) : "—"}
+        </p>
+        {lgVal != null && (
+          <div className={cn("flex items-center gap-1 mt-1", center && "justify-center")}>
+            <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dotColor)} />
+            <span className="text-[9px] text-muted-foreground">
+              {L.lg}: {fmt(lgVal)}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -1821,7 +2460,11 @@ function StatsTeamSheet({
         </button>
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {team?.logoUrl ? (
-            <img src={team.logoUrl} alt="" className="w-8 h-8 rounded-md object-contain bg-muted/30 shrink-0" />
+            <img
+              src={team.logoUrl}
+              alt=""
+              className="w-8 h-8 rounded-md object-contain bg-muted/30 shrink-0"
+            />
           ) : (
             <div className="w-8 h-8 rounded-md bg-muted/40 shrink-0" />
           )}
@@ -1831,10 +2474,16 @@ function StatsTeamSheet({
               <p className="text-xs text-muted-foreground">
                 {team.wins}-{team.losses}
                 {team.net != null && (
-                  <span className={cn(
-                    "ml-2 font-black",
-                    team.net > 0 ? "text-green-600 dark:text-green-400" : team.net < 0 ? "text-destructive" : "text-muted-foreground"
-                  )}>
+                  <span
+                    className={cn(
+                      "ml-2 font-black",
+                      team.net > 0
+                        ? "text-green-600 dark:text-green-400"
+                        : team.net < 0
+                          ? "text-destructive"
+                          : "text-muted-foreground",
+                    )}
+                  >
                     NET {team.net > 0 ? `+${team.net}` : team.net}
                   </span>
                 )}
@@ -1843,219 +2492,590 @@ function StatsTeamSheet({
           </div>
         </div>
         {team && (
-          <div className="shrink-0 text-right">
-            <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">#{team.rank}</p>
+          <div className="shrink-0">
+            <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+              #{team.rank}
+            </p>
           </div>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {isLoading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
+      <div className="flex border-b border-border shrink-0 bg-card">
+        {(["ficha", "avanzado", "partidos"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setActiveTab(t)}
+            className={cn(
+              "flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors border-b-2",
+              activeTab === t
+                ? "text-primary border-primary"
+                : "text-muted-foreground border-transparent",
+            )}
+          >
+            {t === "ficha" ? L.tabFicha : t === "avanzado" ? L.tabAvanzado : L.tabPartidos}
+          </button>
+        ))}
+      </div>
 
-        {isError && (
-          <div className="rounded-2xl border border-border bg-card p-5 text-center">
-            <p className="text-sm font-bold text-destructive">{L.error}</p>
-          </div>
-        )}
+      {isLoading && (
+        <div className="flex justify-center py-16">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+      {isError && (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-sm font-bold text-destructive">{L.error}</p>
+        </div>
+      )}
 
-        {!isLoading && !isError && team && (
-          <>
-            <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
-              <div className="grid grid-cols-3 gap-2">
-                <StatChip label="PPG" value={team.ppg != null ? team.ppg.toFixed(1) : "—"} />
-                <StatChip label="OPPG" value={team.oppg != null ? team.oppg.toFixed(1) : "—"} />
-                <StatChip label="NET" value={team.net != null ? (team.net > 0 ? `+${team.net}` : String(team.net)) : "—"} />
+      {!isLoading && !isError && team && (
+        <div className="flex-1 overflow-y-auto">
+          {activeTab === "ficha" && (
+            <div className="px-4 py-4 space-y-4">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                  {L.efficiency}
+                </p>
+                <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                  <div className="grid grid-cols-3 divide-x divide-border">
+                    {[
+                      { lbl: "PPG", val: team.ppg, net: false },
+                      { lbl: "NET", val: team.net, net: true },
+                      { lbl: "OPPG", val: team.oppg, net: false },
+                    ].map(({ lbl, val, net }) => (
+                      <div key={lbl} className="flex flex-col items-center py-3">
+                        <p
+                          className={cn(
+                            "text-2xl font-black tabular-nums leading-none",
+                            net && val != null
+                              ? val > 0
+                                ? "text-green-600 dark:text-green-400"
+                                : val < 0
+                                  ? "text-destructive"
+                                  : "text-foreground"
+                              : "text-foreground",
+                          )}
+                        >
+                          {val != null
+                            ? net
+                              ? val > 0
+                                ? `+${val.toFixed(1)}`
+                                : val.toFixed(1)
+                              : val.toFixed(1)
+                            : "—"}
+                        </p>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mt-1">
+                          {lbl}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5 border-t border-border">
+                    <div>
+                      <p className="text-base font-black">
+                        {team.wins}–{team.losses}
+                      </p>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5">
+                        {es ? "Récord" : zh ? "战绩" : "Record"}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      {team.streak != null && team.streak !== 0 && (
+                        <>
+                          <p
+                            className={cn(
+                              "text-sm font-black",
+                              team.streak > 0
+                                ? "text-green-600 dark:text-green-400"
+                                : "text-destructive",
+                            )}
+                          >
+                            {team.streak > 0 ? `W${team.streak}` : `L${Math.abs(team.streak)}`}
+                          </p>
+                          <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5">
+                            {es ? "Racha" : zh ? "连续" : "Streak"}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex gap-1">
+                        {l5.map((g, i) => (
+                          <div
+                            key={i}
+                            className={cn(
+                              "w-2 h-2 rounded-full",
+                              g.result === "W" ? "bg-green-500" : "bg-destructive/60",
+                            )}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">
+                        L5
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {(team.eFGPct != null ||
+                team.tovPct != null ||
+                team.ftRate != null ||
+                team.orbPct != null) && (
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                    {L.fourFactors}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FactorChip
+                      label="eFG%"
+                      val={team.eFGPct}
+                      lgVal={leagueAvg?.eFGPct ?? null}
+                      better
+                      fmt={(v) => `${v.toFixed(1)}%`}
+                    />
+                    <FactorChip
+                      label="TOV%"
+                      val={team.tovPct}
+                      lgVal={leagueAvg?.tovPct ?? null}
+                      better={false}
+                      fmt={(v) => `${v.toFixed(1)}%`}
+                    />
+                    <FactorChip
+                      label="FT Rate"
+                      val={team.ftRate}
+                      lgVal={leagueAvg?.ftRate ?? null}
+                      better
+                      fmt={(v) => v.toFixed(2)}
+                    />
+                    <FactorChip
+                      label="ORB%"
+                      val={team.orbPct}
+                      lgVal={leagueAvg?.orbPct ?? null}
+                      better
+                      fmt={(v) => `${v.toFixed(1)}%`}
+                    />
+                  </div>
+                  {team.paceEst != null && (
+                    <div className="mt-2 rounded-xl border border-border bg-muted/20 px-3 py-2 flex justify-between items-center">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground/60">
+                        {es ? "Pace estimado" : zh ? "节奏" : "Pace"}
+                      </p>
+                      <p className="text-sm font-black tabular-nums">
+                        {team.paceEst.toFixed(1)}{" "}
+                        <span className="text-[9px] font-semibold text-muted-foreground">
+                          {es ? "pos/pdo" : zh ? "回合/场" : "pos/g"}
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                  {L.homeAway}
+                </p>
+                <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                  <div className="grid grid-cols-2 divide-x divide-border">
+                    <div className="p-3">
+                      <p className="text-[9px] font-black uppercase tracking-wide text-green-600 dark:text-green-400 mb-1">
+                        🏠 {es ? "Casa" : zh ? "主场" : "Home"}
+                      </p>
+                      <p className="text-xl font-black">
+                        {team.homeW != null && team.homeL != null
+                          ? `${team.homeW}–${team.homeL}`
+                          : "—"}
+                      </p>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-[9px] font-black uppercase tracking-wide text-amber-500 mb-1">
+                        ✈️ {es ? "Fuera" : zh ? "客场" : "Away"}
+                      </p>
+                      <p className="text-xl font-black">
+                        {team.awayW != null && team.awayL != null
+                          ? `${team.awayW}–${team.awayL}`
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2 border-t border-border">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground/60">
+                      L10
+                    </p>
+                    <p className="text-sm font-black">
+                      {team.last10W != null && team.last10L != null
+                        ? `${team.last10W}–${team.last10L}`
+                        : "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {l5.length > 0 && (
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                    {L.form}
+                  </p>
+                  <div className="rounded-2xl border border-border bg-card p-3">
+                    <div className="flex gap-2 items-end h-10 mb-2">
+                      {l5.map((g, i) => {
+                        const maxM = Math.max(...l5.map((x) => Math.abs(x.margin)), 1);
+                        const pct = Math.max(20, (Math.abs(g.margin) / maxM) * 100);
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <div
+                              className="w-full rounded-sm"
+                              style={{
+                                height: `${pct}%`,
+                                background:
+                                  g.result === "W"
+                                    ? "rgba(16,185,129,0.55)"
+                                    : "rgba(239,68,68,0.50)",
+                              }}
+                            />
+                            <p
+                              className={cn(
+                                "text-[8px] font-black",
+                                g.result === "W"
+                                  ? "text-green-500"
+                                  : "text-destructive/80",
+                              )}
+                            >
+                              {g.result}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {l5Avg && (
+                      <div className="flex items-center justify-between pt-2 border-t border-border">
+                        <p className="text-[9px] text-muted-foreground/70">
+                          {es ? "Media L5" : zh ? "近5场均值" : "L5 Avg"}
+                        </p>
+                        <p className="text-[11px] font-black">
+                          PPG {l5Avg.pts.toFixed(1)} · OPPG {l5Avg.opp.toFixed(1)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setRosterOpen((o) => !o)}
+                    className="w-full flex items-center justify-between px-4 py-3 touch-manipulation"
+                  >
+                    <div className="text-left">
+                      <p className="text-sm font-bold">{L.showRoster}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {L.players14(activePlayers.length)}
+                      </p>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "w-4 h-4 text-muted-foreground transition-transform",
+                        rosterOpen && "rotate-180",
+                      )}
+                    />
+                  </button>
+                  {rosterOpen && activePlayers.length > 0 && (
+                    <div className="border-t border-border">
+                      <div className="grid grid-cols-[1.6fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
+                        <span>{L.colPlayer}</span>
+                        <span className="text-right">{L.colG}</span>
+                        {(["ppg", "rpg", "apg"] as const).map((col) => (
+                          <button
+                            key={col}
+                            type="button"
+                            onClick={() => {
+                              if (rosterSort === col) {
+                                setRosterSortDir((d) => (d === "desc" ? "asc" : "desc"));
+                              } else {
+                                setRosterSort(col);
+                                setRosterSortDir("desc");
+                              }
+                            }}
+                            className={cn(
+                              "text-right font-black uppercase tracking-wider text-xs touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                              rosterSort === col ? "text-primary" : "text-muted-foreground",
+                            )}
+                          >
+                            {col.toUpperCase()}
+                            {rosterSort === col && (
+                              <span className="text-[7px]">
+                                {rosterSortDir === "desc" ? "▼" : "▲"}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      {activePlayers.map((p: TeamRosterPlayer) => {
+                        const name =
+                          preferEn && p.nameEn?.trim()
+                            ? (toTitleCase(p.nameEn) ?? p.nameEn.trim())
+                            : p.nameZh;
+                        return (
+                          <button
+                            key={p.externalId}
+                            type="button"
+                            onClick={() => onPlayerTap(p.externalId)}
+                            className="w-full grid grid-cols-[1.6fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 items-center px-3 py-2.5 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 transition-colors"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-extrabold text-foreground truncate">
+                                {name}
+                              </p>
+                              {p.jerseyNumber != null && p.jerseyNumber !== "" && (
+                                <p className="text-xs text-muted-foreground/60 font-semibold">
+                                  #{p.jerseyNumber}
+                                </p>
+                              )}
+                            </div>
+                            <p className="text-xs font-black text-foreground tabular-nums text-right">
+                              {p.games}
+                            </p>
+                            <p className="text-xs font-black text-foreground tabular-nums text-right">
+                              {p.ppg.toFixed(1)}
+                            </p>
+                            <p className="text-xs font-black text-foreground tabular-nums text-right">
+                              {p.rpg.toFixed(1)}
+                            </p>
+                            <p className="text-xs font-black text-foreground tabular-nums text-right">
+                              {p.apg.toFixed(1)}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+          )}
 
-            {(team.eFGPct != null || team.tovPct != null || team.ftRate != null || team.orbPct != null) && (
-              <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
-                <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/70 px-0.5">
-                  {es ? "Cuatro Factores vs Liga" : zh ? "四因素 vs 联赛均值" : "Four Factors vs League"}
+          {activeTab === "avanzado" && (
+            <div className="px-4 py-4 space-y-4">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                  {L.perPossession}
                 </p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[
-                    {
-                      label: "eFG%",
-                      val: team.eFGPct,
-                      lgVal: leagueAvg?.eFGPct ?? null,
-                      better: true,
-                      fmt: (v: number) => `${v.toFixed(1)}%`,
-                    },
-                    {
-                      label: "TOV%",
-                      val: team.tovPct,
-                      lgVal: leagueAvg?.tovPct ?? null,
-                      better: false,
-                      fmt: (v: number) => `${v.toFixed(1)}%`,
-                    },
-                    {
-                      label: "FT Rate",
-                      val: team.ftRate,
-                      lgVal: leagueAvg?.ftRate ?? null,
-                      better: true,
-                      fmt: (v: number) => v.toFixed(2),
-                    },
-                    {
-                      label: "ORB%",
-                      val: team.orbPct,
-                      lgVal: leagueAvg?.orbPct ?? null,
-                      better: true,
-                      fmt: (v: number) => `${v.toFixed(1)}%`,
-                    },
-                  ].map(({ label, val, lgVal, better, fmt }) => {
+                    { lbl: "ORTG", val: team.ortg, lgVal: null as number | null, better: true, fmt: (v: number) => v.toFixed(1) },
+                    { lbl: "DRTG", val: team.drtg, lgVal: null as number | null, better: false, fmt: (v: number) => v.toFixed(1) },
+                    { lbl: "NET RTG", val: team.netRtg, lgVal: null as number | null, better: true, fmt: (v: number) => (v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1)) },
+                    { lbl: "PACE", val: team.paceEst, lgVal: null as number | null, better: true, fmt: (v: number) => v.toFixed(1) },
+                    { lbl: "PPP Of.", val: team.pppOf, lgVal: null as number | null, better: true, fmt: (v: number) => v.toFixed(2) },
+                    { lbl: "PPP Def.", val: team.pppDef, lgVal: null as number | null, better: false, fmt: (v: number) => v.toFixed(2) },
+                  ].map(({ lbl, val, lgVal, better, fmt }) => {
                     const isGood =
                       val != null && lgVal != null ? (better ? val > lgVal : val < lgVal) : null;
-                    const color =
+                    const col =
                       isGood === true
                         ? "text-green-600 dark:text-green-400"
                         : isGood === false
                           ? "text-destructive"
                           : "text-foreground";
-                    const dot =
-                      isGood === true
-                        ? "bg-green-500"
-                        : isGood === false
-                          ? "bg-destructive"
-                          : "bg-muted-foreground/40";
                     return (
-                      <div key={label} className="rounded-xl border border-border bg-muted/20 p-2.5">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">
-                          {label}
+                      <div
+                        key={lbl}
+                        className="rounded-xl border border-border bg-muted/20 p-2.5 text-center"
+                      >
+                        <p className={cn("text-xl font-black tabular-nums leading-none", col)}>
+                          {val != null ? fmt(val as number) : "—"}
                         </p>
-                        <p className={cn("text-lg font-black tabular-nums mt-0.5", color)}>
-                          {val != null ? fmt(val) : "—"}
+                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mt-1">
+                          {lbl}
                         </p>
-                        {lgVal != null && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dot)} />
-                            <span className="text-[9px] text-muted-foreground">
-                              {es ? "Liga" : zh ? "联赛" : "Lg"}: {fmt(lgVal)}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
-            )}
 
-            <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
-              <div className="grid grid-cols-3 gap-2">
-                <StatChip
-                  label="WIN%"
-                  value={
-                    team.winPct != null ? `${(Number(team.winPct) * 100).toFixed(1)}%` : "—"
-                  }
-                />
-                <StatChip
-                  label="FG%"
-                  value={team.teamFgPct != null ? `${team.teamFgPct.toFixed(1)}%` : "—"}
-                />
-                <StatChip
-                  label="STREAK"
-                  value={
-                    team.streak != null && team.streak > 0
-                      ? `W${team.streak}`
-                      : team.streak != null && team.streak < 0
-                        ? `L${Math.abs(team.streak)}`
-                        : "—"
-                  }
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <StatChip
-                  label="HOME"
-                  value={
-                    team.homeW != null && team.homeL != null
-                      ? `${team.homeW}-${team.homeL}`
-                      : "—"
-                  }
-                />
-                <StatChip
-                  label="AWAY"
-                  value={
-                    team.awayW != null && team.awayL != null
-                      ? `${team.awayW}-${team.awayL}`
-                      : "—"
-                  }
-                />
-                <StatChip
-                  label="L10"
-                  value={
-                    team.last10W != null && team.last10L != null
-                      ? `${team.last10W}-${team.last10L}`
-                      : "—"
-                  }
-                />
-              </div>
-            </div>
-
-            {activePlayers.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-black uppercase tracking-wider text-muted-foreground px-0.5">
-                  {L.roster}
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                  {L.reboundsLabel}
                 </p>
-                <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[1.6fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
-                    <span>{L.colPlayer}</span>
-                    <span className="text-right">{L.colG}</span>
-                    {(["ppg", "rpg", "apg"] as const).map((col) => (
-                      <button
-                        key={col}
-                        type="button"
-                        onClick={() => handleRosterSortClick(col)}
-                        className={cn(
-                          "text-right font-black uppercase tracking-wider text-xs touch-manipulation flex items-center justify-end gap-0.5 w-full",
-                          rosterSort === col ? "text-primary" : "text-muted-foreground",
-                        )}
-                      >
-                        {col.toUpperCase()}
-                        {rosterSort === col && (
-                          <span className="text-[7px]">{rosterSortDir === "desc" ? "▼" : "▲"}</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  {activePlayers.map((p: TeamRosterPlayer) => {
-                    const name =
-                      preferEn && p.nameEn?.trim() ? (toTitleCase(p.nameEn) ?? p.nameEn.trim()) : p.nameZh;
-                    return (
-                      <button
-                        key={p.externalId}
-                        type="button"
-                        onClick={() => onPlayerTap(p.externalId)}
-                        className="w-full grid grid-cols-[1.6fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 items-center px-3 py-2.5 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-extrabold text-foreground truncate">{name}</p>
-                          {p.jerseyNumber != null && p.jerseyNumber !== "" && (
-                            <p className="text-xs text-muted-foreground/60 font-semibold">#{p.jerseyNumber}</p>
-                          )}
-                        </div>
-                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.games}</p>
-                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.ppg.toFixed(1)}</p>
-                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.rpg.toFixed(1)}</p>
-                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.apg.toFixed(1)}</p>
-                      </button>
-                    );
-                  })}
+                <div className="grid grid-cols-2 gap-2">
+                  <FactorChip
+                    label="OReb%"
+                    val={team.orbPct}
+                    lgVal={leagueAvg?.orbPct ?? null}
+                    better
+                    fmt={(v) => `${v.toFixed(1)}%`}
+                  />
+                  <FactorChip
+                    label="DReb%"
+                    val={team.drbPct}
+                    lgVal={null}
+                    better
+                    fmt={(v) => `${v.toFixed(1)}%`}
+                  />
+                  <FactorChip
+                    label="eFG%"
+                    val={team.eFGPct}
+                    lgVal={leagueAvg?.eFGPct ?? null}
+                    better
+                    fmt={(v) => `${v.toFixed(1)}%`}
+                  />
+                  <FactorChip
+                    label="TOV%"
+                    val={team.tovPct}
+                    lgVal={leagueAvg?.tovPct ?? null}
+                    better={false}
+                    fmt={(v) => `${v.toFixed(1)}%`}
+                  />
                 </div>
               </div>
-            )}
-            {activePlayers.length === 0 && players.length > 0 && (
-              <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
-                <p className="text-sm font-bold text-muted-foreground">{L.teamNoPlayerStats}</p>
+
+              {pointsByZone && (
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                    {L.pointsZone}
+                  </p>
+                  <div className="rounded-2xl border border-border bg-card p-3">
+                    <div className="flex items-center gap-4">
+                      <svg viewBox="0 0 80 80" width="72" height="72" className="shrink-0">
+                        <circle
+                          cx="40"
+                          cy="40"
+                          r="28"
+                          fill="none"
+                          stroke="hsl(var(--border))"
+                          strokeWidth="12"
+                        />
+                        {(() => {
+                          const circ = 2 * Math.PI * 28;
+                          const segs = [
+                            { key: "paint", color: "#10B981", val: pointsByZone.paint },
+                            { key: "fg3", color: "#3A81FE", val: pointsByZone.fg3 },
+                            { key: "mid", color: "#F5A623", val: pointsByZone.mid },
+                            { key: "ft", color: "#a78bfa", val: pointsByZone.ft },
+                          ];
+                          let offset = circ * 0.25;
+                          return segs.map(({ key, color, val }) => {
+                            const dash = circ * val;
+                            const el = (
+                              <circle
+                                key={key}
+                                cx="40"
+                                cy="40"
+                                r="28"
+                                fill="none"
+                                stroke={color}
+                                strokeWidth="12"
+                                strokeDasharray={`${dash} ${circ - dash}`}
+                                strokeDashoffset={offset}
+                                transform="rotate(-90 40 40)"
+                              />
+                            );
+                            offset -= dash;
+                            return el;
+                          });
+                        })()}
+                      </svg>
+                      <div className="flex flex-col gap-1.5 flex-1">
+                        {[
+                          { lbl: es ? "Paint" : zh ? "油漆区" : "Paint", color: "bg-emerald-500", val: pointsByZone.paint },
+                          { lbl: "3PT", color: "bg-blue-500", val: pointsByZone.fg3 },
+                          { lbl: es ? "Mid-range" : zh ? "中距离" : "Mid", color: "bg-amber-500", val: pointsByZone.mid },
+                          { lbl: es ? "TL" : zh ? "罚球" : "FT", color: "bg-purple-400", val: pointsByZone.ft },
+                        ].map(({ lbl, color, val }) => (
+                          <div key={lbl} className="flex items-center gap-2 text-xs">
+                            <div className={cn("w-2 h-2 rounded-full shrink-0", color)} />
+                            <span className="text-muted-foreground flex-1">{lbl}</span>
+                            <span className="font-black">{(val * 100).toFixed(0)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                  {L.lineups}
+                </p>
+                <div className="rounded-2xl border border-dashed border-border bg-muted/10 px-4 py-6 text-center">
+                  <p className="text-xs font-bold text-muted-foreground/60">
+                    📡 {L.piPending}
+                  </p>
+                </div>
               </div>
-            )}
-          </>
-        )}
-      </div>
+            </div>
+          )}
+
+          {activeTab === "partidos" && (
+            <div className="px-4 py-4">
+              {teamGameLog.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
+                  <p className="text-sm font-bold text-muted-foreground">{L.noData}</p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                  {teamGameLog.map((g, i) => (
+                    <div
+                      key={g.gameId}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5",
+                        i < teamGameLog.length - 1 && "border-b border-border/50",
+                      )}
+                    >
+                      <p className="text-[10px] text-muted-foreground/70 w-10 shrink-0 tabular-nums">
+                        {g.date.slice(5, 10)}
+                      </p>
+                      <div
+                        className={cn(
+                          "w-[22px] h-[22px] rounded-md flex items-center justify-center text-[10px] font-black shrink-0",
+                          g.result === "W"
+                            ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                            : "bg-destructive/12 text-destructive",
+                        )}
+                      >
+                        {g.result}
+                      </div>
+                      <p className="flex-1 text-[11px] font-bold truncate text-foreground">
+                        {g.isHome
+                          ? es
+                            ? "vs"
+                            : zh
+                              ? "主"
+                              : "vs"
+                          : es
+                            ? "en"
+                            : zh
+                              ? "客"
+                              : "@"}{" "}
+                        {pickName(g.opponentName, g.opponentNameEn, locale)}
+                      </p>
+                      <p className="text-[11px] font-black tabular-nums text-foreground">
+                        {g.teamScore}–{g.oppScore}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-[10px] font-black tabular-nums w-8 text-right shrink-0",
+                          g.margin > 0
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-destructive",
+                        )}
+                      >
+                        {g.margin > 0 ? `+${g.margin}` : g.margin}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

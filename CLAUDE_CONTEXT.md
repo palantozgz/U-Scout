@@ -48,9 +48,22 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## Estado sesión 2026-05-12 (sesión activa)
+## Estado sesión 2026-05-19 (activa)
 
-### ✅ Completado hoy
+### ✅ Completado sesión 2026-05-19
+
+#### U Stats — Sprint C
+- `ShotZoneChart` sustituido: 10 zonas NBA estándar (RA, Paint, Mid-L/C/R, Corner-L/R, Wing-L/R, Center-3). Colores vs liga. Compatibilidad legacy `fgPct`/`fg3Pct`.
+- `StatsTeamSheet` sustituido: 3 tabs (Ficha / Avanzado / Partidos)
+  - Ficha: PPG/NET/OPPG + dots L5 + Four Factors + Casa/Fuera + forma reciente + plantilla colapsable
+  - Avanzado: ORTG/DRTG/netRtg/PACE/PPP + OReb%/DReb%/eFG%/TOV% + donut puntos por zona + quintetos placeholder
+  - Partidos: game log equipo (fecha/rival/marcador/diferencial)
+- Backend `/api/stats/team/:externalId`: añadidos ortg, drtg, netRtg, pppOf, pppDef, pointsByZone, gameLog
+- `stats-api.ts`: +`TeamGameLogEntry`, campos opcionales en `TeamDetail` (ortg/drtg/netRtg/pppOf/pppDef/pointsByZone/gameLog)
+- Ajustes SQL reales: home_team_id/away_team_id vs stats_teams.id, pb.tpm (no fg3m), sg.scheduled_at (no game_date)
+- `npm run check` → exit 0 en ambos sprints
+
+### ✅ Completado sesiones anteriores
 
 #### U Stats — Fase 0 y 1
 - Schema auditado: shot_x/shot_y ❌ (0 filas), stint_id ✅ 116.700, rebound_type ✅ 17.140, off_reb/def_reb ✅
@@ -111,23 +124,37 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## Desktop UI/UX — PENDIENTE (alta prioridad)
+## Desktop UI/UX — PENDIENTE
 
-Estado actual: **terrible** según Pablo. Base responsive implementada pero sin diseño real para pantallas grandes.
+### Fact técnico confirmado (sesión 2026-05-17)
+- `window.innerWidth` en Mac fullscreen = **1910px**
+- "Designed for iPad" en Mac da viewport completo al maximizar — responsive CSS funciona
+- Todos los breakpoints Tailwind activos: `md:` `lg:` `xl:` `2xl:`
+- No hay problema de arquitectura — es 100% problema de CSS
 
-### Módulos que necesitan diseño desktop dedicado:
-1. **Home.tsx** — actualmente escala el layout móvil. Necesita: sidebar con KPIs, grid 2×2 más amplio, próximo partido prominente
-2. **Schedule.tsx** — split view horizontal: lista sesiones izquierda, detalle derecha. God file ~228KB → prompt Cursor
-3. **Stats.tsx** — panel lateral en lg+: standings a la izquierda, líderes a la derecha
-4. **CoachHome.tsx (Scout)** — 3 cards workflow ya en md:grid-cols-3 ✅ parcial
-5. **PlayerEditor.tsx** — formulario en columnas en desktop
-6. **ReportViewV4.tsx** — pendiente rediseño 3 slides (móvil Y desktop)
+### Estado de archivos desktop (tras revert b8b3241)
+- `Home.tsx` → router a `HomeDesktop.tsx` / `HomeMobile.tsx` via `useIsDesktop()` ✅
+- `HomeDesktop.tsx` — implementado, datos reales ✅
+- `ScoutDesktop.tsx` — implementado ✅
+- `Schedule.tsx` — sin variante desktop, solo edits quirúrgicos md: ⏳
+- `Stats.tsx` — sin variante desktop, solo edits quirúrgicos md: ⏳
+- `useIsDesktop.ts` / `useHomeData.ts` — existen ✅
 
-### Principios desktop (no implementados sistemáticamente):
-- Tipografía mínima `md:text-sm` en todos los labels (ya barrido en p24 pero incompleto)
-- Padding `md:px-8` en contenedores principales
-- Sidebar pattern para contenido que en móvil es scroll vertical
-- No dejar páginas con contenido flotando en el centro en pantallas anchas
+### REGLA ABSOLUTA — aprendida por fallos repetidos
+**NUNCA** crear archivos `*Desktop.tsx` separados para Schedule o Stats.
+**NUNCA** reemplazar un componente completo con una variante desktop.
+**SIEMPRE** editar el archivo existente añadiendo clases `md:` / `lg:` / `xl:`.
+Motivo: los rewrites completos destruyen formularios, botones y lógica de interacción existente.
+
+### Trabajo pendiente desktop
+1. **Schedule.tsx** — labels con `text-[8-11px]` sin `md:` + layout planner no aprovecha 1910px
+2. **Stats.tsx** — mismo problema tipografía + standings/detalle sin grid horizontal desktop
+3. **Por verificar**: Personnel, PlayerHome, Dashboard (player), WellnessStandalone
+
+### Cómo auditar antes de editar
+```bash
+grep -n 'text-\[' client/src/pages/core/Schedule.tsx | grep -v 'md:'
+```
 
 ---
 

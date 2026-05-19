@@ -216,6 +216,19 @@ export interface TeamRosterPlayer {
   apg: number;
 }
 
+export interface TeamGameLogEntry {
+  gameId: string;
+  date: string;
+  isHome: boolean;
+  opponentId: string;
+  opponentName: string;
+  opponentNameEn: string | null;
+  teamScore: number;
+  oppScore: number;
+  result: "W" | "L";
+  margin: number;
+}
+
 export interface TeamDetail {
   externalId: string;
   nameZh: string;
@@ -242,6 +255,13 @@ export interface TeamDetail {
   orbPct: number | null;
   drbPct: number | null;
   paceEst: number | null;
+  ortg?: number | null;
+  drtg?: number | null;
+  netRtg?: number | null;
+  pppOf?: number | null;
+  pppDef?: number | null;
+  pointsByZone?: { paint: number; mid: number; fg3: number; ft: number } | null;
+  gameLog?: TeamGameLogEntry[];
 }
 
 export function useTeamDetail(externalId: string | null | undefined, seasonId?: number) {

@@ -2170,6 +2170,113 @@ export async function registerRoutes(
       apg: Number(p.apg ?? 0),
     }));
 
+    // ── ORTG / DRTG / PPP / pointsByZone ────────────────────────────────────
+    let ortg: number | null = null;
+    let drtg: number | null = null;
+    let netRtg: number | null = null;
+    let pppOf: number | null = null;
+    let pppDef: number | null = null;
+    let pointsByZone: { paint: number; mid: number; fg3: number; ft: number } | null = null;
+    try {
+      const rtgRow = await db.execute(sql`
+      WITH team_ref AS (
+        SELECT id FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1
+      ),
+      team_games AS (
+        SELECT
+          sg.id AS game_id,
+          CASE WHEN sg.home_team_id = tr.id THEN sg.home_score
+               ELSE sg.away_score END AS team_pts,
+          CASE WHEN sg.home_team_id = tr.id THEN sg.away_score
+               ELSE sg.home_score END AS opp_pts
+        FROM stats_games sg
+        CROSS JOIN team_ref tr
+        WHERE (sg.home_team_id = tr.id OR sg.away_team_id = tr.id)
+          AND sg.status = 4 AND sg.season_id = ${seasonId}
+      ),
+      team_box AS (
+        SELECT
+          pb.game_id,
+          SUM(pb.fga) AS fga, SUM(pb.fta) AS fta, SUM(pb.tov) AS tov,
+          SUM(pb.off_reb) AS orb, SUM(pb.pts) AS pts,
+          SUM(pb.fgm) AS fgm, SUM(pb.tpm) AS tpm, SUM(pb.ftm) AS ftm
+        FROM stats_player_boxscores pb
+        JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        WHERE pb.team_external_id = (SELECT external_id::text FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1)
+        GROUP BY pb.game_id
+      )
+      SELECT
+        ROUND(100.0 * SUM(tg.team_pts) / NULLIF(SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb), 0), 1) AS "ortg",
+        ROUND(100.0 * SUM(tg.opp_pts)  / NULLIF(SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb), 0), 1) AS "drtg",
+        ROUND(SUM(tg.team_pts)::numeric / NULLIF(SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb), 0), 3) AS "pppOf",
+        ROUND(SUM(tg.opp_pts)::numeric  / NULLIF(SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb), 0), 3) AS "pppDef",
+        SUM(tb.fgm - tb.tpm) AS "paint2Fgm",
+        SUM(tb.tpm)          AS "fg3m",
+        SUM(tb.ftm)          AS "ftm",
+        SUM(tb.pts)          AS "totalPts"
+      FROM team_games tg JOIN team_box tb ON tb.game_id = tg.game_id
+    `);
+      const rtg = (rtgRow as any).rows?.[0] ?? {};
+      ortg   = rtg.ortg   != null ? Number(rtg.ortg)   : null;
+      drtg   = rtg.drtg   != null ? Number(rtg.drtg)   : null;
+      netRtg = ortg != null && drtg != null ? Number((ortg - drtg).toFixed(1)) : null;
+      pppOf  = rtg.pppOf  != null ? Number(rtg.pppOf)  : null;
+      pppDef = rtg.pppDef != null ? Number(rtg.pppDef) : null;
+      const paint2Pts = rtg.paint2Fgm != null ? Number(rtg.paint2Fgm) * 2 : 0;
+      const fg3Pts    = rtg.fg3m != null ? Number(rtg.fg3m) * 3 : 0;
+      const ftPts     = rtg.ftm  != null ? Number(rtg.ftm)      : 0;
+      const zTot      = paint2Pts + fg3Pts + ftPts || 1;
+      if (rtg.totalPts != null) {
+        pointsByZone = {
+          paint: Math.round(paint2Pts * 0.70 / zTot * 100) / 100,
+          mid:   Math.round(paint2Pts * 0.30 / zTot * 100) / 100,
+          fg3:   Math.round(fg3Pts / zTot * 100) / 100,
+          ft:    Math.round(ftPts   / zTot * 100) / 100,
+        };
+      }
+    } catch (rtgErr: any) {
+      console.error("[stats/team] ORTG/DRTG query failed:", rtgErr?.message ?? rtgErr);
+    }
+
+    // ── TEAM GAME LOG ────────────────────────────────────────────────────────
+    const gameLogRow = await db.execute(sql`
+      SELECT
+        sg.id::text AS "gameId",
+        sg.scheduled_at::text AS "date",
+        (sg.home_team_id = tr.id) AS "isHome",
+        CASE WHEN sg.home_team_id = tr.id THEN opp.external_id::text ELSE hm.external_id::text END AS "opponentId",
+        CASE WHEN sg.home_team_id = tr.id
+          THEN COALESCE(opp.name_zh, opp.name_en, 'Unknown')
+          ELSE COALESCE(hm.name_zh, hm.name_en, 'Unknown') END AS "opponentName",
+        CASE WHEN sg.home_team_id = tr.id
+          THEN opp.name_en
+          ELSE hm.name_en END AS "opponentNameEn",
+        CASE WHEN sg.home_team_id = tr.id THEN sg.home_score ELSE sg.away_score END AS "teamScore",
+        CASE WHEN sg.home_team_id = tr.id THEN sg.away_score ELSE sg.home_score END AS "oppScore"
+      FROM stats_games sg
+      CROSS JOIN (SELECT id FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1) tr
+      LEFT JOIN stats_teams hm  ON hm.id  = sg.home_team_id
+      LEFT JOIN stats_teams opp ON opp.id = sg.away_team_id
+      WHERE (sg.home_team_id = tr.id OR sg.away_team_id = tr.id)
+        AND sg.status = 4 AND sg.season_id = ${seasonId}
+      ORDER BY sg.scheduled_at DESC NULLS LAST
+      LIMIT 22
+    `);
+    const gameLog = ((gameLogRow as any).rows ?? []).map((g: any) => {
+      const ts = Number(g.teamScore ?? 0), os = Number(g.oppScore ?? 0);
+      return {
+        gameId: String(g.gameId),
+        date: String(g.date ?? ""),
+        isHome: Boolean(g.isHome),
+        opponentId: String(g.opponentId ?? ""),
+        opponentName: String(g.opponentName ?? ""),
+        opponentNameEn: g.opponentNameEn ? String(g.opponentNameEn) : null,
+        teamScore: ts, oppScore: os,
+        result: ts > os ? "W" : "L",
+        margin: ts - os,
+      };
+    });
+
     const net =
       team.ppg != null && team.oppg != null
         ? Number((Number(team.ppg) - Number(team.oppg)).toFixed(1))
@@ -2202,6 +2309,7 @@ export async function registerRoutes(
         orbPct: team.orbPct != null ? Number(team.orbPct) : null,
         drbPct: team.drbPct != null ? Number(team.drbPct) : null,
         paceEst: team.paceEst != null ? Number(team.paceEst) : null,
+        ortg, drtg, netRtg, pppOf, pppDef, pointsByZone, gameLog,
       },
       players,
     });

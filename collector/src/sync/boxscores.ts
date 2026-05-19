@@ -58,7 +58,7 @@ export async function syncPlayerBoxscore(gameId: number): Promise<void> {
   // points, assists, steals, blocks, turnover, rebound, offensiveRebound, defensiveRebound
   // shot / twoPoints / threePoints / foulShot → "made-attempted (pct%)" strings
   // shotOn / twoPointsOn / threePointsOn / foulShotOn → made count as string
-  const mapPlayers = (players: any[], teamType: 'Home' | 'Away') =>
+  const mapPlayers = (players: any[], teamType: 'Home' | 'Away', teamExternalId: string) =>
     (Array.isArray(players) ? players : []).map((p: any) => {
       const [fgm, fga] = parseShotStr(p.shot ?? p.twoPoints);
       const [tpm, tpa] = parseShotStr(p.threePoints);
@@ -66,7 +66,7 @@ export async function syncPlayerBoxscore(gameId: number): Promise<void> {
       return {
         gameId,
         playerExternalId: String(p.playerId ?? p.userId ?? p.playerid ?? ''),
-        teamExternalId:   String(p.teamId ?? ''),
+        teamExternalId,
         teamType,
         isStartLineUp:    Boolean(p.isStartLineUp ?? false),
         minutes:          String(p.minutes ?? p.playTime ?? p.playtime ?? '00:00'),
@@ -95,13 +95,17 @@ export async function syncPlayerBoxscore(gameId: number): Promise<void> {
   const awayTeam = Array.isArray(d)
     ? d.find((t: any) => t.teamType === 'Away')
     : (d.away ?? null);
+  const homeTeamExtId = String(homeTeam?.teamId ?? homeTeam?.id ?? '');
+  const awayTeamExtId = String(awayTeam?.teamId ?? awayTeam?.id ?? '');
   const homePlayers = mapPlayers(
     homeTeam?.teamPlayerData ?? homeTeam?.players ?? [],
-    'Home'
+    'Home',
+    homeTeamExtId
   );
   const awayPlayers = mapPlayers(
     awayTeam?.teamPlayerData ?? awayTeam?.players ?? [],
-    'Away'
+    'Away',
+    awayTeamExtId
   );
   const allPlayers = [...homePlayers, ...awayPlayers];
 
