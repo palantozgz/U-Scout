@@ -2088,7 +2088,7 @@ function StatsPlayerSheet({
                 isDesktop ? "p-3" : "p-2",
               )}
             >
-              <p className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/40 mb-1 self-start px-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground/60 mb-1 self-start px-1">
                 {es ? "Perfil visual" : zh ? "视觉概况" : "Visual profile"}
               </p>
               <StatsRadar player={player} locale={locale} compact={!isDesktop} />
@@ -2101,8 +2101,8 @@ function StatsPlayerSheet({
                   <div className="flex justify-between items-baseline">
                     <span
                       className={cn(
-                        "font-black uppercase tracking-wide text-muted-foreground/50",
-                        isDesktop ? "text-[10px]" : "text-[9px]",
+                        "font-black uppercase tracking-wide text-foreground/65",
+                        isDesktop ? "text-xs" : "text-[11px]",
                       )}
                     >
                       {bar.key}
@@ -2110,7 +2110,7 @@ function StatsPlayerSheet({
                     <span
                       className={cn(
                         "font-black tabular-nums",
-                        isDesktop ? "text-base" : "text-[13px]",
+                        isDesktop ? "text-lg" : "text-base",
                         bar.color === "green"
                           ? "text-emerald-400"
                           : bar.color === "red"
@@ -2133,14 +2133,14 @@ function StatsPlayerSheet({
               ))}
               {vsPills.length > 0 && (
                 <div className="flex items-center gap-1.5 pt-1 mt-0.5 border-t border-border/50 flex-wrap">
-                  <span className="text-[8px] font-bold uppercase tracking-wide text-muted-foreground/35">
+                  <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground/65">
                     {L.vsLeague}
                   </span>
                   {vsPills.map((p) => (
                     <span
                       key={p.label}
                       className={cn(
-                        "text-[8px] font-black px-1.5 py-0.5 rounded border",
+                        "text-[9px] font-black px-1.5 py-0.5 rounded border",
                         p.up
                           ? "bg-emerald-500/12 text-emerald-500 border-emerald-500/20"
                           : "bg-red-500/10 text-red-400 border-red-500/18",
@@ -2170,7 +2170,7 @@ function StatsPlayerSheet({
                 >
                   {v}
                 </p>
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mt-1">
+                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/70 mt-1">
                   {l}
                 </p>
               </div>
@@ -2192,7 +2192,7 @@ function StatsPlayerSheet({
                 >
                   {v}
                 </p>
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mt-1">
+                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/70 mt-1">
                   {l}
                 </p>
               </div>
@@ -2202,7 +2202,7 @@ function StatsPlayerSheet({
           {/* Home / Away */}
           {(player.homeSplit || player.awaySplit) && (
             <div className="border-b border-border">
-              <p className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/35 px-4 pt-3 pb-1">
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-muted-foreground/60 px-4 pt-3 pb-1">
                 {es ? "Casa / Fuera" : zh ? "主场 / 客场" : "Home / Away"}
               </p>
               <div className="grid grid-cols-2 gap-px bg-border">
@@ -2228,11 +2228,11 @@ function StatsPlayerSheet({
                           { k: "APG", v: split.ast },
                         ].map(({ k, v }) => (
                           <div key={k} className="flex justify-between">
-                            <span className="text-[8px] font-black uppercase text-muted-foreground/40">{k}</span>
+                            <span className="text-[10px] font-black uppercase text-muted-foreground/65">{k}</span>
                             <span
                               className={cn(
                                 "font-black tabular-nums",
-                                isDesktop ? "text-sm" : "text-xs",
+                                isDesktop ? "text-base" : "text-sm",
                               )}
                             >
                               {v.toFixed(1)}
@@ -2263,7 +2263,7 @@ function StatsPlayerSheet({
                 type="button"
                 onClick={() => setDeepTab(t)}
                 className={cn(
-                  "flex-1 py-2.5 text-[8px] font-black uppercase tracking-wide transition-colors border-b-2",
+                  "flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors border-b-2",
                   deepTab === t ? "text-primary border-primary" : "text-muted-foreground border-transparent",
                 )}
               >
@@ -2287,7 +2287,7 @@ function StatsPlayerSheet({
                   return (
                     <div className="rounded-xl border border-border bg-card p-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">
                           {es ? "Forma reciente · L5" : zh ? "近5场" : "Recent form · L5"}
                         </p>
                         {advStats.isHot && (
@@ -2347,7 +2347,7 @@ function StatsPlayerSheet({
                     },
                   ].map(({ label, val }) => (
                     <div key={label} className="rounded-xl border border-border bg-muted/10 p-2.5 text-center">
-                      <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">
                         {label}
                       </p>
                       <p className={cn("font-black tabular-nums mt-0.5", isDesktop ? "text-lg" : "text-base")}>
@@ -2456,7 +2456,7 @@ function StatsPlayerSheet({
                     { l: "PIE", v: player.pie != null ? `${player.pie.toFixed(1)}%` : "—" },
                   ].map(({ l, v }) => (
                     <div key={l} className="rounded-xl border border-border bg-muted/10 p-2 text-center">
-                      <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">
                         {l}
                       </p>
                       <p className={cn("font-black tabular-nums mt-0.5", isDesktop ? "text-base" : "text-sm")}>
@@ -2471,7 +2471,7 @@ function StatsPlayerSheet({
                   <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50 mb-2">
                     Shot Zones
                   </p>
-                  <div style={{ maxHeight: "160px", overflow: "hidden" }}>
+                  <div className="w-full max-w-[280px] mx-auto">
                     <ShotZoneChart fgPct={player.fgPct ?? null} fg3Pct={player.fg3Pct ?? null} />
                   </div>
                 </div>
@@ -2490,8 +2490,8 @@ function StatsPlayerSheet({
               ) : (
                 <>
                   <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                    <div className="grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 border-b border-border bg-muted/30 pl-2.5 pr-3 py-2 text-[8px] font-black uppercase tracking-wider text-muted-foreground">
-                      <span>{L.dateCol}</span>
+                    <div className="grid grid-cols-[0.35fr_1.2fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 border-b border-border bg-muted/30 pl-2.5 pr-3 py-2 text-[8px] font-black uppercase tracking-wider text-muted-foreground">
+                      <span />
                       <span>{L.rivalCol}</span>
                       {(["pts", "reb", "ast"] as const).map((col) => (
                         <button
@@ -2522,7 +2522,7 @@ function StatsPlayerSheet({
                         <div
                           key={g.gameId}
                           className={cn(
-                            "grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 items-center pl-2 pr-3 py-2.5 border-b border-border last:border-b-0 text-xs border-l-[3px]",
+                            "grid grid-cols-[0.35fr_1.2fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 items-center pl-2 pr-3 py-2.5 border-b border-border last:border-b-0 text-xs border-l-[3px]",
                             g.plusMinus > 0
                               ? "border-l-emerald-500/50"
                               : g.plusMinus < 0
@@ -2530,17 +2530,44 @@ function StatsPlayerSheet({
                                 : "border-l-transparent",
                           )}
                         >
+                          {/* W/L + date */}
+                          <div className="flex flex-col items-start gap-0.5 min-w-0">
+                            <span
+                              className={cn(
+                                "text-[9px] font-black w-5 h-5 rounded flex items-center justify-center shrink-0",
+                                g.plusMinus > 0
+                                  ? "bg-emerald-500/20 text-emerald-400"
+                                  : g.plusMinus < 0
+                                    ? "bg-red-500/15 text-red-400"
+                                    : "bg-muted/30 text-muted-foreground",
+                              )}
+                            >
+                              {g.plusMinus > 0 ? "W" : g.plusMinus < 0 ? "L" : "—"}
+                            </span>
+                            <p className="font-bold text-muted-foreground/60 tabular-nums text-[9px]">{date}</p>
+                          </div>
+                          {/* vs/en Rival */}
                           <div className="min-w-0">
-                            <p className="font-bold text-foreground tabular-nums text-[11px]">{date}</p>
+                            <p className="font-bold text-foreground text-[11px] truncate">
+                              {(g as any).isHome === false
+                                ? es
+                                  ? "en "
+                                  : zh
+                                    ? "客 "
+                                    : "@ "
+                                : es
+                                  ? "vs "
+                                  : zh
+                                    ? "主 "
+                                    : "vs "}
+                              {pickName(g.rivalName, (g as any).rivalNameEn ?? null, locale) || "—"}
+                            </p>
                             {g.isStart && (
                               <span className="inline-block rounded-full bg-primary/15 text-primary text-[7px] font-black uppercase tracking-wide px-1.5 py-0 leading-4">
                                 {L.starter}
                               </span>
                             )}
                           </div>
-                          <p className="text-muted-foreground truncate font-semibold text-[11px]">
-                            {pickName(g.rivalName, (g as any).rivalNameEn ?? null, locale) || "—"}
-                          </p>
                           <p className="text-right font-black tabular-nums text-foreground">{g.pts}</p>
                           <p className="text-right font-black tabular-nums text-foreground">{g.reb}</p>
                           <p className="text-right font-black tabular-nums text-foreground">{g.ast}</p>
