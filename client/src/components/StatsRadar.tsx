@@ -91,8 +91,8 @@ export function StatsRadar({ player, locale, compact = false }: StatsRadarProps)
   const CX = compact ? 90 : 130;
   const CY = compact ? 90 : 130;
   const LP = compact ? 30 : 42;   // label pad
-  const VF = compact ? 10 : 15;   // value font
-  const KF = compact ? 7.5 : 10;  // key font
+  const VF = compact ? 12 : 16;   // value font
+  const KF = compact ? 8.5 : 11;  // key font
 
   const totW = (CX + R + LP + (compact ? 30 : 44)) * 2;
   const totH = totW;

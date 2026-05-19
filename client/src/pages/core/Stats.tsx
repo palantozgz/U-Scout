@@ -2088,7 +2088,7 @@ function StatsPlayerSheet({
                 isDesktop ? "p-3" : "p-2",
               )}
             >
-              <p className="text-[7px] font-black uppercase tracking-[0.15em] text-muted-foreground/40 mb-1 self-start px-1">
+              <p className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/40 mb-1 self-start px-1">
                 {es ? "Perfil visual" : zh ? "视觉概况" : "Visual profile"}
               </p>
               <StatsRadar player={player} locale={locale} compact={!isDesktop} />
@@ -2102,7 +2102,7 @@ function StatsPlayerSheet({
                     <span
                       className={cn(
                         "font-black uppercase tracking-wide text-muted-foreground/50",
-                        isDesktop ? "text-[8px]" : "text-[7px]",
+                        isDesktop ? "text-[10px]" : "text-[9px]",
                       )}
                     >
                       {bar.key}
@@ -2110,7 +2110,7 @@ function StatsPlayerSheet({
                     <span
                       className={cn(
                         "font-black tabular-nums",
-                        isDesktop ? "text-sm" : "text-[12px]",
+                        isDesktop ? "text-base" : "text-[13px]",
                         bar.color === "green"
                           ? "text-emerald-400"
                           : bar.color === "red"
@@ -2133,14 +2133,14 @@ function StatsPlayerSheet({
               ))}
               {vsPills.length > 0 && (
                 <div className="flex items-center gap-1.5 pt-1 mt-0.5 border-t border-border/50 flex-wrap">
-                  <span className="text-[6.5px] font-bold uppercase tracking-wide text-muted-foreground/35">
+                  <span className="text-[8px] font-bold uppercase tracking-wide text-muted-foreground/35">
                     {L.vsLeague}
                   </span>
                   {vsPills.map((p) => (
                     <span
                       key={p.label}
                       className={cn(
-                        "text-[7px] font-black px-1.5 py-0.5 rounded border",
+                        "text-[8px] font-black px-1.5 py-0.5 rounded border",
                         p.up
                           ? "bg-emerald-500/12 text-emerald-500 border-emerald-500/20"
                           : "bg-red-500/10 text-red-400 border-red-500/18",
@@ -2170,7 +2170,7 @@ function StatsPlayerSheet({
                 >
                   {v}
                 </p>
-                <p className="text-[7px] font-black uppercase tracking-widest text-muted-foreground/40 mt-1">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mt-1">
                   {l}
                 </p>
               </div>
@@ -2192,7 +2192,7 @@ function StatsPlayerSheet({
                 >
                   {v}
                 </p>
-                <p className="text-[7px] font-black uppercase tracking-widest text-muted-foreground/40 mt-1">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mt-1">
                   {l}
                 </p>
               </div>
@@ -2202,7 +2202,7 @@ function StatsPlayerSheet({
           {/* Home / Away */}
           {(player.homeSplit || player.awaySplit) && (
             <div className="border-b border-border">
-              <p className="text-[7px] font-black uppercase tracking-[0.15em] text-muted-foreground/35 px-4 pt-3 pb-1">
+              <p className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/35 px-4 pt-3 pb-1">
                 {es ? "Casa / Fuera" : zh ? "主场 / 客场" : "Home / Away"}
               </p>
               <div className="grid grid-cols-2 gap-px bg-border">
@@ -2232,7 +2232,7 @@ function StatsPlayerSheet({
                             <span
                               className={cn(
                                 "font-black tabular-nums",
-                                isDesktop ? "text-xs" : "text-[11px]",
+                                isDesktop ? "text-sm" : "text-xs",
                               )}
                             >
                               {v.toFixed(1)}
