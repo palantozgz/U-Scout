@@ -201,11 +201,11 @@ export function StatsRadar({ player, locale, compact = false }: StatsRadarProps)
             <g key={key}>
               {/* key label */}
               <text x={lx} y={ly - 4} textAnchor={anchor}
-                fill={col.label} fontSize={KF} fontWeight={800}
-                letterSpacing="0.08em" fontFamily="Inter,system-ui,sans-serif">
+                fill={col.dot} fontSize={KF} fontWeight={700} opacity={0.7}
+                letterSpacing="0.06em" fontFamily="Inter,system-ui,sans-serif">
                 {key}
               </text>
-              {/* value — accent colour, bold */}
+              {/* value */}
               <text x={lx} y={ly + (compact ? 9 : 13)} textAnchor={anchor}
                 fill={col.dot} fontSize={VF} fontWeight={900}
                 fontFamily="Inter,system-ui,sans-serif">
