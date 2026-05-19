@@ -2333,6 +2333,10 @@ export async function registerRoutes(
               THEN SUM(pb.fgm)::numeric / SUM(pb.fga) * 100 END, 1
           ) AS "avgFgPct",
           ROUND(
+            CASE WHEN SUM(pb.tpa) > 0
+              THEN SUM(pb.tpm)::numeric / SUM(pb.tpa) * 100 END, 1
+          ) AS "avgFg3Pct",
+          ROUND(
             CASE WHEN SUM(pb.fga) > 0
               THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::numeric / SUM(pb.fga) * 100 END, 1
           ) AS "avgEFGPct",
@@ -2366,6 +2370,7 @@ export async function registerRoutes(
         spg: Number(row.avgSpg ?? 0),
         bpg: Number(row.avgBpg ?? 0),
         fgPct: row.avgFgPct != null ? Number(row.avgFgPct) : null,
+        fg3Pct: row.avgFg3Pct != null ? Number(row.avgFg3Pct) : null,
         eFGPct: row.avgEFGPct != null ? Number(row.avgEFGPct) : null,
         tsPct: row.avgTsPct != null ? Number(row.avgTsPct) : null,
         tovPct: row.avgTovPct != null ? Number(row.avgTovPct) : null,

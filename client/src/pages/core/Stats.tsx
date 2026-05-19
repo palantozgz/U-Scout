@@ -237,6 +237,7 @@ export default function Stats() {
   const [playerSheetId, setPlayerSheetId] = useState<PlayerSheetId>(null);
   const [teamSheetId, setTeamSheetId] = useState<string | null>(null);
   const [returnToTeamId, setReturnToTeamId] = useState<string | null>(null);
+  const [returnToPlayerId, setReturnToPlayerId] = useState<string | null>(null);
   const [seasonSheetOpen, setSeasonSheetOpen] = useState(false);
   const [seasonId, setSeasonId] = useState<number | null>(() => {
     const s = localStorage.getItem("stats_seasonId");
@@ -433,15 +434,21 @@ export default function Stats() {
   };
 
   const closePlayerSheet = () => {
+    const prevPlayerId = returnToPlayerId;
+    const prevTeamId = returnToTeamId;
     setPlayerSheetId(null);
     const raw2 = search.startsWith("?") ? search.slice(1) : search;
     const qs2 = new URLSearchParams(raw2);
     qs2.delete("player");
     const newSearch = qs2.toString();
     setLocation(newSearch ? `/stats?${newSearch}` : "/stats");
-    if (returnToTeamId) {
-      setTeamSheetId(returnToTeamId);
+    if (prevTeamId) {
+      setTeamSheetId(prevTeamId);
       setReturnToTeamId(null);
+      // Clear returnToPlayerId after TeamSheet has had time to mount and scroll
+      setTimeout(() => setReturnToPlayerId(null), 600);
+    } else {
+      setReturnToPlayerId(null);
     }
   };
 
@@ -455,6 +462,7 @@ export default function Stats() {
       seasonId={effectiveSeasonId}
       locale={locale}
       returnToTeamId={returnToTeamId}
+      returnToPlayerId={returnToPlayerId}
       onClosePlayer={closePlayerSheet}
       onCloseTeam={() => setTeamSheetId(null)}
       onTeamTapFromPlayer={(teamId) => {
@@ -463,6 +471,7 @@ export default function Stats() {
         setTeamSheetId(teamId);
       }}
       onPlayerTapFromTeam={(id) => {
+        setReturnToPlayerId(id);
         setReturnToTeamId(teamSheetId);
         setTeamSheetId(null);
         setPlayerSheetId(id);
@@ -1781,6 +1790,7 @@ function StatsDesktopPanel(props: {
   seasonId: number;
   locale: string;
   returnToTeamId: string | null;
+  returnToPlayerId?: string | null;
   onClosePlayer: () => void;
   onCloseTeam: () => void;
   onTeamTapFromPlayer: (teamId: string) => void;
@@ -1823,6 +1833,7 @@ function StatsDesktopPanel(props: {
         onClose={props.onCloseTeam}
         onPlayerTap={props.onPlayerTapFromTeam}
         locale={props.locale}
+        scrollToPlayerId={props.returnToPlayerId ?? null}
       />
     </div>
   );
@@ -1930,7 +1941,8 @@ function StatsPlayerSheet({
   const tpaPerGame = useMemo(() => {
     if (!player || gameLog.length === 0) return null;
     const total = gameLog.reduce((s, g) => s + (g.tpa ?? 0), 0);
-    return total / player.games;
+    // Use gameLog.length (actual games in log) not player.games (season total)
+    return total / gameLog.length;
   }, [player, gameLog]);
 
   const tpaVolumeLabel = useMemo(() => {
@@ -2020,7 +2032,7 @@ function StatsPlayerSheet({
       val: fg3 != null ? `${fg3.toFixed(1)}%` : "—",
       rawNum: fg3 ?? 0,
       pct: fg3 != null && fg3 > 0 ? barPct(fg3, 55) : 0,
-      color: fg3 != null && fg3 > 0 ? barColor(fg3, lg?.fgPct ? lg.fgPct * 0.85 : null) : "muted",
+      color: fg3 != null && fg3 > 0 ? barColor(fg3, lg?.fg3Pct ?? null) : "muted",
     });
 
     return rows.slice(0, 7);
@@ -2741,12 +2753,14 @@ function StatsTeamSheet({
   onClose,
   onPlayerTap,
   locale,
+  scrollToPlayerId,
 }: {
   externalId: string | null;
   seasonId: number;
   onClose: () => void;
   onPlayerTap: (id: string) => void;
   locale: string;
+  scrollToPlayerId?: string | null;
 }) {
   const es = locale === "es";
   const zh = locale === "zh";
@@ -2769,6 +2783,15 @@ function StatsTeamSheet({
     const diff = (b[rosterSort] ?? 0) - (a[rosterSort] ?? 0);
     return rosterSortDir === "desc" ? diff : -diff;
   });
+
+  useEffect(() => {
+    if (!scrollToPlayerId || isLoading || activePlayers.length === 0) return;
+    setRosterOpen(true);
+    setTimeout(() => {
+      const el = document.querySelector(`[data-player-id="${scrollToPlayerId}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 250);
+  }, [scrollToPlayerId, isLoading, activePlayers.length]);
 
   const teamName = pickName(team?.nameZh, team?.nameEn, locale) || "—";
 
@@ -3228,6 +3251,7 @@ function StatsTeamSheet({
                           <button
                             key={p.externalId}
                             type="button"
+                            data-player-id={p.externalId}
                             onClick={() => onPlayerTap(p.externalId)}
                             className="w-full grid grid-cols-[1.6fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 items-center px-3 py-2.5 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 transition-colors"
                           >

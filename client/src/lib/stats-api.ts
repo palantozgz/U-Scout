@@ -304,6 +304,7 @@ export function useLeagueAverages(seasonId?: number, position?: string | null) {
         spg: number;
         bpg: number;
         fgPct: number | null;
+        fg3Pct: number | null;
         eFGPct: number | null;
         tsPct: number | null;
         tovPct: number | null;

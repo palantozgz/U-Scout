@@ -22,7 +22,7 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 - `client/src/lib/motor-v4.ts` — scoring layer
 - `client/src/lib/motor-v2.1.ts` — motor base
 - `client/src/lib/reportTextRenderer.ts` — texto EN/ES/ZH con gender
-- `client/src/lib/theme.ts` — gestión temas + **sincronización nativa iOS via ThemePlugin**
+- `client/src/lib/theme.ts` — gestión temas + sincronización nativa iOS via ThemePlugin
 - `client/src/pages/scout/ReportSlidesV1.tsx` — 3 slides
 - `client/src/pages/scout/ReportViewV4.tsx` — shell coach_review con OverridePanel
 - `client/src/pages/scout/PlayerEditor.tsx` — editor inputs jugador
@@ -39,8 +39,8 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 - `client/src/lib/stats-api.ts` — hooks stats completos
 - `server/routes.ts` — rutas API Express
 - `server/stats-ingest.ts` — ingest endpoint Pi → Railway → Supabase
-- `ios/App/App/ThemePlugin.swift` — **NUEVO** plugin nativo iOS para sincronizar UIWindow.backgroundColor con tema
-- `ios/App/App.xcodeproj/project.pbxproj` — **MODIFICADO** — ThemePlugin registrado en Sources
+- `ios/App/App/ThemePlugin.swift` — plugin nativo iOS para sincronizar UIWindow.backgroundColor con tema
+- `ios/App/App.xcodeproj/project.pbxproj` — MODIFICADO — ThemePlugin registrado en Sources
 
 ## NUNCA tocar
 - `Profile.tsx` · `schema.ts` · `migrations/`
@@ -48,213 +48,154 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## Estado sesión 2026-05-19 (cerrada)
+## Estado actual — sesión 2026-05-20
 
-### ✅ Completado esta sesión
+### ✅ Stats Fase 2 — PlayerSheet redesign completo
 
-#### U Stats — Bug: Tab Avanzado en blanco
-- **Root cause**: `team_external_id` en `stats_player_boxscores` era NULL en los 5312 registros.
-  El collector extraía `p.teamId` desde el objeto jugador pero la API WCBA lo pone en el objeto padre del equipo.
-- **Fix datos (Supabase SQL)**: Dos UPDATE — primero desde `stats_players.team_id`, luego desde `stats_games` para las 368 jugadoras sin roster.
-- **Fix collector** (`collector/src/sync/boxscores.ts`): `mapPlayers` ahora recibe `teamExternalId` como parámetro extraído del objeto `homeTeam`/`awayTeam`.
-- **Fix routes.ts**: Bloque ORTG/DRTG reescrito con `let ortg/drtg/...` fuera del try, `const rtg` dentro, catch con log. WHERE clause usa subselect en lugar de cast directo.
-- **Fix Stats.tsx**: `eFGPct.toFixed()` → `num(eFGPct).toFixed()` en 4 lugares (string de PostgreSQL ROUND no es number JS).
-- **Fix gamelog fecha**: `g.date.slice(5)` → `g.date.slice(5, 10)` (evita mostrar hora y timezone).
-- **Fix gamelog rivales i18n**: Backend añade `opponentNameEn`, `TeamGameLogEntry` tipado, frontend usa `pickName(g.opponentName, g.opponentNameEn, locale)`.
-- `npm run check` → exit 0. Commit y push a main ✅.
+**StatsRadar** (`client/src/components/StatsRadar.tsx`):
+- Dual mode `compact` (iOS) / full (desktop)
+- Normalización: `AVG_NORM=0.65` → media de liga en 0.65, p95 → 1.0
+- Grid rings en `[0.25, 0.65, 0.85, 1.0]` — ring 2 coincide exactamente con avg
+- Una sola línea avg punteada (acento del tema), sin ring duplicado
+- Toggle posición controlado desde parent (`byPosition`+`onTogglePosition`+`leagueAvgData`+`percentilesData`)
+- Colores acento por tema: gamenight=amber, office=indigo, oldschool=teal
+- Labels ejes usan `col.dot` (color acento) — visibles en los 3 temas
+- Props: `positionLabel` (traducido desde parent, NO chino crudo)
 
-#### Collector Pi — PENDIENTE
-- Fix aplicado en source y compilado localmente (`npm run build` ✅).
-- **SCP + pm2 restart pendiente**: Pi apagado/desconectado (192.168.1.59 no responde).
-- Cuando Pi esté online:
-  ```bash
-  scp -r "/Users/palant/Downloads/U scout/ucore/collector/dist/" pablo@192.168.1.59:~/ucore/collector/dist/
-  ssh pablo@192.168.1.59 "pm2 restart ucore-collector"
-  ```
+**StatsPlayerSheet** (`Stats.tsx`):
+- Hero: radar izq + 7 barras de stats der (PPG/RPG/FG%/TS%/eFG%/APG/3P%)
+- 3P% siempre visible: `fg3 = p.fg3Pct ?? (gameLog.length > 0 ? 0 : null)`
+- Barra 3P% compara contra `lg?.fg3Pct` (NO `fgPct * 0.85` — corregido)
+- Insight badge 3P%: `"3s attempted: loads"` etc., 6 niveles por `tpaPerGame` vs percentiles de liga
+  - tpaPerGame usa `gameLog.length` (NO `player.games`)
+  - Caso explícito `tpa === 0` → "none" / "ninguno" / "无" para evitar el bug de "loads" con 0 intentos
+- Toggle posición: estado `byPosition` vive en StatsPlayerSheet, se pasa a radar Y a `useLeagueAverages`/`usePlayerPercentiles` → barras y radar sincronizan
+- Grids: PPG/RPG/APG grandes + SPG/BPG/TOPG/MPG
+- Home/Away splits
+- 3 tabs: Forma · Deep stats · Partidos
+  - Forma: minibar L5 + media
+  - Deep stats: Perfil temporada (DD/TD/Consistencia/PIE con explicación) + Cuatro Factores vs Liga + Más stats
+  - Partidos: tabla con W/L badge + "vs Rival" / "@ Rival"
+- `positionLabel={translatePosition(player.position, locale)}` — nunca chino crudo
 
-### ✅ Completado sesión 2026-05-19
+**Navegación panel desktop — 3 niveles**:
+- Nivel 1 (sin panel): tabla `max-w-5xl`, panel `w-80`
+- Nivel 2 (equipo/jugadora directa): panel `w-700px`, tabla `max-w-2xl`
+- Nivel 3 (jugadora desde roster): panel `w-900px` (`panelMax`), tabla `max-w-sm` — standings oculta PPG/OPPG/NET/eFG%
+- `isLevel3 = isDesktop && Boolean(playerSheetId && returnToTeamId)`
 
-#### U Stats — Sprint C
-- `ShotZoneChart` sustituido: 10 zonas NBA estándar (RA, Paint, Mid-L/C/R, Corner-L/R, Wing-L/R, Center-3). Colores vs liga. Compatibilidad legacy `fgPct`/`fg3Pct`.
-- `StatsTeamSheet` sustituido: 3 tabs (Ficha / Avanzado / Partidos)
-  - Ficha: PPG/NET/OPPG + dots L5 + Four Factors + Casa/Fuera + forma reciente + plantilla colapsable
-  - Avanzado: ORTG/DRTG/netRtg/PACE/PPP + OReb%/DReb%/eFG%/TOV% + donut puntos por zona + quintetos placeholder
-  - Partidos: game log equipo (fecha/rival/marcador/diferencial)
-- Backend `/api/stats/team/:externalId`: añadidos ortg, drtg, netRtg, pppOf, pppDef, pointsByZone, gameLog
-- `stats-api.ts`: +`TeamGameLogEntry`, campos opcionales en `TeamDetail` (ortg/drtg/netRtg/pppOf/pppDef/pointsByZone/gameLog)
-- Ajustes SQL reales: home_team_id/away_team_id vs stats_teams.id, pb.tpm (no fg3m), sg.scheduled_at (no game_date)
-- `npm run check` → exit 0 en ambos sprints
+**Back button + roster scroll**:
+- `returnToPlayerId` state en Stats()
+- Al abrir jugador desde roster: `setReturnToPlayerId(id)` antes de navegar
+- `closePlayerSheet`: mantiene `returnToPlayerId` activo hasta 600ms después de montar TeamSheet
+- `StatsTeamSheet`: prop `scrollToPlayerId` + `useEffect` que abre roster y hace scroll
+- Botones roster tienen `data-player-id={p.externalId}`
+- **TRAMPAS**: no limpiar `returnToPlayerId` hasta después del mount de TeamSheet (timing bug si se limpia antes)
 
-### ✅ Completado sesiones anteriores
+**WCBA team names** — `pickName()` con fallback `WCBA_TEAM_EN`:
+- 18 equipos mapeados de chino → inglés
+- Fases standings: `常规赛A组` → "Group A", `B组` → "Group B", `季后赛` → "Playoffs"
 
-#### U Stats — Fase 0 y 1
-- Schema auditado: shot_x/shot_y ❌ (0 filas), stint_id ✅ 116.700, rebound_type ✅ 17.140, off_reb/def_reb ✅
-- Backend Fase 1 completo en `routes.ts`:
-  - `/api/stats/team/:id`: +eFGPct, tovPct, ftRate, orbPct, drbPct, paceEst
-  - `/api/stats/player/:id`: +tsPct, eFGPct, astTovRatio, ftRate, usagePct, orbPerGame, drbPerGame, pie, homeSplit, awaySplit
-  - `/api/stats/leaders`: +tsPct, eFGPct, astTovRatio, orbPerGame
-  - `/api/stats/league-averages`: nuevo endpoint
-  - `/api/stats/player-percentiles`: nuevo endpoint
-  - `stats-api.ts`: +useLeagueAverages, usePlayerPercentiles
+**Backend additions**:
+- `/api/stats/league-averages`: +`fg3Pct` (3P% de liga para comparar barra 3P%)
+- `/api/stats/player-percentiles`: +`p25Tpa`, `p50Tpa`, `p75Tpa`, `p90Tpa` (intentos de triple)
+- Ambos endpoints soportan `?position=` para filtro por posición
+- `stats-api.ts`: tipos actualizados
 
-#### iOS fixes
-- **ThemePlugin.swift** creado y registrado en Xcode — sincroniza `UIWindow.backgroundColor` con el tema activo (gamenight/office/oldschool) via bridge JS→nativo. Resuelve la franja blanca del home indicator.
-- `theme.ts` actualizado — llama a `cap.Plugins.Theme.setBackgroundColor` al cambiar de tema
-- `AppDelegate.swift` limpiado — eliminado código incorrecto de UserDefaults
-- **App icon** regenerado — logo ocupa ~85% del canvas (vs ~50% anterior), centrado verticalmente
-- **Schedule día incorrecto** — `localDateKey()` helper reemplaza `toISOString().slice(0,10)` en 5 puntos del Schedule.tsx. Usa hora local, no UTC. Fix para China (UTC+8).
+### ✅ Sprint E cerrado — campo `threat` en Slide 0 (`74e1468`)
+### ✅ Sprint D cerrado — ReportSlidesV1 3 slides (`de9d2c4`)
+### ✅ Stats + Radar + Performance — bundle 253KB gzip ✅
 
-#### UI/UX fixes Home
-- KPI bar visible en Dark: `border-2 border-primary/20` + `min-h` via inline style
-- Grid módulos: quita `flex-1` problemático, usa layout natural
-- Mi Club siempre visible
-- Header centrado con logo 56px móvil / 88px desktop
-- `ModuleHeader.tsx` — logo SVG con `viewBox="256 280 512 360"` correcto
+### ⏳ Collector Pi — PENDIENTE
+```bash
+scp -r "/Users/palant/Downloads/U scout/ucore/collector/dist/" pablo@192.168.1.59:~/ucore/collector/dist/
+ssh pablo@192.168.1.59 "pm2 restart ucore-collector"
+```
 
-#### Otros fixes
-- Planner scroll: eliminada `scrollElementIntoOverflowParents` → `scrollIntoView({block:"nearest"})`
-- Nav: `bg-card` sin `backdrop-blur`, `pb-[env(safe-area-inset-bottom)]` en div interior
-- `body::after` con `hsl(var(--background))` cubre home indicator (complementa ThemePlugin)
-- `capacitor.config.ts`: `contentInset: 'never'`
-
-### ✅ Franja blanca home indicator — RESUELTA
-- ThemePlugin.swift sincroniza UIWindow.backgroundColor con el tema activo
-- `body::after` CSS cubre el área del home indicator
-- Verificado en dispositivo físico iPhone 16 Plus
+### ⏳ Sprint F — OverridePanel — VERIFICAR ANTES DE TRABAJAR
+- Backend 100%: GET/POST/DELETE `/api/players/:id/overrides` ✅
+- Frontend `OverridePanel.tsx` cableado — pendiente verificar en dispositivo
 
 ---
 
-## U Stats — Plan completo de implementación
+## Próximos sprints
 
-### Fase 2 PENDIENTE — UI con métricas avanzadas
-- TeamSheet: Cuatro Factores (eFG%, TOV%, FT Rate, ORB%, Pace) vs media liga con semáforo
-- PlayerSheet: chips TS%/eFG%/PIE/AST-TOV/Usage + home/away split
-- StatsRadar: calibrar AXIS_MAX con percentiles reales (endpoint ya existe)
-- Standings: +eFG% + racha visual (●●○●●)
-- Tooltips: tap en StatChip → popover con definición + fórmula
-- Shot zones: rediseño SVG FIBA correcto + CSS vars (sin datos reales aún)
-
-### Fase 3 PENDIENTE — Nuevas pantallas
-- Bubble chart `/stats`: FGA/g vs TS%, burbuja=MIN/g (Recharts ya en bundle)
+### Stats Fase 3 PENDIENTE
+- Bubble chart: FGA/g vs TS%, burbuja=MIN/g
 - Comparador: radar superpuesto hasta 3 jugadoras
-- Stats Home dashboard coaching: Próximo rival / L5 propio / Alerta liga
-- Team game log completo (click equipo → standings + historial partidos)
+- Stats Home dashboard coaching
+- Shot chart rediseño: ampliar laterales para meter datos de corner, actualmente `isLandscape` only
 
-### Fase 4 PENDIENTE — Pi hotspotdata
-- Activar sync de hotspotdata en collector → poblar shot_x/shot_y/shot_zone
-- Shot chart individual: dots sobre half-court SVG calibrado
+### Stats Fase 4 PENDIENTE
+- Pi hotspotdata → poblar shot_x/shot_y (actualmente 0 filas)
+- Shot chart individual con datos reales por zona
+
+### iOS / TestFlight PENDIENTE
+- `100dvh` bug → fix antes de build
+- Bundle <300KB gzip: (1) i18n lazy (2) code splitting
+- RECORDAR: verificar hero card "Mis estadísticas" para jugadoras — depende de `profile.wcba_external_id` no null
+
+---
+
+## U Scout — Estado motor y reports
+
+### RenderedIdentity — campos actuales
+```typescript
+export interface RenderedIdentity {
+  archetypeLabel: string;
+  tagline: string;
+  threat: string;          // derivado en renderThreat(), nunca vacío
+  dangerLevel: 1|2|3|4|5;
+  difficultyLevel: 1|2|3|4|5;
+  archetypeAlternatives: { label: string; score: number }[];
+}
+```
+
+### Motor
+- `motor-v4.ts` — NO tiene `threat` en `MotorV4Output.identity` (por diseño — se deriva en renderer)
+- Motor v2.1 es client-side — deuda técnica (server-side pendiente, no prioritario)
+
+### Approval flow (spec aprobada, backend completo)
+- GET/POST/DELETE overrides en routes.ts ✅
+- `storage`: `listReportOverridesForPlayer`, `upsertReportOverride`, `deleteReportOverride` ✅
+- Frontend: `OverridePanel.tsx` + `approval-api.ts` + `ReportViewV4.tsx` ✅
 
 ---
 
 ## Desktop UI/UX — PENDIENTE
 
-### Fact técnico confirmado (sesión 2026-05-17)
-- `window.innerWidth` en Mac fullscreen = **1910px**
-- "Designed for iPad" en Mac da viewport completo al maximizar — responsive CSS funciona
-- Todos los breakpoints Tailwind activos: `md:` `lg:` `xl:` `2xl:`
-- No hay problema de arquitectura — es 100% problema de CSS
-
-### Estado de archivos desktop (tras revert b8b3241)
-- `Home.tsx` → router a `HomeDesktop.tsx` / `HomeMobile.tsx` via `useIsDesktop()` ✅
-- `HomeDesktop.tsx` — implementado, datos reales ✅
-- `ScoutDesktop.tsx` — implementado ✅
-- `Schedule.tsx` — sin variante desktop, solo edits quirúrgicos md: ⏳
-- `Stats.tsx` — sin variante desktop, solo edits quirúrgicos md: ⏳
-- `useIsDesktop.ts` / `useHomeData.ts` — existen ✅
-
-### REGLA ABSOLUTA — aprendida por fallos repetidos
+### REGLA ABSOLUTA
 **NUNCA** crear archivos `*Desktop.tsx` separados para Schedule o Stats.
-**NUNCA** reemplazar un componente completo con una variante desktop.
 **SIEMPRE** editar el archivo existente añadiendo clases `md:` / `lg:` / `xl:`.
-Motivo: los rewrites completos destruyen formularios, botones y lógica de interacción existente.
 
-### Trabajo pendiente desktop
-1. **Schedule.tsx** — labels con `text-[8-11px]` sin `md:` + layout planner no aprovecha 1910px
-2. **Stats.tsx** — mismo problema tipografía + standings/detalle sin grid horizontal desktop
-3. **Por verificar**: Personnel, PlayerHome, Dashboard (player), WellnessStandalone
-
-### Cómo auditar antes de editar
-```bash
-grep -n 'text-\[' client/src/pages/core/Schedule.tsx | grep -v 'md:'
-```
-
----
-
-## U Scout — Mejoras pendientes
-
-### APIs y datos
-- Endpoints WCBA para datos en tiempo real de partidos (ya scrapeados, falta surfacing en UI)
-- `report_overrides`: tabla y endpoint `POST /api/players/:id/overrides` existen pero sin frontend (OverridePanel pendiente de integración)
-- `hasReport` fix: prompt preparado pero no aplicado
-
-### Motor y reports
-- Motor v2.1 es server-side pendiente (actualmente client-side — deuda técnica)
-- ReportViewV4.tsx → rediseño 3 slides aprobado:
-  - Slide 1: ¿Quién es? (archetype + tagline + threat)
-  - Slide 2: ¿Qué hará? (top 3 situaciones primarias)
-  - Slide 3: ¿Qué hago yo? (DENY/FORCE/ALLOW + max 2 AWARE)
-- Approval flow (spec aprobada): Edit → Propose → Staff debate → Approve → Publish
-
-### Bundle
-- Tamaño actual: ~509KB gzip. Target TestFlight: <300KB
-- Plan: lazy i18n por locale (−120KB) + React.lazy code splitting (−100KB)
-
----
-
-## U Playbook — Implementación pendiente
-
-Actualmente: página placeholder "en desarrollo" con feature pills.
-
-### Spec pendiente de diseño:
-- Play designer: diagramas de jugadas con canvas/SVG
-- Tactical board: pizarra interactiva
-- Shared game plans: publicar a jugadoras
-- Video links: integración con clips de vídeo
-- Defensive systems builder (ya existe `defensive-system-builder-elite.html` como referencia)
-
----
-
-## U Schedule & Wellness — Specs pendientes
-
-### Schedule
-- Desktop split view: lista izquierda, detalle sesión derecha
-- Kebab menu: tap = detalle, long-press = editar (actualmente mezclado)
-- Exportar semana como imagen (funcionalidad existe, bugs)
-
-### Wellness
-- Trend charts: implementados en p26 pero necesitan revisión visual en desktop
-- Alertas de wellness: lógica existe, falta prominencia en Home
+### Estado archivos desktop
+- `Home.tsx` → router `HomeDesktop.tsx` / `HomeMobile.tsx` ✅
+- `Schedule.tsx`, `Stats.tsx` — sin variante desktop ⏳
 
 ---
 
 ## Sistema de Temas
-Tres temas CSS vía clases en `<html>`:
-- `.dark` (Game Night) — amber gold `#F5A623`, fondo near-black `228 18% 5%`, card `228 16% 9%` = `#131318`
+- `.dark` (Game Night) — amber `#F5A623`, fondo `228 18% 5%`, card `#131318`
 - `.theme-office` — indigo `#4563E9`, fondo blanco, card `#ffffff`
-- `.theme-oldschool` (Classic) — naranja + teal, fondo mahogany, fuente Space Mono, card `#3D2410`
+- `.theme-oldschool` — naranja + teal, fondo mahogany, card `#3D2410`
 
-### Colores nativos por tema (ThemePlugin)
+### Colores nativos (ThemePlugin)
 ```
-gamenight: #131318  (UIWindow background)
-office:    #ffffff
-oldschool: #3D2410
+gamenight: #131318 · office: #ffffff · oldschool: #3D2410
 ```
+
+### Franja blanca home indicator — RESUELTA ✅ (ThemePlugin.swift + body::after)
 
 ---
 
 ## Logo SVG — referencia
 ```
-D=25: HORN_CLIP_Y=427, CONN_SCALE=translate(0,544) scale(1,1.32468) translate(0,-544)
 viewBox icono compacto: "256 280 512 360"
 viewBox favicon/app icon: "256 173 512 512"
 
 Paleta módulos:
-  core:     #6B6B9A (slate)
-  scout:    #3A81FE (blue)
-  schedule: #10B981 (emerald)
-  wellness: #A78BFA (lavender)
-  stats:    #F59E0B (amber)
-  playbook: #EF4444 (red)
+  core:#6B6B9A  scout:#3A81FE  schedule:#10B981
+  wellness:#A78BFA  stats:#F59E0B  playbook:#EF4444
 ```
 
 ---
@@ -264,47 +205,33 @@ Paleta módulos:
 - Node 20 + PM2 · Collector en ~/ucore/collector
 - **dist/ sincronizado desde Mac** — NUNCA compilar en el Pi
 
-## Workflow Pi
-```bash
-cd "/Users/palant/Downloads/U scout/collector"
-npm run build
-scp -r dist/ pablo@192.168.1.59:~/ucore/collector/dist/
-ssh pablo@192.168.1.59 "cd ~/ucore/collector && pm2 restart ucore-collector"
-```
-
 ## API WCBA — URLs confirmadas
 ```
 BASE: https://www.cba.net.cn
-standings:    GET /datahub/cbamatch/rank/teamrankfirst?competitionId=56&seasonId=2092
-phasemenus:   GET /datahub/cbamatch/games/phasemenus?seasonId=2092
-schedule:     GET /datahub/cbamatch/games/matchschedules?competitionId=56&seasonId=2092&phaseId=X&roundId=X&teamId=''
-boxscore:     GET /datahub/cbamatch/games/matchinfoscores?matchId=X&gameId=X
-playerbox:    GET /datahub/cbamatch/games/player/playerdata?gameId=X
-roster:       GET /datahub/cbamatch/team/teamplayers?seasonId=X&teamId=X → data.data.players[]
-pbp:          GET /api/v2/game/${gameId}/actions → array directo
+standings:  GET /datahub/cbamatch/rank/teamrankfirst?competitionId=56&seasonId=2092
+schedule:   GET /datahub/cbamatch/games/matchschedules?...&teamId=''
+boxscore:   GET /datahub/cbamatch/games/matchinfoscores?matchId=X&gameId=X
+playerbox:  GET /datahub/cbamatch/games/player/playerdata?gameId=X
+pbp:        GET /api/v2/game/${gameId}/actions
 ⚠ matchschedules requiere teamId='' (string vacío)
-⚠ /datahub/wcba/* dan 404 — usar /datahub/cbamatch/*
+⚠ /datahub/wcba/* → 404, usar /datahub/cbamatch/*
 ```
 
 ## Supabase — estado tablas
 ```
-stats_games:            223 partidos status=4, season_id=2092
-stats_teams:            18 equipos
-stats_players:          307 jugadoras
+stats_games:            223 partidos · stats_teams: 18 · stats_players: 307
 stats_standings:        18 filas
-stats_player_boxscores: 5312 rows ✅
-stats_pbp:              116.700 eventos ✅
+stats_player_boxscores: 5312 rows ✅ · stats_pbp: 116.700 eventos ✅
 shot_x/shot_y:          0 filas (hotspotdata no sincronizado)
 ```
 
 ## Club INNER MONGOLIA
-- Club ID: 4bca3aa8-9062-4709-9d29-9e2313308f1a
-- Pablo (b334e51a) = owner + head_coach
+- Club ID: 4bca3aa8-9062-4709-9d29-9e2313308f1a · Pablo (b334e51a) = owner + head_coach
 
 ---
 
 ## Reglas entrega código (NO NEGOCIABLES)
-- Claude edita directamente con filesystem:write_file / Filesystem:edit_file
+- Claude edita directamente con filesystem:write_file
 - O da comandos de terminal exactos
 - O da prompt completo para agente Cursor
 - NUNCA texto para copiar/pegar manualmente
@@ -321,3 +248,4 @@ shot_x/shot_y:          0 filas (hotspotdata no sincronizado)
 - Schedule.tsx es 228KB — leer en chunks, nunca completo
 - bash_tool corre en Linux — NO accede al Mac directamente
 - Path con espacio `/U scout/` — siempre comillas en bash
+- `motor-v4.ts`: `threat` NO existe en MotorV4Output — se genera en reportTextRenderer.ts

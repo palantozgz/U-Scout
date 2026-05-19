@@ -49,9 +49,11 @@ export function ModulePageShell(
     panelLabel?: string;
     /** Cuando true, el panel ocupa más ancho (modo detalle expandido) */
     panelWide?: boolean;
+    /** Cuando true, el panel ocupa el máximo ancho posible (jugadora desde roster) */
+    panelMax?: boolean;
   }>,
 ) {
-  const { title, showBack, moduleHeader, children, panel, panelLabel, panelWide } = props;
+  const { title, showBack, moduleHeader, children, panel, panelLabel, panelWide, panelMax } = props;
   const [, setLocation] = useLocation();
   const { previewRole } = useAuth();
   const caps = useCapabilities();
@@ -120,7 +122,11 @@ export function ModulePageShell(
         {/* Panel lateral — solo desktop, solo si se pasa la prop */}
         {panel && (
           <aside
-            className={`hidden md:flex shrink-0 flex-col min-h-0 overflow-y-auto bg-muted/10 transition-all duration-200 ${panelWide ? 'w-[520px] lg:w-[560px]' : 'w-80 lg:w-96'}`}
+            className={`hidden md:flex shrink-0 flex-col min-h-0 overflow-y-auto bg-muted/10 transition-all duration-300 ${
+              panelMax ? 'w-[820px] lg:w-[900px]'
+              : panelWide ? 'w-[620px] lg:w-[700px]'
+              : 'w-80 lg:w-96'
+            }`}
             style={{ borderLeft: "1px solid hsl(var(--border) / 0.7)" }}
           >
             {panelLabel && (
