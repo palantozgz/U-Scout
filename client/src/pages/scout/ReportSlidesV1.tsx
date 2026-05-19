@@ -336,12 +336,12 @@ export default function ReportSlidesV1({
               </div>
             )}
 
-            {(finalReport.identity as any).threat && (
+            {finalReport.identity.threat && (
               <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-destructive/70 mb-1">
                   {es ? "Amenaza principal" : zh ? "主要威胁" : "Main threat"}
                 </p>
-                <p className="text-sm font-semibold text-foreground leading-snug">{(finalReport.identity as any).threat}</p>
+                <p className="text-sm font-semibold text-foreground leading-snug">{finalReport.identity.threat}</p>
               </div>
             )}
 

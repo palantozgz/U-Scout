@@ -141,6 +141,7 @@ export interface RenderedAlert {
 export interface RenderedIdentity {
   archetypeLabel: string;
   tagline: string;
+  threat: string;
   dangerLevel: 1 | 2 | 3 | 4 | 5;
   difficultyLevel: 1 | 2 | 3 | 4 | 5;
   archetypeAlternatives: { label: string; score: number }[];
@@ -220,6 +221,110 @@ function g(word: GenderedWord, gender: Gender, locale: Locale): string {
   return genderES_n[word];
 }
 
+function renderThreat(
+  motorOutput: MotorV4Output,
+  ctx: RenderContext,
+): string {
+  const { identity, situations } = motorOutput;
+  const { locale, gender } = ctx;
+  const { archetypeKey, dangerLevel } = identity;
+
+  // Top situation id (first with score > 0)
+  const topSit = situations.find((s) => s.score > 0);
+  const topSitId = topSit?.id ?? "";
+
+  // Helpers
+  const isIso = topSitId.startsWith("iso");
+  const isPnr = topSitId.startsWith("pnr");
+  const isPost = topSitId.startsWith("post");
+  const isTransition = topSitId === "transition";
+  const isCatchShoot = topSitId === "catch_shoot";
+
+  if (locale === "es") {
+    const d = g("dangerous", gender, "es");
+    if (dangerLevel >= 4) {
+      if (archetypeKey === "archetype_iso_scorer" || isIso)
+        return `Amenaza de primer nivel en el ISO — capaz de crear tiro de calidad en cualquier posesión.`;
+      if (archetypeKey === "archetype_pnr_orchestrator" || isPnr)
+        return `Dirige el ataque desde el bloqueo directo — toma la decisión correcta frente a cualquier cobertura.`;
+      if (archetypeKey === "archetype_post_scorer" || isPost)
+        return `Domina el poste bajo — convierte posesiones que otros no pueden resolver.`;
+      if (archetypeKey === "archetype_spot_up_shooter" || isCatchShoot)
+        return `Tiro instantáneo y de largo alcance — castiga cualquier descuido en el cierre.`;
+      if (archetypeKey === "archetype_transition_threat" || isTransition)
+        return `Más ${d} en campo abierto — convierte el contraataque en ventaja inmediata.`;
+      return `Alta capacidad de impacto en cualquier momento del partido.`;
+    }
+    if (dangerLevel === 3) {
+      if (isIso || archetypeKey === "archetype_iso_scorer")
+        return `Creadora fiable en el ISO — puede generar tiro propio cuando la defensa se descuida.`;
+      if (isPnr || archetypeKey === "archetype_pnr_orchestrator")
+        return `Eficaz usando el bloqueo — difícil de neutralizar con cobertura estándar.`;
+      if (isCatchShoot || archetypeKey === "archetype_spot_up_shooter")
+        return `Buena opción en el spot-up — complica el cierre si se le deja espacio.`;
+      if (isTransition)
+        return `Amenaza en transición — activa en cuanto el equipo recupera el balón.`;
+      return `Amenaza moderada — puede hacer daño si la defensa pierde concentración.`;
+    }
+    // dangerLevel 1–2
+    return `Amenaza limitada — se puede gestionar con principios defensivos estándar.`;
+  }
+
+  if (locale === "zh") {
+    if (dangerLevel >= 4) {
+      if (archetypeKey === "archetype_iso_scorer" || isIso)
+        return `单打一级威胁——每次持球均可创造高质量投篮机会。`;
+      if (archetypeKey === "archetype_pnr_orchestrator" || isPnr)
+        return `挡拆战术核心——能针对任何防守体系做出正确决策。`;
+      if (archetypeKey === "archetype_post_scorer" || isPost)
+        return `低位统治力极强——能解决其他球员无法处理的进攻回合。`;
+      if (archetypeKey === "archetype_spot_up_shooter" || isCatchShoot)
+        return `定点出手快、射程远——任何补防失误都会被立即惩罚。`;
+      if (archetypeKey === "archetype_transition_threat" || isTransition)
+        return `快攻中威胁最大——能将反击转化为即时优势。`;
+      return `比赛任意阶段均具备高影响力。`;
+    }
+    if (dangerLevel === 3) {
+      if (isIso || archetypeKey === "archetype_iso_scorer")
+        return `单打有一定威胁——防守稍有松懈即可自主创造得分机会。`;
+      if (isPnr || archetypeKey === "archetype_pnr_orchestrator")
+        return `挡拆效率稳定——标准防守体系难以完全限制。`;
+      if (isCatchShoot || archetypeKey === "archetype_spot_up_shooter")
+        return `定点投篮是选项——给空间就有出手威胁。`;
+      return `中等威胁——防守注意力下降时可造成伤害。`;
+    }
+    return `威胁有限——标准防守原则可有效应对。`;
+  }
+
+  // locale === "en"
+  if (dangerLevel >= 4) {
+    if (archetypeKey === "archetype_iso_scorer" || isIso)
+      return `Top-tier ISO threat — capable of creating a quality shot on any possession.`;
+    if (archetypeKey === "archetype_pnr_orchestrator" || isPnr)
+      return `Runs the offense out of the PnR — makes the right read against any coverage.`;
+    if (archetypeKey === "archetype_post_scorer" || isPost)
+      return `Dominates the low post — converts possessions others cannot.`;
+    if (archetypeKey === "archetype_spot_up_shooter" || isCatchShoot)
+      return `Instant release, extended range — punishes any closeout mistake immediately.`;
+    if (archetypeKey === "archetype_transition_threat" || isTransition)
+      return `Most dangerous in open court — turns transition into an immediate advantage.`;
+    return `High-impact threat at any point in the game.`;
+  }
+  if (dangerLevel === 3) {
+    if (isIso || archetypeKey === "archetype_iso_scorer")
+      return `Reliable ISO creator — can generate her own shot when the defense loses focus.`;
+    if (isPnr || archetypeKey === "archetype_pnr_orchestrator")
+      return `Effective out of the PnR — hard to neutralize with standard coverage.`;
+    if (isCatchShoot || archetypeKey === "archetype_spot_up_shooter")
+      return `Viable catch-and-shoot option — complicates closeouts if given space.`;
+    if (isTransition)
+      return `Transition threat — activates as soon as her team gets the ball.`;
+    return `Moderate threat — can cause damage if the defense loses concentration.`;
+  }
+  // dangerLevel 1–2
+  return `Limited threat — manageable with standard defensive principles.`;
+}
+
 function renderIdentity(
   motorOutput: MotorV4Output,
   ctx: RenderContext,
@@ -288,6 +393,7 @@ function renderIdentity(
   return {
     archetypeLabel,
     tagline,
+    threat: renderThreat(motorOutput, ctx),
     dangerLevel: identity.dangerLevel,
     difficultyLevel: identity.difficultyLevel,
     archetypeAlternatives,
