@@ -2011,19 +2011,19 @@ function StatsPlayerSheet({
       color: barColor(p.apg, lg?.apg),
     });
 
-    // 3P% siempre — es dato principal moderno
-    if (p.fg3Pct != null) {
-      rows.push({
-        key: "3P%",
-        val: `${p.fg3Pct.toFixed(1)}%`,
-        rawNum: p.fg3Pct,
-        pct: barPct(p.fg3Pct, 55),
-        color: barColor(p.fg3Pct, lg?.fgPct ? lg.fgPct * 0.85 : null),
-      });
-    }
+    // 3P% siempre visible
+    // Si fg3Pct es null pero hay game log, inferir 0.0% (no ha metido ninguno)
+    const fg3 = p.fg3Pct ?? (gameLog.length > 0 ? 0 : null);
+    rows.push({
+      key: "3P%",
+      val: fg3 != null ? `${fg3.toFixed(1)}%` : "—",
+      rawNum: fg3 ?? 0,
+      pct: fg3 != null && fg3 > 0 ? barPct(fg3, 55) : 0,
+      color: fg3 != null && fg3 > 0 ? barColor(fg3, lg?.fgPct ? lg.fgPct * 0.85 : null) : "muted",
+    });
 
     return rows.slice(0, 7);
-  }, [player, leagueAvg, percentilesQ.data]);
+  }, [player, leagueAvg, percentilesQ.data, gameLog]);
 
   const vsPills = useMemo(() => {
     if (!player || !leagueAvg) return [];
