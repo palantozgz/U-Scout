@@ -1765,6 +1765,7 @@ function StatsDesktopPanel(props: {
           onTeamTap={props.onTeamTapFromPlayer}
           returnToTeamId={props.returnToTeamId}
           locale={props.locale}
+          isDesktop={true}
         />
       </div>
     );
@@ -1789,144 +1790,213 @@ function StatsPlayerSheet({
   onTeamTap,
   returnToTeamId: _returnToTeamId,
   locale,
+  isDesktop = false,
 }: {
   externalId: string | null;
   onClose: () => void;
   onTeamTap?: (teamId: string) => void;
   returnToTeamId?: string | null;
   locale: string;
+  isDesktop?: boolean;
 }) {
   const es = locale === "es";
   const zh = locale === "zh";
+
   const { data, isLoading, isError } = usePlayerDetail(externalId);
   const leagueAvgQ = useLeagueAverages();
   const percentilesQ = usePlayerPercentiles();
-  const isLandscape = useIsLandscape();
-  const [showAllGames, setShowAllGames] = useState(false);
-  const [showRadar, setShowRadar] = useState(false);
-  const [showMoreStats, setShowMoreStats] = useState(false);
-  const [gameLogSort, setGameLogSort] = useState<"date" | "pts" | "reb" | "ast">("date");
-  const [gameLogSortDir, setGameLogSortDir] = useState<"asc" | "desc">("desc");
-
-  useEffect(() => {
-    setShowAllGames(false);
-    setShowRadar(false);
-    setShowMoreStats(false);
-    setGameLogSort("date");
-    setGameLogSortDir("desc");
-  }, [externalId]);
 
   const player = data?.player;
   const gameLog = data?.gameLog ?? [];
-
-  const advStats = useMemo(() => {
-    if (gameLog.length === 0) return null;
-    let fgm = 0,
-      fga = 0,
-      tpm = 0,
-      ftm = 0,
-      fta = 0,
-      pts = 0;
-    for (const g of gameLog) {
-      fgm += g.fgm ?? 0;
-      fga += g.fga ?? 0;
-      tpm += g.tpm ?? 0;
-      ftm += g.ftm ?? 0;
-      fta += g.fta ?? 0;
-      pts += g.pts ?? 0;
-    }
-    const eFGPct = fga > 0 ? ((fgm + 0.5 * tpm) / fga) * 100 : null;
-    const tsPct = fga + 0.44 * fta > 0 ? (pts / (2 * (fga + 0.44 * fta))) * 100 : null;
-    let dd = 0,
-      td = 0;
-    for (const g of gameLog) {
-      const cats = [
-        (g.pts ?? 0) >= 10,
-        (g.reb ?? 0) >= 10,
-        (g.ast ?? 0) >= 10,
-        (g.stl ?? 0) >= 10,
-        (g.blk ?? 0) >= 10,
-      ].filter(Boolean).length;
-      if (cats >= 3) td++;
-      else if (cats >= 2) dd++;
-    }
-    const mean = pts / gameLog.length;
-    const stdDev = Math.sqrt(
-      gameLog.reduce((s, g) => s + ((g.pts ?? 0) - mean) ** 2, 0) / gameLog.length,
-    );
-    const last5 = [...gameLog]
-      .sort((a, b) => new Date(b.gameDate ?? 0).getTime() - new Date(a.gameDate ?? 0).getTime())
-      .slice(0, 5);
-    const last5Avg =
-      last5.length >= 3 ? last5.reduce((s, g) => s + (g.pts ?? 0), 0) / last5.length : null;
-    const isHot = last5Avg != null && last5Avg > mean * 1.15;
-    const isCold = last5Avg != null && last5Avg < mean * 0.85;
-    return { eFGPct, tsPct, dd, td, stdDev, isHot, isCold, last5Avg, meanPts: mean };
-  }, [gameLog]);
-
   const leagueAvg = leagueAvgQ.data;
 
-  const playerTovPct = useMemo(() => {
-    if (gameLog.length === 0) return null;
-    let tov = 0;
-    let fga = 0;
-    let fta = 0;
-    for (const g of gameLog) {
-      tov += g.tov ?? 0;
-      fga += g.fga ?? 0;
-      fta += g.fta ?? 0;
-    }
-    const poss = fga + 0.44 * fta + tov;
-    return poss > 0 ? (tov / poss) * 100 : null;
-  }, [gameLog]);
+  type DeepTab = "forma" | "deep" | "partidos";
+  const [deepTab, setDeepTab] = useState<DeepTab>("forma");
+  const [showMoreStats, setShowMoreStats] = useState(false);
+  const [showAllGames, setShowAllGames] = useState(false);
+  const [gameLogSort, setGameLogSort] = useState<"pts" | "reb" | "ast">("pts");
+  const [gameLogSortDir, setGameLogSortDir] = useState<"desc" | "asc">("desc");
 
-  const displayName =
-    (locale === "en" || locale === "es") && player?.nameEn?.trim()
-      ? (toTitleCase(player.nameEn) ?? player.nameEn.trim())
-      : player?.nameZh ?? "—";
+  const isLandscape = useIsLandscape();
+
+  const advStats = useMemo(() => {
+    if (!player || gameLog.length === 0) return null;
+    const pts = gameLog.map((g) => g.pts ?? 0);
+    const mean = pts.reduce((a, b) => a + b, 0) / pts.length;
+    const stdDev = Math.sqrt(
+      pts.map((p) => (p - mean) ** 2).reduce((a, b) => a + b, 0) / pts.length,
+    );
+    const sorted = [...gameLog].sort(
+      (a, b) => new Date(b.gameDate ?? 0).getTime() - new Date(a.gameDate ?? 0).getTime(),
+    );
+    const last5 = sorted.slice(0, 5);
+    const last5Avg = last5.length ? last5.reduce((s, g) => s + (g.pts ?? 0), 0) / last5.length : null;
+    const isHot = last5Avg != null && last5Avg > mean * 1.15;
+    const isCold = last5Avg != null && last5Avg < mean * 0.85;
+    const dd = gameLog.filter(
+      (g) => (g.pts ?? 0) >= 10 && ((g.reb ?? 0) >= 10 || (g.ast ?? 0) >= 10),
+    ).length;
+    const td = gameLog.filter(
+      (g) => [(g.pts ?? 0), (g.reb ?? 0), (g.ast ?? 0)].filter((v) => v >= 10).length >= 3,
+    ).length;
+    const fgm = gameLog.reduce((s, g) => s + (g.fgm ?? 0), 0);
+    const fga = gameLog.reduce((s, g) => s + (g.fga ?? 0), 0);
+    const tpm = gameLog.reduce((s, g) => s + (g.tpm ?? 0), 0);
+    const fta = gameLog.reduce((s, g) => s + (g.fta ?? 0), 0);
+    const tsPts = gameLog.reduce((s, g) => s + (g.pts ?? 0), 0);
+    const tsPct = fga > 0 ? (tsPts / (2 * (fga + 0.44 * fta))) * 100 : null;
+    const eFGPct = fga > 0 ? ((fgm + 0.5 * tpm) / fga) * 100 : null;
+    const ftRate = fga > 0 ? fta / fga : null;
+    const pie = player.pie ?? null;
+    return { stdDev, last5Avg, isHot, isCold, dd, td, tsPct, eFGPct, ftRate, pie, meanPts: mean };
+  }, [player, gameLog]);
+
+  const playerTovPct = useMemo(() => {
+    if (!player || gameLog.length === 0) return null;
+    const totTov = gameLog.reduce((s, g) => s + (g.tov ?? 0), 0);
+    const totFga = gameLog.reduce((s, g) => s + (g.fga ?? 0), 0);
+    const totFta = gameLog.reduce((s, g) => s + (g.fta ?? 0), 0);
+    const poss = totFga + 0.44 * totFta + totTov;
+    return poss > 0 ? (totTov / poss) * 100 : null;
+  }, [player, gameLog]);
+
+  const sortedGameLog = useMemo(
+    () =>
+      [...gameLog].sort((a, b) => {
+        const av =
+          gameLogSort === "pts" ? (a.pts ?? 0) : gameLogSort === "reb" ? (a.reb ?? 0) : (a.ast ?? 0);
+        const bv =
+          gameLogSort === "pts" ? (b.pts ?? 0) : gameLogSort === "reb" ? (b.reb ?? 0) : (b.ast ?? 0);
+        return gameLogSortDir === "desc" ? bv - av : av - bv;
+      }),
+    [gameLog, gameLogSort, gameLogSortDir],
+  );
+
+  const handleGameLogSortClick = (col: "pts" | "reb" | "ast") => {
+    if (gameLogSort === col) setGameLogSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    else {
+      setGameLogSort(col);
+      setGameLogSortDir("desc");
+    }
+  };
+
+  const statBars = useMemo(() => {
+    if (!player) return [];
+    type BarColor = "amber" | "green" | "purple" | "blue" | "red" | "muted";
+    const rows: { key: string; val: string; rawNum: number; pct: number; color: BarColor }[] = [];
+    const p = player;
+    const lg = leagueAvg;
+    const pc = percentilesQ.data;
+
+    function barColor(v: number, lgv: number | null | undefined, higherBetter = true): BarColor {
+      if (!lgv) return "amber";
+      const diff = v - lgv;
+      if (higherBetter) return diff > lgv * 0.05 ? "green" : diff < -lgv * 0.05 ? "red" : "amber";
+      return diff < -lgv * 0.05 ? "green" : diff > lgv * 0.05 ? "red" : "amber";
+    }
+    function barPct(v: number, p95: number | null | undefined): number {
+      return p95 && p95 > 0 ? Math.min(100, (v / p95) * 100) : Math.min(100, (v / 35) * 100);
+    }
+
+    rows.push({
+      key: "PPG",
+      val: p.ppg.toFixed(1),
+      rawNum: p.ppg,
+      pct: barPct(p.ppg, pc?.p95Ppg),
+      color: barColor(p.ppg, lg?.ppg),
+    });
+    rows.push({
+      key: "RPG",
+      val: p.rpg.toFixed(1),
+      rawNum: p.rpg,
+      pct: barPct(p.rpg, pc?.p95Rpg),
+      color: barColor(p.rpg, lg?.rpg),
+    });
+    if (p.fgPct != null)
+      rows.push({
+        key: "FG%",
+        val: `${p.fgPct.toFixed(1)}%`,
+        rawNum: p.fgPct,
+        pct: barPct(p.fgPct, 65),
+        color: barColor(p.fgPct, lg?.fgPct),
+      });
+    if (p.tsPct != null)
+      rows.push({
+        key: "TS%",
+        val: `${p.tsPct.toFixed(1)}%`,
+        rawNum: p.tsPct,
+        pct: barPct(p.tsPct, pc?.p95TsPct),
+        color: barColor(p.tsPct, lg?.tsPct),
+      });
+    if (p.eFGPct != null)
+      rows.push({
+        key: "eFG%",
+        val: `${p.eFGPct.toFixed(1)}%`,
+        rawNum: p.eFGPct,
+        pct: barPct(p.eFGPct, pc?.p95EFGPct),
+        color: barColor(p.eFGPct, lg?.eFGPct),
+      });
+    rows.push({
+      key: "APG",
+      val: p.apg.toFixed(1),
+      rawNum: p.apg,
+      pct: barPct(p.apg, pc?.p95Apg),
+      color: barColor(p.apg, lg?.apg),
+    });
+    return rows.slice(0, 6);
+  }, [player, leagueAvg, percentilesQ.data]);
+
+  const vsPills = useMemo(() => {
+    if (!player || !leagueAvg) return [];
+    const pills: { label: string; up: boolean }[] = [];
+    if (player.fgPct != null && leagueAvg.fgPct != null && player.fgPct > leagueAvg.fgPct * 1.05)
+      pills.push({ label: "↑ FG%", up: true });
+    if (player.fgPct != null && leagueAvg.fgPct != null && player.fgPct < leagueAvg.fgPct * 0.95)
+      pills.push({ label: "↓ FG%", up: false });
+    if (player.ppg > (leagueAvg.ppg ?? 0) * 1.15) pills.push({ label: "↑ PPG", up: true });
+    if (player.apg < (leagueAvg.apg ?? 0) * 0.85) pills.push({ label: "↓ APG", up: false });
+    return pills.slice(0, 3);
+  }, [player, leagueAvg]);
+
+  const barColorClass: Record<string, string> = {
+    amber: "bg-gradient-to-r from-amber-500 to-amber-400",
+    green: "bg-gradient-to-r from-emerald-500 to-emerald-400",
+    purple: "bg-gradient-to-r from-violet-500 to-violet-400",
+    blue: "bg-gradient-to-r from-blue-500 to-blue-400",
+    red: "bg-gradient-to-r from-red-500 to-red-400",
+    muted: "bg-muted-foreground/30",
+  };
 
   const L = {
     close: es ? "Volver" : zh ? "返回" : "Back",
     error: es ? "Error al cargar" : zh ? "加载失败" : "Failed to load",
-    noData: es ? "Sin datos" : zh ? "暂无数据" : "No data",
-    gameLogTitle: es ? "Últimos partidos" : zh ? "近期比赛" : "Recent games",
+    noData: es ? "Sin partidos disponibles" : zh ? "暂无比赛数据" : "No game data",
+    tabForma: es ? "Forma" : zh ? "状态" : "Form",
+    tabDeep: es ? "Deep stats" : zh ? "深度数据" : "Deep stats",
+    tabGames: es ? "Partidos" : zh ? "赛程" : "Games",
     dateCol: es ? "Fecha" : zh ? "日期" : "Date",
     rivalCol: es ? "Rival" : zh ? "对手" : "Rival",
     ptsCol: "PTS",
     rebCol: "REB",
     astCol: "AST",
     minCol: "MIN",
-    pmCol: "+/-",
+    gameLogTitle: es ? "Registro de partidos" : zh ? "比赛记录" : "Game log",
     starter: es ? "Titular" : zh ? "首发" : "Starter",
+    vsLeague: es ? "vs liga" : zh ? "vs联赛" : "vs league",
+    noLeagueData: es ? "Sin datos de liga" : zh ? "暂无联赛数据" : "No league data",
   };
 
-  const handleGameLogSortClick = (col: "pts" | "reb" | "ast") => {
-    if (gameLogSort === col) {
-      setGameLogSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    } else {
-      setGameLogSort(col);
-      setGameLogSortDir("desc");
-    }
-  };
-
-  const sortedGameLog = [...gameLog].sort((a, b) => {
-    let diff = 0;
-    if (gameLogSort === "pts") diff = (b.pts ?? 0) - (a.pts ?? 0);
-    else if (gameLogSort === "reb") diff = (b.reb ?? 0) - (a.reb ?? 0);
-    else if (gameLogSort === "ast") diff = (b.ast ?? 0) - (a.ast ?? 0);
-    else {
-      diff = new Date(b.gameDate ?? 0).getTime() - new Date(a.gameDate ?? 0).getTime();
-    }
-    return gameLogSortDir === "desc" ? diff : -diff;
-  });
+  const pos = player ? translatePosition(player.position, locale) : null;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-card">
+
+      {/* ── Header ── */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
         <button
           type="button"
-          onClick={() => onClose()}
-          className="p-1.5 -ml-1 rounded-lg text-muted-foreground touch-manipulation hover:text-foreground active:opacity-70 transition-colors"
+          onClick={onClose}
+          className="p-1.5 -ml-1 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
           aria-label={L.close}
         >
           <ChevronLeft className="w-5 h-5" />
@@ -1934,295 +2004,278 @@ function StatsPlayerSheet({
         {player?.photoUrl ? (
           <img
             src={player.photoUrl}
+            className="w-11 h-11 rounded-full object-cover object-top shrink-0 border-2 border-primary/25"
             alt=""
-            className="w-14 h-14 rounded-full object-cover object-top bg-muted/40 shrink-0 border border-border"
           />
         ) : (
-          <div className="w-14 h-14 rounded-full bg-muted/40 shrink-0" />
+          <div className="w-11 h-11 rounded-full bg-muted/40 shrink-0 flex items-center justify-center text-sm font-black text-muted-foreground border-2 border-primary/20">
+            {player
+              ? (pickName(player.nameZh, player.nameEn, locale) || "?")[0].toUpperCase()
+              : "?"}
+          </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-base font-black text-foreground truncate">{displayName}</p>
-          {player && (
-            <div className="text-xs text-muted-foreground truncate flex flex-wrap items-center gap-x-1 gap-y-0.5 min-w-0">
-              {player.jerseyNumber != null && player.jerseyNumber !== "" ? (
-                <span>{`#${player.jerseyNumber} · `}</span>
-              ) : null}
-              {pickName(player.teamName, player.teamNameEn, locale) && onTeamTap && player.teamExternalId ? (
+          <p className={cn("font-black truncate", isDesktop ? "text-lg" : "text-base")}>
+            {player ? pickName(player.nameZh, player.nameEn, locale) || "—" : "—"}
+          </p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {player?.jerseyNumber != null && player.jerseyNumber !== "" && (
+              <span className="text-[10px] text-muted-foreground font-bold">#{player.jerseyNumber}</span>
+            )}
+            {pickName(player?.teamName, player?.teamNameEn, locale) &&
+              (onTeamTap && player?.teamExternalId ? (
                 <button
                   type="button"
                   onClick={() => onTeamTap(String(player.teamExternalId))}
-                  className="inline-flex max-w-full items-center gap-0.5 text-primary underline-offset-2 hover:underline active:opacity-70 touch-manipulation shrink-0"
+                  className="text-[10px] text-primary font-bold hover:underline truncate max-w-[90px]"
                 >
-                  <span className="truncate">{pickName(player.teamName, player.teamNameEn, locale)}</span>
-                  <ChevronRight className="w-3 h-3 shrink-0" />
+                  {pickName(player.teamName, player.teamNameEn, locale)}
                 </button>
               ) : (
-                <span>{pickName(player.teamName, player.teamNameEn, locale) || "—"}</span>
-              )}
-              {player.position && player.position.trim() && (
-                <span className="inline-block rounded-full bg-muted/50 border border-border text-xs font-black uppercase tracking-wide px-1.5 py-0 leading-4 shrink-0">
-                  {translatePosition(player.position, locale)}
+                <span className="text-[10px] text-muted-foreground font-bold truncate max-w-[90px]">
+                  {pickName(player?.teamName, player?.teamNameEn, locale)}
                 </span>
-              )}
-            </div>
-          )}
+              ))}
+            {pos && (
+              <span className="text-[8px] font-black uppercase tracking-wide bg-primary/10 border border-primary/25 text-primary px-1.5 py-0.5 rounded-full">
+                {pos}
+              </span>
+            )}
+          </div>
         </div>
-        {player && (
-          <div className="shrink-0 text-right">
-            <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+        <div className="shrink-0 text-right">
+          {player && (
+            <p className={cn("font-black text-muted-foreground/60", isDesktop ? "text-sm" : "text-xs")}>
               {player.games}G
             </p>
-            {advStats && (advStats.isHot || advStats.isCold) && (
-              <p
-                className={cn(
-                  "text-xs font-black tracking-wide",
-                  advStats.isHot ? "text-orange-500" : "text-blue-400",
-                )}
-              >
-                {advStats.isHot
-                  ? es
-                    ? "🔥 Racha"
-                    : zh
-                      ? "🔥 热手"
-                      : "🔥 Hot"
-                  : es
-                    ? "📉 Baja"
-                    : zh
-                      ? "📉 低迷"
-                      : "📉 Cold"}
-              </p>
-            )}
-          </div>
-        )}
+          )}
+          {advStats?.isHot && (
+            <p className="text-[9px] font-black text-amber-500">
+              {es ? "🔥 Racha" : zh ? "🔥 热手" : "🔥 Hot"}
+            </p>
+          )}
+          {advStats?.isCold && (
+            <p className="text-[9px] font-black text-blue-400">
+              {es ? "❄️ Baja" : zh ? "❄️ 低迷" : "❄️ Cold"}
+            </p>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {isLoading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
+      {/* ── Loading / Error ── */}
+      {isLoading && (
+        <div className="flex justify-center py-16 shrink-0">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+      {isError && (
+        <div className="px-4 py-6 shrink-0">
+          <p className="text-sm font-bold text-destructive text-center">{L.error}</p>
+        </div>
+      )}
 
-        {isError && (
-          <div className="rounded-2xl border border-border bg-card p-5 text-center">
-            <p className="text-sm font-bold text-destructive">{L.error}</p>
-          </div>
-        )}
+      {/* ── Main content ── */}
+      {!isLoading && !isError && player && player.games > 0 && (
+        <div className="flex-1 min-h-0 overflow-y-auto">
 
-        {!isLoading && !isError && player && player.games === 0 && (
-          <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
-            <p className="text-sm font-bold text-muted-foreground">
-              {es ? "Sin datos de partido disponibles" : zh ? "暂无比赛数据" : "No game data available"}
-            </p>
-          </div>
-        )}
+          {/* HERO: radar + stat bars */}
+          <div className="grid grid-cols-2 border-b border-border">
 
-        {!isLoading && !isError && player && player.games > 0 && (
-          <>
-            <div className="rounded-2xl border border-border bg-card p-3 space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                <StatChip hero label="PPG" value={player.ppg.toFixed(1)} />
-                <StatChip hero label="RPG" value={player.rpg.toFixed(1)} />
-                <StatChip hero label="APG" value={player.apg.toFixed(1)} />
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                <StatChip label="FG%" value={player.fgPct != null ? `${player.fgPct.toFixed(1)}%` : "—"} />
-                <StatChip label="SPG" value={player.spg.toFixed(1)} />
-                <StatChip label="BPG" value={player.bpg.toFixed(1)} />
-                <StatChip label="TOPG" value={player.topg.toFixed(1)} />
-              </div>
-              {showMoreStats && (
-                <>
-                  <div className="grid grid-cols-3 gap-2">
-                    <StatChip label="MPG" value={player.mpg.toFixed(1)} />
-                    <StatChip label="3P%" value={player.fg3Pct != null ? `${player.fg3Pct.toFixed(1)}%` : "—"} />
-                    <StatChip label="FT%" value={player.ftPct != null ? `${player.ftPct.toFixed(1)}%` : "—"} />
-                  </div>
-                  {advStats && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <StatChip label="DD" value={String(advStats.dd)} />
-                      <StatChip label="TD" value={String(advStats.td)} />
-                    </div>
-                  )}
-                  {advStats && gameLog.length >= 5 && (
-                    <p className="text-xs text-muted-foreground/60 px-0.5">
-                      {es
-                        ? `Consistencia: σ ${advStats.stdDev.toFixed(1)} pts`
-                        : zh
-                          ? `稳定性：σ ${advStats.stdDev.toFixed(1)} 分`
-                          : `Consistency: σ ${advStats.stdDev.toFixed(1)} pts`}
-                    </p>
-                  )}
-                </>
+            {/* Radar side */}
+            <div
+              className={cn(
+                "border-r border-border flex flex-col items-center justify-center",
+                isDesktop ? "p-3" : "p-2",
               )}
+            >
+              <p className="text-[7px] font-black uppercase tracking-[0.15em] text-muted-foreground/40 mb-1 self-start px-1">
+                {es ? "Perfil visual" : zh ? "视觉概况" : "Visual profile"}
+              </p>
+              <StatsRadar player={player} locale={locale} compact={!isDesktop} />
+            </div>
 
-            {/* ── Advanced metrics chips ── */}
-            {(player.tsPct != null || player.eFGPct != null || player.pie != null || player.astTovRatio != null || player.usagePct != null) && (
-              <div className="space-y-2">
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">
-                  {es ? "Métricas avanzadas" : zh ? "进阶数据" : "Advanced metrics"}
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {player.tsPct != null && (
-                    <AdvChip
-                      label="TS%"
-                      value={player.tsPct}
-                      p95={percentilesQ.data?.p95TsPct ?? null}
-                      fmt={(v) => `${v.toFixed(1)}%`}
+            {/* Stat bars side */}
+            <div className={cn("flex flex-col justify-center gap-2", isDesktop ? "p-4" : "p-3")}>
+              {statBars.map((bar) => (
+                <div key={bar.key} className="flex flex-col gap-[3px]">
+                  <div className="flex justify-between items-baseline">
+                    <span
+                      className={cn(
+                        "font-black uppercase tracking-wide text-muted-foreground/50",
+                        isDesktop ? "text-[8px]" : "text-[7px]",
+                      )}
+                    >
+                      {bar.key}
+                    </span>
+                    <span
+                      className={cn(
+                        "font-black tabular-nums",
+                        isDesktop ? "text-sm" : "text-[12px]",
+                        bar.color === "green"
+                          ? "text-emerald-400"
+                          : bar.color === "red"
+                            ? "text-red-400"
+                            : bar.color === "purple"
+                              ? "text-violet-400"
+                              : "text-primary",
+                      )}
+                    >
+                      {bar.val}
+                    </span>
+                  </div>
+                  <div className="h-[3px] rounded-full bg-muted/40 overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full", barColorClass[bar.color])}
+                      style={{ width: `${bar.pct}%` }}
                     />
-                  )}
-                  {player.eFGPct != null && (
-                    <AdvChip
-                      label="eFG%"
-                      value={player.eFGPct}
-                      p95={percentilesQ.data?.p95EFGPct ?? null}
-                      fmt={(v) => `${v.toFixed(1)}%`}
-                    />
-                  )}
-                  {player.pie != null && (
-                    <AdvChip
-                      label="PIE"
-                      value={player.pie}
-                      p95={null}
-                      fmt={(v) => `${v.toFixed(1)}%`}
-                    />
-                  )}
-                  {player.astTovRatio != null && (
-                    <AdvChip
-                      label="AST/TOV"
-                      value={player.astTovRatio}
-                      p95={null}
-                      fmt={(v) => v.toFixed(2)}
-                    />
-                  )}
-                  {player.usagePct != null && (
-                    <AdvChip
-                      label="USG%"
-                      value={player.usagePct}
-                      p95={null}
-                      fmt={(v) => `${v.toFixed(1)}%`}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ── Home / Away split ── */}
-            {(player.homeSplit || player.awaySplit) && (
-              <div className="space-y-2">
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">
-                  {es ? "Casa / Fuera" : zh ? "主场 / 客场" : "Home / Away"}
-                </p>
-                <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-2 divide-x divide-border">
-                    {player.homeSplit && (
-                      <div className="p-3">
-                        <p className="text-[9px] font-black uppercase tracking-wide text-green-600 dark:text-green-400 mb-2">
-                          🏠 {es ? "Casa" : zh ? "主场" : "Home"}
-                        </p>
-                        <div className="space-y-1">
-                          <SplitStat label="PPG" val={player.homeSplit.pts} />
-                          <SplitStat label="RPG" val={player.homeSplit.reb} />
-                          <SplitStat label="APG" val={player.homeSplit.ast} />
-                        </div>
-                      </div>
-                    )}
-                    {player.awaySplit && (
-                      <div className="p-3">
-                        <p className="text-[9px] font-black uppercase tracking-wide text-amber-500 mb-2">
-                          ✈️ {es ? "Fuera" : zh ? "客场" : "Away"}
-                        </p>
-                        <div className="space-y-1">
-                          <SplitStat label="PPG" val={player.awaySplit.pts} />
-                          <SplitStat label="RPG" val={player.awaySplit.reb} />
-                          <SplitStat label="APG" val={player.awaySplit.ast} />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
-              </div>
-            )}
-
-              {advStats && (
-                <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
-                  <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/70 px-0.5">
-                    {es ? "Cuatro Factores vs Liga" : zh ? "四因素 vs 联赛均值" : "Four Factors vs League"}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      {
-                        label: "eFG%",
-                        val: player.eFGPct ?? advStats.eFGPct,
-                        lgVal: leagueAvg?.eFGPct ?? null,
-                        higherIsBetter: true,
-                        fmt: (v: number) => `${v.toFixed(1)}%`,
-                      },
-                      {
-                        label: "TOV%",
-                        val: playerTovPct,
-                        lgVal: leagueAvg?.tovPct ?? null,
-                        higherIsBetter: false,
-                        fmt: (v: number) => `${v.toFixed(1)}%`,
-                      },
-                      {
-                        label: "FT Rate",
-                        val: player.ftRate,
-                        lgVal: leagueAvg?.ftRate ?? null,
-                        higherIsBetter: true,
-                        fmt: (v: number) => v.toFixed(2),
-                      },
-                      {
-                        label: "TS%",
-                        val: player.tsPct ?? advStats.tsPct,
-                        lgVal: leagueAvg?.tsPct ?? null,
-                        higherIsBetter: true,
-                        fmt: (v: number) => `${v.toFixed(1)}%`,
-                      },
-                    ].map(({ label, val, lgVal, higherIsBetter, fmt }) => {
-                      const better =
-                        val != null && lgVal != null
-                          ? higherIsBetter
-                            ? val > lgVal
-                            : val < lgVal
-                          : null;
-                      const color =
-                        better === true
-                          ? "text-green-600 dark:text-green-400"
-                          : better === false
-                            ? "text-destructive"
-                            : "text-foreground";
-                      const dot =
-                        better === true
-                          ? "bg-green-500"
-                          : better === false
-                            ? "bg-destructive"
-                            : "bg-muted-foreground/40";
-                      return (
-                        <div key={label} className="rounded-xl border border-border bg-muted/20 p-2.5">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">
-                            {label}
-                          </p>
-                          <p className={cn("text-lg font-black tabular-nums mt-0.5", color)}>
-                            {val != null ? fmt(val) : "—"}
-                          </p>
-                          {lgVal != null && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dot)} />
-                              <span className="text-[9px] text-muted-foreground">
-                                {es ? "Liga" : zh ? "联赛" : "Lg"}: {fmt(lgVal)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+              ))}
+              {vsPills.length > 0 && (
+                <div className="flex items-center gap-1.5 pt-1 mt-0.5 border-t border-border/50 flex-wrap">
+                  <span className="text-[6.5px] font-bold uppercase tracking-wide text-muted-foreground/35">
+                    {L.vsLeague}
+                  </span>
+                  {vsPills.map((p) => (
+                    <span
+                      key={p.label}
+                      className={cn(
+                        "text-[7px] font-black px-1.5 py-0.5 rounded border",
+                        p.up
+                          ? "bg-emerald-500/12 text-emerald-500 border-emerald-500/20"
+                          : "bg-red-500/10 text-red-400 border-red-500/18",
+                      )}
+                    >
+                      {p.label}
+                    </span>
+                  ))}
                 </div>
               )}
+            </div>
+          </div>
 
+          {/* Stats grid */}
+          <div className="grid grid-cols-3 gap-px bg-border border-b border-border">
+            {[
+              { l: "PPG", v: player.ppg.toFixed(1), hero: true },
+              { l: "RPG", v: player.rpg.toFixed(1), hero: true },
+              { l: "APG", v: player.apg.toFixed(1), hero: true },
+            ].map(({ l, v, hero }) => (
+              <div key={l} className={cn("bg-card text-center py-3", hero && "bg-muted/10")}>
+                <p
+                  className={cn(
+                    "font-black text-primary tabular-nums leading-none",
+                    isDesktop ? "text-2xl" : "text-xl",
+                  )}
+                >
+                  {v}
+                </p>
+                <p className="text-[7px] font-black uppercase tracking-widest text-muted-foreground/40 mt-1">
+                  {l}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-4 gap-px bg-border border-b border-border">
+            {[
+              { l: "SPG", v: player.spg.toFixed(1) },
+              { l: "BPG", v: player.bpg.toFixed(1) },
+              { l: "TOPG", v: player.topg.toFixed(1) },
+              { l: "MPG", v: player.mpg.toFixed(1) },
+            ].map(({ l, v }) => (
+              <div key={l} className="bg-card text-center py-2.5">
+                <p
+                  className={cn(
+                    "font-black tabular-nums leading-none text-foreground",
+                    isDesktop ? "text-base" : "text-sm",
+                  )}
+                >
+                  {v}
+                </p>
+                <p className="text-[7px] font-black uppercase tracking-widest text-muted-foreground/40 mt-1">
+                  {l}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Home / Away */}
+          {(player.homeSplit || player.awaySplit) && (
+            <div className="border-b border-border">
+              <p className="text-[7px] font-black uppercase tracking-[0.15em] text-muted-foreground/35 px-4 pt-3 pb-1">
+                {es ? "Casa / Fuera" : zh ? "主场 / 客场" : "Home / Away"}
+              </p>
+              <div className="grid grid-cols-2 gap-px bg-border">
+                {[
+                  {
+                    split: player.homeSplit,
+                    label: es ? "🏠 Casa" : zh ? "🏠 主场" : "🏠 Home",
+                    color: "text-emerald-500",
+                  },
+                  {
+                    split: player.awaySplit,
+                    label: es ? "✈️ Fuera" : zh ? "✈️ 客场" : "✈️ Away",
+                    color: "text-amber-500",
+                  },
+                ].map(({ split, label, color }) => (
+                  <div key={label} className="bg-card px-4 py-3">
+                    <p className={cn("text-[8px] font-black uppercase tracking-wide mb-2", color)}>{label}</p>
+                    {split ? (
+                      <div className="space-y-1.5">
+                        {[
+                          { k: "PPG", v: split.pts },
+                          { k: "RPG", v: split.reb },
+                          { k: "APG", v: split.ast },
+                        ].map(({ k, v }) => (
+                          <div key={k} className="flex justify-between">
+                            <span className="text-[8px] font-black uppercase text-muted-foreground/40">{k}</span>
+                            <span
+                              className={cn(
+                                "font-black tabular-nums",
+                                isDesktop ? "text-xs" : "text-[11px]",
+                              )}
+                            >
+                              {v.toFixed(1)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[9px] text-muted-foreground/40">—</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tab bar */}
+          <div className="flex border-b border-border sticky top-0 bg-card z-10">
+            {(
+              [
+                ["forma", L.tabForma],
+                ["deep", L.tabDeep],
+                ["partidos", L.tabGames],
+              ] as [DeepTab, string][]
+            ).map(([t, label]) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setDeepTab(t)}
+                className={cn(
+                  "flex-1 py-2.5 text-[8px] font-black uppercase tracking-wide transition-colors border-b-2",
+                  deepTab === t ? "text-primary border-primary" : "text-muted-foreground border-transparent",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab: Forma */}
+          {deepTab === "forma" && (
+            <div className={cn("space-y-4", isDesktop ? "p-4" : "p-3")}>
               {advStats &&
-                gameLog.length >= 3 &&
                 (() => {
                   const last5 = [...gameLog]
                     .sort(
@@ -2232,19 +2285,19 @@ function StatsPlayerSheet({
                     .slice(0, 5);
                   const maxPts = Math.max(...last5.map((g) => g.pts ?? 0), 1);
                   return (
-                    <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+                    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/70">
-                          {es ? "Forma reciente" : zh ? "近期状态" : "Recent form"} · L{last5.length}
+                        <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50">
+                          {es ? "Forma reciente · L5" : zh ? "近5场" : "Recent form · L5"}
                         </p>
                         {advStats.isHot && (
-                          <span className="text-[10px] font-black text-green-600 dark:text-green-400">
-                            🔥 {es ? "En racha" : zh ? "状态火热" : "Hot streak"}
+                          <span className="text-[9px] font-black text-amber-500">
+                            🔥 {es ? "En racha" : zh ? "状态火热" : "Hot"}
                           </span>
                         )}
                         {advStats.isCold && (
-                          <span className="text-[10px] font-black text-destructive">
-                            ❄️ {es ? "Bajón" : zh ? "状态低迷" : "Cold"}
+                          <span className="text-[9px] font-black text-blue-400">
+                            ❄️ {es ? "Bajón" : zh ? "低迷" : "Cold"}
                           </span>
                         )}
                       </div>
@@ -2252,13 +2305,17 @@ function StatsPlayerSheet({
                         {[...last5].reverse().map((g, i) => (
                           <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                             <div
-                              className="w-full rounded-sm bg-primary/40"
+                              className="w-full rounded-sm"
                               style={{
                                 height: `${Math.round(((g.pts ?? 0) / maxPts) * 100)}%`,
                                 minHeight: 4,
+                                background:
+                                  (g.pts ?? 0) >= advStats.meanPts * 1.1
+                                    ? "rgba(16,185,129,0.6)"
+                                    : "rgba(245,158,11,0.45)",
                               }}
                             />
-                            <span className="text-[8px] font-black text-muted-foreground tabular-nums">
+                            <span className="text-[7px] font-black text-muted-foreground tabular-nums">
                               {g.pts}
                             </span>
                           </div>
@@ -2278,154 +2335,253 @@ function StatsPlayerSheet({
                   );
                 })()}
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowMoreStats((v) => !v)}
-                  className="flex-1 rounded-xl border border-border bg-muted/20 py-2 text-xs font-black text-muted-foreground hover:bg-muted/40 active:opacity-70 touch-manipulation transition-colors"
-                >
-                  {showMoreStats
-                    ? locale === "es"
-                      ? "Ver menos"
-                      : locale === "zh"
-                        ? "收起"
-                        : "Less"
-                    : locale === "es"
-                      ? "Ver más"
-                      : locale === "zh"
-                        ? "更多"
-                        : "More"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowRadar((v) => !v)}
-                  className={cn(
-                    "flex-1 rounded-xl border py-2 text-xs font-black touch-manipulation transition-colors flex items-center justify-center gap-1.5",
-                    showRadar
-                      ? "border-primary/30 bg-primary/15 text-primary hover:bg-primary/25"
-                      : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40 active:opacity-70",
-                  )}
-                >
-                  <BarChart3 className="w-3.5 h-3.5 shrink-0" />
-                  {showRadar
-                    ? locale === "es"
-                      ? "Ocultar radar"
-                      : locale === "zh"
-                        ? "隐藏雷达"
-                        : "Hide radar"
-                    : locale === "es"
-                      ? "Ver radar"
-                      : locale === "zh"
-                        ? "雷达图"
-                        : "Radar"}
-                </button>
-              </div>
-              {showRadar && <StatsRadar player={player} locale={locale} />}
+              {advStats && (
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "DD", val: String(advStats.dd) },
+                    { label: "TD", val: String(advStats.td) },
+                    { label: "σ PTS", val: advStats.stdDev.toFixed(1) },
+                    {
+                      label: "PIE",
+                      val: advStats.pie != null ? `${advStats.pie.toFixed(1)}%` : "—",
+                    },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="rounded-xl border border-border bg-muted/10 p-2.5 text-center">
+                      <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50">
+                        {label}
+                      </p>
+                      <p className={cn("font-black tabular-nums mt-0.5", isDesktop ? "text-lg" : "text-base")}>
+                        {val}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+          )}
 
-            {isLandscape ? (
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/60 mb-3">
-                  Shot Zones
-                </p>
-                <ShotZoneChart fgPct={player.fgPct ?? null} fg3Pct={player.fg3Pct ?? null} />
-              </div>
-            ) : (
-              <LandscapeHint />
-            )}
-
-            {gameLog.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border px-6 py-8 text-center text-sm font-bold text-muted-foreground">
-                {L.noData}
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <p className="text-xs font-black uppercase tracking-wider text-muted-foreground px-0.5">
-                  {L.gameLogTitle}
-                </p>
-                <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 border-b border-border bg-muted/30 pl-2.5 pr-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
-                    <span>{L.dateCol}</span>
-                    <span>{L.rivalCol}</span>
-                    {(["pts", "reb", "ast"] as const).map((col) => (
-                      <button
-                        key={col}
-                        type="button"
-                        onClick={() => handleGameLogSortClick(col)}
-                        className={cn(
-                          "text-right font-black uppercase tracking-wider text-xs touch-manipulation flex items-center justify-end gap-0.5 w-full",
-                          gameLogSort === col ? "text-primary" : "text-muted-foreground",
-                        )}
-                      >
-                        {col === "pts" ? L.ptsCol : col === "reb" ? L.rebCol : L.astCol}
-                        {gameLogSort === col && (
-                          <span className="text-[7px]">{gameLogSortDir === "desc" ? "▼" : "▲"}</span>
-                        )}
-                      </button>
-                    ))}
-                    <span className="text-right">{L.minCol}</span>
-                  </div>
-                  {(showAllGames ? sortedGameLog : sortedGameLog.slice(0, 10)).map((g: GameLogEntry) => {
-                    const date = g.gameDate
-                      ? new Date(g.gameDate).toLocaleDateString(
-                          locale === "zh" ? "zh-CN" : locale === "es" ? "es-ES" : "en-GB",
-                          { month: "short", day: "numeric" },
-                        )
-                      : "—";
-                    return (
-                      <div
-                        key={g.gameId}
-                        className={cn(
-                          "grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 items-center pl-2 pr-3 py-2.5 border-b border-border last:border-b-0 text-xs border-l-[3px]",
-                          g.plusMinus > 0
-                            ? "border-l-green-500/50 dark:border-l-green-400/50"
-                            : g.plusMinus < 0
-                              ? "border-l-destructive/40"
-                              : "border-l-transparent",
-                        )}
-                      >
-                        <div className="min-w-0">
-                          <p className="font-bold text-foreground tabular-nums">{date}</p>
-                          {g.isStart && (
-                            <span className="inline-block rounded-full bg-primary/15 text-primary text-[8px] md:text-xs font-black uppercase tracking-wide px-1.5 py-0 leading-4">
-                              {L.starter}
-                            </span>
+          {/* Tab: Deep stats */}
+          {deepTab === "deep" && (
+            <div className={cn("space-y-4", isDesktop ? "p-4" : "p-3")}>
+              {advStats && (
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50 mb-2">
+                    {es ? "Cuatro Factores vs Liga" : zh ? "四因素 vs 联赛均值" : "Four Factors vs League"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      {
+                        label: "eFG%",
+                        val: player.eFGPct ?? advStats.eFGPct,
+                        lgVal: leagueAvg?.eFGPct,
+                        better: true,
+                        fmt: (v: number) => `${v.toFixed(1)}%`,
+                      },
+                      {
+                        label: "TOV%",
+                        val: playerTovPct,
+                        lgVal: leagueAvg?.tovPct,
+                        better: false,
+                        fmt: (v: number) => `${v.toFixed(1)}%`,
+                      },
+                      {
+                        label: "FT Rate",
+                        val: player.ftRate ?? advStats.ftRate,
+                        lgVal: leagueAvg?.ftRate,
+                        better: true,
+                        fmt: (v: number) => v.toFixed(2),
+                      },
+                      {
+                        label: "TS%",
+                        val: player.tsPct ?? advStats.tsPct,
+                        lgVal: leagueAvg?.tsPct,
+                        better: true,
+                        fmt: (v: number) => `${v.toFixed(1)}%`,
+                      },
+                    ].map(({ label, val, lgVal, better, fmt }) => {
+                      const isGood =
+                        val != null && lgVal != null ? (better ? val > lgVal : val < lgVal) : null;
+                      return (
+                        <div key={label} className="rounded-xl border border-border bg-muted/10 p-2.5">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/50">
+                            {label}
+                          </p>
+                          <p
+                            className={cn(
+                              "font-black tabular-nums mt-0.5",
+                              isDesktop ? "text-lg" : "text-base",
+                              isGood === true
+                                ? "text-emerald-400"
+                                : isGood === false
+                                  ? "text-red-400"
+                                  : "text-foreground",
+                            )}
+                          >
+                            {val != null ? fmt(val) : "—"}
+                          </p>
+                          {lgVal != null && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <span
+                                className={cn(
+                                  "w-1.5 h-1.5 rounded-full",
+                                  isGood === true
+                                    ? "bg-emerald-500"
+                                    : isGood === false
+                                      ? "bg-red-500"
+                                      : "bg-muted-foreground/40",
+                                )}
+                              />
+                              <span className="text-[8px] text-muted-foreground">
+                                {es ? "Liga" : zh ? "联赛" : "Lg"}: {fmt(lgVal)}
+                              </span>
+                            </div>
                           )}
                         </div>
-                        <p className="text-muted-foreground truncate font-semibold">
-                          {pickName(g.rivalName, (g as any).rivalNameEn ?? null, locale) || "—"}
-                        </p>
-                        <p className="text-right font-black tabular-nums text-foreground">{g.pts}</p>
-                        <p className="text-right font-black tabular-nums text-foreground">{g.reb}</p>
-                        <p className="text-right font-black tabular-nums text-foreground">{g.ast}</p>
-                        <p className="text-right font-semibold tabular-nums text-muted-foreground">
-                          {minutesToDisplay(g.minutes != null ? String(g.minutes) : null)}
-                        </p>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-                {!showAllGames && sortedGameLog.length > 10 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllGames(true)}
-                    className="w-full rounded-xl border border-border bg-card py-2.5 text-xs font-black text-primary touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors"
-                  >
-                    {es
-                      ? `Ver ${sortedGameLog.length - 10} partidos más`
-                      : zh
-                        ? `显示全部 ${sortedGameLog.length} 场`
-                        : `See all ${sortedGameLog.length} games`}
-                  </button>
-                )}
+              )}
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50 mb-2">
+                  {es ? "Más estadísticas" : zh ? "更多数据" : "More stats"}
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { l: "3P%", v: player.fg3Pct != null ? `${player.fg3Pct.toFixed(1)}%` : "—" },
+                    { l: "FT%", v: player.ftPct != null ? `${player.ftPct.toFixed(1)}%` : "—" },
+                    { l: "AST/TOV", v: player.astTovRatio != null ? player.astTovRatio.toFixed(2) : "—" },
+                    { l: "USG%", v: player.usagePct != null ? `${player.usagePct.toFixed(1)}%` : "—" },
+                    { l: "eFG%", v: player.eFGPct != null ? `${player.eFGPct.toFixed(1)}%` : "—" },
+                    { l: "PIE", v: player.pie != null ? `${player.pie.toFixed(1)}%` : "—" },
+                  ].map(({ l, v }) => (
+                    <div key={l} className="rounded-xl border border-border bg-muted/10 p-2 text-center">
+                      <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50">
+                        {l}
+                      </p>
+                      <p className={cn("font-black tabular-nums mt-0.5", isDesktop ? "text-base" : "text-sm")}>
+                        {v}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            )}
-          </>
-        )}
-      </div>
+              {isLandscape && (
+                <div className="rounded-xl border border-border bg-card p-3">
+                  <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50 mb-2">
+                    Shot Zones
+                  </p>
+                  <div style={{ maxHeight: "160px", overflow: "hidden" }}>
+                    <ShotZoneChart fgPct={player.fgPct ?? null} fg3Pct={player.fg3Pct ?? null} />
+                  </div>
+                </div>
+              )}
+              {!isLandscape && <LandscapeHint />}
+            </div>
+          )}
+
+          {/* Tab: Partidos */}
+          {deepTab === "partidos" && (
+            <div className={cn(isDesktop ? "p-4" : "p-3")}>
+              {gameLog.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border px-6 py-10 text-center">
+                  <p className="text-sm font-bold text-muted-foreground">{L.noData}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                    <div className="grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 border-b border-border bg-muted/30 pl-2.5 pr-3 py-2 text-[8px] font-black uppercase tracking-wider text-muted-foreground">
+                      <span>{L.dateCol}</span>
+                      <span>{L.rivalCol}</span>
+                      {(["pts", "reb", "ast"] as const).map((col) => (
+                        <button
+                          key={col}
+                          type="button"
+                          onClick={() => handleGameLogSortClick(col)}
+                          className={cn(
+                            "text-right font-black uppercase tracking-wider text-[8px] touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                            gameLogSort === col ? "text-primary" : "text-muted-foreground",
+                          )}
+                        >
+                          {col === "pts" ? L.ptsCol : col === "reb" ? L.rebCol : L.astCol}
+                          {gameLogSort === col && (
+                            <span className="text-[7px]">{gameLogSortDir === "desc" ? "▼" : "▲"}</span>
+                          )}
+                        </button>
+                      ))}
+                      <span className="text-right">{L.minCol}</span>
+                    </div>
+                    {(showAllGames ? sortedGameLog : sortedGameLog.slice(0, 10)).map((g: GameLogEntry) => {
+                      const date = g.gameDate
+                        ? new Date(g.gameDate).toLocaleDateString(
+                            locale === "zh" ? "zh-CN" : locale === "es" ? "es-ES" : "en-GB",
+                            { month: "short", day: "numeric" },
+                          )
+                        : "—";
+                      return (
+                        <div
+                          key={g.gameId}
+                          className={cn(
+                            "grid grid-cols-[1fr_0.9fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 items-center pl-2 pr-3 py-2.5 border-b border-border last:border-b-0 text-xs border-l-[3px]",
+                            g.plusMinus > 0
+                              ? "border-l-emerald-500/50"
+                              : g.plusMinus < 0
+                                ? "border-l-red-500/40"
+                                : "border-l-transparent",
+                          )}
+                        >
+                          <div className="min-w-0">
+                            <p className="font-bold text-foreground tabular-nums text-[11px]">{date}</p>
+                            {g.isStart && (
+                              <span className="inline-block rounded-full bg-primary/15 text-primary text-[7px] font-black uppercase tracking-wide px-1.5 py-0 leading-4">
+                                {L.starter}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-muted-foreground truncate font-semibold text-[11px]">
+                            {pickName(g.rivalName, (g as any).rivalNameEn ?? null, locale) || "—"}
+                          </p>
+                          <p className="text-right font-black tabular-nums text-foreground">{g.pts}</p>
+                          <p className="text-right font-black tabular-nums text-foreground">{g.reb}</p>
+                          <p className="text-right font-black tabular-nums text-foreground">{g.ast}</p>
+                          <p className="text-right font-semibold tabular-nums text-muted-foreground">
+                            {minutesToDisplay(g.minutes != null ? String(g.minutes) : null)}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {!showAllGames && sortedGameLog.length > 10 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllGames(true)}
+                      className="w-full mt-2 rounded-xl border border-border bg-card py-2.5 text-xs font-black text-primary touch-manipulation hover:bg-muted/30 transition-colors"
+                    >
+                      {es
+                        ? `Ver ${sortedGameLog.length - 10} más`
+                        : zh
+                          ? `显示全部 ${sortedGameLog.length} 场`
+                          : `See all ${sortedGameLog.length} games`}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && !isError && player && player.games === 0 && (
+        <div className="flex-1 flex items-center justify-center px-6">
+          <p className="text-sm font-bold text-muted-foreground text-center">{L.noData}</p>
+        </div>
+      )}
     </div>
   );
 }
+
 
 function StatsTeamSheet({
   externalId,
