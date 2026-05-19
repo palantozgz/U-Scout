@@ -21,6 +21,7 @@ import {
   usePlayerDetail,
   useTeamDetail,
   useLeagueAverages,
+  usePlayerPercentiles,
   toTitleCase,
   type PlayerSeasonStats,
   type LeaderRow,
@@ -1660,6 +1661,51 @@ function ShotZoneChart({ fgPct, fg3Pct, zones, showLabels = true }: ShotZoneChar
   );
 }
 
+function AdvChip({
+  label,
+  value,
+  p95,
+  fmt,
+}: {
+  label: string;
+  value: number;
+  p95: number | null;
+  fmt: (v: number) => string;
+}) {
+  const title = STAT_FULL[label] ?? label;
+  // Percentile bar: 0–100 based on p95 as ceiling
+  const pct = p95 != null && p95 > 0 ? Math.min(100, (value / p95) * 100) : null;
+  const barColor =
+    pct == null
+      ? "bg-primary/40"
+      : pct >= 75
+        ? "bg-green-500"
+        : pct >= 40
+          ? "bg-amber-500"
+          : "bg-destructive/70";
+
+  return (
+    <div title={title} className="rounded-xl border border-border bg-card px-2.5 py-2.5 space-y-1.5 cursor-help">
+      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">{label}</p>
+      <p className="text-sm font-black text-foreground tabular-nums">{fmt(value)}</p>
+      {pct != null && (
+        <div className="h-1 rounded-full bg-muted/50 overflow-hidden">
+          <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SplitStat({ label, val }: { label: string; val: number }) {
+  return (
+    <div className="flex items-center justify-between">
+      <p className="text-[9px] font-black uppercase tracking-wide text-muted-foreground/50">{label}</p>
+      <p className="text-xs font-black tabular-nums text-foreground">{val.toFixed(1)}</p>
+    </div>
+  );
+}
+
 function StatChip(props: { label: string; value: string; hero?: boolean }) {
   const title = STAT_FULL[props.label] ?? props.label;
   if (props.hero) {
@@ -1752,6 +1798,8 @@ function StatsPlayerSheet({
   const es = locale === "es";
   const zh = locale === "zh";
   const { data, isLoading, isError } = usePlayerDetail(externalId);
+  const leagueAvgQ = useLeagueAverages();
+  const percentilesQ = usePlayerPercentiles();
   const isLandscape = useIsLandscape();
   const [showAllGames, setShowAllGames] = useState(false);
   const [showRadar, setShowRadar] = useState(false);
@@ -1815,7 +1863,6 @@ function StatsPlayerSheet({
     return { eFGPct, tsPct, dd, td, stdDev, isHot, isCold, last5Avg, meanPts: mean };
   }, [gameLog]);
 
-  const leagueAvgQ = useLeagueAverages();
   const leagueAvg = leagueAvgQ.data;
 
   const playerTovPct = useMemo(() => {
@@ -1991,15 +2038,7 @@ function StatsPlayerSheet({
                     <StatChip label="FT%" value={player.ftPct != null ? `${player.ftPct.toFixed(1)}%` : "—"} />
                   </div>
                   {advStats && (
-                    <div className="grid grid-cols-4 gap-2">
-                      <StatChip
-                        label="TS%"
-                        value={advStats.tsPct != null ? `${advStats.tsPct.toFixed(1)}%` : "—"}
-                      />
-                      <StatChip
-                        label="eFG%"
-                        value={advStats.eFGPct != null ? `${num(advStats.eFGPct).toFixed(1)}%` : "—"}
-                      />
+                    <div className="grid grid-cols-2 gap-2">
                       <StatChip label="DD" value={String(advStats.dd)} />
                       <StatChip label="TD" value={String(advStats.td)} />
                     </div>
@@ -2015,6 +2054,95 @@ function StatsPlayerSheet({
                   )}
                 </>
               )}
+
+            {/* ── Advanced metrics chips ── */}
+            {(player.tsPct != null || player.eFGPct != null || player.pie != null || player.astTovRatio != null || player.usagePct != null) && (
+              <div className="space-y-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">
+                  {es ? "Métricas avanzadas" : zh ? "进阶数据" : "Advanced metrics"}
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {player.tsPct != null && (
+                    <AdvChip
+                      label="TS%"
+                      value={player.tsPct}
+                      p95={percentilesQ.data?.p95TsPct ?? null}
+                      fmt={(v) => `${v.toFixed(1)}%`}
+                    />
+                  )}
+                  {player.eFGPct != null && (
+                    <AdvChip
+                      label="eFG%"
+                      value={player.eFGPct}
+                      p95={percentilesQ.data?.p95EFGPct ?? null}
+                      fmt={(v) => `${v.toFixed(1)}%`}
+                    />
+                  )}
+                  {player.pie != null && (
+                    <AdvChip
+                      label="PIE"
+                      value={player.pie}
+                      p95={null}
+                      fmt={(v) => `${v.toFixed(1)}%`}
+                    />
+                  )}
+                  {player.astTovRatio != null && (
+                    <AdvChip
+                      label="AST/TOV"
+                      value={player.astTovRatio}
+                      p95={null}
+                      fmt={(v) => v.toFixed(2)}
+                    />
+                  )}
+                  {player.usagePct != null && (
+                    <AdvChip
+                      label="USG%"
+                      value={player.usagePct}
+                      p95={null}
+                      fmt={(v) => `${v.toFixed(1)}%`}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Home / Away split ── */}
+            {(player.homeSplit || player.awaySplit) && (
+              <div className="space-y-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">
+                  {es ? "Casa / Fuera" : zh ? "主场 / 客场" : "Home / Away"}
+                </p>
+                <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                  <div className="grid grid-cols-2 divide-x divide-border">
+                    {player.homeSplit && (
+                      <div className="p-3">
+                        <p className="text-[9px] font-black uppercase tracking-wide text-green-600 dark:text-green-400 mb-2">
+                          🏠 {es ? "Casa" : zh ? "主场" : "Home"}
+                        </p>
+                        <div className="space-y-1">
+                          <SplitStat label="PPG" val={player.homeSplit.pts} />
+                          <SplitStat label="RPG" val={player.homeSplit.reb} />
+                          <SplitStat label="APG" val={player.homeSplit.ast} />
+                        </div>
+                      </div>
+                    )}
+                    {player.awaySplit && (
+                      <div className="p-3">
+                        <p className="text-[9px] font-black uppercase tracking-wide text-amber-500 mb-2">
+                          ✈️ {es ? "Fuera" : zh ? "客场" : "Away"}
+                        </p>
+                        <div className="space-y-1">
+                          <SplitStat label="PPG" val={player.awaySplit.pts} />
+                          <SplitStat label="RPG" val={player.awaySplit.reb} />
+                          <SplitStat label="APG" val={player.awaySplit.ast} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
               {advStats && (
                 <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
                   <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/70 px-0.5">
@@ -2088,38 +2216,6 @@ function StatsPlayerSheet({
                         </div>
                       );
                     })}
-                  </div>
-                </div>
-              )}
-
-              {player.homeSplit && player.awaySplit && (
-                <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
-                  <p className="text-xs font-black uppercase tracking-wider text-muted-foreground/70 px-0.5">
-                    {es ? "Casa vs Fuera" : zh ? "主客场对比" : "Home vs Away"}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-2.5">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-green-600 dark:text-green-400 mb-1">
-                        {es ? "🏠 Casa" : zh ? "主场" : "🏠 Home"}
-                      </p>
-                      <p className="text-lg font-black text-foreground tabular-nums">
-                        {player.homeSplit.pts.toFixed(1)}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        PPG · {player.homeSplit.reb.toFixed(1)} RPG · {player.homeSplit.ast.toFixed(1)} APG
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
-                        {es ? "✈️ Fuera" : zh ? "客场" : "✈️ Away"}
-                      </p>
-                      <p className="text-lg font-black text-foreground tabular-nums">
-                        {player.awaySplit.pts.toFixed(1)}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        PPG · {player.awaySplit.reb.toFixed(1)} RPG · {player.awaySplit.ast.toFixed(1)} APG
-                      </p>
-                    </div>
                   </div>
                 </div>
               )}
