@@ -1985,8 +1985,22 @@ function StatsPlayerSheet({
       pct: barPct(p.apg, pc?.p95Apg),
       color: barColor(p.apg, lg?.apg),
     });
-    return rows.slice(0, 6);
-  }, [player, leagueAvg, percentilesQ.data]);
+
+    // 3P% como 7º dato, solo si shooter real (≥1 intento de triple por partido)
+    const totalTpa = gameLog.reduce((s, g) => s + (g.tpa ?? 0), 0);
+    const tpaPerGame = player.games > 0 ? totalTpa / player.games : 0;
+    if (p.fg3Pct != null && tpaPerGame >= 1.0) {
+      rows.push({
+        key: "3P%",
+        val: `${p.fg3Pct.toFixed(1)}%`,
+        rawNum: p.fg3Pct,
+        pct: barPct(p.fg3Pct, 55),
+        color: barColor(p.fg3Pct, lg?.fgPct ? lg.fgPct * 0.85 : null),
+      });
+    }
+
+    return rows.slice(0, 7);
+  }, [player, leagueAvg, percentilesQ.data, gameLog]);
 
   const vsPills = useMemo(() => {
     if (!player || !leagueAvg) return [];
@@ -2146,7 +2160,7 @@ function StatsPlayerSheet({
             </div>
 
             {/* Stat bars side */}
-            <div className={cn("flex flex-col justify-center gap-2", isDesktop ? "p-4" : "p-3")}>
+            <div className={cn("flex flex-col justify-center", isDesktop ? "p-4" : "p-3", statBars.length >= 7 ? "gap-1.5" : "gap-2")}>
               {statBars.map((bar) => (
                 <div key={bar.key} className="flex flex-col gap-[3px]">
                   <div className="flex justify-between items-baseline">
