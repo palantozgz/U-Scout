@@ -1986,10 +1986,8 @@ function StatsPlayerSheet({
       color: barColor(p.apg, lg?.apg),
     });
 
-    // 3P% como 7º dato, solo si shooter real (≥1 intento de triple por partido)
-    const totalTpa = gameLog.reduce((s, g) => s + (g.tpa ?? 0), 0);
-    const tpaPerGame = player.games > 0 ? totalTpa / player.games : 0;
-    if (p.fg3Pct != null && tpaPerGame >= 1.0) {
+    // 3P% siempre — es dato principal moderno
+    if (p.fg3Pct != null) {
       rows.push({
         key: "3P%",
         val: `${p.fg3Pct.toFixed(1)}%`,
@@ -2000,7 +1998,7 @@ function StatsPlayerSheet({
     }
 
     return rows.slice(0, 7);
-  }, [player, leagueAvg, percentilesQ.data, gameLog]);
+  }, [player, leagueAvg, percentilesQ.data]);
 
   const vsPills = useMemo(() => {
     if (!player || !leagueAvg) return [];
