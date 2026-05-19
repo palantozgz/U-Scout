@@ -54,13 +54,20 @@ export interface StatsRadarProps {
   player:   PlayerDetail;
   locale?:  string;
   compact?: boolean;
+  /** Position label already translated (e.g. "Center", "Guard") */
+  positionLabel?: string | null;
 }
 
-export function StatsRadar({ player, locale, compact = false }: StatsRadarProps) {
+export function StatsRadar({ player, locale, compact = false, positionLabel }: StatsRadarProps) {
   const es = locale === "es";
   const zh = locale === "zh";
-  const leagueQ      = useLeagueAverages();
-  const percentilesQ = usePlayerPercentiles();
+
+  // Position filter toggle: null = all league, player.position = same position only
+  const [byPosition, setByPosition] = useState(false);
+  const filterPos = byPosition ? (player.position ?? null) : null;
+
+  const leagueQ      = useLeagueAverages(undefined, filterPos);
+  const percentilesQ = usePlayerPercentiles(undefined, filterPos);
 
   const [col, setCol] = useState({
     grid: "rgba(128,128,128,0.18)",
@@ -234,11 +241,32 @@ export function StatsRadar({ player, locale, compact = false }: StatsRadarProps)
               <line x1="0" y1="2" x2="14" y2="2" stroke={col.stroke} strokeWidth="1" strokeDasharray="2 2" opacity="0.5"/>
             </svg>
             <span style={{ color: col.label, opacity: 0.6 }} className="text-[8px] font-bold uppercase tracking-wide">
-              {es ? "Liga avg" : zh ? "均值" : "Liga avg"}
+              {es ? "Media liga" : zh ? "均值" : "League avg"}
             </span>
           </div>
         )}
       </div>
+
+      {/* Position filter toggle */}
+      {(positionLabel || player.position) && (
+        <div className="flex items-center justify-center mt-1 pb-1">
+          <button
+            type="button"
+            onClick={() => setByPosition((v) => !v)}
+            className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-wide transition-colors"
+            style={{
+              borderColor: byPosition ? col.stroke : "rgba(128,128,128,0.25)",
+              background:  byPosition ? `${col.stroke}18` : "transparent",
+              color:       byPosition ? col.dot : "rgba(180,160,120,0.5)",
+            }}
+          >
+            <span style={{ fontSize: 9 }}>{byPosition ? "●" : "○"}</span>
+            {byPosition
+              ? (positionLabel ?? (es ? "Misma posición" : zh ? "同位置" : "Same position"))
+              : (es ? "Liga completa" : zh ? "全联赛" : "All positions")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -445,10 +445,15 @@ export default function Stats() {
       moduleHeader={{ module: "stats", tagline: t("tagline_stats") }}
       panel={desktopPanel}
       panelWide={isDesktop && Boolean(playerSheetId || teamSheetId)}
+      panelMax={isDesktop && Boolean(playerSheetId && returnToTeamId)}
       panelLabel={isDesktop ? (locale === "zh" ? "详情" : locale === "es" ? "DETALLE" : "DETAIL") : undefined}
     >
       <>
-      <div className={`px-4 md:px-8 pb-10 mx-auto w-full ${isDesktop && (playerSheetId || teamSheetId) ? 'max-w-2xl' : 'max-w-5xl'}`}>
+      <div className={`px-4 md:px-8 pb-10 mx-auto w-full ${
+        isDesktop && playerSheetId && returnToTeamId ? 'max-w-sm'
+        : isDesktop && (playerSheetId || teamSheetId) ? 'max-w-2xl'
+        : 'max-w-5xl'
+      }`}>
         <div className="mt-3 mb-1 rounded-xl border border-border bg-muted/40 px-4 py-3 flex items-center gap-3">
           <BarChart3 className="w-5 h-5 text-primary/60 shrink-0" />
           <div>
@@ -2091,7 +2096,7 @@ function StatsPlayerSheet({
               <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground/60 mb-1 self-start px-1">
                 {es ? "Perfil visual" : zh ? "视觉概况" : "Visual profile"}
               </p>
-              <StatsRadar player={player} locale={locale} compact={!isDesktop} />
+              <StatsRadar player={player} locale={locale} compact={!isDesktop} positionLabel={translatePosition(player.position, locale)} />
             </div>
 
             {/* Stat bars side */}
