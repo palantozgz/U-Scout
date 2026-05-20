@@ -48,7 +48,7 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## Estado actual — sesión 2026-05-20
+## Estado actual — sesión 2026-05-20 (cierre)
 
 ### ✅ Stats Fase 2 — PlayerSheet redesign completo
 
@@ -61,46 +61,59 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 - Colores acento por tema: gamenight=amber, office=indigo, oldschool=teal
 - Labels ejes usan `col.dot` (color acento) — visibles en los 3 temas
 - Props: `positionLabel` (traducido desde parent, NO chino crudo)
+- Labels DENTRO del viewBox — sin `overflow:visible` (no hay clipping)
 
 **StatsPlayerSheet** (`Stats.tsx`):
 - Hero: radar izq + 7 barras de stats der (PPG/RPG/FG%/TS%/eFG%/APG/3P%)
 - 3P% siempre visible: `fg3 = p.fg3Pct ?? (gameLog.length > 0 ? 0 : null)`
-- Barra 3P% compara contra `lg?.fg3Pct` (NO `fgPct * 0.85` — corregido)
-- Insight badge 3P%: `"3s attempted: loads"` etc., 6 niveles por `tpaPerGame` vs percentiles de liga
-  - tpaPerGame usa `gameLog.length` (NO `player.games`)
-  - Caso explícito `tpa === 0` → "none" / "ninguno" / "无" para evitar el bug de "loads" con 0 intentos
-- Toggle posición: estado `byPosition` vive en StatsPlayerSheet, se pasa a radar Y a `useLeagueAverages`/`usePlayerPercentiles` → barras y radar sincronizan
-- Grids: PPG/RPG/APG grandes + SPG/BPG/TOPG/MPG
+- Barra 3P% compara contra `lg?.fg3Pct` (NO `fgPct * 0.85`)
+- `barColor()`: `lgv == null → "muted"` (antes `!lgv → "amber"` roto para 0)
+- Insight badge bajo barra 3P%: `"3s attempted: none/very few/few/average/many/loads"`
+  - 6 niveles por `tpaPerGame` vs percentiles p25/p50/p75/p90 de TPA
+  - `tpaPerGame` con sanity cap: si avg > 20 (dato acumulado) usa `player.games`
+  - Caso explícito `tpa === 0` → "none"/"ninguno"/"无" — evita bug de "loads" sin intentos
+- Toggle posición: `byPosition` en StatsPlayerSheet → sincroniza radar + barras
+- Grids: PPG/RPG/APG grandes + SPG/BPG/TOPG/MPG con labels text-[11px]/70
 - Home/Away splits
 - 3 tabs: Forma · Deep stats · Partidos
   - Forma: minibar L5 + media
-  - Deep stats: Perfil temporada (DD/TD/Consistencia/PIE con explicación) + Cuatro Factores vs Liga + Más stats
-  - Partidos: tabla con W/L badge + "vs Rival" / "@ Rival"
+  - Deep stats: Perfil temporada (DD/TD/Consistencia/PIE con descripción) + Cuatro Factores vs Liga + Más stats
+  - Partidos: W/L badge + fecha + "vs/@ Rival" (isHome pendiente en GameLogEntry)
 - `positionLabel={translatePosition(player.position, locale)}` — nunca chino crudo
+- `showMoreStats` state declarado pero no usado — sin impacto funcional
 
 **Navegación panel desktop — 3 niveles**:
 - Nivel 1 (sin panel): tabla `max-w-5xl`, panel `w-80`
 - Nivel 2 (equipo/jugadora directa): panel `w-700px`, tabla `max-w-2xl`
 - Nivel 3 (jugadora desde roster): panel `w-900px` (`panelMax`), tabla `max-w-sm` — standings oculta PPG/OPPG/NET/eFG%
 - `isLevel3 = isDesktop && Boolean(playerSheetId && returnToTeamId)`
+- Standing click limpia `playerSheetId` + `returnToTeamId` antes de `setTeamSheetId`
 
-**Back button + roster scroll**:
+**Back button + roster scroll** (desktop únicamente):
 - `returnToPlayerId` state en Stats()
-- Al abrir jugador desde roster: `setReturnToPlayerId(id)` antes de navegar
-- `closePlayerSheet`: mantiene `returnToPlayerId` activo hasta 600ms después de montar TeamSheet
-- `StatsTeamSheet`: prop `scrollToPlayerId` + `useEffect` que abre roster y hace scroll
+- Al abrir jugadora desde roster: `setReturnToPlayerId(id)` antes de navegar
+- `closePlayerSheet`: guarda `prevPlayerId`, limpia `returnToPlayerId` con `setTimeout(..., 600)` para dar tiempo al mount de TeamSheet
+- `StatsTeamSheet`: prop `scrollToPlayerId` + `useEffect` → abre roster + scroll
 - Botones roster tienen `data-player-id={p.externalId}`
-- **TRAMPAS**: no limpiar `returnToPlayerId` hasta después del mount de TeamSheet (timing bug si se limpia antes)
+- **NO implementado en iOS** (Sheet mobile no tiene este flujo)
+- **TRAMPA**: limpiar `returnToPlayerId` ANTES del mount de TeamSheet rompe el scroll
 
 **WCBA team names** — `pickName()` con fallback `WCBA_TEAM_EN`:
 - 18 equipos mapeados de chino → inglés
 - Fases standings: `常规赛A组` → "Group A", `B组` → "Group B", `季后赛` → "Playoffs"
+- `translatePosition()` cubre 7 posiciones chino → ES/EN
 
 **Backend additions**:
-- `/api/stats/league-averages`: +`fg3Pct` (3P% de liga para comparar barra 3P%)
-- `/api/stats/player-percentiles`: +`p25Tpa`, `p50Tpa`, `p75Tpa`, `p90Tpa` (intentos de triple)
-- Ambos endpoints soportan `?position=` para filtro por posición
-- `stats-api.ts`: tipos actualizados
+- `/api/stats/league-averages`: +`fg3Pct` (3P% de liga)
+- `/api/stats/player-percentiles`: +`p25Tpa`, `p50Tpa`, `p75Tpa`, `p90Tpa`
+- Ambos endpoints: `?position=` para filtro por posición
+- `stats-api.ts`: tipos actualizados con todos los campos nuevos
+
+**PENDIENTE próxima sesión**:
+1. Verificar en producción que insight "3s attempted" muestra valores correctos — confirmar si `g.tpa` en game log es per-game o acumulado en datos reales
+2. Shot chart rediseño: laterales más anchos para datos de corner (actualmente `isLandscape` only)
+3. Back+scroll en iOS Sheet mobile — no implementado
+4. `isHome` en `GameLogEntry` — no está en el tipo, se usa `(g as any).isHome` → añadir al tipo cuando backend lo devuelva
 
 ### ✅ Sprint E cerrado — campo `threat` en Slide 0 (`74e1468`)
 ### ✅ Sprint D cerrado — ReportSlidesV1 3 slides (`de9d2c4`)

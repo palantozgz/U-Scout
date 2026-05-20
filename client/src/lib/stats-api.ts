@@ -14,6 +14,7 @@ export type PlayerSeasonStats = {
   externalId: string;
   playerName: string;
   playerNameEn?: string | null;
+  position?: string | null;
   photoUrl?: string | null;
   teamName: string;
   teamNameEn?: string | null;
@@ -202,6 +203,7 @@ export interface GameLogEntry {
   fta: number;
   plusMinus: number;
   isStart: boolean;
+  isHome?: boolean;
 }
 
 export interface TeamRosterPlayer {
@@ -333,13 +335,14 @@ export function usePlayerPercentiles(seasonId?: number, position?: string | null
         p95Bpg: number;
         p95TsPct: number;
         p95EFGPct: number;
-        p25Tpa: number;
+        p20Tpa: number;
+        p40Tpa: number;
         p50Tpa: number;
         p75Tpa: number;
         p90Tpa: number;
       }>;
     },
-    staleTime: 1000 * 60 * 60 * 24,
+    staleTime: 1000 * 60 * 5,
     retry: 0,
   });
 }

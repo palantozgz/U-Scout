@@ -1606,6 +1606,7 @@ export async function registerRoutes(
         sp.external_id                                AS "externalId",
         sp.name_zh                                    AS "playerName",
         sp.name_en                                    AS "playerNameEn",
+        sp.position                                   AS "position",
         sp.photo_url                                  AS "photoUrl",
         st.name_zh                                    AS "teamName",
         st.name_en                                    AS "teamNameEn",
@@ -1636,7 +1637,7 @@ export async function registerRoutes(
       JOIN stats_players sp ON sp.external_id = pb.player_external_id
       LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
       WHERE sg.status = 4
-      GROUP BY sp.external_id, sp.name_zh, sp.name_en, sp.photo_url, st.name_zh, st.name_en
+      GROUP BY sp.external_id, sp.name_zh, sp.name_en, sp.position, sp.photo_url, st.name_zh, st.name_en
       HAVING COUNT(DISTINCT pb.game_id) > 0
       ORDER BY ppg DESC
     `);
@@ -1648,6 +1649,7 @@ export async function registerRoutes(
       externalId: String(r.externalId ?? ""),
       playerName: String(r.playerName ?? ""),
       playerNameEn: r.playerNameEn ?? null,
+      position: r.position ?? null,
       photoUrl: r.photoUrl ?? null,
       teamName: r.teamName ?? null,
       teamNameEn: r.teamNameEn ?? null,
@@ -1849,6 +1851,7 @@ export async function registerRoutes(
   app.get("/api/stats/player/:externalId", requireAuth, async (req, res) => {
     try {
     const { externalId } = req.params;
+    const seasonId = Number(req.query.seasonId ?? 2092);
 
     const playerRows = await db.execute(sql`
       SELECT
@@ -1903,12 +1906,6 @@ export async function registerRoutes(
             THEN SUM(pb.fta)::numeric / SUM(pb.fga)
           END, 3
         ) AS "ftRate",
-        ROUND(
-          CASE WHEN SUM(pb.fga) + 0.44 * SUM(pb.fta) + SUM(pb.tov) > 0
-            THEN (SUM(pb.fga) + 0.44 * SUM(pb.fta) + SUM(pb.tov))::numeric /
-                 NULLIF(COUNT(pb.id) * 20.0, 0)
-          END, 3
-        ) AS "usagePct",
         ROUND(AVG(pb.off_reb)::numeric, 1) AS "orbPerGame",
         ROUND(AVG(pb.def_reb)::numeric, 1) AS "drbPerGame"
       FROM stats_players sp
@@ -1923,23 +1920,91 @@ export async function registerRoutes(
     const player = (playerRows as any).rows?.[0];
     if (!player) return res.status(404).json({ error: "Player not found" });
 
-    const pieRows = await db.execute(sql`
-      SELECT
-        ROUND(AVG(
-          (pb.pts + pb.fgm + pb.ftm - pb.fga - pb.fta + pb.def_reb + 0.5*pb.off_reb + pb.ast + pb.stl + 0.5*pb.blk - pb.fouls - pb.tov)::numeric /
-          NULLIF(game_totals.total_numerator, 0)
-        )::numeric, 3) AS pie
-      FROM stats_player_boxscores pb
-      JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
-      JOIN (
-        SELECT game_id,
-          SUM(pts + fgm + ftm - fga - fta + def_reb + 0.5*off_reb + ast + stl + 0.5*blk - fouls - tov) AS total_numerator
-        FROM stats_player_boxscores
-        GROUP BY game_id
-      ) game_totals ON game_totals.game_id = pb.game_id
-      WHERE pb.player_external_id::text = ${externalId}
-    `);
-    const pieRow = (pieRows as any).rows?.[0]?.pie;
+    let pieRow: number | null = null;
+    try {
+      const pieRows = await db.execute(sql`
+        WITH pie_games AS (
+          SELECT
+            pb.game_id,
+            (pb.pts + pb.fgm + pb.ftm - pb.fga - pb.fta
+             + pb.def_reb + 0.5 * pb.off_reb
+             + pb.ast + pb.stl + 0.5 * pb.blk - pb.fouls - pb.tov
+            ) AS player_num,
+            gm_totals.game_den
+          FROM stats_player_boxscores pb
+          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          JOIN (
+            SELECT
+              game_id,
+              SUM(pts + fgm + ftm - fga - fta
+                  + def_reb + 0.5 * off_reb
+                  + ast + stl + 0.5 * blk - fouls - tov
+              ) AS game_den
+            FROM stats_player_boxscores
+            GROUP BY game_id
+          ) gm_totals ON gm_totals.game_id = pb.game_id
+          WHERE pb.player_external_id::text = ${externalId}
+          AND gm_totals.game_den > 0
+        )
+        SELECT ROUND(AVG(100.0 * player_num / game_den)::numeric, 1) AS pie
+        FROM pie_games
+      `);
+      pieRow = (pieRows as any).rows?.[0]?.pie != null ? Number((pieRows as any).rows[0].pie) : null;
+    } catch (pieErr: any) {
+      console.error("[player-detail] PIE query failed:", pieErr?.message ?? pieErr);
+    }
+
+    let usgPct: number | null = null;
+    try {
+      const usgRows = await db.execute(sql`
+        WITH player_ref AS (
+          SELECT sp.external_id, sp.team_id
+          FROM stats_players sp
+          WHERE sp.external_id::text = ${externalId}
+          LIMIT 1
+        ),
+        player_games AS (
+          SELECT
+            pb.game_id,
+            pb.fga, pb.fta, pb.tov,
+            (SPLIT_PART(pb.minutes,':',1)::int * 60 + SPLIT_PART(pb.minutes,':',2)::int) AS min_sec
+          FROM stats_player_boxscores pb
+          JOIN player_ref pr ON pb.player_external_id = pr.external_id::text
+          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          WHERE SPLIT_PART(pb.minutes,':',1) ~ '^[0-9]+$'
+        ),
+        team_games AS (
+          SELECT
+            pb2.game_id,
+            SUM(pb2.fga) AS tm_fga,
+            SUM(pb2.fta) AS tm_fta,
+            SUM(pb2.tov) AS tm_tov,
+            SUM(SPLIT_PART(pb2.minutes,':',1)::int * 60 + SPLIT_PART(pb2.minutes,':',2)::int) AS tm_min_sec
+          FROM stats_player_boxscores pb2
+          JOIN player_ref pr ON pb2.team_external_id = (
+            SELECT st.external_id::text FROM stats_teams st WHERE st.id = pr.team_id LIMIT 1
+          )
+          JOIN stats_games sg2 ON sg2.id = pb2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+          WHERE SPLIT_PART(pb2.minutes,':',1) ~ '^[0-9]+$'
+          GROUP BY pb2.game_id
+        ),
+        usg_calc AS (
+          SELECT
+            ROUND(
+              100.0 * SUM((pg.fga + 0.44 * pg.fta + pg.tov) * (tg.tm_min_sec / 5.0))
+              / NULLIF(SUM(pg.min_sec * (tg.tm_fga + 0.44 * tg.tm_fta + tg.tm_tov)), 0)
+            , 1) AS usg_pct
+          FROM player_games pg
+          JOIN team_games tg ON tg.game_id = pg.game_id
+          WHERE pg.min_sec > 0
+        )
+        SELECT usg_pct FROM usg_calc
+      `);
+      const usgRow = (usgRows as any).rows?.[0];
+      usgPct = usgRow?.usg_pct != null ? Number(usgRow.usg_pct) : null;
+    } catch (usgErr: any) {
+      console.error("[player-detail] USG% query failed:", usgErr?.message ?? usgErr);
+    }
 
     const splitRows = await db.execute(sql`
       SELECT
@@ -1966,7 +2031,8 @@ export async function registerRoutes(
         pb.pts, pb.reb, pb.ast, pb.stl, pb.blk, pb.tov,
         pb.fgm, pb.fga, pb.tpm, pb.tpa, pb.ftm, pb.fta,
         pb.plus_minus        AS "plusMinus",
-        pb.is_start_lineup   AS "isStart"
+        pb.is_start_lineup   AS "isStart",
+        (sg.home_team_id = sp2.team_id) AS "isHome"
       FROM stats_player_boxscores pb
       JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
       JOIN stats_players sp2 ON sp2.external_id = pb.player_external_id
@@ -1997,6 +2063,7 @@ export async function registerRoutes(
       fta: Number(r.fta ?? 0),
       plusMinus: Number(r.plusMinus ?? 0),
       isStart: Boolean(r.isStart),
+      isHome: Boolean(r.isHome),
     }));
 
     return res.json({
@@ -2026,7 +2093,7 @@ export async function registerRoutes(
         eFGPct: player.eFGPct != null ? Number(player.eFGPct) : null,
         astTovRatio: player.astTovRatio != null ? Number(player.astTovRatio) : null,
         ftRate: player.ftRate != null ? Number(player.ftRate) : null,
-        usagePct: player.usagePct != null ? Number(player.usagePct) : null,
+        usagePct: usgPct,
         orbPerGame: player.orbPerGame != null ? Number(player.orbPerGame) : null,
         drbPerGame: player.drbPerGame != null ? Number(player.drbPerGame) : null,
         pie: pieRow != null ? Number(pieRow) : null,
@@ -2106,10 +2173,7 @@ export async function registerRoutes(
          WHERE pb_fg.team_external_id = st.external_id::text) AS "teamFgPct",
         adv."eFGPct",
         adv."tovPct",
-        adv."ftRate",
-        adv."orbPct",
-        adv."drbPct",
-        adv."paceEst"
+        adv."ftRate"
       FROM stats_teams st
       LEFT JOIN stats_standings ss
         ON ss.team_external_id = st.external_id AND ss.season_id = ${seasonId}
@@ -2117,19 +2181,7 @@ export async function registerRoutes(
         SELECT
           ROUND((SUM(pb2.fgm) + 0.5 * SUM(pb2.tpm))::numeric / NULLIF(SUM(pb2.fga), 0) * 100, 1) AS "eFGPct",
           ROUND(SUM(pb2.tov)::numeric / NULLIF(SUM(pb2.fga) + 0.44 * SUM(pb2.fta) + SUM(pb2.tov), 0) * 100, 1) AS "tovPct",
-          ROUND(SUM(pb2.fta)::numeric / NULLIF(SUM(pb2.fga), 0), 3) AS "ftRate",
-          ROUND(SUM(pb2.off_reb)::numeric / NULLIF(SUM(pb2.off_reb) + SUM(pb2.def_reb), 0) * 100, 1) AS "orbPct",
-          ROUND(SUM(pb2.def_reb)::numeric / NULLIF(SUM(pb2.off_reb) + SUM(pb2.def_reb), 0) * 100, 1) AS "drbPct",
-          ROUND(
-            SUM(pb2.fga + 0.44 * pb2.fta + pb2.tov)::numeric
-            / NULLIF(
-              SUM(CASE WHEN pb2.minutes ~ '^\d+:\d{2}$'
-                THEN SPLIT_PART(pb2.minutes, ':', 1)::numeric + SPLIT_PART(pb2.minutes, ':', 2)::numeric / 60
-                ELSE 0 END) / 5.0,
-              0
-            ) * 40,
-            1
-          ) AS "paceEst"
+          ROUND(SUM(pb2.fta)::numeric / NULLIF(SUM(pb2.fga), 0), 3) AS "ftRate"
         FROM stats_player_boxscores pb2
         JOIN stats_games sg2 ON sg2.id = pb2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
         WHERE pb2.team_external_id = st.external_id::text
@@ -2139,6 +2191,48 @@ export async function registerRoutes(
     `);
     const team = (teamRow as any).rows?.[0];
     if (!team) return res.status(404).json({ error: "Team not found" });
+
+    let orbPct: number | null = team.orbPct != null ? Number(team.orbPct) : null;
+    let drbPct: number | null = team.drbPct != null ? Number(team.drbPct) : null;
+    try {
+      const rebRows = await db.execute(sql`
+        WITH team_ref AS (
+          SELECT id, external_id::text AS ext_id
+          FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1
+        ),
+        own_reb AS (
+          SELECT
+            SUM(pb.off_reb) AS orb,
+            SUM(pb.def_reb) AS drb
+          FROM stats_player_boxscores pb
+          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          WHERE pb.team_external_id = (SELECT ext_id FROM team_ref)
+        ),
+        rival_reb AS (
+          SELECT
+            SUM(pb2.off_reb) AS rival_orb,
+            SUM(pb2.def_reb) AS rival_drb
+          FROM stats_player_boxscores pb2
+          JOIN stats_games sg2 ON sg2.id = pb2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+          WHERE pb2.team_external_id != (SELECT ext_id FROM team_ref)
+          AND sg2.id IN (
+            SELECT sg3.id FROM stats_games sg3
+            WHERE (sg3.home_team_id = (SELECT id FROM team_ref)
+                OR sg3.away_team_id = (SELECT id FROM team_ref))
+            AND sg3.status = 4 AND sg3.season_id = ${seasonId}
+          )
+        )
+        SELECT
+          ROUND(100.0 * own_reb.orb / NULLIF(own_reb.orb + rival_reb.rival_drb, 0), 1) AS orb_pct,
+          ROUND(100.0 * own_reb.drb / NULLIF(own_reb.drb + rival_reb.rival_orb, 0), 1) AS drb_pct
+        FROM own_reb, rival_reb
+      `);
+      const reb = (rebRows as any).rows?.[0] ?? {};
+      orbPct = reb.orb_pct != null ? Number(reb.orb_pct) : null;
+      drbPct = reb.drb_pct != null ? Number(reb.drb_pct) : null;
+    } catch (rebErr: any) {
+      console.error("[stats/team] ORB%/DRB% query failed:", rebErr?.message ?? rebErr);
+    }
 
     const playersRow = await db.execute(sql`
       SELECT
@@ -2176,6 +2270,7 @@ export async function registerRoutes(
     let netRtg: number | null = null;
     let pppOf: number | null = null;
     let pppDef: number | null = null;
+    let paceEst: number | null = team.paceEst != null ? Number(team.paceEst) : null;
     let pointsByZone: { paint: number; mid: number; fg3: number; ft: number } | null = null;
     try {
       const rtgRow = await db.execute(sql`
@@ -2204,17 +2299,35 @@ export async function registerRoutes(
         JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
         WHERE pb.team_external_id = (SELECT external_id::text FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1)
         GROUP BY pb.game_id
+      ),
+      rival_box AS (
+        SELECT
+          pb.game_id,
+          SUM(pb.fga) AS r_fga, SUM(pb.fta) AS r_fta,
+          SUM(pb.tov) AS r_tov, SUM(pb.off_reb) AS r_orb
+        FROM stats_player_boxscores pb
+        JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        WHERE pb.team_external_id != (SELECT external_id::text FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1)
+        AND pb.game_id IN (SELECT game_id FROM team_box)
+        GROUP BY pb.game_id
       )
       SELECT
         ROUND(100.0 * SUM(tg.team_pts) / NULLIF(SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb), 0), 1) AS "ortg",
-        ROUND(100.0 * SUM(tg.opp_pts)  / NULLIF(SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb), 0), 1) AS "drtg",
+        ROUND(100.0 * SUM(tg.opp_pts) / NULLIF(SUM(rb.r_fga + 0.44 * rb.r_fta + rb.r_tov - rb.r_orb), 0), 1) AS "drtg",
         ROUND(SUM(tg.team_pts)::numeric / NULLIF(SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb), 0), 3) AS "pppOf",
-        ROUND(SUM(tg.opp_pts)::numeric  / NULLIF(SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb), 0), 3) AS "pppDef",
+        ROUND(SUM(tg.opp_pts)::numeric / NULLIF(SUM(rb.r_fga + 0.44 * rb.r_fta + rb.r_tov - rb.r_orb), 0), 3) AS "pppDef",
+        ROUND(
+          ((SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb) +
+            SUM(rb.r_fga + 0.44 * rb.r_fta + rb.r_tov - rb.r_orb)) / 2.0)
+          / NULLIF(COUNT(DISTINCT tb.game_id), 0)
+        , 1) AS "paceEst",
         SUM(tb.fgm - tb.tpm) AS "paint2Fgm",
         SUM(tb.tpm)          AS "fg3m",
         SUM(tb.ftm)          AS "ftm",
         SUM(tb.pts)          AS "totalPts"
-      FROM team_games tg JOIN team_box tb ON tb.game_id = tg.game_id
+      FROM team_games tg
+      JOIN team_box tb ON tb.game_id = tg.game_id
+      JOIN rival_box rb ON rb.game_id = tb.game_id
     `);
       const rtg = (rtgRow as any).rows?.[0] ?? {};
       ortg   = rtg.ortg   != null ? Number(rtg.ortg)   : null;
@@ -2222,6 +2335,7 @@ export async function registerRoutes(
       netRtg = ortg != null && drtg != null ? Number((ortg - drtg).toFixed(1)) : null;
       pppOf  = rtg.pppOf  != null ? Number(rtg.pppOf)  : null;
       pppDef = rtg.pppDef != null ? Number(rtg.pppDef) : null;
+      paceEst = rtg.paceEst != null ? Number(rtg.paceEst) : null;
       const paint2Pts = rtg.paint2Fgm != null ? Number(rtg.paint2Fgm) * 2 : 0;
       const fg3Pts    = rtg.fg3m != null ? Number(rtg.fg3m) * 3 : 0;
       const ftPts     = rtg.ftm  != null ? Number(rtg.ftm)      : 0;
@@ -2306,9 +2420,9 @@ export async function registerRoutes(
         eFGPct: team.eFGPct != null ? Number(team.eFGPct) : null,
         tovPct: team.tovPct != null ? Number(team.tovPct) : null,
         ftRate: team.ftRate != null ? Number(team.ftRate) : null,
-        orbPct: team.orbPct != null ? Number(team.orbPct) : null,
-        drbPct: team.drbPct != null ? Number(team.drbPct) : null,
-        paceEst: team.paceEst != null ? Number(team.paceEst) : null,
+        orbPct,
+        drbPct,
+        paceEst,
         ortg, drtg, netRtg, pppOf, pppDef, pointsByZone, gameLog,
       },
       players,
@@ -2322,6 +2436,28 @@ export async function registerRoutes(
       : null;
     try {
       const rows = await db.execute(sql`
+        WITH league_reb AS (
+          SELECT
+            pb.team_external_id,
+            SUM(pb.off_reb) AS orb,
+            SUM(pb.def_reb) AS drb,
+            pb.game_id
+          FROM stats_player_boxscores pb
+          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          ${position ? sql`JOIN stats_players sp ON sp.external_id = pb.player_external_id AND sp.position = ${position}` : sql``}
+          GROUP BY pb.team_external_id, pb.game_id
+        ),
+        orb_calc AS (
+          SELECT
+            a.team_external_id,
+            SUM(a.orb) AS total_orb,
+            SUM(b.drb) AS rival_drb,
+            SUM(a.drb) AS total_drb,
+            SUM(b.orb) AS rival_orb
+          FROM league_reb a
+          JOIN league_reb b ON b.game_id = a.game_id AND b.team_external_id != a.team_external_id
+          GROUP BY a.team_external_id
+        )
         SELECT
           ROUND(AVG(pb.pts)::numeric, 1)  AS "avgPpg",
           ROUND(AVG(pb.reb)::numeric, 1)  AS "avgRpg",
@@ -2353,14 +2489,14 @@ export async function registerRoutes(
               THEN SUM(pb.fta)::numeric / SUM(pb.fga) END, 3
           ) AS "avgFtRate",
           ROUND(
-            CASE WHEN (SUM(pb.off_reb) + SUM(pb.def_reb)) > 0
-              THEN SUM(pb.off_reb)::numeric / (SUM(pb.off_reb) + SUM(pb.def_reb)) * 100 END, 1
+            100.0 * SUM(oc.total_orb) / NULLIF(SUM(oc.total_orb) + SUM(oc.rival_drb), 0), 1
           ) AS "avgOrbPct",
           ROUND(AVG(pb.off_reb)::numeric, 1) AS "avgOrbPerGame",
           ROUND(AVG(pb.def_reb)::numeric, 1) AS "avgDrbPerGame"
         FROM stats_player_boxscores pb
         JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
         ${position ? sql`JOIN stats_players sp ON sp.external_id = pb.player_external_id AND sp.position = ${position}` : sql``}
+        LEFT JOIN orb_calc oc ON oc.team_external_id = pb.team_external_id
       `);
       const row = (rows as any).rows?.[0] ?? {};
       return res.json({
@@ -2421,10 +2557,11 @@ export async function registerRoutes(
           percentile_cont(0.95) WITHIN GROUP (ORDER BY bpg)    AS "p95Bpg",
           percentile_cont(0.95) WITHIN GROUP (ORDER BY ts_pct) AS "p95TsPct",
           percentile_cont(0.95) WITHIN GROUP (ORDER BY efg_pct) AS "p95EFGPct",
-          percentile_cont(0.25) WITHIN GROUP (ORDER BY tpa_per_game) AS "p25Tpa",
-          percentile_cont(0.50) WITHIN GROUP (ORDER BY tpa_per_game) AS "p50Tpa",
-          percentile_cont(0.75) WITHIN GROUP (ORDER BY tpa_per_game) AS "p75Tpa",
-          percentile_cont(0.90) WITHIN GROUP (ORDER BY tpa_per_game) AS "p90Tpa"
+          percentile_cont(0.20) WITHIN GROUP (ORDER BY tpa_per_game) FILTER (WHERE tpa_per_game > 0) AS "p20Tpa",
+          percentile_cont(0.40) WITHIN GROUP (ORDER BY tpa_per_game) FILTER (WHERE tpa_per_game > 0) AS "p40Tpa",
+          percentile_cont(0.50) WITHIN GROUP (ORDER BY tpa_per_game) FILTER (WHERE tpa_per_game > 0) AS "p50Tpa",
+          percentile_cont(0.75) WITHIN GROUP (ORDER BY tpa_per_game) FILTER (WHERE tpa_per_game > 0) AS "p75Tpa",
+          percentile_cont(0.90) WITHIN GROUP (ORDER BY tpa_per_game) FILTER (WHERE tpa_per_game > 0) AS "p90Tpa"
         FROM player_avgs
       `);
       const row = (rows as any).rows?.[0] ?? {};
@@ -2436,10 +2573,11 @@ export async function registerRoutes(
         p95Bpg: row.p95Bpg != null ? Number(row.p95Bpg) : 2.5,
         p95TsPct: row.p95TsPct != null ? Number(row.p95TsPct) : 65,
         p95EFGPct: row.p95EFGPct != null ? Number(row.p95EFGPct) : 60,
-        p25Tpa: row.p25Tpa != null ? Number(row.p25Tpa) : 0.5,
-        p50Tpa: row.p50Tpa != null ? Number(row.p50Tpa) : 1.5,
-        p75Tpa: row.p75Tpa != null ? Number(row.p75Tpa) : 3.0,
-        p90Tpa: row.p90Tpa != null ? Number(row.p90Tpa) : 5.0,
+        p20Tpa: row.p20Tpa != null ? Number(row.p20Tpa) : 0.8,
+        p40Tpa: row.p40Tpa != null ? Number(row.p40Tpa) : 1.5,
+        p50Tpa: row.p50Tpa != null ? Number(row.p50Tpa) : 2.0,
+        p75Tpa: row.p75Tpa != null ? Number(row.p75Tpa) : 3.5,
+        p90Tpa: row.p90Tpa != null ? Number(row.p90Tpa) : 5.5,
       });
     } catch (err: any) {
       console.error("[stats/player-percentiles] error:", err?.message ?? err);

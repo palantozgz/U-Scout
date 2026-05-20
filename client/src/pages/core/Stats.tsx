@@ -227,6 +227,31 @@ export default function Stats() {
   const [jugadorasSortDir, setJugadorasSortDir] = useState<"asc" | "desc">("desc");
   const [jugadorasSearch, setJugadorasSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Filtro rápido de posición
+  const [jugadorasPos, setJugadorasPos] = useState<string>("");
+
+  // Filtros avanzados
+  const [advFilterOpen, setAdvFilterOpen] = useState(false);
+  const [advMinGames, setAdvMinGames] = useState<string>("");
+  const [advMinPpg, setAdvMinPpg] = useState<string>("");
+  const [advMinRpg, setAdvMinRpg] = useState<string>("");
+  const [advMinApg, setAdvMinApg] = useState<string>("");
+  const [advMinMpg, setAdvMinMpg] = useState<string>("");
+
+  const hasAdvFilter =
+    advMinGames !== "" || advMinPpg !== "" || advMinRpg !== "" || advMinApg !== "" || advMinMpg !== "";
+
+  const clearAllFilters = () => {
+    setJugadorasPos("");
+    setJugadorasTeam("");
+    setJugadorasSearch("");
+    setAdvMinGames("");
+    setAdvMinPpg("");
+    setAdvMinRpg("");
+    setAdvMinApg("");
+    setAdvMinMpg("");
+  };
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(jugadorasSearch), 200);
     return () => clearTimeout(t);
@@ -255,7 +280,17 @@ export default function Stats() {
 
   useEffect(() => {
     setJugadorasLimit(50);
-  }, [jugadorasTeam, jugadorasSort, jugadorasSearch]);
+  }, [
+    jugadorasTeam,
+    jugadorasSort,
+    jugadorasSearch,
+    jugadorasPos,
+    advMinGames,
+    advMinPpg,
+    advMinRpg,
+    advMinApg,
+    advMinMpg,
+  ]);
 
   useEffect(() => {
     if (chipsScrollRef.current) {
@@ -314,6 +349,28 @@ export default function Stats() {
   const jugadorasFiltered = useMemo(() => {
     let list = playersForSeason.filter((p) => p.games > 0);
     if (jugadorasTeam.trim()) list = list.filter((p) => p.teamName === jugadorasTeam);
+
+    if (jugadorasPos) {
+      list = list.filter((p) => {
+        const pos = p.position ?? "";
+        if (jugadorasPos === "guard") return ["后卫", "控球后卫", "得分后卫"].includes(pos);
+        if (jugadorasPos === "forward") return ["前锋", "小前锋", "大前锋"].includes(pos);
+        if (jugadorasPos === "center") return pos === "中锋";
+        return true;
+      });
+    }
+
+    const minG = advMinGames !== "" ? Number(advMinGames) : null;
+    const minPpg = advMinPpg !== "" ? Number(advMinPpg) : null;
+    const minRpg = advMinRpg !== "" ? Number(advMinRpg) : null;
+    const minApg = advMinApg !== "" ? Number(advMinApg) : null;
+    const minMpg = advMinMpg !== "" ? Number(advMinMpg) : null;
+    if (minG != null) list = list.filter((p) => p.games >= minG!);
+    if (minPpg != null) list = list.filter((p) => p.ppg >= minPpg!);
+    if (minRpg != null) list = list.filter((p) => p.rpg >= minRpg!);
+    if (minApg != null) list = list.filter((p) => p.apg >= minApg!);
+    if (minMpg != null) list = list.filter((p) => p.mpg >= minMpg!);
+
     const q = debouncedSearch.trim().toLowerCase();
     if (q)
       list = list.filter(
@@ -326,7 +383,19 @@ export default function Stats() {
         ? num(b[jugadorasSort]) - num(a[jugadorasSort])
         : num(a[jugadorasSort]) - num(b[jugadorasSort]),
     );
-  }, [playersForSeason, jugadorasTeam, jugadorasSort, debouncedSearch, jugadorasSortDir]);
+  }, [
+    playersForSeason,
+    jugadorasTeam,
+    jugadorasSort,
+    debouncedSearch,
+    jugadorasSortDir,
+    jugadorasPos,
+    advMinGames,
+    advMinPpg,
+    advMinRpg,
+    advMinApg,
+    advMinMpg,
+  ]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -907,15 +976,63 @@ export default function Stats() {
               </div>
             )}
 
-            {!playersQ.isLoading && !playersQ.isError && jugadorasFiltered.length > 0 && (
+            {!playersQ.isLoading && !playersQ.isError && playersWithGamesForSeason.length > 0 && (
               <>
-                <input
-                  type="text"
-                  placeholder={es ? "Buscar jugadora..." : zh ? "搜索球员..." : "Search player..."}
-                  value={jugadorasSearch}
-                  onChange={(e) => setJugadorasSearch(e.target.value)}
-                  className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground/50"
-                />
+                <div className="flex rounded-xl border border-border bg-muted/20 p-0.5 gap-0.5">
+                  {(
+                    [
+                      ["", es ? "Todas" : zh ? "全部" : "All"],
+                      ["guard", es ? "Bases" : zh ? "后卫" : "Guards"],
+                      ["forward", es ? "Aleros" : zh ? "前锋" : "Forwards"],
+                      ["center", es ? "Pivots" : zh ? "中锋" : "Centers"],
+                    ] as [string, string][]
+                  ).map(([val, label]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setJugadorasPos(val)}
+                      className={cn(
+                        "flex-1 rounded-lg py-1.5 text-[11px] font-black transition-colors",
+                        jugadorasPos === val
+                          ? "bg-card shadow-sm text-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder={es ? "Buscar jugadora..." : zh ? "搜索球员..." : "Search player..."}
+                    value={jugadorasSearch}
+                    onChange={(e) => setJugadorasSearch(e.target.value)}
+                    className="flex-1 h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAdvFilterOpen(true)}
+                    className={cn(
+                      "h-10 px-3 rounded-xl border text-xs font-black transition-colors shrink-0 flex items-center gap-1.5",
+                      hasAdvFilter
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/40",
+                    )}
+                  >
+                    {hasAdvFilter && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+                    {es ? "Filtros" : zh ? "筛选" : "Filters"}
+                  </button>
+                  {(jugadorasPos || jugadorasTeam || jugadorasSearch.trim() || hasAdvFilter) && (
+                    <button
+                      type="button"
+                      onClick={clearAllFilters}
+                      className="h-10 px-3 rounded-xl border border-border bg-card text-xs font-black text-muted-foreground hover:text-foreground hover:bg-muted/40 shrink-0"
+                    >
+                      {es ? "Limpiar" : zh ? "清除" : "Clear"}
+                    </button>
+                  )}
+                </div>
                 <div
                   ref={chipsScrollRef}
                   className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1 scroll-snap-type-x-mandatory"
@@ -1014,6 +1131,22 @@ export default function Stats() {
                     <div className="w-5 h-5 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
                   </div>
                 )}
+
+                {/* Estado vacío por filtro activo — no bloqueante */}
+                {jugadorasFiltered.length === 0 && (jugadorasPos || jugadorasTeam || jugadorasSearch.trim() || hasAdvFilter) && (
+                  <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center space-y-2">
+                    <p className="text-sm font-bold text-muted-foreground">
+                      {es ? "Sin resultados con estos filtros" : zh ? "筛选无结果" : "No results for these filters"}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={clearAllFilters}
+                      className="text-xs font-black text-primary hover:underline"
+                    >
+                      {es ? "Limpiar filtros" : zh ? "清除筛选" : "Clear filters"}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </TabsContent>
@@ -1062,6 +1195,93 @@ export default function Stats() {
           />
         </SheetContent>
       </Sheet>
+
+      {/* Advanced filter — floating modal that respects the sidebar */}
+      {advFilterOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
+            onClick={() => setAdvFilterOpen(false)}
+          />
+          <div className="fixed z-50 bottom-4 left-4 right-4 md:left-64 mx-auto max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-5 pt-4 pb-2 flex items-center justify-between border-b border-border/50">
+              <p className="text-sm font-black uppercase tracking-wider">
+                {es ? 'Filtros avanzados' : zh ? '高级筛选' : 'Advanced filters'}
+              </p>
+              <button type="button" onClick={() => setAdvFilterOpen(false)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground">
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 pb-5 pt-3 space-y-4 max-h-[55dvh] overflow-y-auto">
+            {(
+              [
+                {
+                  key: "advMinGames",
+                  label: es ? "Partidos mínimos" : zh ? "最少场次" : "Min. games",
+                  state: advMinGames,
+                  set: setAdvMinGames,
+                  placeholder: es ? "ej. 10" : zh ? "例：10" : "e.g. 10",
+                },
+                { key: "advMinPpg", label: es ? "PPG mínimo" : zh ? "最低得分" : "Min. PPG", state: advMinPpg, set: setAdvMinPpg, placeholder: es ? "ej. 8.0" : zh ? "例：8.0" : "e.g. 8.0" },
+                { key: "advMinRpg", label: es ? "RPG mínimo" : zh ? "最低篮板" : "Min. RPG", state: advMinRpg, set: setAdvMinRpg, placeholder: es ? "ej. 4.0" : zh ? "例：4.0" : "e.g. 4.0" },
+                { key: "advMinApg", label: es ? "APG mínimo" : zh ? "最低助攻" : "Min. APG", state: advMinApg, set: setAdvMinApg, placeholder: es ? "ej. 2.0" : zh ? "例：2.0" : "e.g. 2.0" },
+                {
+                  key: "advMinMpg",
+                  label: es ? "MPG mínimo" : zh ? "最少上场时间" : "Min. MPG",
+                  state: advMinMpg,
+                  set: setAdvMinMpg,
+                  placeholder: "ej. 15",
+                },
+              ] as {
+                key: string;
+                label: string;
+                state: string;
+                set: (v: string) => void;
+                placeholder: string;
+              }[]
+            ).map(({ key, label, state, set, placeholder }) => (
+              <div key={key} className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                  {label}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={state}
+                  onChange={(e) => set(e.target.value)}
+                  placeholder={placeholder}
+                  className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground/40"
+                />
+              </div>
+            ))}
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAdvMinGames("");
+                  setAdvMinPpg("");
+                  setAdvMinRpg("");
+                  setAdvMinApg("");
+                  setAdvMinMpg("");
+                }}
+                className="flex-1 h-10 rounded-xl border border-border bg-muted/20 text-sm font-black text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {es ? "Limpiar" : zh ? "清除" : "Clear"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdvFilterOpen(false)}
+                className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-black transition-colors hover:opacity-90"
+              >
+                {es ? "Aplicar" : zh ? "应用" : "Apply"}
+              </button>
+            </div>
+            </div>
+          </div>
+        </>
+      )}
       </>
     </ModulePageShell>
   );
@@ -1871,7 +2091,8 @@ function StatsPlayerSheet({
   const [deepTab, setDeepTab] = useState<DeepTab>("forma");
   const [showMoreStats, setShowMoreStats] = useState(false);
   const [showAllGames, setShowAllGames] = useState(false);
-  const [gameLogSort, setGameLogSort] = useState<"pts" | "reb" | "ast">("pts");
+  type GameLogSortKey = "date" | "pts" | "reb" | "ast";
+  const [gameLogSort, setGameLogSort] = useState<GameLogSortKey>("date");
   const [gameLogSortDir, setGameLogSortDir] = useState<"desc" | "asc">("desc");
 
   const isLandscape = useIsLandscape();
@@ -1920,6 +2141,11 @@ function StatsPlayerSheet({
   const sortedGameLog = useMemo(
     () =>
       [...gameLog].sort((a, b) => {
+        if (gameLogSort === "date") {
+          const at = new Date(a.gameDate ?? 0).getTime();
+          const bt = new Date(b.gameDate ?? 0).getTime();
+          return gameLogSortDir === "desc" ? bt - at : at - bt;
+        }
         const av =
           gameLogSort === "pts" ? (a.pts ?? 0) : gameLogSort === "reb" ? (a.reb ?? 0) : (a.ast ?? 0);
         const bv =
@@ -1929,7 +2155,7 @@ function StatsPlayerSheet({
     [gameLog, gameLogSort, gameLogSortDir],
   );
 
-  const handleGameLogSortClick = (col: "pts" | "reb" | "ast") => {
+  const handleGameLogSortClick = (col: GameLogSortKey) => {
     if (gameLogSort === col) setGameLogSortDir((d) => (d === "desc" ? "asc" : "desc"));
     else {
       setGameLogSort(col);
@@ -1959,8 +2185,8 @@ function StatsPlayerSheet({
     const zh = locale === "zh";
     // Cuánto tira de 3 — volumen de intentos vs la liga
     if (tpa === 0)         return { key: "zero",    adv: es ? "ninguno"        : zh ? "无"       : "none",          gradient: "from-slate-700 to-slate-600",  text: "text-slate-500"   };
-    if (tpa < pc.p25Tpa)  return { key: "veryLow", adv: es ? "muy pocos"      : zh ? "极少"     : "very few",      gradient: "from-slate-600 to-slate-500",  text: "text-slate-400"   };
-    if (tpa < pc.p50Tpa)  return { key: "low",      adv: es ? "pocos"          : zh ? "较少"     : "few",           gradient: "from-blue-600 to-blue-500",    text: "text-blue-400"    };
+    if (tpa < pc.p20Tpa)  return { key: "veryLow", adv: es ? "muy pocos"      : zh ? "极少"     : "very few",      gradient: "from-slate-600 to-slate-500",  text: "text-slate-400"   };
+    if (tpa < pc.p40Tpa)  return { key: "low",      adv: es ? "pocos"          : zh ? "较少"     : "few",           gradient: "from-blue-600 to-blue-500",    text: "text-blue-400"    };
     if (tpa < pc.p75Tpa)  return { key: "mid",      adv: es ? "normal"         : zh ? "中等"     : "average",       gradient: "from-emerald-600 to-teal-500", text: "text-emerald-400" };
     if (tpa < pc.p90Tpa)  return { key: "high",     adv: es ? "muchos"         : zh ? "较多"     : "many",          gradient: "from-amber-500 to-yellow-400", text: "text-amber-400"   };
     return                       { key: "veryHigh", adv: es ? "muchísimos"     : zh ? "极多"     : "loads",         gradient: "from-orange-500 to-red-400",   text: "text-orange-400"  };
@@ -2368,7 +2594,7 @@ function StatsPlayerSheet({
           )}
 
           {/* Tab bar */}
-          <div className="flex border-b border-border sticky top-0 bg-card z-10">
+          <div className="flex border-b border-border sticky top-0 bg-card z-10 shadow-sm">
             {(
               [
                 ["forma", L.tabForma],
@@ -2381,8 +2607,10 @@ function StatsPlayerSheet({
                 type="button"
                 onClick={() => setDeepTab(t)}
                 className={cn(
-                  "flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors border-b-2",
-                  deepTab === t ? "text-primary border-primary" : "text-muted-foreground border-transparent",
+                  "flex-1 py-3 text-[11px] font-black uppercase tracking-wider transition-all border-b-2",
+                  deepTab === t
+                    ? "text-primary border-primary bg-primary/5"
+                    : "text-muted-foreground/50 border-transparent hover:text-muted-foreground hover:bg-muted/20",
                 )}
               >
                 {label}
@@ -2633,8 +2861,20 @@ function StatsPlayerSheet({
               ) : (
                 <>
                   <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                    <div className="grid grid-cols-[0.35fr_1.2fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 border-b border-border bg-muted/30 pl-2.5 pr-3 py-2 text-[8px] font-black uppercase tracking-wider text-muted-foreground">
-                      <span />
+                    <div className="grid grid-cols-[0.5fr_1.15fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 border-b border-border bg-muted/30 pl-2.5 pr-3 py-2 text-[8px] font-black uppercase tracking-wider text-muted-foreground">
+                      <button
+                        type="button"
+                        onClick={() => handleGameLogSortClick("date")}
+                        className={cn(
+                          "text-left font-black uppercase tracking-wider text-xs touch-manipulation flex items-center gap-0.5",
+                          gameLogSort === "date" ? "text-primary" : "text-muted-foreground",
+                        )}
+                      >
+                        {es ? "Fecha" : zh ? "日期" : "Date"}
+                        {gameLogSort === "date" && (
+                          <span className="text-[8px]">{gameLogSortDir === "desc" ? "▼" : "▲"}</span>
+                        )}
+                      </button>
                       <span>{L.rivalCol}</span>
                       {(["pts", "reb", "ast"] as const).map((col) => (
                         <button
@@ -2665,7 +2905,7 @@ function StatsPlayerSheet({
                         <div
                           key={g.gameId}
                           className={cn(
-                            "grid grid-cols-[0.35fr_1.2fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 items-center pl-2 pr-3 py-2.5 border-b border-border last:border-b-0 text-xs border-l-[3px]",
+                            "grid grid-cols-[0.5fr_1.15fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 items-center pl-2 pr-3 py-2.5 border-b border-border last:border-b-0 text-xs border-l-[3px]",
                             g.plusMinus > 0
                               ? "border-l-emerald-500/50"
                               : g.plusMinus < 0
@@ -2692,18 +2932,12 @@ function StatsPlayerSheet({
                           {/* vs/en Rival */}
                           <div className="min-w-0">
                             <p className="font-bold text-foreground text-[11px] truncate">
-                              {(g as any).isHome === false
-                                ? es
-                                  ? "en "
-                                  : zh
-                                    ? "客 "
-                                    : "@ "
-                                : es
-                                  ? "vs "
-                                  : zh
-                                    ? "主 "
-                                    : "vs "}
-                              {pickName(g.rivalName, (g as any).rivalNameEn ?? null, locale) || "—"}
+                              {g.isHome !== undefined
+                                ? g.isHome
+                                  ? "vs"
+                                  : "@"
+                                : "vs"}{" "}
+                              {pickName(g.rivalName, g.rivalNameEn ?? null, locale) || "—"}
                             </p>
                             {g.isStart && (
                               <span className="inline-block rounded-full bg-primary/15 text-primary text-[7px] font-black uppercase tracking-wide px-1.5 py-0 leading-4">
@@ -2782,10 +3016,25 @@ function StatsTeamSheet({
 
   const [activeTab, setActiveTab] = useState<"ficha" | "avanzado" | "partidos">("ficha");
   const [rosterOpen, setRosterOpen] = useState(false);
-  const [rosterSort, setRosterSort] = useState<"ppg" | "rpg" | "apg">("ppg");
+  const [rosterSort, setRosterSort] = useState<"ppg" | "rpg" | "apg" | "pos" | "jersey">("ppg");
   const [rosterSortDir, setRosterSortDir] = useState<"asc" | "desc">("desc");
 
+  const POS_ORDER: Record<string, number> = {
+    "控球后卫": 1, "得分后卫": 2, "后卫": 3,
+    "小前锋": 4, "大前锋": 5, "前锋": 6,
+    "中锋": 7,
+  };
   const activePlayers = [...players.filter((p) => p.games > 0)].sort((a, b) => {
+    if (rosterSort === "pos") {
+      const pa = POS_ORDER[a.position ?? ""] ?? 99;
+      const pb2 = POS_ORDER[b.position ?? ""] ?? 99;
+      return rosterSortDir === "desc" ? pb2 - pa : pa - pb2;
+    }
+    if (rosterSort === "jersey") {
+      const an = parseInt(String(a.jerseyNumber ?? "999"), 10);
+      const bn = parseInt(String(b.jerseyNumber ?? "999"), 10);
+      return rosterSortDir === "desc" ? bn - an : an - bn;
+    }
     const diff = (b[rosterSort] ?? 0) - (a[rosterSort] ?? 0);
     return rosterSortDir === "desc" ? diff : -diff;
   });
@@ -3219,8 +3468,35 @@ function StatsTeamSheet({
                   </button>
                   {rosterOpen && activePlayers.length > 0 && (
                     <div className="border-t border-border">
-                      <div className="grid grid-cols-[1.6fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
-                        <span>{L.colPlayer}</span>
+                      <div className="grid grid-cols-[1.2fr_0.5fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (rosterSort === "jersey") setRosterSortDir((d) => d === "desc" ? "asc" : "desc");
+                            else { setRosterSort("jersey"); setRosterSortDir("asc"); }
+                          }}
+                          className={cn(
+                            "text-left font-black uppercase tracking-wider text-xs touch-manipulation flex items-center gap-0.5",
+                            rosterSort === "jersey" ? "text-primary" : "text-muted-foreground",
+                          )}
+                        >
+                          {L.colPlayer}
+                          {rosterSort === "jersey" && <span className="text-[7px]">{rosterSortDir === "asc" ? "▲" : "▼"}</span>}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (rosterSort === "pos") setRosterSortDir((d) => d === "desc" ? "asc" : "desc");
+                            else { setRosterSort("pos"); setRosterSortDir("asc"); }
+                          }}
+                          className={cn(
+                            "text-left font-black uppercase tracking-wider text-xs touch-manipulation flex items-center gap-0.5",
+                            rosterSort === "pos" ? "text-primary" : "text-muted-foreground",
+                          )}
+                        >
+                          {es ? "Pos" : zh ? "位置" : "Pos"}
+                          {rosterSort === "pos" && <span className="text-[7px]">{rosterSortDir === "desc" ? "▼" : "▲"}</span>}
+                        </button>
                         <span className="text-right">{L.colG}</span>
                         {(["ppg", "rpg", "apg"] as const).map((col) => (
                           <button
@@ -3259,7 +3535,7 @@ function StatsTeamSheet({
                             type="button"
                             data-player-id={p.externalId}
                             onClick={() => onPlayerTap(p.externalId)}
-                            className="w-full grid grid-cols-[1.6fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 items-center px-3 py-2.5 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 transition-colors"
+                            className="w-full grid grid-cols-[1.2fr_0.5fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 items-center px-3 py-2.5 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 transition-colors"
                           >
                             <div className="min-w-0">
                               <p className="text-sm font-extrabold text-foreground truncate">
@@ -3271,6 +3547,9 @@ function StatsTeamSheet({
                                 </p>
                               )}
                             </div>
+                            <p className="text-[9px] font-black uppercase tracking-wide text-muted-foreground/70 truncate">
+                              {p.position ? translatePosition(p.position, locale) : "—"}
+                            </p>
                             <p className="text-xs font-black text-foreground tabular-nums text-right">
                               {p.games}
                             </p>
