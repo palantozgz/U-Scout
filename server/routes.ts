@@ -2499,6 +2499,51 @@ export async function registerRoutes(
         LEFT JOIN orb_calc oc ON oc.team_external_id = pb.team_external_id
       `);
       const row = (rows as any).rows?.[0] ?? {};
+
+      // ── ORTG / DRTG / Pace / PPP — query separada para evitar inflar filas ──
+      let lgOrtg: number | null = null;
+      let lgDrtg: number | null = null;
+      let lgPace: number | null = null;
+      let lgPpp:  number | null = null;
+      try {
+        const rtgLgRows = await db.execute(sql`
+          WITH own AS (
+            SELECT
+              pb.game_id,
+              pb.team_external_id,
+              SUM(pb.fga + 0.44 * pb.fta + pb.tov - pb.off_reb) AS poss
+            FROM stats_player_boxscores pb
+            JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+            GROUP BY pb.game_id, pb.team_external_id
+          ),
+          paired AS (
+            SELECT
+              o.game_id,
+              CASE WHEN sg.home_team_id = st.id THEN sg.home_score ELSE sg.away_score END AS team_pts,
+              CASE WHEN sg.home_team_id = st.id THEN sg.away_score ELSE sg.home_score END AS opp_pts,
+              o.poss AS poss_own,
+              r.poss AS poss_opp
+            FROM own o
+            JOIN stats_games sg ON sg.id = o.game_id
+            JOIN stats_teams st ON st.external_id::text = o.team_external_id
+            JOIN own r ON r.game_id = o.game_id AND r.team_external_id != o.team_external_id
+          )
+          SELECT
+            ROUND(100.0 * SUM(team_pts) / NULLIF(SUM(poss_own), 0), 1) AS ortg,
+            ROUND(100.0 * SUM(opp_pts)  / NULLIF(SUM(poss_opp), 0), 1) AS drtg,
+            ROUND(((SUM(poss_own) + SUM(poss_opp)) / 2.0) / NULLIF(COUNT(DISTINCT game_id), 0), 1) AS pace,
+            ROUND(SUM(team_pts)::numeric / NULLIF(SUM(poss_own), 0), 3) AS ppp
+          FROM paired
+        `);
+        const r2 = (rtgLgRows as any).rows?.[0] ?? {};
+        lgOrtg = r2.ortg != null ? Number(r2.ortg) : null;
+        lgDrtg = r2.drtg != null ? Number(r2.drtg) : null;
+        lgPace = r2.pace != null ? Number(r2.pace) : null;
+        lgPpp  = r2.ppp  != null ? Number(r2.ppp)  : null;
+      } catch (rtgErr: any) {
+        console.error("[league-averages] ORTG/DRTG query failed:", rtgErr?.message ?? rtgErr);
+      }
+
       return res.json({
         ppg: Number(row.avgPpg ?? 0),
         rpg: Number(row.avgRpg ?? 0),
@@ -2514,6 +2559,10 @@ export async function registerRoutes(
         orbPct: row.avgOrbPct != null ? Number(row.avgOrbPct) : null,
         orbPerGame: row.avgOrbPerGame != null ? Number(row.avgOrbPerGame) : null,
         drbPerGame: row.avgDrbPerGame != null ? Number(row.avgDrbPerGame) : null,
+        ortg: lgOrtg,
+        drtg: lgDrtg,
+        pace: lgPace,
+        ppp:  lgPpp,
       });
     } catch (err: any) {
       console.error("[stats/league-averages] error:", err?.message ?? err);

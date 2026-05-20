@@ -293,28 +293,34 @@ export function usePlayerDetail(externalId: string | null | undefined) {
   });
 }
 
+export interface LeagueAverages {
+  ppg: number;
+  rpg: number;
+  apg: number;
+  spg: number;
+  bpg: number;
+  fgPct: number | null;
+  fg3Pct: number | null;
+  eFGPct: number | null;
+  tsPct: number | null;
+  tovPct: number | null;
+  ftRate: number | null;
+  orbPct: number | null;
+  orbPerGame: number | null;
+  drbPerGame: number | null;
+  ortg?: number | null;
+  drtg?: number | null;
+  pace?: number | null;
+  ppp?: number | null;
+}
+
 export function useLeagueAverages(seasonId?: number, position?: string | null) {
   return useQuery({
     queryKey: ["stats-league-averages", seasonId ?? 2092, position ?? "all"],
     queryFn: async () => {
       const pos = position ? `&position=${encodeURIComponent(position)}` : "";
       const r = await apiRequest("GET", `/api/stats/league-averages?seasonId=${seasonId ?? 2092}${pos}`);
-      return r.json() as Promise<{
-        ppg: number;
-        rpg: number;
-        apg: number;
-        spg: number;
-        bpg: number;
-        fgPct: number | null;
-        fg3Pct: number | null;
-        eFGPct: number | null;
-        tsPct: number | null;
-        tovPct: number | null;
-        ftRate: number | null;
-        orbPct: number | null;
-        orbPerGame: number | null;
-        drbPerGame: number | null;
-      }>;
+      return r.json() as Promise<LeagueAverages>;
     },
     staleTime: 1000 * 60 * 60,
     retry: 0,
