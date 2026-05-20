@@ -1940,9 +1940,15 @@ function StatsPlayerSheet({
   // 3PT volume per game for the insight label
   const tpaPerGame = useMemo(() => {
     if (!player || gameLog.length === 0) return null;
-    const total = gameLog.reduce((s, g) => s + (g.tpa ?? 0), 0);
-    // Use gameLog.length (actual games in log) not player.games (season total)
-    return total / gameLog.length;
+    // g.tpa is per-game attempts, not cumulative — use simple average
+    const perGameValues = gameLog.map((g) => g.tpa ?? 0);
+    const avg = perGameValues.reduce((s, v) => s + v, 0) / perGameValues.length;
+    // Sanity cap: if avg > 20 it's likely cumulative data, use player.games instead
+    if (avg > 20 && player.games > 0) {
+      const total = gameLog.reduce((s, g) => s + (g.tpa ?? 0), 0);
+      return total / player.games;
+    }
+    return avg;
   }, [player, gameLog]);
 
   const tpaVolumeLabel = useMemo(() => {
@@ -1969,7 +1975,7 @@ function StatsPlayerSheet({
     const pc = percentilesQ.data;
 
     function barColor(v: number, lgv: number | null | undefined, higherBetter = true): BarColor {
-      if (!lgv) return "amber";
+      if (lgv == null) return "muted";
       const diff = v - lgv;
       if (higherBetter) return diff > lgv * 0.05 ? "green" : diff < -lgv * 0.05 ? "red" : "amber";
       return diff < -lgv * 0.05 ? "green" : diff > lgv * 0.05 ? "red" : "amber";
