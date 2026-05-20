@@ -323,7 +323,7 @@ export function useLeagueAverages(seasonId?: number, position?: string | null) {
       const r = await apiRequest("GET", `/api/stats/league-averages?seasonId=${seasonId ?? 2092}${pos}`);
       return r.json() as Promise<LeagueAverages>;
     },
-    staleTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 5,
     retry: 0,
   });
 }

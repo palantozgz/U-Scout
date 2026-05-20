@@ -3091,6 +3091,7 @@ function StatsTeamSheet({
     better,
     fmt,
     center,
+    colorBySign,
   }: {
     label: string;
     val: number | null | undefined;
@@ -3098,8 +3099,11 @@ function StatsTeamSheet({
     better: boolean;
     fmt: (v: number) => string;
     center?: boolean;
+    colorBySign?: boolean;
   }) {
-    const isGood = val != null && lgVal != null ? (better ? val > lgVal : val < lgVal) : null;
+    const isGood = colorBySign
+      ? val != null ? (val > 0 ? true : val < 0 ? false : null) : null
+      : val != null && lgVal != null ? (better ? val > lgVal : val < lgVal) : null;
     const valColor =
       isGood === true
         ? "text-green-600 dark:text-green-400"
@@ -3598,9 +3602,10 @@ function StatsTeamSheet({
                   <FactorChip
                     label="NET RTG"
                     val={team.netRtg}
-                    lgVal={0}
+                    lgVal={null}
                     better
                     center
+                    colorBySign
                     fmt={(v) => (v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1))}
                   />
                   <FactorChip
