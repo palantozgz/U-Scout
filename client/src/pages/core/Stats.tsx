@@ -3579,51 +3579,54 @@ function StatsTeamSheet({
                   {L.perPossession}
                 </p>
                 <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { lbl: "ORTG", val: team.ortg, lgVal: leagueAvg?.ortg ?? null, better: true, fmt: (v: number) => v.toFixed(1) },
-                    { lbl: "DRTG", val: team.drtg, lgVal: leagueAvg?.drtg ?? null, better: false, fmt: (v: number) => v.toFixed(1) },
-                    { lbl: "NET RTG", val: team.netRtg, lgVal: 0, better: true, fmt: (v: number) => (v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1)) },
-                    { lbl: "PACE", val: team.paceEst, lgVal: leagueAvg?.pace ?? null, better: true, fmt: (v: number) => v.toFixed(1) },
-                    { lbl: "PPP Of.", val: team.pppOf, lgVal: leagueAvg?.ppp ?? null, better: true, fmt: (v: number) => v.toFixed(2) },
-                    { lbl: "PPP Def.", val: team.pppDef, lgVal: leagueAvg?.ppp ?? null, better: false, fmt: (v: number) => v.toFixed(2) },
-                  ].map(({ lbl, val, lgVal, better, fmt }) => {
-                    const isGood =
-                      val != null && lgVal != null ? (better ? val > lgVal : val < lgVal) : null;
-                    const col =
-                      isGood === true
-                        ? "text-green-600 dark:text-green-400"
-                        : isGood === false
-                          ? "text-destructive"
-                          : "text-foreground";
-                    return (
-                      <div
-                        key={lbl}
-                        className="rounded-xl border border-border bg-muted/20 p-2.5 text-center"
-                      >
-                        <p className={cn("text-xl font-black tabular-nums leading-none", col)}>
-                          {val != null ? fmt(val as number) : "—"}
-                        </p>
-                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/80 mt-1">
-                          {lbl}
-                        </p>
-                        {lgVal != null && val != null && (
-                          <p
-                            className={cn(
-                              "text-[8px] font-black tabular-nums mt-0.5",
-                              (better ? val > lgVal : val < lgVal)
-                                ? "text-green-500 dark:text-green-400"
-                                : "text-destructive/80",
-                            )}
-                          >
-                            {(() => {
-                              const d = (val as number) - lgVal;
-                              return `${d > 0 ? "+" : ""}${d.toFixed(lbl === "PPP Of." || lbl === "PPP Def." ? 2 : 1)} vs Lg`;
-                            })()}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
+                  <FactorChip
+                    label="ORTG"
+                    val={team.ortg}
+                    lgVal={leagueAvg?.ortg ?? null}
+                    better
+                    center
+                    fmt={(v) => v.toFixed(1)}
+                  />
+                  <FactorChip
+                    label="DRTG"
+                    val={team.drtg}
+                    lgVal={leagueAvg?.drtg ?? null}
+                    better={false}
+                    center
+                    fmt={(v) => v.toFixed(1)}
+                  />
+                  <FactorChip
+                    label="NET RTG"
+                    val={team.netRtg}
+                    lgVal={0}
+                    better
+                    center
+                    fmt={(v) => (v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1))}
+                  />
+                  <FactorChip
+                    label="PACE"
+                    val={team.paceEst}
+                    lgVal={leagueAvg?.pace ?? null}
+                    better
+                    center
+                    fmt={(v) => v.toFixed(1)}
+                  />
+                  <FactorChip
+                    label="PPP Of."
+                    val={team.pppOf}
+                    lgVal={leagueAvg?.ppp ?? null}
+                    better
+                    center
+                    fmt={(v) => v.toFixed(2)}
+                  />
+                  <FactorChip
+                    label="PPP Def."
+                    val={team.pppDef}
+                    lgVal={leagueAvg?.ppp ?? null}
+                    better={false}
+                    center
+                    fmt={(v) => v.toFixed(2)}
+                  />
                 </div>
               </div>
 
@@ -3642,7 +3645,7 @@ function StatsTeamSheet({
                   <FactorChip
                     label="DReb%"
                     val={team.drbPct}
-                    lgVal={null}
+                    lgVal={leagueAvg?.drbPct ?? null}
                     better
                     fmt={(v) => `${v.toFixed(1)}%`}
                   />

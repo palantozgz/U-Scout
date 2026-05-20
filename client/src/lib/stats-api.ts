@@ -312,6 +312,7 @@ export interface LeagueAverages {
   drtg?: number | null;
   pace?: number | null;
   ppp?: number | null;
+  drbPct?: number | null;
 }
 
 export function useLeagueAverages(seasonId?: number, position?: string | null) {

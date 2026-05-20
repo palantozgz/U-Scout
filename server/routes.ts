@@ -2544,6 +2544,33 @@ export async function registerRoutes(
         console.error("[league-averages] ORTG/DRTG query failed:", rtgErr?.message ?? rtgErr);
       }
 
+      // ── DRB% de liga — query separada ──
+      let lgDrbPct: number | null = null;
+      try {
+        const drbRows = await db.execute(sql`
+          WITH per_game AS (
+            SELECT
+              pb.game_id,
+              pb.team_external_id,
+              SUM(pb.def_reb) AS drb,
+              SUM(pb.off_reb) AS orb
+            FROM stats_player_boxscores pb
+            JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+            GROUP BY pb.game_id, pb.team_external_id
+          )
+          SELECT
+            ROUND(
+              100.0 * SUM(a.drb) / NULLIF(SUM(a.drb) + SUM(b.orb), 0), 1
+            ) AS drb_pct
+          FROM per_game a
+          JOIN per_game b ON b.game_id = a.game_id AND b.team_external_id != a.team_external_id
+        `);
+        const dr = (drbRows as any).rows?.[0] ?? {};
+        lgDrbPct = dr.drb_pct != null ? Number(dr.drb_pct) : null;
+      } catch (rtgErr: any) {
+        console.error("[league-averages] ORTG/DRTG query failed:", rtgErr?.message ?? rtgErr);
+      }
+
       return res.json({
         ppg: Number(row.avgPpg ?? 0),
         rpg: Number(row.avgRpg ?? 0),
@@ -2563,6 +2590,7 @@ export async function registerRoutes(
         drtg: lgDrtg,
         pace: lgPace,
         ppp:  lgPpp,
+        drbPct: lgDrbPct,
       });
     } catch (err: any) {
       console.error("[stats/league-averages] error:", err?.message ?? err);
