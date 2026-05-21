@@ -48,7 +48,7 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## Estado actual — sesión 2026-05-21c (cierre)
+## Estado actual — sesión 2026-05-21d (cierre)
 
 ### ✅ U Stats — Sprint completo esta sesión
 
@@ -355,3 +355,55 @@ shot_x/shot_y:          0 filas (hotspotdata no sincronizado)
 - bash_tool corre en Linux — NO accede al Mac directamente
 - Path con espacio `/U scout/` — siempre comillas en bash
 - `motor-v4.ts`: `threat` NO existe en MotorV4Output — se genera en reportTextRenderer.ts
+
+### ✅ Sesión 2026-05-21d — UX, permisos, Home, Stats panel, iOS, Pi
+
+**Capabilities — nuevas propiedades:**
+- `canViewStats`: todos los staff (coaches incluidos ven Stats de liga)
+- `canViewClubManagement`: solo head_coach + master (Mi Club en Home)
+- `canCreateEvent`: head_coach + master + coach con operationsAccess (editar schedule)
+- Coach normal: ve todo excepto Mi Club y no puede crear sesiones en Schedule
+
+**HomeDesktop — layout final:**
+- Grid 2x2: Horario / Scout / Stats / Playbook (staff) o 3+2 con Bienestar (player)
+- Fila inferior: Mi Club (calc(50%-4px), solo head_coach) + identity card (flex-1)
+- Mi Club no aparece para coaches normales
+
+**Stats panel lateral vacío — 4 Factores de Dean Oliver:**
+- eFG% (40%), TOV% (25%), ORB% (20%), FTR (15%) con barras de peso
+- ORTG + PPG como contexto de liga
+- PPG corregido: promedio por equipo/partido (no por jugadora)
+
+**Pace segments:**
+- Umbral mínimo subido a 200 posesiones (datos insuficientes con <200)
+- Bug corregido: prev_team_id en LAG para distinguir canasta propia vs rival
+- Eliminado 'Pace estimado' duplicado de ficha de equipo
+
+**iOS fixes:**
+- Circular chunk vendor-charts→vendor-react resuelto
+- Dynamic imports eliminados del BackgroundPrefetcher
+- Portrait planner: scroll interno eliminado (single scroll con main)
+- Landscape planner: autoscroll restaurado con scrollTop (no scrollIntoView)
+- SheetContent: prop hideClose, h-[92svh], pb-[env(safe-area-inset-bottom)]
+- ModuleHeader: settings icon top-3 right-0 armonizado en todos los módulos
+- Playbook/CoachHome: h-screen, className md:py-3 eliminado
+
+**Pace por tramo — metodología documentada:**
+- FIBA 10min quarters, clock descuenta
+- Inicio posesión: rebote def, robo, falta, FT último, inicio cuarto
+- Canasta rival: -3s estimados (reloj no para Q1-Q3)
+- Excluye putbacks (REBOFN ≤3s)
+- Datos en Pi: 116.700 eventos PBP ✅
+
+**Pi — estado:**
+- IP: 192.168.1.59 — NO responde (posible IP cambiada tras corte de luz)
+- Conectar: ssh pablo@192.168.1.59 o ssh pablo@raspberrypi.local
+- Si IP cambió: escanear red o buscar en router
+
+**Último commit:** 3935354
+
+**Pendientes próxima sesión:**
+1. Verificar Pi y lanzar sync PBP completo (/sync por Telegram)
+2. Probar permisos con usuario coach real (mario, diego, etc.)
+3. Game boxscore sheet — clic en partido del game log de equipo (solo jugadora implementado)
+4. iOS build + test en Xcode con todos los fixes de hoy
