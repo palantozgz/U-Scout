@@ -23,6 +23,8 @@ import {
   useTeamDetail,
   useLeagueAverages,
   usePlayerPercentiles,
+  useGameBoxscore,
+  usePaceSegments,
   toTitleCase,
   type PlayerSeasonStats,
   type LeaderRow,
@@ -1184,7 +1186,7 @@ export default function Stats() {
           if (!open) closePlayerSheet();
         }}
       >
-        <SheetContent side="bottom" className="h-[92dvh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full">
+        <SheetContent hideClose side="bottom" className="h-[92svh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full pb-[env(safe-area-inset-bottom)]">
           <StatsPlayerSheet
             externalId={playerSheetId}
             onClose={closePlayerSheet}
@@ -1205,7 +1207,7 @@ export default function Stats() {
           if (!open) setTeamSheetId(null);
         }}
       >
-        <SheetContent side="bottom" className="h-[92dvh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full">
+        <SheetContent hideClose side="bottom" className="h-[92svh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full pb-[env(safe-area-inset-bottom)]">
           <StatsTeamSheet
             externalId={teamSheetId}
             seasonId={effectiveSeasonId}
@@ -2126,18 +2128,18 @@ function StatsPlayerSheet({
   const lastTapRef = useRef<number>(0);
 
   const handlePhotoTap = () => {
-    const now = Date.now();
-    const isDesktopClick = window.matchMedia("(pointer: fine)").matches;
-    if (isDesktopClick) {
-      setPhotoZoomed(z => !z);
+    const isPointerFine = window.matchMedia("(pointer: fine)").matches;
+    if (isPointerFine) {
+      setPhotoZoomed((z) => !z);
       return;
     }
-    // Mobile/iOS: doble tap en < 350ms
-    if (now - lastTapRef.current < 350) {
-      setPhotoZoomed(z => !z);
-    }
+    const now = Date.now();
+    if (now - lastTapRef.current < 350) setPhotoZoomed((z) => !z);
     lastTapRef.current = now;
   };
+
+  const [boxscoreGameId, setBoxscoreGameId] = useState<string | null>(null);
+  const boxscoreQ = useGameBoxscore(boxscoreGameId);
 
   const isLandscape = useIsLandscape();
 
@@ -2373,20 +2375,16 @@ function StatsPlayerSheet({
           <button
             type="button"
             onClick={handlePhotoTap}
-            className="shrink-0 rounded-full focus:outline-none"
-            aria-label="Ampliar foto"
             style={{ background: "none", border: "none", padding: 0 }}
+            className="shrink-0 rounded-full focus:outline-none"
           >
             <img
               src={player.photoUrl}
-              className="rounded-full object-cover object-top border-2 border-primary/25 transition-all duration-300 ease-in-out cursor-zoom-in"
+              className="rounded-full object-cover object-top border-2 border-primary/25 transition-all duration-300 ease-in-out"
               style={{
-                width: photoZoomed ? 88 : 44,
-                height: photoZoomed ? 88 : 44,
-                transform: photoZoomed ? "scale(1)" : "scale(1)",
+                width: photoZoomed ? 140 : 44,
+                height: photoZoomed ? 140 : 44,
                 cursor: photoZoomed ? "zoom-out" : "zoom-in",
-                zIndex: photoZoomed ? 50 : "auto",
-                position: photoZoomed ? "relative" : "static",
               }}
               alt=""
             />
@@ -2962,10 +2960,12 @@ function StatsPlayerSheet({
                           )
                         : "—";
                       return (
-                        <div
+                        <button
                           key={g.gameId}
+                          type="button"
+                          onClick={() => setBoxscoreGameId(String(g.gameId))}
                           className={cn(
-                            "grid grid-cols-[0.5fr_1.15fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 items-center pl-2 pr-3 py-2.5 border-b border-border last:border-b-0 text-xs border-l-[3px]",
+                            "w-full grid grid-cols-[0.5fr_1.15fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 items-center pl-2 pr-3 py-2.5 border-b border-border last:border-b-0 text-xs border-l-[3px] text-left cursor-pointer hover:bg-muted/30 transition-colors",
                             g.plusMinus > 0
                               ? "border-l-emerald-500/50"
                               : g.plusMinus < 0
@@ -3011,7 +3011,7 @@ function StatsPlayerSheet({
                           <p className="text-right font-semibold tabular-nums text-muted-foreground">
                             {minutesToDisplay(g.minutes != null ? String(g.minutes) : null)}
                           </p>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -3042,6 +3042,87 @@ function StatsPlayerSheet({
           <p className="text-sm font-bold text-muted-foreground text-center">{L.noData}</p>
         </div>
       )}
+
+      <Sheet
+        open={Boolean(boxscoreGameId)}
+        onOpenChange={(o) => {
+          if (!o) setBoxscoreGameId(null);
+        }}
+      >
+        <SheetContent hideClose side="bottom" className="h-[80svh] overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+          <SheetHeader>
+            <SheetTitle>
+              {boxscoreQ.data ? (
+                <span>
+                  {pickName(boxscoreQ.data.game.home.nameZh, boxscoreQ.data.game.home.nameEn, locale)}{" "}
+                  {boxscoreQ.data.game.homeScore}–{boxscoreQ.data.game.awayScore}{" "}
+                  {pickName(boxscoreQ.data.game.away.nameZh, boxscoreQ.data.game.away.nameEn, locale)}
+                </span>
+              ) : (
+                "..."
+              )}
+            </SheetTitle>
+          </SheetHeader>
+          {boxscoreQ.isLoading && (
+            <div className="flex justify-center py-8">
+              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+          {boxscoreQ.data &&
+            (() => {
+              const { game, players } = boxscoreQ.data;
+              const homeExtId = game.home.extId;
+              const homePlayers = players.filter((p) => p.teamExtId === homeExtId);
+              const awayPlayers = players.filter((p) => p.teamExtId !== homeExtId);
+              const renderTeam = (ps: typeof players) => (
+                <div className="mb-4">
+                  <div className="grid grid-cols-[2fr_0.5fr_0.5fr_0.5fr_0.5fr_0.5fr_0.7fr] text-[9px] font-black uppercase tracking-wide text-muted-foreground px-2 py-1 border-b border-border">
+                    <span>Jugadora</span>
+                    <span className="text-right">PTS</span>
+                    <span className="text-right">REB</span>
+                    <span className="text-right">AST</span>
+                    <span className="text-right">STL</span>
+                    <span className="text-right">BLK</span>
+                    <span className="text-right">FG</span>
+                  </div>
+                  {ps.map((p) => (
+                    <div
+                      key={p.externalId}
+                      className="grid grid-cols-[2fr_0.5fr_0.5fr_0.5fr_0.5fr_0.5fr_0.7fr] items-center px-2 py-2 border-b border-border/40 last:border-0 text-xs"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {p.isStart && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+                        <span className="truncate font-bold">
+                          {locale === "zh" ? p.nameZh : (p.nameEn ?? p.nameZh)}
+                        </span>
+                      </div>
+                      <span className="text-right font-black">{p.pts}</span>
+                      <span className="text-right">{p.reb}</span>
+                      <span className="text-right">{p.ast}</span>
+                      <span className="text-right">{p.stl}</span>
+                      <span className="text-right">{p.blk}</span>
+                      <span className="text-right text-muted-foreground">
+                        {p.fgm}/{p.fga}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+              return (
+                <div>
+                  <p className="text-xs font-black text-primary mb-1 px-2">
+                    {pickName(game.home.nameZh, game.home.nameEn, locale)} — {game.homeScore}
+                  </p>
+                  {renderTeam(homePlayers)}
+                  <p className="text-xs font-black text-primary mb-1 px-2 mt-2">
+                    {pickName(game.away.nameZh, game.away.nameEn, locale)} — {game.awayScore}
+                  </p>
+                  {renderTeam(awayPlayers)}
+                </div>
+              );
+            })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -3070,6 +3151,7 @@ function StatsTeamSheet({
   const leagueAvg = leagueAvgQ.data;
 
   const team = data?.team;
+  const paceQ = usePaceSegments(team?.externalId, seasonId);
   const players = data?.players ?? [];
   const teamGameLog: TeamGameLogEntry[] = team?.gameLog ?? [];
   const pointsByZone = team?.pointsByZone ?? null;
@@ -3583,6 +3665,72 @@ function StatsTeamSheet({
                   />
                 </div>
               </div>
+
+              {paceQ.data && !paceQ.data.insufficient_data && (
+                <div className="px-4 py-3 border-t border-border/50">
+                  <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground mb-2">
+                    {locale === "zh" ? "进攻节奏" : locale === "es" ? "Ritmo ofensivo" : "Offensive Pace"}
+                  </p>
+                  {[
+                    {
+                      label: locale === "zh" ? "快攻" : locale === "es" ? "Transición" : "Transition",
+                      pct: paceQ.data.transition_pct,
+                      league: paceQ.data.league?.transition_pct,
+                      color: "bg-emerald-500",
+                    },
+                    {
+                      label: locale === "zh" ? "半快攻" : locale === "es" ? "Demi-trans." : "Demi-trans.",
+                      pct: paceQ.data.demi_pct,
+                      league: paceQ.data.league?.demi_pct,
+                      color: "bg-amber-500",
+                    },
+                    {
+                      label: locale === "zh" ? "阵地战" : locale === "es" ? "Organizado" : "Set play",
+                      pct: paceQ.data.halfcourt_pct,
+                      league: paceQ.data.league?.halfcourt_pct,
+                      color: "bg-blue-500",
+                    },
+                  ].map((row) => (
+                    <div key={row.label} className="mb-2">
+                      <div className="flex justify-between text-[11px] mb-0.5">
+                        <span className="font-bold text-foreground">{row.label}</span>
+                        <span className="font-black tabular-nums">
+                          {row.pct?.toFixed(1)}%
+                          {row.league != null && (
+                            <span className="text-muted-foreground font-normal ml-1">
+                              (liga {row.league.toFixed(1)}%)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${row.color} rounded-full`}
+                          style={{ width: `${row.pct ?? 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {locale === "zh"
+                      ? `均 ${paceQ.data.avg_possession_time}s/攻`
+                      : locale === "es"
+                        ? `Media ${paceQ.data.avg_possession_time}s/pos.`
+                        : `Avg ${paceQ.data.avg_possession_time}s/poss.`}
+                    {paceQ.data.league && (
+                      <span> · liga {paceQ.data.league.avg_possession_time}s</span>
+                    )}
+                  </p>
+                </div>
+              )}
+              {paceQ.data?.insufficient_data && (
+                <div className="px-4 py-2 border-t border-border/50">
+                  <p className="text-[10px] text-muted-foreground">
+                    {locale === "zh" ? "PBP数据不足" : "Datos PBP insuficientes para ritmo"} (
+                    {paceQ.data.possessions} pos.)
+                  </p>
+                </div>
+              )}
 
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">

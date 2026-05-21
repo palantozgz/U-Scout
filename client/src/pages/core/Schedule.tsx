@@ -1084,14 +1084,9 @@ export default function Schedule() {
     window.setTimeout(tryScroll, 500);
   }, [staffView]);
 
-  // Auto-scroll grid into view when planner is activated on desktop (landscape)
-  useEffect(() => {
-    if (staffView !== "planner" || !isLandscape) return;
-    const timer = window.setTimeout(() => {
-      plannerGridRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 150);
-    return () => window.clearTimeout(timer);
-  }, [staffView, isLandscape, plannerScrollTick]);
+  // Note: landscape planner autoscroll removed — scrollIntoView on iOS Capacitor
+  // scrolls the body/main instead of the internal container, breaking the layout.
+  // The grid is always visible in landscape; no autoscroll needed.
 
   // Auto-scroll to today when portrait planner is shown (or re-clicked)
   useEffect(() => {
@@ -2266,7 +2261,7 @@ export default function Schedule() {
                         })}
                       </div>
                     ) : (
-                      <div ref={plannerGridRef} className="mt-3 max-h-[calc(100dvh-8rem)] min-h-0 overflow-x-auto overflow-y-auto">
+                      <div ref={plannerGridRef} className="mt-3 min-h-0 overflow-x-auto overflow-y-auto">
                         <div className="min-w-[560px]">
                           <div className="grid grid-cols-8 gap-2">
                           <div />
@@ -2385,7 +2380,7 @@ export default function Schedule() {
                           {/* Left — Week templates */}
                           <Button
                             size="sm"
-                            variant="secondary"
+                            variant="outline"
                             className="h-11 px-4 justify-self-start"
                             onClick={() => setWeekTemplatesOpen(true)}
                             data-testid="schedule-week-templates"
@@ -2420,7 +2415,7 @@ export default function Schedule() {
                           {canExportWeekImage ? (
                             <Button
                               size="sm"
-                              variant="secondary"
+                              variant="outline"
                               className="h-11 px-4 justify-self-end"
                               disabled={!clubId || exportBusy}
                               onClick={() => void exportVisibleWeekImage()}

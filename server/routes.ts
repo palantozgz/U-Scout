@@ -2699,6 +2699,216 @@ export async function registerRoutes(
     });
   });
 
+
+  // ─── GET /api/stats/game/:gameId/boxscore ───────────────────────────────────
+  app.get("/api/stats/game/:gameId/boxscore", requireAuth, async (req, res) => {
+    const { gameId } = req.params;
+    try {
+      const gameRow = await db.execute(sql`
+        SELECT
+          sg.id, sg.external_game_id, sg.scheduled_at,
+          sg.home_score, sg.away_score,
+          ht.name_zh AS "homeNameZh", ht.name_en AS "homeNameEn",
+          ht.logo_url AS "homeLogo", ht.external_id::text AS "homeExtId",
+          at.name_zh AS "awayNameZh", at.name_en AS "awayNameEn",
+          at.logo_url AS "awayLogo", at.external_id::text AS "awayExtId"
+        FROM stats_games sg
+        LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
+        LEFT JOIN stats_teams at ON at.id = sg.away_team_id
+        WHERE sg.external_game_id = ${Number(gameId)}
+        LIMIT 1
+      `);
+      const game = (gameRow as any).rows?.[0];
+      if (!game) return res.status(404).json({ error: "Game not found" });
+      const boxRow = await db.execute(sql`
+        SELECT
+          pb.player_external_id AS "externalId",
+          sp.name_zh AS "nameZh", sp.name_en AS "nameEn",
+          sp.jersey_number AS "jerseyNumber", sp.position,
+          sp.photo_url AS "photoUrl",
+          pb.team_external_id AS "teamExtId",
+          pb.is_start_lineup AS "isStart",
+          pb.minutes,
+          pb.pts, pb.reb, pb.ast, pb.stl, pb.blk, pb.tov,
+          pb.fgm, pb.fga, pb.tpm, pb.tpa, pb.ftm, pb.fta,
+          pb.off_reb AS "offReb", pb.def_reb AS "defReb",
+          pb.plus_minus AS "plusMinus", pb.fouls
+        FROM stats_player_boxscores pb
+        LEFT JOIN stats_players sp ON sp.external_id = pb.player_external_id
+        WHERE pb.game_id = ${Number(game.id)}
+        ORDER BY pb.team_external_id, pb.pts DESC NULLS LAST
+      `);
+      const players = ((boxRow as any).rows ?? []).map((p: any) => ({
+        externalId: String(p.externalId ?? ""),
+        nameZh: p.nameZh ?? "", nameEn: p.nameEn ?? null,
+        jerseyNumber: p.jerseyNumber ?? null, position: p.position ?? null,
+        photoUrl: p.photoUrl ?? null, teamExtId: String(p.teamExtId ?? ""),
+        isStart: Boolean(p.isStart), minutes: p.minutes ?? "0:00",
+        pts: Number(p.pts ?? 0), reb: Number(p.reb ?? 0),
+        ast: Number(p.ast ?? 0), stl: Number(p.stl ?? 0),
+        blk: Number(p.blk ?? 0), tov: Number(p.tov ?? 0),
+        fgm: Number(p.fgm ?? 0), fga: Number(p.fga ?? 0),
+        tpm: Number(p.tpm ?? 0), tpa: Number(p.tpa ?? 0),
+        ftm: Number(p.ftm ?? 0), fta: Number(p.fta ?? 0),
+        offReb: Number(p.offReb ?? 0), defReb: Number(p.defReb ?? 0),
+        plusMinus: Number(p.plusMinus ?? 0), fouls: Number(p.fouls ?? 0),
+      }));
+      res.set("Cache-Control", "private, max-age=3600, stale-while-revalidate=300");
+      return res.json({
+        game: {
+          gameId: String(game.external_game_id),
+          date: game.scheduled_at ?? null,
+          homeScore: Number(game.home_score ?? 0),
+          awayScore: Number(game.away_score ?? 0),
+          home: { nameZh: game.homeNameZh, nameEn: game.homeNameEn ?? null, logo: game.homeLogo ?? null, extId: game.homeExtId },
+          away: { nameZh: game.awayNameZh, nameEn: game.awayNameEn ?? null, logo: game.awayLogo ?? null, extId: game.awayExtId },
+        },
+        players,
+      });
+    } catch (err: any) {
+      console.error("[stats/game/boxscore] Error:", err?.message ?? err);
+      return res.status(500).json({ error: "Failed to load game boxscore", detail: err?.message });
+    }
+  });
+
+  // ─── GET /api/stats/team/:externalId/pace-segments ──────────────────────────
+  // % tiros por tramo de posesión usando stats_pbp.
+  // FIBA: clock descuenta, cuartos 10min. Excluye putbacks. Ajusta -3s tras canasta.
+  app.get("/api/stats/team/:externalId/pace-segments", requireAuth, async (req, res) => {
+    const { externalId } = req.params;
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    try {
+      const teamRow = await db.execute(sql`
+        SELECT id, external_id::text AS ext_id FROM stats_teams
+        WHERE external_id = ${Number(externalId)} LIMIT 1
+      `);
+      const team = (teamRow as any).rows?.[0];
+      if (!team) return res.status(404).json({ error: "Team not found" });
+
+      const pbpRows = await db.execute(sql`
+        WITH team_games AS (
+          SELECT sg.id AS game_id FROM stats_games sg
+          WHERE (sg.home_team_id = ${Number(team.id)} OR sg.away_team_id = ${Number(team.id)})
+            AND sg.status = 4 AND sg.season_id = ${seasonId}
+        ),
+        team_shots AS (
+          SELECT
+            p.game_id, p.quarter, p.sequence, p.clock,
+            (SPLIT_PART(p.clock,':',1)::int*60+SPLIT_PART(p.clock,':',2)::int) AS clock_sec,
+            LAG(p.event_type,1) OVER (PARTITION BY p.game_id,p.quarter ORDER BY p.sequence) AS prev_event,
+            LAG(p.action_code,1) OVER (PARTITION BY p.game_id,p.quarter ORDER BY p.sequence) AS prev_code,
+            LAG(p.clock,1) OVER (PARTITION BY p.game_id,p.quarter ORDER BY p.sequence) AS prev_clock
+          FROM stats_pbp p
+          JOIN team_games tg ON tg.game_id = p.game_id
+          WHERE p.team_id::text = ${team.ext_id}
+            AND p.event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3')
+            AND p.clock ~ '^[0-9]+:[0-9]{2}$'
+        ),
+        possession_times AS (
+          SELECT
+            CASE
+              WHEN prev_event='rebound' AND prev_code='REBOFN'
+                   AND prev_clock ~ '^[0-9]+:[0-9]{2}$'
+                   AND ((SPLIT_PART(prev_clock,':',1)::int*60+SPLIT_PART(prev_clock,':',2)::int)-clock_sec) <= 3
+                THEN 'putback'
+              WHEN prev_event IN ('rebound','steal','period_start','ft_made','ft_missed','foul','turnover','jumpball')
+                   AND prev_clock ~ '^[0-9]+:[0-9]{2}$'
+                THEN 'exact'
+              WHEN prev_event IN ('shot_made','shot_made_3')
+                   AND prev_clock ~ '^[0-9]+:[0-9]{2}$'
+                THEN 'after_basket'
+              ELSE 'unknown'
+            END AS poss_type,
+            CASE
+              WHEN prev_event IN ('rebound','steal','period_start','ft_made','ft_missed','foul','turnover','jumpball')
+                   AND prev_clock ~ '^[0-9]+:[0-9]{2}$'
+                THEN (SPLIT_PART(prev_clock,':',1)::int*60+SPLIT_PART(prev_clock,':',2)::int) - clock_sec
+              WHEN prev_event IN ('shot_made','shot_made_3')
+                   AND prev_clock ~ '^[0-9]+:[0-9]{2}$'
+                THEN ((SPLIT_PART(prev_clock,':',1)::int*60+SPLIT_PART(prev_clock,':',2)::int)-3) - clock_sec
+              ELSE NULL
+            END AS pos_time
+          FROM team_shots
+        )
+        SELECT pos_time FROM possession_times
+        WHERE poss_type NOT IN ('putback','unknown')
+          AND pos_time IS NOT NULL AND pos_time > 0 AND pos_time <= 27
+      `);
+
+      const rows = (pbpRows as any).rows ?? [];
+      const total = rows.length;
+      if (total < 30) {
+        res.set("Cache-Control", "private, max-age=300");
+        return res.json({ insufficient_data: true, possessions: total, min_required: 30 });
+      }
+
+      let transition = 0, demi = 0, halfcourt = 0, sum = 0;
+      for (const r of rows) {
+        const t = Number(r.pos_time);
+        sum += t;
+        if (t <= 7) transition++;
+        else if (t <= 14) demi++;
+        else halfcourt++;
+      }
+
+      const lgRows = await db.execute(sql`
+        WITH sg AS (SELECT id AS gid FROM stats_games WHERE status=4 AND season_id=${seasonId}),
+        ls AS (
+          SELECT p.game_id, p.quarter, p.sequence, p.clock,
+            (SPLIT_PART(p.clock,':',1)::int*60+SPLIT_PART(p.clock,':',2)::int) AS cs,
+            LAG(p.event_type,1) OVER (PARTITION BY p.game_id,p.quarter ORDER BY p.sequence) AS pe,
+            LAG(p.action_code,1) OVER (PARTITION BY p.game_id,p.quarter ORDER BY p.sequence) AS pc,
+            LAG(p.clock,1) OVER (PARTITION BY p.game_id,p.quarter ORDER BY p.sequence) AS pclk
+          FROM stats_pbp p JOIN sg ON sg.gid=p.game_id
+          WHERE p.event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3')
+            AND p.clock ~ '^[0-9]+:[0-9]{2}$'
+        ),
+        lt AS (
+          SELECT
+            (pe='rebound' AND pc='REBOFN' AND pclk ~ '^[0-9]+:[0-9]{2}$'
+             AND ((SPLIT_PART(pclk,':',1)::int*60+SPLIT_PART(pclk,':',2)::int)-cs)<=3) AS pb,
+            CASE
+              WHEN pe IN ('rebound','steal','period_start','ft_made','ft_missed','foul','turnover','jumpball')
+                   AND pclk ~ '^[0-9]+:[0-9]{2}$'
+                THEN (SPLIT_PART(pclk,':',1)::int*60+SPLIT_PART(pclk,':',2)::int)-cs
+              WHEN pe IN ('shot_made','shot_made_3') AND pclk ~ '^[0-9]+:[0-9]{2}$'
+                THEN ((SPLIT_PART(pclk,':',1)::int*60+SPLIT_PART(pclk,':',2)::int)-3)-cs
+              ELSE NULL END AS pt
+          FROM ls
+        )
+        SELECT
+          COUNT(*) FILTER (WHERE NOT pb AND pt>0 AND pt<=27) AS total,
+          COUNT(*) FILTER (WHERE NOT pb AND pt>0 AND pt<=7)  AS tr,
+          COUNT(*) FILTER (WHERE NOT pb AND pt>7 AND pt<=14) AS dm,
+          COUNT(*) FILTER (WHERE NOT pb AND pt>14 AND pt<=27) AS hc,
+          ROUND(AVG(pt) FILTER (WHERE NOT pb AND pt>0 AND pt<=27)::numeric,1) AS avg_pt
+        FROM lt
+      `);
+      const lg = (lgRows as any).rows?.[0] ?? {};
+      const lgTotal = Number(lg.total ?? 0);
+      const league = lgTotal > 0 ? {
+        transition_pct: Math.round(Number(lg.tr??0)/lgTotal*1000)/10,
+        demi_pct:       Math.round(Number(lg.dm??0)/lgTotal*1000)/10,
+        halfcourt_pct:  Math.round(Number(lg.hc??0)/lgTotal*1000)/10,
+        avg_possession_time: Number(lg.avg_pt ?? 0),
+      } : null;
+
+      res.set("Cache-Control", "private, max-age=1800, stale-while-revalidate=120");
+      return res.json({
+        insufficient_data: false,
+        possessions: total,
+        transition_pct:  Math.round(transition/total*1000)/10,
+        demi_pct:        Math.round(demi/total*1000)/10,
+        halfcourt_pct:   Math.round(halfcourt/total*1000)/10,
+        avg_possession_time: Math.round(sum/total*10)/10,
+        league,
+      });
+    } catch (err: any) {
+      console.error("[stats/pace-segments] Error:", err?.message ?? err);
+      return res.status(500).json({ error: "Failed to compute pace segments", detail: err?.message });
+    }
+  });
+
   app.get("/api/stats/league-averages", requireAuth, async (req, res) => {
     const seasonId = Number(req.query.seasonId ?? 2092);
     const position = typeof req.query.position === "string" && req.query.position.trim()

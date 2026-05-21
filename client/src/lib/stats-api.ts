@@ -364,3 +364,88 @@ export function usePlayerPercentiles(seasonId?: number, position?: string | null
   });
 }
 
+export interface GameBoxscorePlayer {
+  externalId: string;
+  nameZh: string;
+  nameEn: string | null;
+  jerseyNumber: string | null;
+  position: string | null;
+  photoUrl: string | null;
+  teamExtId: string;
+  isStart: boolean;
+  minutes: string;
+  pts: number;
+  reb: number;
+  ast: number;
+  stl: number;
+  blk: number;
+  tov: number;
+  fgm: number;
+  fga: number;
+  tpm: number;
+  tpa: number;
+  ftm: number;
+  fta: number;
+  offReb: number;
+  defReb: number;
+  plusMinus: number;
+  fouls: number;
+}
+
+export interface GameBoxscoreData {
+  game: {
+    gameId: string;
+    date: string | null;
+    homeScore: number;
+    awayScore: number;
+    home: { nameZh: string; nameEn: string | null; logo: string | null; extId: string };
+    away: { nameZh: string; nameEn: string | null; logo: string | null; extId: string };
+  };
+  players: GameBoxscorePlayer[];
+}
+
+export function useGameBoxscore(gameId: string | number | null | undefined) {
+  return useQuery({
+    queryKey: ["stats-game-boxscore", String(gameId ?? "")],
+    queryFn: async () => {
+      const r = await apiRequest("GET", `/api/stats/game/${gameId}/boxscore`);
+      return r.json() as Promise<GameBoxscoreData>;
+    },
+    enabled: Boolean(gameId),
+    staleTime: 1000 * 60 * 60,
+    retry: 0,
+  });
+}
+
+export interface PaceSegments {
+  insufficient_data: boolean;
+  possessions: number;
+  min_required?: number;
+  transition_pct?: number;
+  demi_pct?: number;
+  halfcourt_pct?: number;
+  avg_possession_time?: number;
+  league?: {
+    transition_pct: number;
+    demi_pct: number;
+    halfcourt_pct: number;
+    avg_possession_time: number;
+  } | null;
+}
+
+export function usePaceSegments(externalId: string | null | undefined, seasonId?: number) {
+  return useQuery({
+    queryKey: ["stats-pace-segments", externalId, seasonId ?? 2092],
+    queryFn: async () => {
+      const r = await apiRequest(
+        "GET",
+        `/api/stats/team/${externalId}/pace-segments?seasonId=${seasonId ?? 2092}`,
+      );
+      return r.json() as Promise<PaceSegments>;
+    },
+    enabled: Boolean(externalId),
+    staleTime: 1000 * 60 * 30,
+    retry: 0,
+  });
+}
+
