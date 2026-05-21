@@ -48,7 +48,7 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## Estado actual — sesión 2026-05-21b (cierre)
+## Estado actual — sesión 2026-05-21c (cierre)
 
 ### ✅ U Stats — Sprint completo esta sesión
 
