@@ -233,7 +233,7 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
     }, phase1Delay);
 
     // Phase 2: Players + teams — U Scout data
-    const t2 = window.setTimeout(() => {
+    const t2 = window.setTimeout(async () => {
       queryClient.prefetchQuery({
         queryKey: ["/api/teams", userId],
         queryFn: () => apiRequest("GET", "/api/teams").then(r => r.json()).catch(() => []),
@@ -244,6 +244,18 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
         queryFn: () => apiRequest("GET", "/api/players").then(r => r.json()).catch(() => []),
         staleTime: 600_000,
       });
+      // Bulk prefetch all player details — warms per-player cache so sheets open instantly
+      if (isDesktop) {
+        try {
+          const data = await apiRequest("GET", "/api/stats/players/all-detail?seasonId=2092").then(r => r.json());
+          const players = data?.players ?? {};
+          for (const [externalId, detail] of Object.entries(players)) {
+            queryClient.setQueryData(["stats-player-detail", externalId], detail);
+          }
+        } catch {
+          // silently ignore — prefetch is best-effort
+        }
+      }
     }, phase2Delay);
 
     // Phase 3: Stats chunk + seasons + player stats

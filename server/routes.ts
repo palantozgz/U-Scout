@@ -1745,6 +1745,7 @@ export async function registerRoutes(
           ss.pts_per_game, ss.pts_against_per_game, ss.phase_name, ss.streak
         ORDER BY ss.rank ASC
       `);
+      res.set("Cache-Control", "private, max-age=300, stale-while-revalidate=60");
       return res.json({ standings: (rows as any).rows ?? [] });
     } catch (err) {
       console.error("[stats/standings] DB error:", (err as any)?.message ?? err);
@@ -1840,6 +1841,7 @@ export async function registerRoutes(
         seasonId: r.seasonId,
         label: r.seasonId === 2092 ? "2025-26" : String(r.seasonId),
       }));
+      res.set("Cache-Control", "private, max-age=3600, stale-while-revalidate=300");
       return res.json({ seasons });
     } catch (err) {
       console.error("[stats/seasons] DB error:", (err as any)?.message ?? err);
@@ -2113,6 +2115,274 @@ export async function registerRoutes(
     } catch (err: any) {
       console.error("[player-detail] Error:", err?.message ?? err);
       return res.status(500).json({ error: "Failed to load player", detail: err?.message });
+    }
+  });
+
+
+  // ─── GET /api/stats/players/all-detail ───────────────────────────────────────
+  // Bulk version of /api/stats/player/:id — returns all players in one DB round-trip.
+  // Used by BackgroundPrefetcher to warm the per-player cache silently.
+  app.get("/api/stats/players/all-detail", requireAuth, async (req, res) => {
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    try {
+      // ── Query 1: base stats for all players ──
+      const baseRows = await db.execute(sql`
+        SELECT
+          sp.external_id::text AS "externalId",
+          sp.name_zh           AS "nameZh",
+          sp.name_en           AS "nameEn",
+          sp.jersey_number     AS "jerseyNumber",
+          sp.photo_url         AS "photoUrl",
+          sp.position,
+          st.name_zh           AS "teamName",
+          st.name_en           AS "teamNameEn",
+          st.logo_url          AS "teamLogo",
+          st.external_id::text AS "teamExternalId",
+          COUNT(pb.id)         AS games,
+          ROUND(AVG(pb.pts)::numeric, 1)  AS ppg,
+          ROUND(AVG(pb.reb)::numeric, 1)  AS rpg,
+          ROUND(AVG(pb.ast)::numeric, 1)  AS apg,
+          ROUND(AVG(pb.stl)::numeric, 1)  AS spg,
+          ROUND(AVG(pb.blk)::numeric, 1)  AS bpg,
+          ROUND(AVG(pb.tov)::numeric, 1)  AS topg,
+          ROUND(AVG(
+            CASE WHEN pb.minutes ~ '^\d+:\d{2}$'
+              THEN (SPLIT_PART(pb.minutes,':',1)::numeric * 60 + SPLIT_PART(pb.minutes,':',2)::numeric) / 60
+              ELSE NULL END
+          )::numeric, 1) AS mpg,
+          ROUND(CASE WHEN SUM(pb.fga) > 0 THEN SUM(pb.fgm)::numeric / SUM(pb.fga) * 100 END, 1) AS "fgPct",
+          ROUND(CASE WHEN SUM(pb.tpa) > 0 THEN SUM(pb.tpm)::numeric / SUM(pb.tpa) * 100 END, 1) AS "fg3Pct",
+          ROUND(CASE WHEN SUM(pb.fta) > 0 THEN SUM(pb.ftm)::numeric / SUM(pb.fta) * 100 END, 1) AS "ftPct",
+          ROUND(CASE WHEN (SUM(pb.fga) + 0.44 * SUM(pb.fta)) > 0
+            THEN SUM(pb.pts)::numeric / (2 * (SUM(pb.fga) + 0.44 * SUM(pb.fta))) * 100 END, 1) AS "tsPct",
+          ROUND(CASE WHEN SUM(pb.fga) > 0
+            THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::numeric / SUM(pb.fga) * 100 END, 1) AS "eFGPct",
+          ROUND(CASE WHEN SUM(pb.tov) > 0 THEN SUM(pb.ast)::numeric / SUM(pb.tov) END, 2) AS "astTovRatio",
+          ROUND(CASE WHEN SUM(pb.fga) > 0 THEN SUM(pb.fta)::numeric / SUM(pb.fga) END, 3) AS "ftRate",
+          ROUND(AVG(pb.off_reb)::numeric, 1) AS "orbPerGame",
+          ROUND(AVG(pb.def_reb)::numeric, 1) AS "drbPerGame"
+        FROM stats_players sp
+        LEFT JOIN stats_teams st ON st.id = sp.team_id
+        LEFT JOIN stats_player_boxscores pb ON pb.player_external_id = sp.external_id
+        LEFT JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        GROUP BY sp.external_id, sp.name_zh, sp.name_en, sp.jersey_number,
+                 sp.photo_url, sp.position, st.name_zh, st.name_en, st.logo_url, st.external_id
+      `);
+      const basePlayers = (baseRows as any).rows ?? [];
+
+      // ── Query 2: PIE bulk ──
+      const pieRows = await db.execute(sql`
+        WITH game_totals AS (
+          SELECT
+            pb.game_id,
+            pb.player_external_id::text AS ext_id,
+            (pb.pts + pb.fgm + pb.ftm - pb.fga - pb.fta
+             + pb.def_reb + 0.5 * pb.off_reb
+             + pb.ast + pb.stl + 0.5 * pb.blk - pb.fouls - pb.tov
+            ) AS player_num,
+            SUM(pb2.pts + pb2.fgm + pb2.ftm - pb2.fga - pb2.fta
+                + pb2.def_reb + 0.5 * pb2.off_reb
+                + pb2.ast + pb2.stl + 0.5 * pb2.blk - pb2.fouls - pb2.tov
+            ) OVER (PARTITION BY pb.game_id) AS game_den
+          FROM stats_player_boxscores pb
+          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          JOIN stats_player_boxscores pb2 ON pb2.game_id = pb.game_id
+        )
+        SELECT
+          ext_id AS "externalId",
+          ROUND(AVG(CASE WHEN game_den > 0 THEN 100.0 * player_num / game_den END)::numeric, 1) AS pie
+        FROM game_totals
+        GROUP BY ext_id
+      `);
+      const pieMap: Record<string, number | null> = {};
+      for (const r of (pieRows as any).rows ?? []) {
+        pieMap[r.externalId] = r.pie != null ? Number(r.pie) : null;
+      }
+
+      // ── Query 3: USG% bulk ──
+      const usgRows = await db.execute(sql`
+        WITH player_mins AS (
+          SELECT
+            pb.player_external_id::text AS ext_id,
+            pb.game_id,
+            pb.fga, pb.fta, pb.tov,
+            (SPLIT_PART(pb.minutes,':',1)::int * 60 + SPLIT_PART(pb.minutes,':',2)::int) AS min_sec
+          FROM stats_player_boxscores pb
+          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          WHERE pb.minutes ~ '^\d+:\d{2}$'
+            AND SPLIT_PART(pb.minutes,':',1) ~ '^[0-9]+$'
+        ),
+        team_mins AS (
+          SELECT
+            pb2.game_id,
+            pb2.team_external_id::text AS team_ext,
+            SUM(pb2.fga) AS tm_fga,
+            SUM(pb2.fta) AS tm_fta,
+            SUM(pb2.tov) AS tm_tov,
+            SUM(SPLIT_PART(pb2.minutes,':',1)::int * 60 + SPLIT_PART(pb2.minutes,':',2)::int) AS tm_min_sec
+          FROM stats_player_boxscores pb2
+          JOIN stats_games sg2 ON sg2.id = pb2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+          WHERE pb2.minutes ~ '^\d+:\d{2}$'
+            AND SPLIT_PART(pb2.minutes,':',1) ~ '^[0-9]+$'
+          GROUP BY pb2.game_id, pb2.team_external_id::text
+        ),
+        player_team AS (
+          SELECT sp.external_id::text AS ext_id, st.external_id::text AS team_ext
+          FROM stats_players sp
+          JOIN stats_teams st ON st.id = sp.team_id
+        )
+        SELECT
+          pm.ext_id AS "externalId",
+          ROUND(
+            100.0 * SUM((pm.fga + 0.44 * pm.fta + pm.tov) * (tm.tm_min_sec / 5.0))
+            / NULLIF(SUM(pm.min_sec * (tm.tm_fga + 0.44 * tm.tm_fta + tm.tm_tov)), 0)
+          , 1) AS usg_pct
+        FROM player_mins pm
+        JOIN player_team pt ON pt.ext_id = pm.ext_id
+        JOIN team_mins tm ON tm.game_id = pm.game_id AND tm.team_ext = pt.team_ext
+        WHERE pm.min_sec > 0
+        GROUP BY pm.ext_id
+      `);
+      const usgMap: Record<string, number | null> = {};
+      for (const r of (usgRows as any).rows ?? []) {
+        usgMap[r.externalId] = r.usg_pct != null ? Number(r.usg_pct) : null;
+      }
+
+      // ── Query 4: Home/Away splits bulk ──
+      const splitRows = await db.execute(sql`
+        SELECT
+          pb.player_external_id::text AS "externalId",
+          ROUND(AVG(CASE WHEN pb.team_external_id = sg.home_team_id::text THEN pb.pts END)::numeric, 1) AS "ptsHome",
+          ROUND(AVG(CASE WHEN pb.team_external_id != sg.home_team_id::text THEN pb.pts END)::numeric, 1) AS "ptsAway",
+          ROUND(AVG(CASE WHEN pb.team_external_id = sg.home_team_id::text THEN pb.reb END)::numeric, 1) AS "rebHome",
+          ROUND(AVG(CASE WHEN pb.team_external_id != sg.home_team_id::text THEN pb.reb END)::numeric, 1) AS "rebAway",
+          ROUND(AVG(CASE WHEN pb.team_external_id = sg.home_team_id::text THEN pb.ast END)::numeric, 1) AS "astHome",
+          ROUND(AVG(CASE WHEN pb.team_external_id != sg.home_team_id::text THEN pb.ast END)::numeric, 1) AS "astAway"
+        FROM stats_player_boxscores pb
+        JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        GROUP BY pb.player_external_id::text
+      `);
+      const splitMap: Record<string, any> = {};
+      for (const r of (splitRows as any).rows ?? []) {
+        splitMap[r.externalId] = r;
+      }
+
+      // ── Query 5: Game log bulk — last 30 per player via ROW_NUMBER ──
+      const logRows = await db.execute(sql`
+        WITH ranked AS (
+          SELECT
+            pb.player_external_id::text        AS "externalId",
+            sg.external_game_id                AS "gameId",
+            sg.scheduled_at                    AS "gameDate",
+            CASE WHEN sg.home_team_id = sp2.team_id THEN at.name_zh ELSE ht.name_zh END AS "rivalName",
+            CASE WHEN sg.home_team_id = sp2.team_id THEN at.name_en ELSE ht.name_en END AS "rivalNameEn",
+            CASE WHEN sg.home_team_id = sp2.team_id
+              THEN sg.home_score || '-' || sg.away_score
+              ELSE sg.away_score || '-' || sg.home_score END AS score,
+            pb.minutes,
+            pb.pts, pb.reb, pb.ast, pb.stl, pb.blk, pb.tov,
+            pb.fgm, pb.fga, pb.tpm, pb.tpa, pb.ftm, pb.fta,
+            pb.plus_minus      AS "plusMinus",
+            pb.is_start_lineup AS "isStart",
+            (sg.home_team_id = sp2.team_id) AS "isHome",
+            ROW_NUMBER() OVER (
+              PARTITION BY pb.player_external_id
+              ORDER BY sg.scheduled_at DESC
+            ) AS rn
+          FROM stats_player_boxscores pb
+          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          JOIN stats_players sp2 ON sp2.external_id = pb.player_external_id
+          LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
+          LEFT JOIN stats_teams at ON at.id = sg.away_team_id
+        )
+        SELECT * FROM ranked WHERE rn <= 30
+        ORDER BY "externalId", "gameDate" DESC
+      `);
+      const logMap: Record<string, any[]> = {};
+      for (const r of (logRows as any).rows ?? []) {
+        const id = r.externalId;
+        if (!logMap[id]) logMap[id] = [];
+        logMap[id].push({
+          gameId: r.gameId,
+          gameDate: r.gameDate,
+          rivalName: r.rivalName,
+          rivalNameEn: r.rivalNameEn ?? null,
+          score: r.score,
+          minutes: r.minutes,
+          pts: Number(r.pts ?? 0),
+          reb: Number(r.reb ?? 0),
+          ast: Number(r.ast ?? 0),
+          stl: Number(r.stl ?? 0),
+          blk: Number(r.blk ?? 0),
+          tov: Number(r.tov ?? 0),
+          fgm: Number(r.fgm ?? 0),
+          fga: Number(r.fga ?? 0),
+          tpm: Number(r.tpm ?? 0),
+          tpa: Number(r.tpa ?? 0),
+          ftm: Number(r.ftm ?? 0),
+          fta: Number(r.fta ?? 0),
+          plusMinus: Number(r.plusMinus ?? 0),
+          isStart: Boolean(r.isStart),
+          isHome: Boolean(r.isHome),
+        });
+      }
+
+      // ── Assemble response ──
+      const players: Record<string, any> = {};
+      for (const p of basePlayers) {
+        const id = p.externalId;
+        const split = splitMap[id] ?? {};
+        players[id] = {
+          player: {
+            externalId: id,
+            nameZh: p.nameZh,
+            nameEn: p.nameEn,
+            jerseyNumber: p.jerseyNumber,
+            photoUrl: p.photoUrl ?? null,
+            position: p.position,
+            teamName: p.teamName,
+            teamNameEn: p.teamNameEn ?? null,
+            teamLogo: p.teamLogo,
+            teamExternalId: p.teamExternalId ?? null,
+            games: Number(p.games ?? 0),
+            ppg: Number(p.ppg ?? 0),
+            rpg: Number(p.rpg ?? 0),
+            apg: Number(p.apg ?? 0),
+            spg: Number(p.spg ?? 0),
+            bpg: Number(p.bpg ?? 0),
+            topg: Number(p.topg ?? 0),
+            mpg: Number(p.mpg ?? 0),
+            fgPct: p.fgPct != null ? Number(p.fgPct) : null,
+            fg3Pct: p.fg3Pct != null ? Number(p.fg3Pct) : null,
+            ftPct: p.ftPct != null ? Number(p.ftPct) : null,
+            tsPct: p.tsPct != null ? Number(p.tsPct) : null,
+            eFGPct: p.eFGPct != null ? Number(p.eFGPct) : null,
+            astTovRatio: p.astTovRatio != null ? Number(p.astTovRatio) : null,
+            ftRate: p.ftRate != null ? Number(p.ftRate) : null,
+            usagePct: usgMap[id] ?? null,
+            orbPerGame: p.orbPerGame != null ? Number(p.orbPerGame) : null,
+            drbPerGame: p.drbPerGame != null ? Number(p.drbPerGame) : null,
+            pie: pieMap[id] ?? null,
+            homeSplit: {
+              pts: Number(split.ptsHome ?? 0),
+              reb: Number(split.rebHome ?? 0),
+              ast: Number(split.astHome ?? 0),
+            },
+            awaySplit: {
+              pts: Number(split.ptsAway ?? 0),
+              reb: Number(split.rebAway ?? 0),
+              ast: Number(split.astAway ?? 0),
+            },
+          },
+          gameLog: logMap[id] ?? [],
+        };
+      }
+
+      res.set("Cache-Control", "private, max-age=1800, stale-while-revalidate=120");
+      return res.json({ players });
+    } catch (err: any) {
+      console.error("[players/all-detail] Error:", err?.message ?? err);
+      return res.status(500).json({ error: "Failed to load bulk player detail", detail: err?.message });
     }
   });
 
@@ -2572,6 +2842,7 @@ export async function registerRoutes(
         console.error("[league-averages] ORTG/DRTG query failed:", rtgErr?.message ?? rtgErr);
       }
 
+      res.set("Cache-Control", "private, max-age=1800, stale-while-revalidate=120");
       return res.json({
         ppg: Number(row.avgPpg ?? 0),
         rpg: Number(row.avgRpg ?? 0),
@@ -2643,6 +2914,7 @@ export async function registerRoutes(
         FROM player_avgs
       `);
       const row = (rows as any).rows?.[0] ?? {};
+      res.set("Cache-Control", "private, max-age=1800, stale-while-revalidate=120");
       return res.json({
         p95Ppg: row.p95Ppg != null ? Number(row.p95Ppg) : 25,
         p95Rpg: row.p95Rpg != null ? Number(row.p95Rpg) : 12,

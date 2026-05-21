@@ -206,6 +206,16 @@ export interface GameLogEntry {
   isHome?: boolean;
 }
 
+/** Entry cached by GET /api/stats/players/all-detail (same shape as usePlayerDetail). */
+export type StatsPlayerDetailEntry = {
+  player: PlayerDetail;
+  gameLog: GameLogEntry[];
+};
+
+export type StatsPlayersAllDetailResponse = {
+  players: Record<string, StatsPlayerDetailEntry>;
+};
+
 export interface TeamRosterPlayer {
   externalId: string;
   nameZh: string;
