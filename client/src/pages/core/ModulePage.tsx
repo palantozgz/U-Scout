@@ -68,11 +68,10 @@ export function ModulePageShell(
 
       {/* ── Header ── */}
       {moduleHeader ? (
-        <div className="w-full max-w-5xl mx-auto px-4 md:px-8 md:pt-1 shrink-0">
+        <div className="w-full max-w-5xl mx-auto px-4 md:px-8 shrink-0">
           <ModuleHeader
             module={moduleHeader.module}
             tagline={moduleHeader.tagline}
-            className="md:py-3"
           />
         </div>
       ) : (

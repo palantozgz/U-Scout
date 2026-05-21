@@ -80,31 +80,37 @@ export function ModuleHeader({ module, tagline, className }: ModuleHeaderProps) 
   const accent = MODULE_ACCENT[module] ?? "#3A81FE";
 
   return (
-    <div
-      className={cn("relative flex flex-col items-center text-foreground shrink-0", className)}
-      style={{ paddingTop: "0.5rem", paddingBottom: "0.3rem", gap: "0.2rem" }}
-    >
+    // Wrapper de ancho completo — siempre ocupa todo el ancho disponible
+    // para que el settings icon quede anclado al borde derecho real
+    <div className={cn("relative w-full shrink-0", className)}>
+      {/* Settings — anclado top-right del wrapper, misma altura en todos los módulos */}
       <button
         type="button"
         onClick={() => setLocation(settingsHref)}
-        className="absolute top-2 right-0 p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-muted/40 transition-colors"
+        className="absolute top-3 right-0 p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-muted/40 transition-colors"
         aria-label="Settings"
         data-testid={`${module}-header-settings`}
       >
         <Settings className="w-5 h-5" />
       </button>
 
-      {/* Logo: 56px en móvil, 88px en desktop */}
-      <span className="md:hidden"><UMark size={56} /></span>
-      <span className="hidden md:block"><UMark size={88} /></span>
+      {/* Contenido centrado — logo + wordmark + tagline + dot */}
+      <div
+        className="flex flex-col items-center text-foreground"
+        style={{ paddingTop: "0.75rem", paddingBottom: "0.5rem", gap: "0.2rem" }}
+      >
+        {/* Logo: 56px en móvil, 88px en desktop */}
+        <span className="md:hidden"><UMark size={56} /></span>
+        <span className="hidden md:block"><UMark size={88} /></span>
 
-      <span style={{ fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase", opacity: 0.45, fontWeight: 500 }}>
-        {wordmark}
-      </span>
-      <span style={{ fontSize: "10px", letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.28, fontWeight: 500 }}>
-        {tagline}
-      </span>
-      <div style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: accent }} aria-hidden />
+        <span style={{ fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase", opacity: 0.45, fontWeight: 500 }}>
+          {wordmark}
+        </span>
+        <span style={{ fontSize: "10px", letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.28, fontWeight: 500 }}>
+          {tagline}
+        </span>
+        <div style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: accent }} aria-hidden />
+      </div>
     </div>
   );
 }
