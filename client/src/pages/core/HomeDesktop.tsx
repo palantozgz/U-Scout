@@ -336,7 +336,7 @@ export default function HomeDesktop() {
             )}
 
             {/* Quick access + Mi Club + identity — grid uniforme */}
-            <div className={cn("grid gap-2", mode === "staff" ? "grid-cols-2" : "grid-cols-3")}>
+            <div className={cn("grid grid-cols-2 gap-2")}>
               {quickLinks.map((l, i) => (
                 <button
                   key={l.href}
@@ -344,7 +344,7 @@ export default function HomeDesktop() {
                   onClick={() => setLocation(l.href)}
                   className={cn(
                     quickTileClass,
-                    mode !== "staff" && quickLinks.length === 5 && i === 4 ? "col-span-3" : "",
+                    mode !== "staff" && quickLinks.length % 2 !== 0 && i === quickLinks.length - 1 ? "col-span-2 justify-self-center" : "",
                   )}
                 >
                   <span className="text-primary">{l.icon}</span>
