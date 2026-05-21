@@ -381,11 +381,11 @@ export default function HomeDesktop() {
               </button>
             )}
 
-            {/* User footer */}
-            <div className="mt-auto pt-3 border-t border-border/30">
-              <p className="text-[13px] font-medium text-foreground">{displayName}</p>
+            {/* User identity — centrado en la columna */}
+            <div className="pt-3 border-t border-border/30 text-center">
+              <p className="text-[13px] font-semibold text-foreground">{displayName}</p>
               {roleLabel && <p className="text-[11px] text-muted-foreground/70 mt-0.5">{roleLabel}</p>}
-              <p className="text-[9px] font-medium tracking-[2px] uppercase text-muted-foreground/40 mt-1">U CORE</p>
+              <p className="text-[9px] font-medium tracking-[2px] uppercase text-muted-foreground/40 mt-1">U·CORE</p>
             </div>
 
           </div>

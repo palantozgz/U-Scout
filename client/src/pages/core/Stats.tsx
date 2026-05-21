@@ -2048,13 +2048,82 @@ function StatsDesktopPanel(props: {
   const es = props.locale === "es";
   const zh = props.locale === "zh";
 
+  const leagueQ = useLeagueAverages(props.seasonId);
+  const lg = leagueQ.data;
+
   if (!props.playerSheetId && !props.teamSheetId) {
+    const statRows = lg
+      ? [
+          {
+            label: "PPG",
+            value: lg.ppg?.toFixed(1) ?? "—",
+            desc: es ? "Media puntos/partido" : zh ? "场均得分" : "Avg points per game",
+          },
+          {
+            label: "eFG%",
+            value: lg.eFGPct != null ? `${lg.eFGPct.toFixed(1)}%` : "—",
+            desc: es ? "Eficiencia real de tiro" : zh ? "有效投篮率" : "Effective field goal %",
+          },
+          {
+            label: "TOV%",
+            value: lg.tovPct != null ? `${lg.tovPct.toFixed(1)}%` : "—",
+            desc: es ? "Pérdidas por posesión" : zh ? "失误率" : "Turnover rate",
+          },
+          {
+            label: "OREB%",
+            value: lg.orbPct != null ? `${lg.orbPct.toFixed(1)}%` : "—",
+            desc: es ? "Rebote ofensivo" : zh ? "进攻篮板率" : "Offensive rebound rate",
+          },
+          {
+            label: "ORTG",
+            value: lg.ortg?.toFixed(1) ?? "—",
+            desc: es ? "Puntos por 100 pos." : zh ? "进攻效率" : "Pts per 100 possessions",
+          },
+          {
+            label: "PACE",
+            value: lg.pace?.toFixed(1) ?? "—",
+            desc: es ? "Posesiones por partido" : zh ? "攻防节奏" : "Possessions per game",
+          },
+        ]
+      : [];
+
     return (
-      <div className="flex flex-col items-center justify-center flex-1 min-h-[12rem] p-8 text-center gap-3">
-        <BarChart3 className="w-10 h-10 text-muted-foreground/40" aria-hidden />
-        <p className="text-sm font-semibold text-muted-foreground">
-          {es ? "Selecciona un equipo o jugadora" : zh ? "选择球队或球员" : "Select a team or player"}
-        </p>
+      <div className="flex flex-col flex-1 min-h-0 p-5 gap-4">
+        {/* Placeholder */}
+        <div className="flex flex-col items-center justify-center gap-2 py-4 text-center">
+          <BarChart3 className="w-8 h-8 text-muted-foreground/35" aria-hidden />
+          <p className="text-xs font-semibold text-muted-foreground/70">
+            {es ? "Selecciona un equipo o jugadora" : zh ? "选择球队或球员" : "Select a team or player"}
+          </p>
+        </div>
+
+        {/* Liga averages */}
+        {statRows.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground/50 mb-2">
+              {es ? "Promedios de liga" : zh ? "联赛均值" : "League averages"}
+            </p>
+            {statRows.map((row) => (
+              <div
+                key={row.label}
+                className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/20 border border-border/30"
+              >
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground/60 truncate">{row.desc}</p>
+                </div>
+                <div className="flex items-baseline gap-1.5 shrink-0 ml-3">
+                  <span className="text-[11px] font-black tabular-nums text-foreground">{row.value}</span>
+                  <span className="text-[9px] font-bold text-muted-foreground/50">{row.label}</span>
+                </div>
+              </div>
+            ))}
+            {leagueQ.isLoading && (
+              <div className="flex justify-center py-2">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }

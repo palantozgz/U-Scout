@@ -2837,9 +2837,9 @@ export async function registerRoutes(
 
       const rows = (pbpRows as any).rows ?? [];
       const total = rows.length;
-      if (total < 30) {
+      if (total < 200) {
         res.set("Cache-Control", "private, max-age=300");
-        return res.json({ insufficient_data: true, possessions: total, min_required: 30 });
+        return res.json({ insufficient_data: true, possessions: total, min_required: 200 });
       }
 
       let transition = 0, demi = 0, halfcourt = 0, sum = 0;

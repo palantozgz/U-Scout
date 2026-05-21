@@ -265,7 +265,7 @@ export default function CoachHome() {
           locale === "zh" ? "个人防守侦察" :
           locale === "es" ? "Scouting defensivo individual" :
           "Individual defensive scouting"
-        } className="md:py-3" />
+        } />
 
         {/* ── ALERT SLOTS ── */}
         <div className="grid grid-cols-3 gap-2">

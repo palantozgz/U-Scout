@@ -1084,17 +1084,43 @@ export default function Schedule() {
     window.setTimeout(tryScroll, 500);
   }, [staffView]);
 
-  // Note: landscape planner autoscroll removed — scrollIntoView on iOS Capacitor
-  // scrolls the body/main instead of the internal container, breaking the layout.
-  // The grid is always visible in landscape; no autoscroll needed.
+  // Auto-scroll so planner grid is visible on desktop when planner tab is clicked.
+  // Uses scrollTop on the grid's own scrollable container — safe for iOS (no scrollIntoView).
+  useEffect(() => {
+    if (staffView !== "planner" || !isLandscape) return;
+    const timer = window.setTimeout(() => {
+      const grid = plannerGridRef.current;
+      if (!grid) return;
+      // Scroll the grid's nearest scrollable ancestor to show the grid
+      let parent = grid.parentElement;
+      while (parent && parent.scrollHeight <= parent.clientHeight) {
+        parent = parent.parentElement;
+      }
+      if (parent) {
+        const targetTop = grid.offsetTop - (parent as HTMLElement).offsetTop - 8;
+        parent.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+      }
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [staffView, isLandscape, plannerScrollTick]);
 
   // Auto-scroll to today when portrait planner is shown (or re-clicked)
+  // Uses scrollTop instead of scrollIntoView — avoids iOS Capacitor touch-scroll lock bug.
   useEffect(() => {
     if (staffView !== "planner" || isLandscape) return;
     const timer = window.setTimeout(() => {
       const todayKey = localDateKey(new Date());
       const el = portraitDayRefs.current[todayKey] as HTMLElement | null;
-      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (!el) return;
+      // Find the nearest scrollable ancestor instead of scrollIntoView
+      let parent = el.parentElement;
+      while (parent && parent.scrollHeight <= parent.clientHeight) {
+        parent = parent.parentElement;
+      }
+      if (parent) {
+        const targetTop = el.offsetTop - parent.offsetTop - 16;
+        parent.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+      }
     }, 200);
     return () => window.clearTimeout(timer);
   }, [staffView, isLandscape, plannerScrollTick]);
