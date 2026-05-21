@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Home, Target, CalendarDays, BarChart3, BookOpen } from "lucide-react";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
+import { useCapabilities } from "@/lib/capabilities";
 
 type NavItem = {
   key: string;
@@ -22,16 +23,16 @@ function useModuleNavItems() {
     const stats    = { key: "stats",    label: t("ucore_nav_stats"),    href: "/stats",     icon: <BarChart3 className="w-5 h-5" /> };
     const playbook = { key: "playbook", label: "Playbook",              href: "/playbook",  icon: <BookOpen  className="w-5 h-5" /> };
 
-    // All users: same 5-item nav
     return [home, schedule, scout, stats, playbook];
   }, [t]);
 }
 
 export function ModuleNav() {
   const [loc, setLocation] = useLocation();
+  const { profile, effectiveRole } = useAuth();
+  const caps = useCapabilities();
   const items = useModuleNavItems();
   const isFive = items.length === 5;
-  const { profile, effectiveRole } = useAuth();
 
   const firstName = (profile?.username?.trim() || "").split(" ")[0] || profile?.email?.split("@")[0] || "";
   const roleStr =

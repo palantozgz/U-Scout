@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Clock, MapPin, Building2, CalendarDays, Target, BarChart3, Heart, BookOpen } from "lucide-react";
 import { useHomeData } from "@/lib/useHomeData";
+import { useCapabilities } from "@/lib/capabilities";
 import { ModuleNav } from "./ModuleNav";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
 
@@ -135,6 +136,8 @@ export default function HomeDesktop() {
     sessionDateSet,
     todayDateKey,
   } = useHomeData();
+
+  const caps = useCapabilities();
 
   // ── Alerts ────────────────────────────────────────────────
   function alertItems(): React.ReactNode[] {
@@ -341,13 +344,13 @@ export default function HomeDesktop() {
 
             {/* Mi Club + identity — fila inferior */}
             <div className="flex items-stretch gap-2">
-              {mode === "staff" && (
+              {mode === "staff" && caps.canViewClubManagement && (
                 <button
                   type="button"
                   onClick={() => setLocation("/coach/club")}
                   data-testid="ucore-home-mi-club"
                   className="flex items-center justify-center gap-2 px-3 py-3.5 rounded-xl border border-border/30 bg-card text-[13px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-colors shrink-0"
-                  style={{ flex: 1 }}
+                  style={{ width: 'calc(50% - 4px)' }}
                 >
                   <Building2 className="w-4 h-4" />
                   <span>{t("ucore_nav_club")}</span>
@@ -355,8 +358,7 @@ export default function HomeDesktop() {
                 </button>
               )}
               <div
-                className="flex flex-col justify-center px-3 py-2.5 rounded-xl border border-border/20 bg-card/40 min-w-0"
-                style={{ flex: 1, maxWidth: mode === "staff" ? undefined : "50%" }}
+                className="flex flex-col justify-center px-3 py-2.5 rounded-xl border border-border/20 bg-card/40 min-w-0 flex-1"
               >
                 <p className="text-[12px] font-semibold text-foreground truncate">{displayName}</p>
                 {roleLabel && <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">{roleLabel}</p>}

@@ -23,6 +23,7 @@ export type Capabilities = {
   canInviteMembers: boolean;
   canEditClub: boolean;
   canSeeAdminActions: boolean;
+  /** Can create/edit/delete schedule sessions. head_coach + operationsAccess coaches only. */
   canCreateEvent: boolean;
   canAccessReports: boolean;
   /** Only head_coach and master can access Personnel to create/manage canonical profiles. */
@@ -32,6 +33,10 @@ export type Capabilities = {
   canUsePlayerUX: boolean;
   /** Staff capability: can view/manage wellness operations. */
   canManageWellness: boolean;
+  /** Can view Stats module. head_coach, master, operationsAccess coaches. */
+  canViewStats: boolean;
+  /** Can view Mi Club / club management entry point. head_coach + master only. */
+  canViewClubManagement: boolean;
 };
 
 export type CoachBadges = {
@@ -65,8 +70,20 @@ export function computeCapabilities(input: {
   const hasOperationsAccess = Boolean(m?.operationsAccess) && staffRole === "coach" && m?.status === "active";
 
   // UI-only capability (frontend rendering).
+  // Only head_coach, master, and coaches with operationsAccess can create/edit sessions.
   const canCreateEvent =
-    canViewCoachUI && (effectiveRole === "master" || effectiveRole === "head_coach" || effectiveRole === "coach");
+    canViewCoachUI && (
+      effectiveRole === "master" ||
+      effectiveRole === "head_coach" ||
+      (effectiveRole === "coach" && hasOperationsAccess)
+    );
+
+  // Stats: todos los staff pueden ver stats de liga
+  const canViewStats = canViewCoachUI;
+
+  // Mi Club entry point: only head_coach and master
+  const canViewClubManagement =
+    realRole === "master" || realRole === "head_coach";
 
   // Permission-oriented capability: prefer realRole + membership, never effectiveRole.
   const canManageClub = (() => {
@@ -117,6 +134,8 @@ export function computeCapabilities(input: {
     canCreateCanonical,
     canUsePlayerUX,
     canManageWellness,
+    canViewStats,
+    canViewClubManagement,
   };
 }
 

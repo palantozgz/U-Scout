@@ -151,7 +151,8 @@ export default function Stats() {
   const preferEnLeaderName = locale === "en" || locale === "es";
   const isDesktop = useIsDesktop();
   const { profile } = useAuth();
-  const { canUsePlayerUX } = useCapabilities();
+  const caps = useCapabilities();
+  const canUsePlayerUX = caps.canUsePlayerUX;
   const myExternalId = canUsePlayerUX
     ? ((profile as { wcba_external_id?: string | null })?.wcba_external_id ?? null)
     : null;

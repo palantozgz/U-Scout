@@ -188,6 +188,7 @@ export default function Schedule() {
   const isPlayer = caps.canUsePlayerUX;
   const isDesktop = useIsDesktop();
   const canCreateSession = caps.canCreateEvent;
+  const canCreateEvent = caps.canCreateEvent;
   const canExportWeekImage =
     !isPlayer &&
     (caps.staffRole === "head_coach" ||
@@ -2262,21 +2263,18 @@ export default function Schedule() {
                                             );
                                           })}
                                         </div>
-                                      ) : (
+                                      ) : canCreateEvent ? (
                                         <button
                                           type="button"
-                                          disabled={!canCreateSession}
                                           onClick={() => openCreatePrefilled(d, slot.hour)}
-                                          className={[
-                                            "h-9 px-3 inline-flex items-center gap-2 rounded-lg border border-dashed border-border/70",
-                                            "bg-transparent text-xs font-extrabold text-muted-foreground",
-                                            "hover:bg-muted/20 hover:text-foreground",
-                                            "disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
-                                          ].join(" ")}
+                                          className="w-full rounded-lg border border-dashed border-border bg-muted/20 px-2 py-4 text-left hover:bg-muted/30"
                                         >
-                                          <Plus className="w-4 h-4" />
-                                          <span>{t("schedule_add" as any)}</span>
+                                          <p className="text-xs font-semibold text-muted-foreground">
+                                            {t("schedule_planner_add")}
+                                          </p>
                                         </button>
+                                      ) : (
+                                        <div className="w-full rounded-lg border border-dashed border-border/10 bg-muted/10 px-2 py-4" />
                                       )}
                                     </div>
                                   );
@@ -2371,7 +2369,7 @@ export default function Schedule() {
                                       </p>
                                       </PlannerSessionCardButton>
                                       ))
-                                    ) : (
+                                    ) : canCreateEvent ? (
                                       <button
                                         type="button"
                                         onClick={() => openCreatePrefilled(d, slot.hour)}
@@ -2381,6 +2379,8 @@ export default function Schedule() {
                                           {t("schedule_planner_add")}
                                         </p>
                                       </button>
+                                    ) : (
+                                      <div className="w-full rounded-lg border border-dashed border-border/10 bg-muted/10 px-2 py-4" />
                                     )}
                                   </div>
                                 );
