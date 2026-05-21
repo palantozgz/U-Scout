@@ -92,22 +92,26 @@ function AlertChip({
 }
 
 // ── Day pill for week strip ───────────────────────────────────
-function DayPill({ date, hasSession, isToday, locale }: { date: Date; hasSession: boolean; isToday: boolean; locale: string }) {
+function DayPill({ date, hasSession, isToday, locale, onClick }: { date: Date; hasSession: boolean; isToday: boolean; locale: string; onClick?: () => void }) {
   const intl  = locale === "es" ? "es" : locale === "zh" ? "zh-CN" : "en";
   const name  = new Intl.DateTimeFormat(intl, { weekday: "short" }).format(date);
   const num   = date.getDate();
   return (
-    <div className={cn(
-      "flex flex-col items-center gap-1.5 px-2 py-2 rounded-xl flex-1 transition-colors",
-      isToday ? "bg-primary/10" : "",
-    )}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-center gap-1.5 px-2 py-2 rounded-xl flex-1 transition-colors",
+        onClick ? "hover:bg-muted/40 cursor-pointer" : "",
+        isToday ? "bg-primary/10" : "",
+      )}>
       <span className={cn("text-[10px] font-medium uppercase tracking-wide leading-none",
         isToday ? "text-primary" : "text-muted-foreground/70")}>{name}</span>
       <span className={cn("text-[15px] font-medium leading-none",
         isToday ? "text-primary" : "text-foreground/70")}>{num}</span>
       <span className={cn("w-[5px] h-[5px] rounded-full",
         hasSession ? (isToday ? "bg-primary" : "bg-primary/50") : "bg-transparent")} />
-    </div>
+    </button>
   );
 }
 
@@ -211,6 +215,11 @@ export default function HomeDesktop() {
 
   const alerts = alertItems();
 
+  const quickTileClass =
+    "flex items-center justify-center gap-2 h-12 px-3 rounded-xl border border-border/30 bg-card text-[13px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-colors";
+  const identityTileClass =
+    "flex items-center h-12 px-3 rounded-xl border border-border/20 bg-card/40 min-w-0";
+
   // ── Quick access buttons ──────────────────────────────────
   const quickLinks = mode === "staff"
     ? [
@@ -266,7 +275,9 @@ export default function HomeDesktop() {
                   <DayPill key={d.toDateString()} date={d}
                     hasSession={sessionDateSet.has(d.toDateString())}
                     isToday={d.toDateString() === todayDateKey}
-                    locale={locale} />
+                    locale={locale}
+                    onClick={() => setLocation("/schedule")}
+                  />
                 ))}
               </div>
             </Card>
@@ -324,47 +335,34 @@ export default function HomeDesktop() {
               </Card>
             )}
 
-            {/* Quick access */}
-            <div className={quickLinks.length === 4 ? "grid grid-cols-2 gap-2" : "grid grid-cols-3 gap-2"}>
+            {/* Quick access + Mi Club + identity — grid uniforme */}
+            <div className={cn("grid gap-2", mode === "staff" ? "grid-cols-2" : "grid-cols-3")}>
               {quickLinks.map((l, i) => (
                 <button
                   key={l.href}
                   type="button"
                   onClick={() => setLocation(l.href)}
-                  className={[
-                    "flex items-center justify-center gap-2 px-3 py-4 rounded-xl border border-border/30 bg-card text-[13px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-colors",
-                    quickLinks.length === 5 && i === 4 ? "col-span-3" : "",
-                  ].join(" ")}
+                  className={cn(
+                    quickTileClass,
+                    mode !== "staff" && quickLinks.length === 5 && i === 4 ? "col-span-3" : "",
+                  )}
                 >
                   <span className="text-primary">{l.icon}</span>
                   {l.label}
                 </button>
               ))}
-            </div>
-
-            {/* Mi Club + identity — fila inferior, misma altura que botones del grid */}
-            <div className="flex items-stretch gap-2">
               {mode === "staff" && caps.canViewClubManagement && (
                 <button
                   type="button"
                   onClick={() => setLocation("/coach/club")}
                   data-testid="ucore-home-mi-club"
-                  className="flex items-center justify-center gap-2 px-3 py-4 rounded-xl border border-border/30 bg-card text-[13px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-colors shrink-0"
-                  style={{ width: 'calc(50% - 4px)' }}
+                  className={quickTileClass}
                 >
                   <Building2 className="w-4 h-4" />
                   <span>{t("ucore_nav_club")}</span>
                   {showClubActivityDot && <span className="w-2 h-2 rounded-full bg-destructive ml-1" />}
                 </button>
               )}
-              <div
-                className="flex items-center gap-2 px-3 py-4 rounded-xl border border-border/20 bg-card/40 min-w-0 flex-1"
-              >
-                <div className="min-w-0">
-                  <p className="text-[12px] font-semibold text-foreground truncate">{displayName}</p>
-                  {roleLabel && <p className="text-[10px] text-muted-foreground/60 truncate">{roleLabel}</p>}
-                </div>
-              </div>
             </div>
 
           </div>
