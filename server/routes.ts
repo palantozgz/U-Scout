@@ -2519,20 +2519,21 @@ export async function registerRoutes(
           paired AS (
             SELECT
               o.game_id,
-              CASE WHEN sg.home_team_id = st.id THEN sg.home_score ELSE sg.away_score END AS team_pts,
-              CASE WHEN sg.home_team_id = st.id THEN sg.away_score ELSE sg.home_score END AS opp_pts,
-              o.poss AS poss_own,
-              r.poss AS poss_opp
+              sg.home_score AS home_pts,
+              sg.away_score AS away_pts,
+              o.poss        AS poss_home,
+              r.poss        AS poss_away
             FROM own o
             JOIN stats_games sg ON sg.id = o.game_id
             JOIN stats_teams st ON st.external_id::text = o.team_external_id
+              AND st.id = sg.home_team_id
             JOIN own r ON r.game_id = o.game_id AND r.team_external_id != o.team_external_id
           )
           SELECT
-            ROUND(100.0 * SUM(team_pts) / NULLIF(SUM(poss_own), 0), 1) AS ortg,
-            ROUND(100.0 * SUM(opp_pts)  / NULLIF(SUM(poss_opp), 0), 1) AS drtg,
-            ROUND(((SUM(poss_own) + SUM(poss_opp)) / 2.0) / NULLIF(COUNT(DISTINCT game_id), 0), 1) AS pace,
-            ROUND(SUM(team_pts)::numeric / NULLIF(SUM(poss_own), 0), 3) AS ppp
+            ROUND(100.0 * (SUM(home_pts) + SUM(away_pts)) / NULLIF(SUM(poss_home) + SUM(poss_away), 0), 1) AS ortg,
+            ROUND(100.0 * (SUM(home_pts) + SUM(away_pts)) / NULLIF(SUM(poss_home) + SUM(poss_away), 0), 1) AS drtg,
+            ROUND((SUM(poss_home) + SUM(poss_away)) / 2.0 / NULLIF(COUNT(DISTINCT game_id), 0), 1) AS pace,
+            ROUND((SUM(home_pts) + SUM(away_pts))::numeric / NULLIF(SUM(poss_home) + SUM(poss_away), 0), 3) AS ppp
           FROM paired
         `);
         const r2 = (rtgLgRows as any).rows?.[0] ?? {};
