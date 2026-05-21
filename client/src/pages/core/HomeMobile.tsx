@@ -246,7 +246,7 @@ export default function HomeMobile() {
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
       <main className="flex-1 overflow-y-auto min-h-0 px-3 pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
 
         {/* Brand header */}

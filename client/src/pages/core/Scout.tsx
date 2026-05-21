@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/useAuth";
 import { useCapabilities } from "@/lib/capabilities";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 
-const ScoutDesktop = lazy(() => import("./ScoutDesktop"));
+const CoachHome = lazy(() => import("../scout/CoachHome"));
 
 export default function Scout() {
   const { profile, loading } = useAuth();
@@ -25,17 +25,17 @@ export default function Scout() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  // Staff + desktop: render split view
+  // Staff + desktop: render CoachHome (workflow: Personnel → My Scout → Film Room → Game Plan)
   if (!isPlayer && isDesktop && profile) {
     return (
       <Suspense fallback={null}>
-        <ScoutDesktop />
+        <CoachHome />
       </Suspense>
     );
   }

@@ -259,7 +259,7 @@ export default function ScoutDesktop() {
   const selectedPlayer = filtered.find((p) => p.id === effectiveSelected) ?? null;
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
       {/* Header */}
       <div className="px-8 pt-2 shrink-0">
         <ModuleHeader module="scout"

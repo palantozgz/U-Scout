@@ -1231,7 +1231,7 @@ export default function Stats() {
                   label: es ? "MPG mínimo" : zh ? "最少上场时间" : "Min. MPG",
                   state: advMinMpg,
                   set: setAdvMinMpg,
-                  placeholder: "ej. 15",
+                  placeholder: es ? "ej. 15" : zh ? "例：15" : "e.g. 15",
                   step: "0.5",
                 },
               ] as {

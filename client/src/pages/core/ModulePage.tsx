@@ -64,7 +64,7 @@ export function ModulePageShell(
       : "/settings";
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
 
       {/* ── Header ── */}
       {moduleHeader ? (

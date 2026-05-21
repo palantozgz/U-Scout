@@ -289,6 +289,7 @@ export default function Schedule() {
   const [highlightDayKey, setHighlightDayKey] = useState<string | null>(null);
   const portraitDayRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const landscapeDayRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const plannerGridRef = useRef<HTMLDivElement | null>(null);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
   const [repeatWeeks, setRepeatWeeks] = useState<1 | 2 | 3 | 4 | 6 | 8>(4);
   const [repeatWeekdays, setRepeatWeekdays] = useState<Set<number>>(() => new Set([1, 3, 5])); // Mon/Wed/Fri
@@ -1083,6 +1084,15 @@ export default function Schedule() {
     window.setTimeout(tryScroll, 500);
   }, [staffView]);
 
+  // Auto-scroll grid into view when planner is activated on desktop (landscape)
+  useEffect(() => {
+    if (staffView !== "planner" || !isLandscape) return;
+    const timer = window.setTimeout(() => {
+      plannerGridRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [staffView, isLandscape, plannerScrollTick]);
+
   // Auto-scroll to today when portrait planner is shown (or re-clicked)
   useEffect(() => {
     if (staffView !== "planner" || isLandscape) return;
@@ -1555,7 +1565,7 @@ export default function Schedule() {
     <ModulePageShell
       title={t("ucore_card_schedule_title")}
       moduleHeader={{ module: "schedule", tagline: t("tagline_schedule") }}
-      panel={desktopPanel}
+      panel={staffView === "planner" ? undefined : desktopPanel}
       panelLabel={isDesktop ? (locale === "zh" ? "概况" : locale === "es" ? "DETALLE" : "OVERVIEW") : undefined}
     >
       <div className="p-4 pb-10 md:px-8 md:pt-5 max-w-5xl mx-auto w-full">
@@ -2050,32 +2060,39 @@ export default function Schedule() {
             ) : (
               <>
                 <div className="flex items-center justify-between gap-2">
-                  <ToggleGroup
-                    type="single"
-                    value={staffView}
-                    onValueChange={(v) => {
-                      if (!v) return; // prevent deselection — tabs always keep a value
-                      setStaffView(v as "list" | "planner");
-                      if (v === "planner") setPlannerScrollTick(t => t + 1);
-                    }}
-                    className="justify-start"
-                  >
-                    <ToggleGroupItem value="list" size="sm" variant="outline" className="h-9 px-3">
-                      {t("schedule_view_list")}
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="planner"
-                      size="sm"
-                      variant="outline"
-                      className="h-9 px-3"
+                  <div className="flex rounded-xl border border-border bg-muted/40 p-1 gap-1">
+                    <button
+                      type="button"
                       onClick={() => {
-                        // re-trigger scroll if already on planner (onValueChange won't fire in that case)
-                        if (staffView === "planner") setPlannerScrollTick(t => t + 1);
+                        if (!staffView || staffView !== "list") setStaffView("list");
                       }}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-black tracking-tight transition-all",
+                        staffView === "list"
+                          ? "bg-card text-foreground shadow-sm border border-border/60"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                     >
+                      <CalendarDays className="w-4 h-4 shrink-0" />
+                      {t("schedule_view_list")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStaffView("planner");
+                        setPlannerScrollTick(t => t + 1);
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-black tracking-tight transition-all",
+                        staffView === "planner"
+                          ? "bg-card text-foreground shadow-sm border border-border/60"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <LayoutTemplate className="w-4 h-4 shrink-0" />
                       {t("schedule_view_planner")}
-                    </ToggleGroupItem>
-                  </ToggleGroup>
+                    </button>
+                  </div>
 
                   <div />
                 </div>
@@ -2249,7 +2266,7 @@ export default function Schedule() {
                         })}
                       </div>
                     ) : (
-                      <div className="mt-3 max-h-[calc(100dvh-8rem)] min-h-0 overflow-x-auto overflow-y-auto">
+                      <div ref={plannerGridRef} className="mt-3 max-h-[calc(100dvh-8rem)] min-h-0 overflow-x-auto overflow-y-auto">
                         <div className="min-w-[560px]">
                           <div className="grid grid-cols-8 gap-2">
                           <div />
@@ -2317,7 +2334,7 @@ export default function Schedule() {
 
                                 const isCellToday = d.toLocaleDateString('sv') === new Date().toLocaleDateString('sv');
                                 return (
-                                  <div key={`${slot.key}-${d.toLocaleDateString('sv')}`} className={['space-y-1 rounded-lg px-0.5 py-0.5', isCellToday ? 'bg-primary/5' : ''].join(' ')}>
+                                  <div key={`${slot.key}-${d.toLocaleDateString('sv')}`} className={['space-y-1 rounded-lg px-0.5 py-2', isCellToday ? 'bg-primary/5' : ''].join(' ')}>
                                     {inSlot.length > 0 ? (
                                       inSlot.map((ev) => (
                                       <PlannerSessionCardButton
@@ -2337,7 +2354,7 @@ export default function Schedule() {
                                       <button
                                         type="button"
                                         onClick={() => openCreatePrefilled(d, slot.hour)}
-                                        className="w-full rounded-lg border border-dashed border-border bg-muted/20 px-2 py-2 text-left hover:bg-muted/30"
+                                        className="w-full rounded-lg border border-dashed border-border bg-muted/20 px-2 py-4 text-left hover:bg-muted/30"
                                       >
                                         <p className="text-xs font-semibold text-muted-foreground">
                                           {t("schedule_planner_add")}
@@ -2364,57 +2381,58 @@ export default function Schedule() {
                       const showCopyPrev = weekEmpty && prevHasSessions;
                       const showDeleteAll = weekHasSessions;
                       return (
-                        <div className="mt-3 space-y-2">
-                          <div className="flex justify-center min-h-[44px]">
+                        <div className="mt-3 grid grid-cols-3 items-center gap-2">
+                          {/* Left — Week templates */}
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-11 px-4 justify-self-start"
+                            onClick={() => setWeekTemplatesOpen(true)}
+                            data-testid="schedule-week-templates"
+                            aria-label={t("schedule_week_templates")}
+                            title={t("schedule_week_templates")}
+                          >
+                            <LayoutTemplate className="w-4 h-4 mr-2 shrink-0" />
+                            <span className="truncate">{t("schedule_week_templates")}</span>
+                          </Button>
+
+                          {/* Center — conditional: Copy prev / Clear week / empty */}
+                          <div className="flex justify-center">
                             {showCopyPrev ? (
-                              <Button className="h-11 px-6" disabled={!clubId || !userId} onClick={() => void copyPreviousWeek()}>
-                                {t("schedule_copy_prev_week")}
+                              <Button className="h-11 px-5 w-full max-w-[220px]" disabled={!clubId || !userId} onClick={() => void copyPreviousWeek()}>
+                                <span className="truncate">{t("schedule_copy_prev_week")}</span>
                               </Button>
                             ) : showDeleteAll ? (
                               <Button
                                 variant="secondary"
-                                className="h-11 px-6 text-destructive"
+                                className="h-11 px-5 w-full max-w-[220px] text-destructive"
                                 disabled={!clubId || weekCount === 0}
                                 onClick={() => setClearWeekOpen(true)}
                               >
-                                {t("schedule_clear_week")}
+                                <span className="truncate">{t("schedule_clear_week")}</span>
                               </Button>
                             ) : (
                               <div />
                             )}
                           </div>
 
-                          <div className="flex justify-center">
+                          {/* Right — Export (head_coach only) or empty placeholder */}
+                          {canExportWeekImage ? (
                             <Button
                               size="sm"
                               variant="secondary"
-                              className="h-11 px-6"
-                              onClick={() => setWeekTemplatesOpen(true)}
-                              data-testid="schedule-week-templates"
-                              aria-label={t("schedule_week_templates")}
-                              title={t("schedule_week_templates")}
+                              className="h-11 px-4 justify-self-end"
+                              disabled={!clubId || exportBusy}
+                              onClick={() => void exportVisibleWeekImage()}
+                              aria-label={t("schedule_export_week" as any)}
+                              title={t("schedule_export_week" as any)}
                             >
-                              <LayoutTemplate className="w-4 h-4 mr-2" />
-                              {t("schedule_week_templates")}
+                              <Share2 className="w-4 h-4 mr-2 shrink-0" />
+                              <span className="truncate">{exportBusy ? t("schedule_exporting" as any) : t("schedule_export_week" as any)}</span>
                             </Button>
-                          </div>
-
-                          {canExportWeekImage ? (
-                            <div className="flex justify-center">
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                className="h-11 px-6"
-                                disabled={!clubId || exportBusy}
-                                onClick={() => void exportVisibleWeekImage()}
-                                aria-label={t("schedule_export_week" as any)}
-                                title={t("schedule_export_week" as any)}
-                              >
-                                <Share2 className="w-4 h-4 mr-2" />
-                                {exportBusy ? t("schedule_exporting" as any) : t("schedule_export_week" as any)}
-                              </Button>
-                            </div>
-                          ) : null}
+                          ) : (
+                            <div />
+                          )}
                         </div>
                       );
                     })()}

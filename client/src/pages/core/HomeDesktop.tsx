@@ -221,7 +221,7 @@ export default function HomeDesktop() {
       ];
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
       <main className="flex-1 overflow-y-auto min-h-0 px-8 pt-6 pb-10">
 
         {/* Greeting */}

@@ -48,9 +48,76 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## Estado actual — sesión 2026-05-20 (cierre)
+## Estado actual — sesión 2026-05-21b (cierre)
 
-### ✅ Stats Fase 2 — PlayerSheet redesign completo
+### ✅ U Stats — Sprint completo esta sesión
+
+**Stats avanzadas equipo — todas las fórmulas estándar corregidas:**
+- `ORB%/DRB%` — fórmula correcta: `ORB/(ORB+DRB_rival)` cruzando por game_id
+- `DRTG` — denominador = posesiones del rival (no propias)
+- `Pace` — promedio posesiones propias + rival por partido (query aislada, sin inflación de filas)
+- `ORTG/DRTG liga` — query separada de la query de jugadoras; anchor = home_team_id para evitar filas duplicadas
+- `USG%` — fórmula Basketball-Reference; minutos convertidos desde MM:SS con SPLIT_PART
+- `PIE` — denominador = stats de AMBOS equipos del partido
+- `ORB% liga` en league-averages — corregido (antes usaba fórmula incorrecta)
+- `DRB% liga` — añadido como query separada al endpoint league-averages
+- `ORTG/DRTG/Pace/PPP liga` — añadidos al endpoint league-averages
+- PIE verificado en Supabase: Yang Shuyu = 11.9% ✅ (rango realista)
+
+**StatsTeamSheet — tab Advanced:**
+- Los 10 outputs usan `FactorChip` con formato uniforme: valor coloreado + punto + `Lg: X.X`
+- `FactorChip` tiene nueva prop `colorBySign` para NET RTG (verde/rojo por signo, sin `Lg:`)
+- NET RTG no muestra `Lg: 0.0` — usa `lgVal={null}` + `colorBySign`
+- ORTG/DRTG/PACE/PPP Of./PPP Def. con referencia de liga y color verde/rojo
+- DReb% conectado a `leagueAvg.drbPct`
+- `staleTime` de `useLeagueAverages` reducido de 1h a 5min
+
+**StatsTeamSheet — tab Roster (nuevo tab):**
+- 4 tabs: Overview · Advanced · Games · 👥 (icono solo en móvil, icono+texto en desktop ≥640px)
+- Roster movido del acordeón en Overview a tab propio con tabla visible directamente
+- Sort por dorsal, posición, PPG/RPG/APG
+- `scrollToPlayerId` ahora hace `setActiveTab("roster")` en lugar de abrir acordeón
+
+**Tab Jugadoras — filtros:**
+- Toggle de posición: Todas/Bases/Aleros/Pivots (encima del buscador)
+- Filtros avanzados: panel flotante `fixed` que respeta sidebar (no usa Sheet)
+- `step="1"` para Min. Games, `step="0.5"` para PPG/RPG/APG/MPG
+- Estado vacío no bloqueante con botón "Limpiar filtros"
+- `position` añadido a `PlayerSeasonStats` y al endpoint `/api/stats/players`
+
+**Roster equipo — columna Posición:**
+- `position` en TeamRosterPlayer (backend ya lo devolvía)
+- Columna Pos sorteable entre PLAYER y G
+- `translatePosition()` convierte chino → ES/EN
+
+**i18n hardcodes corregidos esta sesión:**
+- Placeholder `"ej. 15"` de MPG → `es ? "ej. 15" : zh ? "例：15" : "e.g. 15"`
+- Labels PPG/RPG/APG mínimo → trilíngüe
+
+**i18n pendiente (menor):**
+- `"Inner Mongolia"` hardcodeado en `ownL5` (coaching dashboard) — no crítico, solo afecta a este club específico
+
+**Bugs conocidos (activos):**
+- U Scout desktop: ~~página principal para coaches muestra vista incorrecta~~ ✅ RESUELTO esta sesión
+- Schedule planner: ~~slots horizontales demasiado estrechos~~ ✅ RESUELTO esta sesión
+
+**Pendientes próxima sesión:**
+1. **P2 Stats Fase 3:** Bubble chart (FGA/g vs TS%, burbuja=MIN/g), comparador de jugadoras (radar superpuesto hasta 3), coaching dashboard de stats
+4. **P2 Stats Fase 4:** Pi hotspotdata → poblar shot_x/shot_y (0 filas actualmente)
+5. **P2 Shot chart:** ampliar laterales para datos de corner (actualmente landscape only)
+6. **P3 iOS TestFlight:** `100dvh` fix general, bundle <300KB gzip
+7. **P3 OverridePanel:** verificar cableado completo en dispositivo
+8. **P3 isHome en GameLogEntry:** añadir al tipo (actualmente `(g as any).isHome`)
+9. **Collector Pi:** actualizar dist en Pi (`scp` + `pm2 restart`)
+10. **Favicon:** reemplazar icono Replit
+11. **Confirmar branch** `backup/motor-v2.1-pre-20260405` estable y mergear
+
+**Última push producción:**
+```
+git commit: "fix: filter steps, i18n MPG placeholder, roster tab icon-only mobile"
+```
+
+---
 
 **StatsRadar** (`client/src/components/StatsRadar.tsx`):
 - Dual mode `compact` (iOS) / full (desktop)
@@ -115,7 +182,33 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 3. Back+scroll en iOS Sheet mobile — no implementado
 4. `isHome` en `GameLogEntry` — no está en el tipo, se usa `(g as any).isHome` → añadir al tipo cuando backend lo devuelva
 
-### ✅ Sprint E cerrado — campo `threat` en Slide 0 (`74e1468`)
+### ✅ Sesión 2026-05-21b — iOS scroll + Scout desktop + Schedule planner UX
+
+**P1-A iOS scroll — `h-[100dvh]` resuelto:**
+- `ModulePage.tsx` — `h-[100dvh]` → `h-screen`
+- `HomeMobile.tsx` — `h-[100dvh]` → `h-screen`
+- `HomeDesktop.tsx` — `h-[100dvh]` → `h-screen`
+- `CoachHome.tsx` — `h-[100dvh]` → `h-screen`
+- `ReportSlidesV1.tsx` — `minHeight: "100dvh"` → `minHeight: "100svh"`; loading state `min-h-[100dvh]` → `min-h-screen`
+- Raón: `h-screen` = `100vh` que iOS calcula correctamente en cold start; `100svh` es Small Viewport Height, estándar iOS para min-height
+
+**P1-B U Scout desktop — Coach home resuelto:**
+- `Scout.tsx` ahora renderiza `CoachHome` en desktop en lugar de `ScoutDesktop`
+- Coach ve directamente: alert slots → Personnel → workflow My Scout → Film Room → Game Plan
+- `ScoutDesktop` sigue existiendo, disponible para enlazar desde Personnel si se quiere
+
+**Schedule planner UX — tres mejoras:**
+- Panel derecho (`OVERVIEW/DETALLE`) oculto en modo planner: `panel={staffView === "planner" ? undefined : desktopPanel}` — el grid se expande al 100% del área
+- Selector List/Planner elevado: `ToggleGroup` plano reemplazado por pill con `bg-muted/40`, botones con icono (`CalendarDays`/`LayoutTemplate`) + estado activo `bg-card` + sombra
+- Slots landscape más altos: celda `py-0.5` → `py-2`; botón vacío `py-2` → `py-4`
+- Autoscroll al activar Planner (desktop): `plannerGridRef` + `useEffect` → `scrollIntoView({ behavior: "smooth", block: "center" })`
+- Botones inferiores reordenados: de 3 filas centradas a `grid grid-cols-3` — `[Week templates] [Copy prev/Clear week] [Export week image]`
+
+**Úiltima push producción:**
+```
+git commit pendiente de esta sesión
+```
+
 ### ✅ Sprint D cerrado — ReportSlidesV1 3 slides (`de9d2c4`)
 ### ✅ Stats + Radar + Performance — bundle 253KB gzip ✅
 

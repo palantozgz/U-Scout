@@ -224,7 +224,7 @@ export default function ReportSlidesV1({
 
   if (isLoading || !player) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center text-muted-foreground">
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
         {t("saving")}
       </div>
     );
@@ -266,7 +266,7 @@ export default function ReportSlidesV1({
   return (
     <div
       className="flex flex-col bg-background"
-      style={{ minHeight: "100dvh" }}
+      style={{ minHeight: "100svh" }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onPointerDown={handlePointerDown}
