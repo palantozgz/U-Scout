@@ -337,20 +337,25 @@ export default function HomeDesktop() {
 
             {/* Quick access + Mi Club + identity — grid uniforme */}
             <div className={cn("grid grid-cols-2 gap-2")}>
-              {quickLinks.map((l, i) => (
+              {quickLinks.map((l, i) => {
+                const isLastOddPlayer =
+                  mode !== "staff" && quickLinks.length % 2 !== 0 && i === quickLinks.length - 1;
+                return (
                 <button
                   key={l.href}
                   type="button"
                   onClick={() => setLocation(l.href)}
                   className={cn(
                     quickTileClass,
-                    mode !== "staff" && quickLinks.length % 2 !== 0 && i === quickLinks.length - 1 ? "col-span-2 justify-self-center" : "",
+                    isLastOddPlayer ? "col-span-2 justify-self-center" : "",
                   )}
+                  style={isLastOddPlayer ? { width: "calc(50% - 4px)" } : undefined}
                 >
                   <span className="text-primary">{l.icon}</span>
                   {l.label}
                 </button>
-              ))}
+                );
+              })}
               {mode === "staff" && caps.canViewClubManagement && (
                 <button
                   type="button"

@@ -81,9 +81,9 @@ export function computeCapabilities(input: {
   // Stats: todos los staff pueden ver stats de liga
   const canViewStats = canViewCoachUI;
 
-  // Mi Club entry point: only head_coach and master
+  // Mi Club entry point: only head_coach and master (based on effectiveRole for preview correctness)
   const canViewClubManagement =
-    realRole === "master" || realRole === "head_coach";
+    effectiveRole === "master" || effectiveRole === "head_coach";
 
   // Permission-oriented capability: prefer realRole + membership, never effectiveRole.
   const canManageClub = (() => {
@@ -112,11 +112,11 @@ export function computeCapabilities(input: {
   const canAccessReports = canViewCoachUI;
 
   const canAccessPersonnel =
-    realRole === "master" ||
-    realRole === "head_coach" ||
-    (realRole === "coach" && Boolean(m?.operationsAccess) && m?.status === "active");
+    effectiveRole === "master" ||
+    effectiveRole === "head_coach" ||
+    (effectiveRole === "coach" && Boolean(m?.operationsAccess) && m?.status === "active");
 
-  const canCreateCanonical = realRole === "master" || realRole === "head_coach";
+  const canCreateCanonical = effectiveRole === "master" || effectiveRole === "head_coach";
 
   const canManageWellness = staffRole === "head_coach" || isPhysicalTrainer || hasOperationsAccess;
 

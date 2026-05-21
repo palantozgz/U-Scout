@@ -1625,10 +1625,10 @@ export default function Schedule() {
                 {/* Day cells */}
                 <div className="grid grid-cols-7 gap-1">
                   {schedWeekDays.map((d) => {
-                    const key = d.toDateString();
-                    const isToday = key === schedTodayKey;
+                    const key = localDateKey(d);
+                    const isToday = d.toDateString() === schedTodayKey;
                     const dayEvents = (weekEventsQ.data ?? []).filter(
-                      (ev) => new Date(ev.starts_at).toDateString() === key,
+                      (ev) => ev.starts_at.slice(0, 10) === key,
                     );
                     const EVENT_COLORS: Record<string, string> = {
                       training: "bg-primary/15 text-primary",
@@ -1638,10 +1638,24 @@ export default function Schedule() {
                       travel:   "bg-muted text-muted-foreground",
                     };
                     return (
-                      <div
+                      <button
                         key={key}
+                        type="button"
+                        onClick={() => {
+                          const el = (portraitDayRefs.current[key] ?? landscapeDayRefs.current[key]) as HTMLElement | null;
+                          if (el) {
+                            let parent = el.parentElement;
+                            while (parent && parent.scrollHeight <= parent.clientHeight) {
+                              parent = parent.parentElement;
+                            }
+                            if (parent) {
+                              const targetTop = el.offsetTop - (parent as HTMLElement).offsetTop - 16;
+                              parent.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+                            }
+                          }
+                        }}
                         className={cn(
-                          "min-h-[72px] rounded-xl border p-1.5 flex flex-col gap-1",
+                          "min-h-[72px] rounded-xl border p-1.5 flex flex-col gap-1 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-colors text-left w-full",
                           isToday
                             ? "border-primary/30 bg-primary/4"
                             : "border-border/30 bg-card",
@@ -1658,7 +1672,7 @@ export default function Schedule() {
                             </div>
                           );
                         })}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
