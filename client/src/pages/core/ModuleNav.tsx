@@ -34,7 +34,7 @@ export function ModuleNav() {
   const items = useModuleNavItems();
   const isFive = items.length === 5;
 
-  const firstName = (profile?.username?.trim() || "").split(" ")[0] || profile?.email?.split("@")[0] || "";
+  const displayName = profile?.username?.trim() || profile?.email?.split("@")[0] || "";
   const roleStr =
     effectiveRole === "head_coach" ? "Head Coach" :
     effectiveRole === "coach"      ? "Coach" :
@@ -127,12 +127,12 @@ export function ModuleNav() {
         ))}
 
         {/* User footer — expanded sidebar (lg) only */}
-        {firstName && (
+        {displayName && (
           <div
             className="hidden lg:block mt-auto pt-3 mx-3"
             style={{ borderTop: "1px solid hsl(var(--border) / 0.3)" }}
           >
-            <p className="text-xs font-semibold text-foreground truncate">{firstName}</p>
+            <p className="text-xs font-semibold text-foreground truncate">{displayName}</p>
             {roleStr && <p className="text-[10px] text-muted-foreground tracking-wide truncate">{roleStr}</p>}
           </div>
         )}

@@ -356,7 +356,8 @@ export default function HomeDesktop() {
                   type="button"
                   onClick={() => setLocation("/coach/club")}
                   data-testid="ucore-home-mi-club"
-                  className={quickTileClass}
+                  className={cn(quickTileClass, "col-span-2 justify-self-center")}
+                  style={{ width: "calc(50% - 4px)" }}
                 >
                   <Building2 className="w-4 h-4" />
                   <span>{t("ucore_nav_club")}</span>
