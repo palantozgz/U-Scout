@@ -342,7 +342,7 @@ export default function HomeDesktop() {
               ))}
             </div>
 
-            {/* Mi Club + identity — fila inferior */}
+            {/* Mi Club + identity — fila inferior, misma altura que botones del grid */}
             <div className="flex items-stretch gap-2">
               {mode === "staff" && caps.canViewClubManagement && (
                 <button
@@ -358,11 +358,12 @@ export default function HomeDesktop() {
                 </button>
               )}
               <div
-                className="flex flex-col justify-center px-3 py-2.5 rounded-xl border border-border/20 bg-card/40 min-w-0 flex-1"
+                className="flex items-center gap-2 px-3 py-4 rounded-xl border border-border/20 bg-card/40 min-w-0 flex-1"
               >
-                <p className="text-[12px] font-semibold text-foreground truncate">{displayName}</p>
-                {roleLabel && <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">{roleLabel}</p>}
-                <p className="text-[8px] font-medium tracking-[2px] uppercase text-muted-foreground/30 mt-0.5">U·CORE</p>
+                <div className="min-w-0">
+                  <p className="text-[12px] font-semibold text-foreground truncate">{displayName}</p>
+                  {roleLabel && <p className="text-[10px] text-muted-foreground/60 truncate">{roleLabel}</p>}
+                </div>
               </div>
             </div>
 
