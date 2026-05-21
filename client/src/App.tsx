@@ -228,8 +228,7 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
         queryFn: () => apiRequest("GET", `/api/schedule/events?clubId=${clubId}&range=week`).then(r => r.json()).catch(() => null),
         staleTime: 60_000,
       });
-      // Prefetch Schedule JS chunk on desktop — it's the heaviest (137KB gzip)
-      if (isDesktop) void import("@/pages/core/Schedule").catch(() => {});
+      // Note: dynamic chunk prefetch skipped — unnecessary in Capacitor (local bundle)
     }, phase1Delay);
 
     // Phase 2: Players + teams — U Scout data
@@ -260,7 +259,7 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
 
     // Phase 3: Stats chunk + seasons + player stats
     const t3 = window.setTimeout(() => {
-      void import("@/pages/core/Stats").catch(() => {});
+      // Note: Stats chunk prefetch skipped — unnecessary in Capacitor (local bundle)
       queryClient.prefetchQuery({
         queryKey: ["stats-seasons"],
         queryFn: () => apiRequest("GET", "/api/stats/seasons").then(r => r.json()).catch(() => ({ seasons: [] })),

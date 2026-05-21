@@ -2122,6 +2122,23 @@ function StatsPlayerSheet({
   const [gameLogSort, setGameLogSort] = useState<GameLogSortKey>("date");
   const [gameLogSortDir, setGameLogSortDir] = useState<"desc" | "asc">("desc");
 
+  const [photoZoomed, setPhotoZoomed] = useState(false);
+  const lastTapRef = useRef<number>(0);
+
+  const handlePhotoTap = () => {
+    const now = Date.now();
+    const isDesktopClick = window.matchMedia("(pointer: fine)").matches;
+    if (isDesktopClick) {
+      setPhotoZoomed(z => !z);
+      return;
+    }
+    // Mobile/iOS: doble tap en < 350ms
+    if (now - lastTapRef.current < 350) {
+      setPhotoZoomed(z => !z);
+    }
+    lastTapRef.current = now;
+  };
+
   const isLandscape = useIsLandscape();
 
   const advStats = useMemo(() => {
@@ -2353,11 +2370,27 @@ function StatsPlayerSheet({
           <ChevronLeft className="w-5 h-5" />
         </button>
         {player?.photoUrl ? (
-          <img
-            src={player.photoUrl}
-            className="w-11 h-11 rounded-full object-cover object-top shrink-0 border-2 border-primary/25"
-            alt=""
-          />
+          <button
+            type="button"
+            onClick={handlePhotoTap}
+            className="shrink-0 rounded-full focus:outline-none"
+            aria-label="Ampliar foto"
+            style={{ background: "none", border: "none", padding: 0 }}
+          >
+            <img
+              src={player.photoUrl}
+              className="rounded-full object-cover object-top border-2 border-primary/25 transition-all duration-300 ease-in-out cursor-zoom-in"
+              style={{
+                width: photoZoomed ? 88 : 44,
+                height: photoZoomed ? 88 : 44,
+                transform: photoZoomed ? "scale(1)" : "scale(1)",
+                cursor: photoZoomed ? "zoom-out" : "zoom-in",
+                zIndex: photoZoomed ? 50 : "auto",
+                position: photoZoomed ? "relative" : "static",
+              }}
+              alt=""
+            />
+          </button>
         ) : (
           <div className="w-11 h-11 rounded-full bg-muted/40 shrink-0 flex items-center justify-center text-sm font-black text-muted-foreground border-2 border-primary/20">
             {player

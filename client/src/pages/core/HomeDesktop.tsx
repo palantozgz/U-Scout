@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { Clock, MapPin, Building2, CalendarDays, Target, BarChart3, Heart } from "lucide-react";
 import { useHomeData } from "@/lib/useHomeData";
 import { ModuleNav } from "./ModuleNav";
+import { ModuleHeader } from "@/components/branding/ModuleHeader";
 
 // ── Tokens matching the mockup ────────────────────────────────
 // card:      bg-card border border-border/30 rounded-xl
@@ -222,7 +223,18 @@ export default function HomeDesktop() {
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
-      <main className="flex-1 overflow-y-auto min-h-0 px-8 pt-6 pb-10">
+      {/* ── Header fijo — mismo logo que el resto de módulos ── */}
+      <ModuleHeader
+        module="core"
+        tagline={
+          locale === "zh" ? "球队管理中心" :
+          locale === "es" ? "Centro de gestión del equipo" :
+          "Team management hub"
+        }
+        className="shrink-0 w-full max-w-5xl mx-auto px-8"
+      />
+
+      <main className="flex-1 overflow-y-auto min-h-0 px-8 pt-2 pb-10">
 
         {/* Greeting */}
         <div className="mb-4">
