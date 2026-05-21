@@ -211,7 +211,12 @@ function AuthGate() {
 /** Prefetches data for other modules in the background after auth, in priority order. */
 function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: string }) {
   useEffect(() => {
-    // Phase 1 (500ms): Schedule today + week — most time-sensitive
+    const isDesktop = window.innerWidth >= 768;
+    const phase1Delay = isDesktop ? 100 : 500;
+    const phase2Delay = isDesktop ? 800 : 2_000;
+    const phase3Delay = isDesktop ? 1_800 : 4_000;
+
+    // Phase 1: Schedule today + week — most time-sensitive
     const t1 = window.setTimeout(() => {
       queryClient.prefetchQuery({
         queryKey: ["schedule", "events", "today", clubId],
@@ -223,9 +228,11 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
         queryFn: () => apiRequest("GET", `/api/schedule/events?clubId=${clubId}&range=week`).then(r => r.json()).catch(() => null),
         staleTime: 60_000,
       });
-    }, 500);
+      // Prefetch Schedule JS chunk on desktop — it's the heaviest (137KB gzip)
+      if (isDesktop) void import("@/pages/core/Schedule").catch(() => {});
+    }, phase1Delay);
 
-    // Phase 2 (2s): Players + teams — U Scout data
+    // Phase 2: Players + teams — U Scout data
     const t2 = window.setTimeout(() => {
       queryClient.prefetchQuery({
         queryKey: ["/api/teams", userId],
@@ -237,11 +244,10 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
         queryFn: () => apiRequest("GET", "/api/players").then(r => r.json()).catch(() => []),
         staleTime: 600_000,
       });
-    }, 2_000);
+    }, phase2Delay);
 
-    // Phase 3 (4s): Stats — prefetch JS chunk + seasons + player stats
+    // Phase 3: Stats chunk + seasons + player stats
     const t3 = window.setTimeout(() => {
-      // Prefetch the Stats JS chunk so navigation is instant
       void import("@/pages/core/Stats").catch(() => {});
       queryClient.prefetchQuery({
         queryKey: ["stats-seasons"],
@@ -253,7 +259,7 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
         queryFn: () => apiRequest("GET", "/api/stats/players").then(r => r.json()).catch(() => ({ players: [] })),
         staleTime: 5 * 60_000,
       });
-    }, 4_000);
+    }, phase3Delay);
 
     return () => {
       window.clearTimeout(t1);
