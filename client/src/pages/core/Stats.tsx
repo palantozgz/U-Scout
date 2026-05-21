@@ -7,6 +7,7 @@ import { LandscapeHint, useIsLandscape } from "@/components/LandscapeHint";
 import { StatsRadar } from "@/components/StatsRadar";
 import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { useAuth } from "@/lib/useAuth";
 import { useCapabilities } from "@/lib/capabilities";
@@ -824,6 +825,14 @@ export default function Stats() {
                           <button
                             key={String(row.teamExternalId)}
                             type="button"
+                            onMouseEnter={() => {
+                              const id = String(row.teamExternalId);
+                              queryClient.prefetchQuery({
+                                queryKey: ["stats-team-detail", id, effectiveSeasonId ?? 2092],
+                                queryFn: () => apiRequest("GET", `/api/stats/team/${id}?seasonId=${effectiveSeasonId ?? 2092}`).then(r => r.json()),
+                                staleTime: 1000 * 60 * 30,
+                              });
+                            }}
                             onClick={() => {
                               setPlayerSheetId(null);
                               setReturnToTeamId(null);
@@ -914,6 +923,14 @@ export default function Stats() {
                       <button
                         key={row.externalId}
                         type="button"
+                        onMouseEnter={() => {
+                          const id = String(row.externalId);
+                          queryClient.prefetchQuery({
+                            queryKey: ["stats-player-detail", id],
+                            queryFn: () => apiRequest("GET", `/api/stats/player/${id}`).then(r => r.json()),
+                            staleTime: 1000 * 60 * 30,
+                          });
+                        }}
                         onClick={() => setPlayerSheetId(String(row.externalId))}
                         className="w-full flex items-center gap-3 px-3 py-2.5 touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors text-left"
                       >
@@ -1094,6 +1111,13 @@ export default function Stats() {
                       <button
                         key={key}
                         type="button"
+                        onMouseEnter={() => {
+                          queryClient.prefetchQuery({
+                            queryKey: ["stats-player-detail", p.externalId],
+                            queryFn: () => apiRequest("GET", `/api/stats/player/${p.externalId}`).then(r => r.json()),
+                            staleTime: 1000 * 60 * 30,
+                          });
+                        }}
                         onClick={() => setPlayerSheetId(p.externalId)}
                         className="w-full px-3 py-3 grid grid-cols-[2fr_0.4fr_0.6fr_0.6fr_0.6fr] items-center gap-0 text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors border-b border-border last:border-b-0"
                       >
