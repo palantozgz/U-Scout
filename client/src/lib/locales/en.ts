@@ -37,6 +37,7 @@ const en = {
   ucore_nav_scout: "Scout",
   ucore_nav_schedule: "Schedule",
   ucore_nav_stats: "Stats",
+  ucore_nav_playbook: "Playbook",
   ucore_nav_club: "My Club",
 
   // ── Module taglines ──────────────────────────────────────────────

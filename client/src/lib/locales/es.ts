@@ -35,6 +35,7 @@ const es = {
   ucore_nav_scout: "Scout",
   ucore_nav_schedule: "Horario",
   ucore_nav_stats: "Stats",
+  ucore_nav_playbook: "Playbook",
   ucore_nav_club: "Mi Club",
   ucore_card_scout_title: "Scout",
   ucore_card_scout_sub_staff: "Crea informes de scouting",

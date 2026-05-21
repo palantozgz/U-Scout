@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Clock, MapPin, Building2, CalendarDays, Target, BarChart3, Heart } from "lucide-react";
+import { Clock, MapPin, Building2, CalendarDays, Target, BarChart3, Heart, BookOpen } from "lucide-react";
 import { useHomeData } from "@/lib/useHomeData";
 import { ModuleNav } from "./ModuleNav";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
@@ -211,14 +211,17 @@ export default function HomeDesktop() {
   // ── Quick access buttons ──────────────────────────────────
   const quickLinks = mode === "staff"
     ? [
-        { icon: <CalendarDays className="w-4 h-4" />, label: t("ucore_nav_schedule"), href: "/schedule" },
-        { icon: <Target       className="w-4 h-4" />, label: t("ucore_nav_scout"),    href: "/scout"    },
-        { icon: <BarChart3    className="w-4 h-4" />, label: t("ucore_nav_stats"),     href: "/stats"    },
+        { icon: <CalendarDays className="w-4 h-4" />, label: t("ucore_nav_schedule"),  href: "/schedule"  },
+        { icon: <Target       className="w-4 h-4" />, label: t("ucore_nav_scout"),     href: "/scout"     },
+        { icon: <BarChart3    className="w-4 h-4" />, label: t("ucore_nav_stats"),     href: "/stats"     },
+        { icon: <BookOpen     className="w-4 h-4" />, label: t("ucore_nav_playbook"),  href: "/playbook"  },
       ]
     : [
         { icon: <CalendarDays className="w-4 h-4" />, label: t("ucore_nav_schedule"),  href: "/schedule"        },
         { icon: <Heart        className="w-4 h-4" />, label: t("home_wellness_today"),  href: "/player/wellness" },
         { icon: <Target       className="w-4 h-4" />, label: t("ucore_nav_scout"),     href: "/scout"           },
+        { icon: <BarChart3    className="w-4 h-4" />, label: t("ucore_nav_stats"),     href: "/stats"           },
+        { icon: <BookOpen     className="w-4 h-4" />, label: t("ucore_nav_playbook"),  href: "/playbook"        },
       ];
 
   return (
@@ -319,18 +322,46 @@ export default function HomeDesktop() {
             )}
 
             {/* Quick access */}
-            <div className="flex gap-2">
-              {quickLinks.map((l) => (
+            <div className={quickLinks.length === 4 ? "grid grid-cols-2 gap-2" : "grid grid-cols-3 gap-2"}>
+              {quickLinks.map((l, i) => (
                 <button
                   key={l.href}
                   type="button"
                   onClick={() => setLocation(l.href)}
-                  className="flex flex-1 items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-border/30 bg-card text-[13px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-colors"
+                  className={[
+                    "flex items-center justify-center gap-2 px-3 py-4 rounded-xl border border-border/30 bg-card text-[13px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-colors",
+                    quickLinks.length === 5 && i === 4 ? "col-span-3" : "",
+                  ].join(" ")}
                 >
                   <span className="text-primary">{l.icon}</span>
                   {l.label}
                 </button>
               ))}
+            </div>
+
+            {/* Mi Club + identity — fila inferior */}
+            <div className="flex items-stretch gap-2">
+              {mode === "staff" && (
+                <button
+                  type="button"
+                  onClick={() => setLocation("/coach/club")}
+                  data-testid="ucore-home-mi-club"
+                  className="flex items-center justify-center gap-2 px-3 py-3.5 rounded-xl border border-border/30 bg-card text-[13px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-colors shrink-0"
+                  style={{ flex: 1 }}
+                >
+                  <Building2 className="w-4 h-4" />
+                  <span>{t("ucore_nav_club")}</span>
+                  {showClubActivityDot && <span className="w-2 h-2 rounded-full bg-destructive ml-1" />}
+                </button>
+              )}
+              <div
+                className="flex flex-col justify-center px-3 py-2.5 rounded-xl border border-border/20 bg-card/40 min-w-0"
+                style={{ flex: 1, maxWidth: mode === "staff" ? undefined : "50%" }}
+              >
+                <p className="text-[12px] font-semibold text-foreground truncate">{displayName}</p>
+                {roleLabel && <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">{roleLabel}</p>}
+                <p className="text-[8px] font-medium tracking-[2px] uppercase text-muted-foreground/30 mt-0.5">U·CORE</p>
+              </div>
             </div>
 
           </div>
@@ -366,27 +397,6 @@ export default function HomeDesktop() {
                 <div className="flex flex-col gap-2">{alerts}</div>
               </>
             )}
-
-            {/* Mi Club */}
-            {mode === "staff" && (
-              <button
-                type="button"
-                onClick={() => setLocation("/coach/club")}
-                data-testid="ucore-home-mi-club"
-                className="w-full flex items-center justify-center gap-2 rounded-xl border border-border/30 bg-card px-4 py-2.5 text-[13px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-colors"
-              >
-                <Building2 className="w-4 h-4" />
-                <span>{t("ucore_nav_club")}</span>
-                {showClubActivityDot && <span className="w-2 h-2 rounded-full bg-destructive ml-1" />}
-              </button>
-            )}
-
-            {/* User identity — centrado en la columna */}
-            <div className="pt-3 border-t border-border/30 text-center">
-              <p className="text-[13px] font-semibold text-foreground">{displayName}</p>
-              {roleLabel && <p className="text-[11px] text-muted-foreground/70 mt-0.5">{roleLabel}</p>}
-              <p className="text-[9px] font-medium tracking-[2px] uppercase text-muted-foreground/40 mt-1">U·CORE</p>
-            </div>
 
           </div>
         </div>

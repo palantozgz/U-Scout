@@ -2161,7 +2161,7 @@ export default function Schedule() {
                       <p className="text-xs font-semibold text-muted-foreground">{t("schedule_planner_hint")}</p>
 
                     {!isLandscape ? (
-                      <div className="mt-3 max-h-[calc(100dvh-8rem)] min-h-0 overflow-y-auto space-y-3">
+                      <div className="mt-3 space-y-3">
                         {days.map((d) => {
                           const dayKey = localDateKey(d);
                           const daySessionsAll = (plannerWeekQ.data ?? [])
