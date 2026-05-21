@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Trophy, Users } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Trophy, Users, Users2 } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { ModulePageShell } from "./ModulePage";
 import { LandscapeHint, useIsLandscape } from "@/components/LandscapeHint";
@@ -1221,16 +1221,18 @@ export default function Stats() {
                   state: advMinGames,
                   set: setAdvMinGames,
                   placeholder: es ? "ej. 10" : zh ? "例：10" : "e.g. 10",
+                  step: "1",
                 },
-                { key: "advMinPpg", label: es ? "PPG mínimo" : zh ? "最低得分" : "Min. PPG", state: advMinPpg, set: setAdvMinPpg, placeholder: es ? "ej. 8.0" : zh ? "例：8.0" : "e.g. 8.0" },
-                { key: "advMinRpg", label: es ? "RPG mínimo" : zh ? "最低篮板" : "Min. RPG", state: advMinRpg, set: setAdvMinRpg, placeholder: es ? "ej. 4.0" : zh ? "例：4.0" : "e.g. 4.0" },
-                { key: "advMinApg", label: es ? "APG mínimo" : zh ? "最低助攻" : "Min. APG", state: advMinApg, set: setAdvMinApg, placeholder: es ? "ej. 2.0" : zh ? "例：2.0" : "e.g. 2.0" },
+                { key: "advMinPpg", label: es ? "PPG mínimo" : zh ? "最低得分" : "Min. PPG", state: advMinPpg, set: setAdvMinPpg, placeholder: es ? "ej. 8.0" : zh ? "例：8.0" : "e.g. 8.0", step: "0.5" },
+                { key: "advMinRpg", label: es ? "RPG mínimo" : zh ? "最低篮板" : "Min. RPG", state: advMinRpg, set: setAdvMinRpg, placeholder: es ? "ej. 4.0" : zh ? "例：4.0" : "e.g. 4.0", step: "0.5" },
+                { key: "advMinApg", label: es ? "APG mínimo" : zh ? "最低助攻" : "Min. APG", state: advMinApg, set: setAdvMinApg, placeholder: es ? "ej. 2.0" : zh ? "例：2.0" : "e.g. 2.0", step: "0.5" },
                 {
                   key: "advMinMpg",
                   label: es ? "MPG mínimo" : zh ? "最少上场时间" : "Min. MPG",
                   state: advMinMpg,
                   set: setAdvMinMpg,
                   placeholder: "ej. 15",
+                  step: "0.5",
                 },
               ] as {
                 key: string;
@@ -1238,8 +1240,9 @@ export default function Stats() {
                 state: string;
                 set: (v: string) => void;
                 placeholder: string;
+                step: string;
               }[]
-            ).map(({ key, label, state, set, placeholder }) => (
+            ).map(({ key, label, state, set, placeholder, step }) => (
               <div key={key} className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                   {label}
@@ -1247,7 +1250,7 @@ export default function Stats() {
                 <input
                   type="number"
                   min="0"
-                  step="0.1"
+                  step={step}
                   value={state}
                   onChange={(e) => set(e.target.value)}
                   placeholder={placeholder}
@@ -3014,8 +3017,7 @@ function StatsTeamSheet({
   const teamGameLog: TeamGameLogEntry[] = team?.gameLog ?? [];
   const pointsByZone = team?.pointsByZone ?? null;
 
-  const [activeTab, setActiveTab] = useState<"ficha" | "avanzado" | "partidos">("ficha");
-  const [rosterOpen, setRosterOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"ficha" | "avanzado" | "partidos" | "roster">("ficha");
   const [rosterSort, setRosterSort] = useState<"ppg" | "rpg" | "apg" | "pos" | "jersey">("ppg");
   const [rosterSortDir, setRosterSortDir] = useState<"asc" | "desc">("desc");
 
@@ -3041,7 +3043,7 @@ function StatsTeamSheet({
 
   useEffect(() => {
     if (!scrollToPlayerId || isLoading || activePlayers.length === 0) return;
-    setRosterOpen(true);
+    setActiveTab("roster");
     setTimeout(() => {
       const el = document.querySelector(`[data-player-id="${scrollToPlayerId}"]`);
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -3203,6 +3205,19 @@ function StatsTeamSheet({
             {t === "ficha" ? L.tabFicha : t === "avanzado" ? L.tabAvanzado : L.tabPartidos}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => setActiveTab("roster")}
+          className={cn(
+            "flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors border-b-2 flex items-center justify-center gap-1",
+            activeTab === "roster"
+              ? "text-primary border-primary"
+              : "text-muted-foreground border-transparent",
+          )}
+        >
+          <Users2 className="w-3.5 h-3.5 shrink-0" />
+          <span className="hidden sm:inline">{L.roster}</span>
+        </button>
       </div>
 
       {isLoading && (
@@ -3450,129 +3465,6 @@ function StatsTeamSheet({
                 </div>
               )}
 
-              <div>
-                <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setRosterOpen((o) => !o)}
-                    className="w-full flex items-center justify-between px-4 py-3 touch-manipulation"
-                  >
-                    <div className="text-left">
-                      <p className="text-sm font-bold">{L.showRoster}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {L.players14(activePlayers.length)}
-                      </p>
-                    </div>
-                    <ChevronDown
-                      className={cn(
-                        "w-4 h-4 text-muted-foreground transition-transform",
-                        rosterOpen && "rotate-180",
-                      )}
-                    />
-                  </button>
-                  {rosterOpen && activePlayers.length > 0 && (
-                    <div className="border-t border-border">
-                      <div className="grid grid-cols-[1.2fr_0.5fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (rosterSort === "jersey") setRosterSortDir((d) => d === "desc" ? "asc" : "desc");
-                            else { setRosterSort("jersey"); setRosterSortDir("asc"); }
-                          }}
-                          className={cn(
-                            "text-left font-black uppercase tracking-wider text-xs touch-manipulation flex items-center gap-0.5",
-                            rosterSort === "jersey" ? "text-primary" : "text-muted-foreground",
-                          )}
-                        >
-                          {L.colPlayer}
-                          {rosterSort === "jersey" && <span className="text-[7px]">{rosterSortDir === "asc" ? "▲" : "▼"}</span>}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (rosterSort === "pos") setRosterSortDir((d) => d === "desc" ? "asc" : "desc");
-                            else { setRosterSort("pos"); setRosterSortDir("asc"); }
-                          }}
-                          className={cn(
-                            "text-left font-black uppercase tracking-wider text-xs touch-manipulation flex items-center gap-0.5",
-                            rosterSort === "pos" ? "text-primary" : "text-muted-foreground",
-                          )}
-                        >
-                          {es ? "Pos" : zh ? "位置" : "Pos"}
-                          {rosterSort === "pos" && <span className="text-[7px]">{rosterSortDir === "desc" ? "▼" : "▲"}</span>}
-                        </button>
-                        <span className="text-right">{L.colG}</span>
-                        {(["ppg", "rpg", "apg"] as const).map((col) => (
-                          <button
-                            key={col}
-                            type="button"
-                            onClick={() => {
-                              if (rosterSort === col) {
-                                setRosterSortDir((d) => (d === "desc" ? "asc" : "desc"));
-                              } else {
-                                setRosterSort(col);
-                                setRosterSortDir("desc");
-                              }
-                            }}
-                            className={cn(
-                              "text-right font-black uppercase tracking-wider text-xs touch-manipulation flex items-center justify-end gap-0.5 w-full",
-                              rosterSort === col ? "text-primary" : "text-muted-foreground",
-                            )}
-                          >
-                            {col.toUpperCase()}
-                            {rosterSort === col && (
-                              <span className="text-[7px]">
-                                {rosterSortDir === "desc" ? "▼" : "▲"}
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                      {activePlayers.map((p: TeamRosterPlayer) => {
-                        const name =
-                          preferEn && p.nameEn?.trim()
-                            ? (toTitleCase(p.nameEn) ?? p.nameEn.trim())
-                            : p.nameZh;
-                        return (
-                          <button
-                            key={p.externalId}
-                            type="button"
-                            data-player-id={p.externalId}
-                            onClick={() => onPlayerTap(p.externalId)}
-                            className="w-full grid grid-cols-[1.2fr_0.5fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 items-center px-3 py-2.5 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 transition-colors"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-sm font-extrabold text-foreground truncate">
-                                {name}
-                              </p>
-                              {p.jerseyNumber != null && p.jerseyNumber !== "" && (
-                                <p className="text-xs text-muted-foreground/60 font-semibold">
-                                  #{p.jerseyNumber}
-                                </p>
-                              )}
-                            </div>
-                            <p className="text-[9px] font-black uppercase tracking-wide text-muted-foreground/70 truncate">
-                              {p.position ? translatePosition(p.position, locale) : "—"}
-                            </p>
-                            <p className="text-xs font-black text-foreground tabular-nums text-right">
-                              {p.games}
-                            </p>
-                            <p className="text-xs font-black text-foreground tabular-nums text-right">
-                              {p.ppg.toFixed(1)}
-                            </p>
-                            <p className="text-xs font-black text-foreground tabular-nums text-right">
-                              {p.rpg.toFixed(1)}
-                            </p>
-                            <p className="text-xs font-black text-foreground tabular-nums text-right">
-                              {p.apg.toFixed(1)}
-                            </p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
@@ -3807,6 +3699,97 @@ function StatsTeamSheet({
                       </p>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "roster" && (
+            <div className="px-4 py-4">
+              {activePlayers.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
+                  <p className="text-sm font-bold text-muted-foreground">{L.noData}</p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                  <div className="grid grid-cols-[1.2fr_0.5fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (rosterSort === "jersey") setRosterSortDir((d) => d === "desc" ? "asc" : "desc");
+                        else { setRosterSort("jersey"); setRosterSortDir("asc"); }
+                      }}
+                      className={cn(
+                        "text-left font-black uppercase tracking-wider text-xs touch-manipulation flex items-center gap-0.5",
+                        rosterSort === "jersey" ? "text-primary" : "text-muted-foreground",
+                      )}
+                    >
+                      {L.colPlayer}
+                      {rosterSort === "jersey" && <span className="text-[7px]">{rosterSortDir === "asc" ? "▲" : "▼"}</span>}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (rosterSort === "pos") setRosterSortDir((d) => d === "desc" ? "asc" : "desc");
+                        else { setRosterSort("pos"); setRosterSortDir("asc"); }
+                      }}
+                      className={cn(
+                        "text-left font-black uppercase tracking-wider text-xs touch-manipulation flex items-center gap-0.5",
+                        rosterSort === "pos" ? "text-primary" : "text-muted-foreground",
+                      )}
+                    >
+                      {es ? "Pos" : zh ? "位置" : "Pos"}
+                      {rosterSort === "pos" && <span className="text-[7px]">{rosterSortDir === "desc" ? "▼" : "▲"}</span>}
+                    </button>
+                    <span className="text-right">{L.colG}</span>
+                    {(["ppg", "rpg", "apg"] as const).map((col) => (
+                      <button
+                        key={col}
+                        type="button"
+                        onClick={() => {
+                          if (rosterSort === col) setRosterSortDir((d) => (d === "desc" ? "asc" : "desc"));
+                          else { setRosterSort(col); setRosterSortDir("desc"); }
+                        }}
+                        className={cn(
+                          "text-right font-black uppercase tracking-wider text-xs touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                          rosterSort === col ? "text-primary" : "text-muted-foreground",
+                        )}
+                      >
+                        {col.toUpperCase()}
+                        {rosterSort === col && (
+                          <span className="text-[7px]">{rosterSortDir === "desc" ? "▼" : "▲"}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  {activePlayers.map((p: TeamRosterPlayer) => {
+                    const name = preferEn && p.nameEn?.trim()
+                      ? (toTitleCase(p.nameEn) ?? p.nameEn.trim())
+                      : p.nameZh;
+                    return (
+                      <button
+                        key={p.externalId}
+                        type="button"
+                        data-player-id={p.externalId}
+                        onClick={() => onPlayerTap(p.externalId)}
+                        className="w-full grid grid-cols-[1.2fr_0.5fr_0.4fr_0.55fr_0.55fr_0.55fr] gap-0 items-center px-3 py-2.5 border-b border-border last:border-b-0 text-xs text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 transition-colors"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-extrabold text-foreground truncate">{name}</p>
+                          {p.jerseyNumber != null && p.jerseyNumber !== "" && (
+                            <p className="text-xs text-muted-foreground/60 font-semibold">#{p.jerseyNumber}</p>
+                          )}
+                        </div>
+                        <p className="text-[9px] font-black uppercase tracking-wide text-muted-foreground/70 truncate">
+                          {p.position ? translatePosition(p.position, locale) : "—"}
+                        </p>
+                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.games}</p>
+                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.ppg.toFixed(1)}</p>
+                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.rpg.toFixed(1)}</p>
+                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.apg.toFixed(1)}</p>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
