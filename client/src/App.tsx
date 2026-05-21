@@ -213,7 +213,7 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
   useEffect(() => {
     const isDesktop = window.innerWidth >= 768;
     const phase1Delay = isDesktop ? 100 : 500;
-    const phase2Delay = isDesktop ? 800 : 2_000;
+    const phase2Delay = isDesktop ? 400 : 2_000;
     const phase3Delay = isDesktop ? 1_800 : 4_000;
 
     // Phase 1: Schedule today + week — most time-sensitive
@@ -269,6 +269,18 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
         queryKey: ["/api/stats/players"],
         queryFn: () => apiRequest("GET", "/api/stats/players").then(r => r.json()).catch(() => ({ players: [] })),
         staleTime: 5 * 60_000,
+      });
+      // Prefetch standings — used immediately in Stats desktop panel
+      queryClient.prefetchQuery({
+        queryKey: ["stats-standings", 2092],
+        queryFn: () => apiRequest("GET", "/api/stats/standings?seasonId=2092").then(r => r.json()).catch(() => ({ standings: [] })),
+        staleTime: 1000 * 60 * 5,
+      });
+      // Prefetch league averages — shown in Stats empty panel
+      queryClient.prefetchQuery({
+        queryKey: ["stats-league-averages", 2092, null],
+        queryFn: () => apiRequest("GET", "/api/stats/league-averages?seasonId=2092").then(r => r.json()).catch(() => null),
+        staleTime: 1000 * 60 * 60,
       });
     }, phase3Delay);
 
