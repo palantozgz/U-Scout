@@ -48,7 +48,7 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## Estado actual — sesión 2026-05-21d (cierre)
+## Estado actual — sesión 2026-05-22 (cierre)
 
 ### ✅ U Stats — Sprint completo esta sesión
 
@@ -407,3 +407,38 @@ shot_x/shot_y:          0 filas (hotspotdata no sincronizado)
 2. Probar permisos con usuario coach real (mario, diego, etc.)
 3. Game boxscore sheet — clic en partido del game log de equipo (solo jugadora implementado)
 4. iOS build + test en Xcode con todos los fixes de hoy
+
+### ✅ Sesión 2026-05-22 — Home layout, permisos preview, Pi
+
+**HomeDesktop — layout final:**
+- Grid 2x2 staff: Horario/Scout/Stats/Playbook + Mi Club centrado (col-span-2, calc(50%-4px))
+- Grid player: grid-cols-2 con 5 links (Horario/Bienestar/Scout/Stats/Playbook), último centrado
+- Mi Club: solo head_coach (canViewClubManagement usa effectiveRole)
+- Identity eliminado del Home desktop — solo en sidebar
+- DayPills clicables → navegan a /schedule
+- Sidebar: nombre completo (no solo firstName)
+
+**Capabilities — effectiveRole para preview:**
+- canViewClubManagement: effectiveRole (no realRole)
+- canCreateCanonical: effectiveRole (no realRole)
+- canAccessPersonnel: effectiveRole (no realRole)
+- Vista previa Staff correcta: no ve Mi Club, no puede crear canónicas ni importar
+
+**Schedule — days clicables:**
+- Week strip desktop: day cells como button con scroll suave al día (portraitDayRefs)
+- Portrait planner: single scroll (eliminado overflow interno)
+
+**Último commit:** c435bae
+
+**Pi — PENDIENTE URGENTE:**
+- IP 192.168.1.59 no responde tras corte de luz
+- Probar: ssh pablo@raspberrypi.local
+- Si no: escanear red o buscar en router (http://192.168.1.1)
+- Una vez dentro: pm2 status, luego /sync por Telegram
+- 116.700 eventos PBP ya en Supabase — falta sync completo temporada
+
+**Pendientes próxima sesión:**
+1. Pi: reconectar y lanzar sync PBP completo
+2. iOS: build Xcode + test con todos los fixes
+3. Game boxscore sheet en game log de EQUIPO (solo jugadora implementado)
+4. Probar permisos con coach real (mellamanmario@gmail.com)
