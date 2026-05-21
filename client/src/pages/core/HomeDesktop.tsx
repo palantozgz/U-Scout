@@ -349,7 +349,7 @@ export default function HomeDesktop() {
                   type="button"
                   onClick={() => setLocation("/coach/club")}
                   data-testid="ucore-home-mi-club"
-                  className="flex items-center justify-center gap-2 px-3 py-3.5 rounded-xl border border-border/30 bg-card text-[13px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-colors shrink-0"
+                  className="flex items-center justify-center gap-2 px-3 py-4 rounded-xl border border-border/30 bg-card text-[13px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent transition-colors shrink-0"
                   style={{ width: 'calc(50% - 4px)' }}
                 >
                   <Building2 className="w-4 h-4" />
