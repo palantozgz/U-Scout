@@ -2052,76 +2052,136 @@ function StatsDesktopPanel(props: {
   const lg = leagueQ.data;
 
   if (!props.playerSheetId && !props.teamSheetId) {
-    const statRows = lg
+    // 4 Factores de Dean Oliver + ORTG + PPG
+    const factors = lg
       ? [
-          {
-            label: "PPG",
-            value: lg.ppg?.toFixed(1) ?? "—",
-            desc: es ? "Media puntos/partido" : zh ? "场均得分" : "Avg points per game",
-          },
           {
             label: "eFG%",
             value: lg.eFGPct != null ? `${lg.eFGPct.toFixed(1)}%` : "—",
-            desc: es ? "Eficiencia real de tiro" : zh ? "有效投篮率" : "Effective field goal %",
+            weight: 40,
+            desc: es ? "Eficiencia de tiro (factor #1)" : zh ? "投篮效率 (权重#1)" : "Shooting efficiency (factor #1)",
+            color: "bg-amber-500",
           },
           {
             label: "TOV%",
             value: lg.tovPct != null ? `${lg.tovPct.toFixed(1)}%` : "—",
-            desc: es ? "Pérdidas por posesión" : zh ? "失误率" : "Turnover rate",
+            weight: 25,
+            desc: es ? "Pérdidas por posesión (factor #2)" : zh ? "失误率 (权重#2)" : "Turnover rate (factor #2)",
+            color: "bg-red-500",
           },
           {
-            label: "OREB%",
+            label: "ORB%",
             value: lg.orbPct != null ? `${lg.orbPct.toFixed(1)}%` : "—",
-            desc: es ? "Rebote ofensivo" : zh ? "进攻篮板率" : "Offensive rebound rate",
+            weight: 20,
+            desc: es ? "Rebote ofensivo (factor #3)" : zh ? "进攻篮板率 (权重#3)" : "Off. rebound rate (factor #3)",
+            color: "bg-blue-500",
           },
+          {
+            label: "FTR",
+            value: lg.ftRate != null ? lg.ftRate.toFixed(3) : "—",
+            weight: 15,
+            desc: es ? "Ratio tiro libre / FGA (factor #4)" : zh ? "罚球率 (权重#4)" : "Free throw rate (factor #4)",
+            color: "bg-emerald-500",
+          },
+        ]
+      : [];
+
+    const ratings = lg
+      ? [
           {
             label: "ORTG",
             value: lg.ortg?.toFixed(1) ?? "—",
-            desc: es ? "Puntos por 100 pos." : zh ? "进攻效率" : "Pts per 100 possessions",
+            desc: es ? "Puntos por 100 pos." : zh ? "进攻效率" : "Pts per 100 poss.",
           },
           {
-            label: "PACE",
-            value: lg.pace?.toFixed(1) ?? "—",
-            desc: es ? "Posesiones por partido" : zh ? "攻防节奏" : "Possessions per game",
+            label: "PPG",
+            value: lg.ppg?.toFixed(1) ?? "—",
+            desc: es ? "Puntos por partido" : zh ? "场均得分" : "Points per game",
           },
         ]
       : [];
 
     return (
-      <div className="flex flex-col flex-1 min-h-0 p-5 gap-4">
+      <div className="flex flex-col flex-1 min-h-0 p-4 gap-4 overflow-y-auto">
         {/* Placeholder */}
-        <div className="flex flex-col items-center justify-center gap-2 py-4 text-center">
-          <BarChart3 className="w-8 h-8 text-muted-foreground/35" aria-hidden />
-          <p className="text-xs font-semibold text-muted-foreground/70">
+        <div className="flex flex-col items-center gap-2 py-3 text-center">
+          <BarChart3 className="w-7 h-7 text-muted-foreground/35" aria-hidden />
+          <p className="text-[11px] font-semibold text-muted-foreground/60">
             {es ? "Selecciona un equipo o jugadora" : zh ? "选择球队或球员" : "Select a team or player"}
           </p>
         </div>
 
-        {/* Liga averages */}
-        {statRows.length > 0 && (
-          <div className="flex flex-col gap-1">
-            <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground/50 mb-2">
-              {es ? "Promedios de liga" : zh ? "联赛均值" : "League averages"}
+        {/* 4 Factores de Dean Oliver */}
+        {factors.length > 0 && (
+          <div>
+            <div className="flex items-baseline justify-between mb-2">
+              <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground/50">
+                {es ? "4 Factores · Media de liga" : zh ? "四因素·联赛均值" : "4 Factors · League avg"}
+              </p>
+              <p className="text-[8px] text-muted-foreground/35 italic">
+                {es ? "Dean Oliver 2004" : zh ? "Oliver理论" : "Dean Oliver 2004"}
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {factors.map((f) => (
+                <div
+                  key={f.label}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/20 border border-border/25"
+                >
+                  <div
+                    className="w-1 rounded-full self-stretch"
+                    style={{
+                      background: `var(--${f.color.replace("bg-", "")}, #888)`,
+                      minHeight: 8,
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[10px] text-muted-foreground/70 truncate">{f.desc}</span>
+                      <div className="flex items-baseline gap-1 shrink-0 ml-2">
+                        <span className="text-[12px] font-black tabular-nums text-foreground">{f.value}</span>
+                        <span className="text-[8px] font-bold text-muted-foreground/40">{f.label}</span>
+                      </div>
+                    </div>
+                    <div className="mt-0.5 h-0.5 bg-muted/30 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${f.color} rounded-full opacity-60`}
+                        style={{ width: `${f.weight}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Ratings secundarios */}
+        {ratings.length > 0 && (
+          <div>
+            <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground/50 mb-1.5">
+              {es ? "Contexto de liga" : zh ? "联赛背景" : "League context"}
             </p>
-            {statRows.map((row) => (
-              <div
-                key={row.label}
-                className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/20 border border-border/30"
-              >
-                <div className="min-w-0">
-                  <p className="text-[10px] text-muted-foreground/60 truncate">{row.desc}</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {ratings.map((r) => (
+                <div
+                  key={r.label}
+                  className="flex flex-col items-center justify-center px-2 py-2 rounded-lg bg-muted/15 border border-border/20"
+                >
+                  <span className="text-[13px] font-black tabular-nums text-foreground">{r.value}</span>
+                  <span className="text-[8px] font-bold text-muted-foreground/50 mt-0.5">{r.label}</span>
+                  <span className="text-[8px] text-muted-foreground/40 text-center leading-tight mt-0.5">
+                    {r.desc}
+                  </span>
                 </div>
-                <div className="flex items-baseline gap-1.5 shrink-0 ml-3">
-                  <span className="text-[11px] font-black tabular-nums text-foreground">{row.value}</span>
-                  <span className="text-[9px] font-bold text-muted-foreground/50">{row.label}</span>
-                </div>
-              </div>
-            ))}
-            {leagueQ.isLoading && (
-              <div className="flex justify-center py-2">
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
+              ))}
+            </div>
+          </div>
+        )}
+
+        {leagueQ.isLoading && (
+          <div className="flex justify-center py-2">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         )}
       </div>
@@ -3567,19 +3627,6 @@ function StatsTeamSheet({
                       fmt={(v) => `${v.toFixed(1)}%`}
                     />
                   </div>
-                  {team.paceEst != null && (
-                    <div className="mt-2 rounded-xl border border-border bg-muted/20 px-3 py-2 flex justify-between items-center">
-                      <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground/60">
-                        {es ? "Pace estimado" : zh ? "节奏" : "Pace"}
-                      </p>
-                      <p className="text-sm font-black tabular-nums">
-                        {team.paceEst.toFixed(1)}{" "}
-                        <span className="text-[9px] font-semibold text-muted-foreground">
-                          {es ? "pos/pdo" : zh ? "回合/场" : "pos/g"}
-                        </span>
-                      </p>
-                    </div>
-                  )}
                 </div>
               )}
 

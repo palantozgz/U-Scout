@@ -2795,9 +2795,10 @@ export async function registerRoutes(
           SELECT
             p.game_id, p.quarter, p.sequence, p.clock,
             (SPLIT_PART(p.clock,':',1)::int*60+SPLIT_PART(p.clock,':',2)::int) AS clock_sec,
-            LAG(p.event_type,1) OVER (PARTITION BY p.game_id,p.quarter ORDER BY p.sequence) AS prev_event,
-            LAG(p.action_code,1) OVER (PARTITION BY p.game_id,p.quarter ORDER BY p.sequence) AS prev_code,
-            LAG(p.clock,1) OVER (PARTITION BY p.game_id,p.quarter ORDER BY p.sequence) AS prev_clock
+            LAG(p.event_type,1) OVER (PARTITION BY p.game_id, p.quarter ORDER BY p.sequence) AS prev_event,
+            LAG(p.action_code,1) OVER (PARTITION BY p.game_id, p.quarter ORDER BY p.sequence) AS prev_code,
+            LAG(p.clock,1) OVER (PARTITION BY p.game_id, p.quarter ORDER BY p.sequence) AS prev_clock,
+            LAG(p.team_id,1) OVER (PARTITION BY p.game_id, p.quarter ORDER BY p.sequence) AS prev_team_id
           FROM stats_pbp p
           JOIN team_games tg ON tg.game_id = p.game_id
           WHERE p.team_id::text = ${team.ext_id}
@@ -2807,7 +2808,8 @@ export async function registerRoutes(
         possession_times AS (
           SELECT
             CASE
-              WHEN prev_event='rebound' AND prev_code='REBOFN'
+              WHEN prev_event = 'rebound' AND prev_code = 'REBOFN'
+                   AND prev_team_id::text = ${team.ext_id}
                    AND prev_clock ~ '^[0-9]+:[0-9]{2}$'
                    AND ((SPLIT_PART(prev_clock,':',1)::int*60+SPLIT_PART(prev_clock,':',2)::int)-clock_sec) <= 3
                 THEN 'putback'
@@ -2815,6 +2817,7 @@ export async function registerRoutes(
                    AND prev_clock ~ '^[0-9]+:[0-9]{2}$'
                 THEN 'exact'
               WHEN prev_event IN ('shot_made','shot_made_3')
+                   AND prev_team_id::text != ${team.ext_id}
                    AND prev_clock ~ '^[0-9]+:[0-9]{2}$'
                 THEN 'after_basket'
               ELSE 'unknown'
@@ -2824,6 +2827,7 @@ export async function registerRoutes(
                    AND prev_clock ~ '^[0-9]+:[0-9]{2}$'
                 THEN (SPLIT_PART(prev_clock,':',1)::int*60+SPLIT_PART(prev_clock,':',2)::int) - clock_sec
               WHEN prev_event IN ('shot_made','shot_made_3')
+                   AND prev_team_id::text != ${team.ext_id}
                    AND prev_clock ~ '^[0-9]+:[0-9]{2}$'
                 THEN ((SPLIT_PART(prev_clock,':',1)::int*60+SPLIT_PART(prev_clock,':',2)::int)-3) - clock_sec
               ELSE NULL
@@ -2939,7 +2943,14 @@ export async function registerRoutes(
           GROUP BY a.team_external_id
         )
         SELECT
-          ROUND(AVG(pb.pts)::numeric, 1)  AS "avgPpg",
+          ROUND((
+            SELECT AVG(team_pts) FROM (
+              SELECT SUM(pb2.pts) AS team_pts
+              FROM stats_player_boxscores pb2
+              JOIN stats_games sg2 ON sg2.id = pb2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+              GROUP BY pb2.game_id, pb2.team_external_id
+            ) t
+          )::numeric, 1) AS "avgPpg",
           ROUND(AVG(pb.reb)::numeric, 1)  AS "avgRpg",
           ROUND(AVG(pb.ast)::numeric, 1)  AS "avgApg",
           ROUND(AVG(pb.stl)::numeric, 1)  AS "avgSpg",
