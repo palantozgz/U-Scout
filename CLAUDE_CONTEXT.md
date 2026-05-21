@@ -48,7 +48,7 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## Estado actual — sesión 2026-05-22 (cierre)
+## Estado actual — sesión 2026-05-22b (cierre)
 
 ### ✅ U Stats — Sprint completo esta sesión
 
@@ -442,3 +442,39 @@ shot_x/shot_y:          0 filas (hotspotdata no sincronizado)
 2. iOS: build Xcode + test con todos los fixes
 3. Game boxscore sheet en game log de EQUIPO (solo jugadora implementado)
 4. Probar permisos con coach real (mellamanmario@gmail.com)
+
+### ✅ Sesión 2026-05-22b — Pi, pace fix, prefetch, Tailscale
+
+**Pi — estado:**
+- IP local nueva: 192.168.1.7 (cambió tras corte de luz)
+- Hostname mDNS: ucore-pi.local (funciona)
+- pm2 arrancado y saved: ucore-collector online
+- Tailscale instalado — pendiente de autenticar (sudo tailscale up)
+- Cockpit pendiente de instalar tras liberar apt
+
+**Pace segments — fix:**
+- LAG multi-nivel (hasta lag4) para saltar assist/foul_drawn/block antes del tiro
+- Q4 ≤2min: no restar 3s estimados de saque (reloj para en FIBA)
+- Liga comparativa: misma lógica corregida
+- Bug original: assist aparecía como prev_event ocultando el inicio real de posesión
+
+**Prefetch — mejoras:**
+- standings y league-averages añadidos a BackgroundPrefetcher fase 3
+- phase2Delay desktop: 800ms → 400ms
+
+**Último commit:** f1c7957
+
+**Bugs conocidos para próxima sesión (en orden de impacto):**
+1. AUDIT tiempos de carga Stats fichas equipo/jugadora — P0
+2. AUDIT fórmulas estadísticas (PIE seguro mal, otras a verificar) — P0
+3. Barras PPG en rojo para jugadoras sobre la media (debería verde) — P1
+4. Home/Away split siempre vacío en ficha jugadora — P1
+5. Game boxscore sheet: clicable en jugadora pero NO en equipo — P1
+6. Game boxscore sheet: tapado por nav bar izquierda en desktop — P1
+7. Game boxscore sheet: falta marcador por cuartos y gráfica desarrollo — P2
+8. Nav bar iOS se bloquea al abrir ficha jugadora/equipo en Stats — P1
+9. Settings icon en Home desktop ligeramente desplazado a la derecha — P3
+10. Módulos en desktop deben ser en inglés según specs (iOS correcto) — P2
+11. Scout en iOS ha perdido la U — debe ser U Scout — P2
+12. Persistencia de Schedule y Wellness — auditar — P1
+13. PIE mal calculado — auditar todas las fórmulas avanzadas — P0
