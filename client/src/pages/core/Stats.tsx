@@ -3797,7 +3797,7 @@ function StatsTeamSheet({
                   {[
                     {
                       label: locale === "zh" ? "快攻" : locale === "es" ? "Transición" : "Transition",
-                      sublabel: "0 – 7\"",
+                      sublabel: "0 – 8\"",
                       pct: paceQ.data.transition_pct,
                       league: paceQ.data.league?.transition_pct,
                       ppp: paceQ.data.ppp_transition,

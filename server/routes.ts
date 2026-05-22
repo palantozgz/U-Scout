@@ -2799,6 +2799,7 @@ export async function registerRoutes(
             LAG(p.event_type, 1) OVER w AS lag1_et,
             LAG(p.team_id::text, 1) OVER w AS lag1_team,
             LAG(p.clock, 1) OVER w AS lag1_clock,
+            LAG(p.action_code, 1) OVER w AS lag1_code,
             LAG(p.event_type, 2) OVER w AS lag2_et,
             LAG(p.team_id::text, 2) OVER w AS lag2_team,
             LAG(p.clock, 2) OVER w AS lag2_clock,
@@ -2812,111 +2813,16 @@ export async function registerRoutes(
           JOIN team_games tg ON tg.game_id = p.game_id
           WINDOW w AS (PARTITION BY p.game_id, p.quarter ORDER BY p.sequence)
         ),
-        possession_ends AS (
-          SELECT
-            game_id, quarter, sequence, clock, clock_sec, team_id, event_type, action_code,
-            lag1_et, lag1_team, lag1_clock,
-            lag2_et, lag2_team, lag2_clock,
-            lag3_et, lag3_team, lag3_clock,
-            lag4_et, lag4_team, lag4_clock,
-            CASE
-              WHEN event_type = 'shot_made' THEN 2
-              WHEN event_type = 'shot_made_3' THEN 3
-              WHEN event_type IN ('shot_missed','shot_missed_3') THEN 0
-              WHEN event_type = 'ft_made'
-                AND action_code ~ '^FTH(\d)\1[MA]$'
-                AND SUBSTRING(action_code,4,1) = SUBSTRING(action_code,5,1)
-                THEN 1
-              WHEN event_type = 'ft_missed'
-                AND action_code ~ '^FTH(\d)\1[MA]$'
-                AND SUBSTRING(action_code,4,1) = SUBSTRING(action_code,5,1)
-                THEN 0
-              WHEN event_type = 'turnover'
-                AND action_code NOT IN ('TOTLTO','TNOTVR','TNOFGV')
-                THEN 0
-              ELSE NULL
-            END AS base_pts,
-            CASE
-              WHEN event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3') THEN 'fg'
-              WHEN event_type IN ('ft_made','ft_missed')
-                AND SUBSTRING(action_code,4,1) = SUBSTRING(action_code,5,1) THEN 'ft_last'
-              WHEN event_type = 'turnover'
-                AND action_code NOT IN ('TOTLTO','TNOTVR','TNOFGV') THEN 'tov'
-              ELSE NULL
-            END AS end_type
-          FROM all_events
+        team_shots AS (
+          SELECT * FROM all_events
           WHERE team_id = ${team.ext_id}
+            AND event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3')
             AND clock ~ '^[0-9]+:[0-9]{2}$'
-        ),
-        fg_ends AS (
-          SELECT * FROM possession_ends WHERE end_type = 'fg'
-        ),
-        next_poss AS (
-          SELECT
-            pe.game_id, pe.quarter, pe.sequence AS fg_seq,
-            MIN(pe2.sequence) AS next_seq
-          FROM fg_ends pe
-          JOIN possession_ends pe2
-            ON pe2.game_id = pe.game_id
-            AND pe2.quarter = pe.quarter
-            AND pe2.sequence > pe.sequence
-            AND pe2.end_type IN ('fg','ft_last','tov')
-          GROUP BY pe.game_id, pe.quarter, pe.sequence
-        ),
-        ft_points_for_fg AS (
-          SELECT
-            np.game_id, np.quarter, np.fg_seq,
-            COALESCE(SUM(CASE WHEN ae.event_type = 'ft_made' THEN 1 ELSE 0 END), 0) AS ft_pts
-          FROM next_poss np
-          JOIN all_events ae
-            ON ae.game_id = np.game_id
-            AND ae.team_id = ${team.ext_id}
-            AND ae.event_type IN ('ft_made','ft_missed')
-            AND ae.sequence > np.fg_seq
-            AND ae.sequence < np.next_seq
-          GROUP BY np.game_id, np.quarter, np.fg_seq
-        ),
-        ft_seq_points AS (
-          SELECT
-            pe.game_id, pe.quarter, pe.sequence,
-            SUM(CASE WHEN ae.event_type = 'ft_made' THEN 1 ELSE 0 END) AS ft_pts
-          FROM possession_ends pe
-          JOIN all_events ae
-            ON ae.game_id = pe.game_id
-            AND ae.sequence = pe.sequence
-            AND ae.team_id = ${team.ext_id}
-            AND ae.event_type IN ('ft_made','ft_missed')
-            AND ae.clock = pe.clock
-          WHERE pe.end_type = 'ft_last'
-          GROUP BY pe.game_id, pe.quarter, pe.sequence
-        ),
-        possessions AS (
-          SELECT
-            pe.game_id, pe.quarter, pe.sequence, pe.clock_sec, pe.team_id, pe.event_type,
-            pe.lag1_et, pe.lag1_team, pe.lag1_clock,
-            pe.lag2_et, pe.lag2_team, pe.lag2_clock,
-            pe.lag3_et, pe.lag3_team, pe.lag3_clock,
-            pe.lag4_et, pe.lag4_team, pe.lag4_clock,
-            CASE
-              WHEN pe.end_type = 'fg'
-                THEN pe.base_pts + COALESCE(fpf.ft_pts, 0)
-              WHEN pe.end_type = 'ft_last'
-                THEN COALESCE(fsp.ft_pts, 0)
-              WHEN pe.end_type = 'tov'
-                THEN 0
-            END AS total_pts
-          FROM possession_ends pe
-          LEFT JOIN ft_points_for_fg fpf
-            ON fpf.game_id = pe.game_id AND fpf.quarter = pe.quarter AND fpf.fg_seq = pe.sequence
-          LEFT JOIN ft_seq_points fsp
-            ON fsp.game_id = pe.game_id AND fsp.quarter = pe.quarter AND fsp.sequence = pe.sequence
-          WHERE pe.end_type IS NOT NULL
         ),
         possession_times AS (
           SELECT
-            p.quarter,
-            p.clock_sec,
-            p.total_pts,
+            clock_sec,
+            event_type,
             CASE
               WHEN lag1_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
                    AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
@@ -2957,7 +2863,7 @@ export async function registerRoutes(
               WHEN lag1_et IN ('shot_made','shot_made_3') AND lag1_team != ${team.ext_id}
                    AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
                 THEN (SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int)
-                     - CASE WHEN p.quarter < 4 OR p.clock_sec > 120 THEN 3 ELSE 0 END
+                     - CASE WHEN quarter < 4 OR clock_sec > 120 THEN 3 ELSE 0 END
               WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
                    AND lag2_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
                    AND lag2_clock ~ '^[0-9]+:[0-9]{2}$'
@@ -2966,7 +2872,7 @@ export async function registerRoutes(
                    AND lag2_et IN ('shot_made','shot_made_3') AND lag2_team != ${team.ext_id}
                    AND lag2_clock ~ '^[0-9]+:[0-9]{2}$'
                 THEN (SPLIT_PART(lag2_clock,':',1)::int*60+SPLIT_PART(lag2_clock,':',2)::int)
-                     - CASE WHEN p.quarter < 4 OR p.clock_sec > 120 THEN 3 ELSE 0 END
+                     - CASE WHEN quarter < 4 OR clock_sec > 120 THEN 3 ELSE 0 END
               WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
                    AND lag2_et IN ('assist','foul_drawn','block','unknown')
                    AND lag3_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
@@ -2977,7 +2883,7 @@ export async function registerRoutes(
                    AND lag3_et IN ('shot_made','shot_made_3') AND lag3_team != ${team.ext_id}
                    AND lag3_clock ~ '^[0-9]+:[0-9]{2}$'
                 THEN (SPLIT_PART(lag3_clock,':',1)::int*60+SPLIT_PART(lag3_clock,':',2)::int)
-                     - CASE WHEN p.quarter < 4 OR p.clock_sec > 120 THEN 3 ELSE 0 END
+                     - CASE WHEN quarter < 4 OR clock_sec > 120 THEN 3 ELSE 0 END
               WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
                    AND lag2_et IN ('assist','foul_drawn','block','unknown')
                    AND lag3_et IN ('assist','foul_drawn','block','unknown')
@@ -2986,7 +2892,7 @@ export async function registerRoutes(
                 THEN (SPLIT_PART(lag4_clock,':',1)::int*60+SPLIT_PART(lag4_clock,':',2)::int)
               ELSE NULL
             END AS poss_start_sec
-          FROM possessions p
+          FROM team_shots
           WHERE NOT (
             lag1_et = 'rebound' AND lag1_team = ${team.ext_id}
             AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
@@ -2995,12 +2901,16 @@ export async function registerRoutes(
         )
         SELECT
           poss_start_sec - clock_sec AS pos_time,
-          total_pts AS shot_pts
+          CASE
+            WHEN event_type IN ('shot_made','shot_made_3') THEN
+              CASE event_type WHEN 'shot_made_3' THEN 3 ELSE 2 END
+            ELSE 0
+          END AS shot_pts
         FROM possession_times
         WHERE poss_type != 'unknown'
           AND poss_start_sec IS NOT NULL
           AND poss_start_sec - clock_sec > 0
-          AND poss_start_sec - clock_sec <= 27
+          AND poss_start_sec - clock_sec <= 24
       `);
 
       const rows = (pbpRows as any).rows ?? [];
@@ -3016,7 +2926,7 @@ export async function registerRoutes(
         const t = Number(r.pos_time);
         const pts = Number(r.shot_pts ?? 0);
         sum += t;
-        if (t <= 7) { transition++; ptsTransition += pts; }
+        if (t <= 8) { transition++; ptsTransition += pts; }
         else if (t <= 14) { demi++; ptsDemi += pts; }
         else { halfcourt++; ptsHalfcourt += pts; }
       }
@@ -3025,189 +2935,93 @@ export async function registerRoutes(
       const pppHalfcourt  = halfcourt  > 0 ? Math.round(ptsHalfcourt  / halfcourt  * 1000) / 1000 : null;
 
       const lgRows = await db.execute(sql`
-        WITH sg AS (SELECT id AS game_id FROM stats_games WHERE status=4 AND season_id=${seasonId}),
-        all_events AS (
+        WITH sg AS (SELECT id AS gid FROM stats_games WHERE status=4 AND season_id=${seasonId}),
+        all_events_lg AS (
           SELECT
-            p.game_id, p.quarter, p.sequence, p.clock, p.event_type, p.action_code,
-            p.team_id::text AS team_id,
-            (SPLIT_PART(p.clock,':',1)::int*60+SPLIT_PART(p.clock,':',2)::int) AS clock_sec,
-            LAG(p.event_type, 1) OVER w AS lag1_et,
-            LAG(p.team_id::text, 1) OVER w AS lag1_team,
-            LAG(p.clock, 1) OVER w AS lag1_clock,
-            LAG(p.event_type, 2) OVER w AS lag2_et,
-            LAG(p.team_id::text, 2) OVER w AS lag2_team,
-            LAG(p.clock, 2) OVER w AS lag2_clock,
-            LAG(p.event_type, 3) OVER w AS lag3_et,
-            LAG(p.team_id::text, 3) OVER w AS lag3_team,
-            LAG(p.clock, 3) OVER w AS lag3_clock,
-            LAG(p.event_type, 4) OVER w AS lag4_et,
-            LAG(p.team_id::text, 4) OVER w AS lag4_team,
-            LAG(p.clock, 4) OVER w AS lag4_clock
-          FROM stats_pbp p
-          JOIN sg ON sg.game_id = p.game_id
+            p.game_id, p.quarter, p.sequence, p.clock, p.event_type, p.team_id::text AS team_id,
+            (SPLIT_PART(p.clock,':',1)::int*60+SPLIT_PART(p.clock,':',2)::int) AS cs,
+            LAG(p.event_type,1) OVER w AS lag1_et,
+            LAG(p.team_id::text,1) OVER w AS lag1_team,
+            LAG(p.clock,1) OVER w AS lag1_clock,
+            LAG(p.event_type,2) OVER w AS lag2_et,
+            LAG(p.team_id::text,2) OVER w AS lag2_team,
+            LAG(p.clock,2) OVER w AS lag2_clock,
+            LAG(p.event_type,3) OVER w AS lag3_et,
+            LAG(p.team_id::text,3) OVER w AS lag3_team,
+            LAG(p.clock,3) OVER w AS lag3_clock,
+            LAG(p.event_type,4) OVER w AS lag4_et,
+            LAG(p.team_id::text,4) OVER w AS lag4_team,
+            LAG(p.clock,4) OVER w AS lag4_clock
+          FROM stats_pbp p JOIN sg ON sg.gid=p.game_id
           WINDOW w AS (PARTITION BY p.game_id, p.quarter ORDER BY p.sequence)
         ),
-        possession_ends AS (
-          SELECT
-            game_id, quarter, sequence, clock, clock_sec, team_id, event_type, action_code,
-            lag1_et, lag1_team, lag1_clock,
-            lag2_et, lag2_team, lag2_clock,
-            lag3_et, lag3_team, lag3_clock,
-            lag4_et, lag4_team, lag4_clock,
+        shots_lg AS (
+          SELECT *,
             CASE
-              WHEN event_type = 'shot_made' THEN 2
-              WHEN event_type = 'shot_made_3' THEN 3
-              WHEN event_type IN ('shot_missed','shot_missed_3') THEN 0
-              WHEN event_type = 'ft_made'
-                AND action_code ~ '^FTH(\d)\1[MA]$'
-                AND SUBSTRING(action_code,4,1) = SUBSTRING(action_code,5,1)
-                THEN 1
-              WHEN event_type = 'ft_missed'
-                AND action_code ~ '^FTH(\d)\1[MA]$'
-                AND SUBSTRING(action_code,4,1) = SUBSTRING(action_code,5,1)
-                THEN 0
-              WHEN event_type = 'turnover'
-                AND action_code NOT IN ('TOTLTO','TNOTVR','TNOFGV')
-                THEN 0
-              ELSE NULL
-            END AS base_pts,
-            CASE
-              WHEN event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3') THEN 'fg'
-              WHEN event_type IN ('ft_made','ft_missed')
-                AND SUBSTRING(action_code,4,1) = SUBSTRING(action_code,5,1) THEN 'ft_last'
-              WHEN event_type = 'turnover'
-                AND action_code NOT IN ('TOTLTO','TNOTVR','TNOFGV') THEN 'tov'
-              ELSE NULL
-            END AS end_type
-          FROM all_events
-          WHERE clock ~ '^[0-9]+:[0-9]{2}$'
+              WHEN event_type IN ('shot_made','shot_made_3') THEN
+                CASE event_type WHEN 'shot_made_3' THEN 3 ELSE 2 END
+              ELSE 0
+            END AS shot_pts
+          FROM all_events_lg
+          WHERE event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3')
+            AND clock ~ '^[0-9]+:[0-9]{2}$'
         ),
-        fg_ends AS (
-          SELECT * FROM possession_ends WHERE end_type = 'fg'
-        ),
-        next_poss AS (
+        poss_lg AS (
           SELECT
-            pe.game_id, pe.quarter, pe.sequence AS fg_seq,
-            MIN(pe2.sequence) AS next_seq
-          FROM fg_ends pe
-          JOIN possession_ends pe2
-            ON pe2.game_id = pe.game_id
-            AND pe2.quarter = pe.quarter
-            AND pe2.sequence > pe.sequence
-            AND pe2.end_type IN ('fg','ft_last','tov')
-          GROUP BY pe.game_id, pe.quarter, pe.sequence
-        ),
-        ft_points_for_fg AS (
-          SELECT
-            np.game_id, np.quarter, np.fg_seq,
-            COALESCE(SUM(CASE WHEN ae.event_type = 'ft_made' THEN 1 ELSE 0 END), 0) AS ft_pts
-          FROM next_poss np
-          JOIN fg_ends pe
-            ON pe.game_id = np.game_id AND pe.quarter = np.quarter AND pe.sequence = np.fg_seq
-          JOIN all_events ae
-            ON ae.game_id = np.game_id
-            AND ae.team_id = pe.team_id
-            AND ae.event_type IN ('ft_made','ft_missed')
-            AND ae.sequence > np.fg_seq
-            AND ae.sequence < np.next_seq
-          GROUP BY np.game_id, np.quarter, np.fg_seq
-        ),
-        ft_seq_points AS (
-          SELECT
-            pe.game_id, pe.quarter, pe.sequence,
-            SUM(CASE WHEN ae.event_type = 'ft_made' THEN 1 ELSE 0 END) AS ft_pts
-          FROM possession_ends pe
-          JOIN all_events ae
-            ON ae.game_id = pe.game_id
-            AND ae.sequence = pe.sequence
-            AND ae.team_id = pe.team_id
-            AND ae.event_type IN ('ft_made','ft_missed')
-            AND ae.clock = pe.clock
-          WHERE pe.end_type = 'ft_last'
-          GROUP BY pe.game_id, pe.quarter, pe.sequence
-        ),
-        possessions AS (
-          SELECT
-            pe.game_id, pe.quarter, pe.sequence, pe.clock_sec, pe.team_id,
-            pe.lag1_et, pe.lag1_team, pe.lag1_clock,
-            pe.lag2_et, pe.lag2_team, pe.lag2_clock,
-            pe.lag3_et, pe.lag3_team, pe.lag3_clock,
-            pe.lag4_et, pe.lag4_team, pe.lag4_clock,
-            CASE
-              WHEN pe.end_type = 'fg'
-                THEN pe.base_pts + COALESCE(fpf.ft_pts, 0)
-              WHEN pe.end_type = 'ft_last'
-                THEN COALESCE(fsp.ft_pts, 0)
-              WHEN pe.end_type = 'tov'
-                THEN 0
-            END AS total_pts
-          FROM possession_ends pe
-          LEFT JOIN ft_points_for_fg fpf
-            ON fpf.game_id = pe.game_id AND fpf.quarter = pe.quarter AND fpf.fg_seq = pe.sequence
-          LEFT JOIN ft_seq_points fsp
-            ON fsp.game_id = pe.game_id AND fsp.quarter = pe.quarter AND fsp.sequence = pe.sequence
-          WHERE pe.end_type IS NOT NULL
-        ),
-        possession_times AS (
-          SELECT
-            p.clock_sec,
-            p.total_pts,
+            cs, shot_pts,
             CASE
               WHEN lag1_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
                    AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int) - p.clock_sec
-              WHEN lag1_et IN ('shot_made','shot_made_3') AND lag1_team != p.team_id
+                THEN (SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int) - cs
+              WHEN lag1_et IN ('shot_made','shot_made_3') AND lag1_team != team_id
                    AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int)
-                     - CASE WHEN p.quarter < 4 OR p.clock_sec > 120 THEN 3 ELSE 0 END - p.clock_sec
+                THEN (SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int) - CASE WHEN quarter < 4 OR cs > 120 THEN 3 ELSE 0 END - cs
               WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
                    AND lag2_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
                    AND lag2_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag2_clock,':',1)::int*60+SPLIT_PART(lag2_clock,':',2)::int) - p.clock_sec
+                THEN (SPLIT_PART(lag2_clock,':',1)::int*60+SPLIT_PART(lag2_clock,':',2)::int) - cs
               WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('shot_made','shot_made_3') AND lag2_team != p.team_id
+                   AND lag2_et IN ('shot_made','shot_made_3') AND lag2_team != team_id
                    AND lag2_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag2_clock,':',1)::int*60+SPLIT_PART(lag2_clock,':',2)::int)
-                     - CASE WHEN p.quarter < 4 OR p.clock_sec > 120 THEN 3 ELSE 0 END - p.clock_sec
+                THEN (SPLIT_PART(lag2_clock,':',1)::int*60+SPLIT_PART(lag2_clock,':',2)::int) - CASE WHEN quarter < 4 OR cs > 120 THEN 3 ELSE 0 END - cs
               WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
                    AND lag2_et IN ('assist','foul_drawn','block','unknown')
                    AND lag3_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
                    AND lag3_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag3_clock,':',1)::int*60+SPLIT_PART(lag3_clock,':',2)::int) - p.clock_sec
+                THEN (SPLIT_PART(lag3_clock,':',1)::int*60+SPLIT_PART(lag3_clock,':',2)::int) - cs
               WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
                    AND lag2_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag3_et IN ('shot_made','shot_made_3') AND lag3_team != p.team_id
+                   AND lag3_et IN ('shot_made','shot_made_3') AND lag3_team != team_id
                    AND lag3_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag3_clock,':',1)::int*60+SPLIT_PART(lag3_clock,':',2)::int)
-                     - CASE WHEN p.quarter < 4 OR p.clock_sec > 120 THEN 3 ELSE 0 END - p.clock_sec
+                THEN (SPLIT_PART(lag3_clock,':',1)::int*60+SPLIT_PART(lag3_clock,':',2)::int) - CASE WHEN quarter < 4 OR cs > 120 THEN 3 ELSE 0 END - cs
               WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
                    AND lag2_et IN ('assist','foul_drawn','block','unknown')
                    AND lag3_et IN ('assist','foul_drawn','block','unknown')
                    AND lag4_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
                    AND lag4_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag4_clock,':',1)::int*60+SPLIT_PART(lag4_clock,':',2)::int) - p.clock_sec
+                THEN (SPLIT_PART(lag4_clock,':',1)::int*60+SPLIT_PART(lag4_clock,':',2)::int) - cs
               ELSE NULL
             END AS pos_time
-          FROM possessions p
+          FROM shots_lg
           WHERE NOT (
-            lag1_et = 'rebound' AND lag1_team = p.team_id
+            lag1_et = 'rebound' AND lag1_team = team_id
             AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
-            AND ((SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int) - p.clock_sec) <= 3
+            AND ((SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int) - cs) <= 3
           )
         )
         SELECT
-          COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=27) AS total,
-          COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=7)  AS tr,
-          COUNT(*) FILTER (WHERE pos_time>7 AND pos_time<=14) AS dm,
-          COUNT(*) FILTER (WHERE pos_time>14 AND pos_time<=27) AS hc,
-          ROUND(AVG(pos_time) FILTER (WHERE pos_time>0 AND pos_time<=27)::numeric,1) AS avg_pt,
-          ROUND(SUM(total_pts) FILTER (WHERE pos_time>0 AND pos_time<=7)::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=7), 0), 3) AS ppp_tr,
-          ROUND(SUM(total_pts) FILTER (WHERE pos_time>7 AND pos_time<=14)::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE pos_time>7 AND pos_time<=14), 0), 3) AS ppp_dm,
-          ROUND(SUM(total_pts) FILTER (WHERE pos_time>14 AND pos_time<=27)::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE pos_time>14 AND pos_time<=27), 0), 3) AS ppp_hc
-        FROM possession_times
+          COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=24) AS total,
+          COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=8)  AS tr,
+          COUNT(*) FILTER (WHERE pos_time>8 AND pos_time<=14) AS dm,
+          COUNT(*) FILTER (WHERE pos_time>14 AND pos_time<=24) AS hc,
+          ROUND(AVG(pos_time) FILTER (WHERE pos_time>0 AND pos_time<=24)::numeric,1) AS avg_pt,
+          ROUND(SUM(shot_pts) FILTER (WHERE pos_time>0 AND pos_time<=8)::numeric
+            / NULLIF(COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=8), 0), 3) AS ppp_tr,
+          ROUND(SUM(shot_pts) FILTER (WHERE pos_time>8 AND pos_time<=14)::numeric
+            / NULLIF(COUNT(*) FILTER (WHERE pos_time>8 AND pos_time<=14), 0), 3) AS ppp_dm,
+          ROUND(SUM(shot_pts) FILTER (WHERE pos_time>14 AND pos_time<=24)::numeric
+            / NULLIF(COUNT(*) FILTER (WHERE pos_time>14 AND pos_time<=24), 0), 3) AS ppp_hc
+        FROM poss_lg
       `);
       const lg = (lgRows as any).rows?.[0] ?? {};
       const lgTotal = Number(lg.total ?? 0);
@@ -3355,7 +3169,7 @@ export async function registerRoutes(
             GROUP BY pb.game_id, pb.team_external_id
           ),
           paired AS (
-            SELECT
+            SELECT DISTINCT ON (o.game_id)
               o.game_id,
               sg.home_score AS home_pts,
               sg.away_score AS away_pts,
@@ -3366,6 +3180,7 @@ export async function registerRoutes(
             JOIN stats_teams st ON st.external_id::text = o.team_external_id
               AND st.id = sg.home_team_id
             JOIN own r ON r.game_id = o.game_id AND r.team_external_id != o.team_external_id
+            ORDER BY o.game_id
           )
           SELECT
             ROUND(100.0 * (SUM(home_pts) + SUM(away_pts)) / NULLIF(SUM(poss_home) + SUM(poss_away), 0), 1) AS ortg,
