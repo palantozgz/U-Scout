@@ -465,11 +465,17 @@ export interface PaceSegments {
   demi_pct?: number;
   halfcourt_pct?: number;
   avg_possession_time?: number;
+  ppp_transition?: number | null;
+  ppp_demi?: number | null;
+  ppp_halfcourt?: number | null;
   league?: {
     transition_pct: number;
     demi_pct: number;
     halfcourt_pct: number;
     avg_possession_time: number;
+    ppp_transition?: number | null;
+    ppp_demi?: number | null;
+    ppp_halfcourt?: number | null;
   } | null;
 }
 

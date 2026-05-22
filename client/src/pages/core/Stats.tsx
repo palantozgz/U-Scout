@@ -3791,40 +3791,71 @@ function StatsTeamSheet({
 
               {paceQ.data && !paceQ.data.insufficient_data && (
                 <div className="px-4 py-3 border-t border-border/50">
-                  <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground mb-2">
+                  <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground mb-3">
                     {locale === "zh" ? "进攻节奏" : locale === "es" ? "Ritmo ofensivo" : "Offensive Pace"}
                   </p>
                   {[
                     {
                       label: locale === "zh" ? "快攻" : locale === "es" ? "Transición" : "Transition",
+                      sublabel: "0 – 7\"",
                       pct: paceQ.data.transition_pct,
                       league: paceQ.data.league?.transition_pct,
+                      ppp: paceQ.data.ppp_transition,
+                      leaguePpp: paceQ.data.league?.ppp_transition,
                       color: "bg-emerald-500",
                     },
                     {
                       label: locale === "zh" ? "半快攻" : locale === "es" ? "Demi-trans." : "Demi-trans.",
+                      sublabel: "8 – 14\"",
                       pct: paceQ.data.demi_pct,
                       league: paceQ.data.league?.demi_pct,
+                      ppp: paceQ.data.ppp_demi,
+                      leaguePpp: paceQ.data.league?.ppp_demi,
                       color: "bg-amber-500",
                     },
                     {
                       label: locale === "zh" ? "阵地战" : locale === "es" ? "Organizado" : "Set play",
+                      sublabel: "> 14\"",
                       pct: paceQ.data.halfcourt_pct,
                       league: paceQ.data.league?.halfcourt_pct,
+                      ppp: paceQ.data.ppp_halfcourt,
+                      leaguePpp: paceQ.data.league?.ppp_halfcourt,
                       color: "bg-blue-500",
                     },
                   ].map((row) => (
-                    <div key={row.label} className="mb-2">
-                      <div className="flex justify-between text-[11px] mb-0.5">
-                        <span className="font-bold text-foreground">{row.label}</span>
-                        <span className="font-black tabular-nums">
-                          {row.pct?.toFixed(1)}%
-                          {row.league != null && (
-                            <span className="text-muted-foreground font-normal ml-1">
-                              (liga {row.league.toFixed(1)}%)
+                    <div key={row.label} className="mb-3">
+                      <div className="flex items-baseline justify-between mb-1">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="font-bold text-foreground text-[11px]">{row.label}</span>
+                          <span className="text-[9px] text-muted-foreground/50 font-mono">{row.sublabel}</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-black tabular-nums text-[11px]">
+                            {row.pct?.toFixed(1)}%
+                            {row.league != null && (
+                              <span className="text-muted-foreground font-normal ml-1 text-[9px]">
+                                (liga {row.league.toFixed(1)}%)
+                              </span>
+                            )}
+                          </span>
+                          {row.ppp != null && (
+                            <span className={cn(
+                              "text-[10px] font-black tabular-nums px-1.5 py-0.5 rounded border",
+                              row.leaguePpp != null && row.ppp > row.leaguePpp
+                                ? "bg-emerald-500/12 text-emerald-500 border-emerald-500/20"
+                                : row.leaguePpp != null && row.ppp < row.leaguePpp
+                                  ? "bg-red-500/10 text-red-400 border-red-500/18"
+                                  : "bg-muted/20 text-muted-foreground border-border/40"
+                            )}>
+                              {row.ppp.toFixed(2)} PPP
+                              {row.leaguePpp != null && (
+                                <span className="font-normal ml-1 opacity-60">
+                                  / {row.leaguePpp.toFixed(2)}
+                                </span>
+                              )}
                             </span>
                           )}
-                        </span>
+                        </div>
                       </div>
                       <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
                         <div
@@ -3834,7 +3865,7 @@ function StatsTeamSheet({
                       </div>
                     </div>
                   ))}
-                  <p className="text-[10px] text-muted-foreground mt-1">
+                  <p className="text-[10px] text-muted-foreground mt-2">
                     {locale === "zh"
                       ? `均 ${paceQ.data.avg_possession_time}s/攻`
                       : locale === "es"
