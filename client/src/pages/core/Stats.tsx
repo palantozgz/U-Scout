@@ -1182,12 +1182,13 @@ export default function Stats() {
       </div>
 
       <Sheet
+        modal
         open={!isDesktop && Boolean(playerSheetId)}
         onOpenChange={(open) => {
           if (!open) closePlayerSheet();
         }}
       >
-        <SheetContent hideClose side="bottom" className="h-[92svh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full pb-[env(safe-area-inset-bottom)]">
+        <SheetContent hideClose side="bottom" className="h-[92svh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full pb-[env(safe-area-inset-bottom)]" style={{ zIndex: 95 }}>
           <StatsPlayerSheet
             externalId={playerSheetId}
             onClose={closePlayerSheet}
@@ -1203,12 +1204,13 @@ export default function Stats() {
       </Sheet>
 
       <Sheet
+        modal
         open={!isDesktop && Boolean(teamSheetId)}
         onOpenChange={(open) => {
           if (!open) setTeamSheetId(null);
         }}
       >
-        <SheetContent hideClose side="bottom" className="h-[92svh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full pb-[env(safe-area-inset-bottom)]">
+        <SheetContent hideClose side="bottom" className="h-[92svh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full pb-[env(safe-area-inset-bottom)]" style={{ zIndex: 95 }}>
           <StatsTeamSheet
             externalId={teamSheetId}
             seasonId={effectiveSeasonId}
@@ -2377,7 +2379,7 @@ function StatsPlayerSheet({
     const pc = percentilesQ.data;
 
     function barColor(v: number, lgv: number | null | undefined, higherBetter = true): BarColor {
-      if (lgv == null) return "muted";
+      if (lgv == null || Number.isNaN(lgv) || lgv <= 0) return "muted";
       const diff = v - lgv;
       if (higherBetter) return diff > lgv * 0.05 ? "green" : diff < -lgv * 0.05 ? "red" : "amber";
       return diff < -lgv * 0.05 ? "green" : diff > lgv * 0.05 ? "red" : "amber";
@@ -2391,14 +2393,14 @@ function StatsPlayerSheet({
       val: p.ppg.toFixed(1),
       rawNum: p.ppg,
       pct: barPct(p.ppg, pc?.p95Ppg),
-      color: barColor(p.ppg, lg?.ppg),
+      color: barColor(p.ppg, lg?.avgPlayerPpg ?? null),
     });
     rows.push({
       key: "RPG",
       val: p.rpg.toFixed(1),
       rawNum: p.rpg,
       pct: barPct(p.rpg, pc?.p95Rpg),
-      color: barColor(p.rpg, lg?.rpg),
+      color: barColor(p.rpg, lg?.avgPlayerRpg ?? null),
     });
     if (p.fgPct != null)
       rows.push({
@@ -2429,7 +2431,7 @@ function StatsPlayerSheet({
       val: p.apg.toFixed(1),
       rawNum: p.apg,
       pct: barPct(p.apg, pc?.p95Apg),
-      color: barColor(p.apg, lg?.apg),
+      color: barColor(p.apg, lg?.avgPlayerApg ?? null),
     });
 
     // 3P% siempre visible
@@ -2453,8 +2455,10 @@ function StatsPlayerSheet({
       pills.push({ label: "↑ FG%", up: true });
     if (player.fgPct != null && leagueAvg.fgPct != null && player.fgPct < leagueAvg.fgPct * 0.95)
       pills.push({ label: "↓ FG%", up: false });
-    if (player.ppg > (leagueAvg.ppg ?? 0) * 1.15) pills.push({ label: "↑ PPG", up: true });
-    if (player.apg < (leagueAvg.apg ?? 0) * 0.85) pills.push({ label: "↓ APG", up: false });
+    const lgPpg = leagueAvg.avgPlayerPpg ?? null;
+    const lgApg = leagueAvg.avgPlayerApg ?? null;
+    if (lgPpg != null && player.ppg > lgPpg * 1.05) pills.push({ label: "↑ PPG", up: true });
+    if (lgApg != null && player.apg < lgApg * 0.95) pills.push({ label: "↓ APG", up: false });
     return pills.slice(0, 3);
   }, [player, leagueAvg]);
 
@@ -3179,7 +3183,7 @@ function StatsPlayerSheet({
           if (!o) setBoxscoreGameId(null);
         }}
       >
-        <SheetContent hideClose side="bottom" className="h-[80svh] overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+        <SheetContent hideClose side="bottom" className="h-[80svh] overflow-y-auto pb-[env(safe-area-inset-bottom)] md:ml-12 lg:ml-48">
           <SheetHeader>
             <SheetTitle>
               {boxscoreQ.data ? (
@@ -3289,6 +3293,8 @@ function StatsTeamSheet({
   const [activeTab, setActiveTab] = useState<"ficha" | "avanzado" | "partidos" | "roster">("ficha");
   const [rosterSort, setRosterSort] = useState<"ppg" | "rpg" | "apg" | "pos" | "jersey">("ppg");
   const [rosterSortDir, setRosterSortDir] = useState<"asc" | "desc">("desc");
+  const [boxscoreGameId, setBoxscoreGameId] = useState<string | null>(null);
+  const boxscoreQ = useGameBoxscore(boxscoreGameId);
 
   const POS_ORDER: Record<string, number> = {
     "控球后卫": 1, "得分后卫": 2, "后卫": 3,
@@ -3972,10 +3978,12 @@ function StatsTeamSheet({
               ) : (
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
                   {teamGameLog.map((g, i) => (
-                    <div
+                    <button
                       key={g.gameId}
+                      type="button"
+                      onClick={() => setBoxscoreGameId(String(g.gameId))}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5",
+                        "w-full flex items-center gap-3 px-3 py-2.5 text-left touch-manipulation hover:bg-muted/25 active:bg-muted/40 transition-colors",
                         i < teamGameLog.length - 1 && "border-b border-border/50",
                       )}
                     >
@@ -4019,7 +4027,7 @@ function StatsTeamSheet({
                       >
                         {g.margin > 0 ? `+${g.margin}` : g.margin}
                       </p>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -4118,6 +4126,87 @@ function StatsTeamSheet({
           )}
         </div>
       )}
+
+      <Sheet
+        open={Boolean(boxscoreGameId)}
+        onOpenChange={(o) => {
+          if (!o) setBoxscoreGameId(null);
+        }}
+      >
+        <SheetContent hideClose side="bottom" className="h-[80svh] overflow-y-auto pb-[env(safe-area-inset-bottom)] md:ml-12 lg:ml-48">
+          <SheetHeader>
+            <SheetTitle>
+              {boxscoreQ.data ? (
+                <span>
+                  {pickName(boxscoreQ.data.game.home.nameZh, boxscoreQ.data.game.home.nameEn, locale)}{" "}
+                  {boxscoreQ.data.game.homeScore}–{boxscoreQ.data.game.awayScore}{" "}
+                  {pickName(boxscoreQ.data.game.away.nameZh, boxscoreQ.data.game.away.nameEn, locale)}
+                </span>
+              ) : (
+                "..."
+              )}
+            </SheetTitle>
+          </SheetHeader>
+          {boxscoreQ.isLoading && (
+            <div className="flex justify-center py-8">
+              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+          {boxscoreQ.data &&
+            (() => {
+              const { game, players } = boxscoreQ.data;
+              const homeExtId = game.home.extId;
+              const homePlayers = players.filter((p) => p.teamExtId === homeExtId);
+              const awayPlayers = players.filter((p) => p.teamExtId !== homeExtId);
+              const renderTeam = (ps: typeof players) => (
+                <div className="mb-4">
+                  <div className="grid grid-cols-[2fr_0.5fr_0.5fr_0.5fr_0.5fr_0.5fr_0.7fr] text-[9px] font-black uppercase tracking-wide text-muted-foreground px-2 py-1 border-b border-border">
+                    <span>Jugadora</span>
+                    <span className="text-right">PTS</span>
+                    <span className="text-right">REB</span>
+                    <span className="text-right">AST</span>
+                    <span className="text-right">STL</span>
+                    <span className="text-right">BLK</span>
+                    <span className="text-right">FG</span>
+                  </div>
+                  {ps.map((p) => (
+                    <div
+                      key={p.externalId}
+                      className="grid grid-cols-[2fr_0.5fr_0.5fr_0.5fr_0.5fr_0.5fr_0.7fr] items-center px-2 py-2 border-b border-border/40 last:border-0 text-xs"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {p.isStart && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+                        <span className="truncate font-bold">
+                          {locale === "zh" ? p.nameZh : (p.nameEn ?? p.nameZh)}
+                        </span>
+                      </div>
+                      <span className="text-right font-black">{p.pts}</span>
+                      <span className="text-right">{p.reb}</span>
+                      <span className="text-right">{p.ast}</span>
+                      <span className="text-right">{p.stl}</span>
+                      <span className="text-right">{p.blk}</span>
+                      <span className="text-right text-muted-foreground">
+                        {p.fgm}/{p.fga}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+              return (
+                <div>
+                  <p className="text-xs font-black text-primary mb-1 px-2">
+                    {pickName(game.home.nameZh, game.home.nameEn, locale)} — {game.homeScore}
+                  </p>
+                  {renderTeam(homePlayers)}
+                  <p className="text-xs font-black text-primary mb-1 px-2 mt-2">
+                    {pickName(game.away.nameZh, game.away.nameEn, locale)} — {game.awayScore}
+                  </p>
+                  {renderTeam(awayPlayers)}
+                </div>
+              );
+            })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

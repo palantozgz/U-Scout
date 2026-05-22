@@ -3059,6 +3059,26 @@ export async function registerRoutes(
       `);
       const row = (rows as any).rows?.[0] ?? {};
 
+      const playerAvgRows = await db.execute(sql`
+        SELECT
+          ROUND(AVG(sub.ppg)::numeric, 1) AS avg_player_ppg,
+          ROUND(AVG(sub.rpg)::numeric, 1) AS avg_player_rpg,
+          ROUND(AVG(sub.apg)::numeric, 1) AS avg_player_apg
+        FROM (
+          SELECT
+            pb2.player_external_id,
+            AVG(COALESCE(pb2.pts, 0)) AS ppg,
+            AVG(COALESCE(pb2.reb, 0)) AS rpg,
+            AVG(COALESCE(pb2.ast, 0)) AS apg
+          FROM stats_player_boxscores pb2
+          JOIN stats_games sg2 ON sg2.id = pb2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+          ${position ? sql`JOIN stats_players sp2 ON sp2.external_id = pb2.player_external_id AND sp2.position = ${position}` : sql``}
+          GROUP BY pb2.player_external_id
+          HAVING COUNT(DISTINCT pb2.game_id) >= 3
+        ) sub
+      `);
+      const pa = (playerAvgRows as any).rows?.[0] ?? {};
+
       // ── ORTG / DRTG / Pace / PPP — query separada para evitar inflar filas ──
       let lgOrtg: number | null = null;
       let lgDrtg: number | null = null;
@@ -3147,6 +3167,9 @@ export async function registerRoutes(
         orbPct: row.avgOrbPct != null ? Number(row.avgOrbPct) : null,
         orbPerGame: row.avgOrbPerGame != null ? Number(row.avgOrbPerGame) : null,
         drbPerGame: row.avgDrbPerGame != null ? Number(row.avgDrbPerGame) : null,
+        avgPlayerPpg: pa.avg_player_ppg != null ? Number(pa.avg_player_ppg) : null,
+        avgPlayerRpg: pa.avg_player_rpg != null ? Number(pa.avg_player_rpg) : null,
+        avgPlayerApg: pa.avg_player_apg != null ? Number(pa.avg_player_apg) : null,
         ortg: lgOrtg,
         drtg: lgDrtg,
         pace: lgPace,

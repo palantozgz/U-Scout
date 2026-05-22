@@ -276,11 +276,11 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
         queryFn: () => apiRequest("GET", "/api/stats/standings?seasonId=2092").then(r => r.json()).catch(() => ({ standings: [] })),
         staleTime: 1000 * 60 * 5,
       });
-      // Prefetch league averages — shown in Stats empty panel
+      // Prefetch league averages — v2 key matches useLeagueAverages hook
       queryClient.prefetchQuery({
-        queryKey: ["stats-league-averages", 2092, null],
+        queryKey: ["stats-league-averages-v3", 2092, "all"],
         queryFn: () => apiRequest("GET", "/api/stats/league-averages?seasonId=2092").then(r => r.json()).catch(() => null),
-        staleTime: 1000 * 60 * 60,
+        staleTime: 1000 * 60 * 5,
       });
     }, phase3Delay);
 

@@ -323,17 +323,57 @@ export interface LeagueAverages {
   pace?: number | null;
   ppp?: number | null;
   drbPct?: number | null;
+  avgPlayerPpg?: number | null;
+  avgPlayerRpg?: number | null;
+  avgPlayerApg?: number | null;
 }
 
+function normalizeLeagueAverages(raw: Record<string, unknown>): LeagueAverages {
+  const num = (v: unknown): number | null =>
+    v != null && v !== "" && !Number.isNaN(Number(v)) ? Number(v) : null;
+  const pick = (...keys: string[]) => {
+    for (const k of keys) {
+      if (raw[k] != null && raw[k] !== undefined) return raw[k];
+    }
+    return undefined;
+  };
+  return {
+    ppg: Number(pick("ppg") ?? 0),
+    rpg: Number(pick("rpg") ?? 0),
+    apg: Number(pick("apg") ?? 0),
+    spg: Number(pick("spg") ?? 0),
+    bpg: Number(pick("bpg") ?? 0),
+    fgPct: num(pick("fgPct", "fgpct")),
+    fg3Pct: num(pick("fg3Pct", "fg3pct")),
+    eFGPct: num(pick("eFGPct", "efgpct")),
+    tsPct: num(pick("tsPct", "tspct")),
+    tovPct: num(pick("tovPct", "tovpct")),
+    ftRate: num(pick("ftRate", "ftrate")),
+    orbPct: num(pick("orbPct", "orbpct")),
+    orbPerGame: num(pick("orbPerGame", "orbpergame")),
+    drbPerGame: num(pick("drbPerGame", "drbpergame")),
+    ortg: num(pick("ortg")),
+    drtg: num(pick("drtg")),
+    pace: num(pick("pace")),
+    ppp: num(pick("ppp")),
+    drbPct: num(pick("drbPct", "drbpct")),
+    avgPlayerPpg: num(pick("avgPlayerPpg", "avgplayerppg", "avg_player_ppg")),
+    avgPlayerRpg: num(pick("avgPlayerRpg", "avgplayerrpg", "avg_player_rpg")),
+    avgPlayerApg: num(pick("avgPlayerApg", "avgplayerapg", "avg_player_apg")),
+  };
+}
+
+// v3 — separate player-avg query + normalized keys
 export function useLeagueAverages(seasonId?: number, position?: string | null) {
   return useQuery({
-    queryKey: ["stats-league-averages", seasonId ?? 2092, position ?? "all"],
+    queryKey: ["stats-league-averages-v3", seasonId ?? 2092, position ?? "all"],
     queryFn: async () => {
       const pos = position ? `&position=${encodeURIComponent(position)}` : "";
       const r = await apiRequest("GET", `/api/stats/league-averages?seasonId=${seasonId ?? 2092}${pos}`);
-      return r.json() as Promise<LeagueAverages>;
+      const raw = (await r.json()) as Record<string, unknown>;
+      return normalizeLeagueAverages(raw);
     },
-    staleTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 5,
     retry: 0,
   });
 }
@@ -448,4 +488,3 @@ export function usePaceSegments(externalId: string | null | undefined, seasonId?
     retry: 0,
   });
 }
-

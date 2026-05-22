@@ -8,9 +8,9 @@ import type { PlayerDetail } from "@/lib/stats-api";
 import { useLeagueAverages, usePlayerPercentiles } from "@/lib/stats-api";
 
 const AXES = [
-  { key: "PPG" as const, fallbackMax: 35, getVal: (p: PlayerDetail) => p.ppg, getRaw: (p: PlayerDetail) => p.ppg.toFixed(1), avgKey: "ppg" as const, p95Key: "p95Ppg" as const },
-  { key: "RPG" as const, fallbackMax: 15, getVal: (p: PlayerDetail) => p.rpg, getRaw: (p: PlayerDetail) => p.rpg.toFixed(1), avgKey: "rpg" as const, p95Key: "p95Rpg" as const },
-  { key: "APG" as const, fallbackMax: 10, getVal: (p: PlayerDetail) => p.apg, getRaw: (p: PlayerDetail) => p.apg.toFixed(1), avgKey: "apg" as const, p95Key: "p95Apg" as const },
+  { key: "PPG" as const, fallbackMax: 35, getVal: (p: PlayerDetail) => p.ppg, getRaw: (p: PlayerDetail) => p.ppg.toFixed(1), avgKey: "avgPlayerPpg" as const, p95Key: "p95Ppg" as const },
+  { key: "RPG" as const, fallbackMax: 15, getVal: (p: PlayerDetail) => p.rpg, getRaw: (p: PlayerDetail) => p.rpg.toFixed(1), avgKey: "avgPlayerRpg" as const, p95Key: "p95Rpg" as const },
+  { key: "APG" as const, fallbackMax: 10, getVal: (p: PlayerDetail) => p.apg, getRaw: (p: PlayerDetail) => p.apg.toFixed(1), avgKey: "avgPlayerApg" as const, p95Key: "p95Apg" as const },
   { key: "SPG" as const, fallbackMax: 4,  getVal: (p: PlayerDetail) => p.spg, getRaw: (p: PlayerDetail) => p.spg.toFixed(1), avgKey: "spg" as const, p95Key: "p95Spg" as const },
   { key: "BPG" as const, fallbackMax: 4,  getVal: (p: PlayerDetail) => p.bpg, getRaw: (p: PlayerDetail) => p.bpg.toFixed(1), avgKey: "bpg" as const, p95Key: "p95Bpg" as const },
   { key: "FG%" as const, fallbackMax: 65, getVal: (p: PlayerDetail) => p.fgPct ?? 0, getRaw: (p: PlayerDetail) => p.fgPct != null ? `${p.fgPct.toFixed(1)}%` : "—", avgKey: "fgPct" as const, p95Key: "p95EFGPct" as const },
@@ -64,7 +64,10 @@ export interface StatsRadarProps {
   byPosition?:       boolean;
   onTogglePosition?: () => void;
   /** Filtered league data passed from parent when toggle is active */
-  leagueAvgData?:    { ppg: number; rpg: number; apg: number; spg: number; bpg: number; fgPct: number | null } | null;
+  leagueAvgData?:    {
+    ppg: number; rpg: number; apg: number; spg: number; bpg: number; fgPct: number | null;
+    avgPlayerPpg?: number | null; avgPlayerRpg?: number | null; avgPlayerApg?: number | null;
+  } | null;
   percentilesData?:  { p95Ppg: number; p95Rpg: number; p95Apg: number; p95Spg: number; p95Bpg: number; p95TsPct: number; p95EFGPct: number } | null;
 }
 
