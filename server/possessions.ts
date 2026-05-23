@@ -491,14 +491,16 @@ export async function processPossessions(
       // La siguiente posesión se abrirá automáticamente con el rival en el próximo evento
     }
 
-    // Rebote defensivo → cierra posesión del rival (si está abierta para el rival)
+    // Rebote defensivo → cierra posesión del rival, abre para el equipo reboteador
+    // Rebote ofensivo → NO cambia posesión, solo acumula (ya hecho arriba en acumulación)
     if (ev.event_type === 'rebound' && ev.rebound_type === 'defensive' && tid) {
       if (possTeamId !== null && possTeamId !== tid) {
         closePossession(sec, 'shot_missed', ev.quarter);
       }
-      // Abre posesión para el equipo reboteador
       openPossession(tid, sec, 'def_rebound', ev.quarter, ev.score_differential, i);
     }
+    // Rebote ofensivo: la posesión continúa, no se cierra ni se abre
+    // El acumulador possORB++ e isSecondChance ya se ejecutaron arriba
 
     // Robo → cierra posesión del rival
     if (ev.event_type === 'steal' && tid) {
@@ -619,16 +621,18 @@ export async function processPossessions(
   }
 
   // ── 7. Auditoría ──────────────────────────────────────────────────────────
-  for (const [teamInternalId, extStr] of [[homeTeamId, homeExt], [awayTeamId, awayExt]] as [number, string][]) {
+  for (const [teamExtId, extStr] of [[homeTeamId, homeExt], [awayTeamId, awayExt]] as [number, string][]) {
+    // Las posesiones usan external team_id (del PBP), no el internal
+    const teamExtIdNum = Number(extStr);
     const pbpPts = possessions
-      .filter(p => p.teamId === teamInternalId)
+      .filter(p => p.teamId === teamExtIdNum)
       .reduce((s, p) => s + p.points, 0);
     const boxForTeam = boxRows.filter((b: any) => String(b.team_external_id) === extStr);
     const boxPts = boxForTeam.reduce((s: number, b: any) => s + (Number(b.pts) || 0), 0);
     const boxReb = boxForTeam.reduce((s: number, b: any) => s + (Number(b.reb) || 0), 0);
     const boxAst = boxForTeam.reduce((s: number, b: any) => s + (Number(b.ast) || 0), 0);
     const boxTov = boxForTeam.reduce((s: number, b: any) => s + (Number(b.tov) || 0), 0);
-    const teamPlayers = Array.from(playerMap.values()).filter(p => p.teamId === teamInternalId);
+    const teamPlayers = Array.from(playerMap.values()).filter(p => String(p.teamId) === extStr);
     const pbpReb = teamPlayers.reduce((s, p) => s + p.offReb + p.defReb, 0);
     const pbpAst = teamPlayers.reduce((s, p) => s + p.ast, 0);
     const pbpTov = teamPlayers.reduce((s, p) => s + p.tov, 0);
