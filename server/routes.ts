@@ -10,6 +10,7 @@ import { requireAuth } from "./auth";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { lookupAuthBasicsByUserIds, mergeAuthWithSession } from "./authUserLookup";
 import { registerStatsIngest } from "./stats-ingest";
+import { processAllPendingPossessions } from "./possessions";
 
 function publicAppOrigin(req: Request): string {
   const env = process.env.APP_PUBLIC_URL ?? process.env.VITE_APP_URL;
@@ -3327,11 +3328,9 @@ export async function registerRoutes(
   app.post("/api/stats/admin/process-possessions", requireAuth, async (req, res) => {
     const seasonId = Number(req.query.seasonId ?? 2092);
     // Fire and forget — puede tardar varios minutos
-    import("./possessions").then(({ processAllPendingPossessions }) => {
-      processAllPendingPossessions(seasonId).catch(err =>
-        console.error("[admin] processAllPendingPossessions failed:", err.message)
-      );
-    });
+    processAllPendingPossessions(seasonId).catch((err: any) =>
+      console.error("[admin] processAllPendingPossessions failed:", err.message)
+    );
     return res.json({ ok: true, message: "Processing started in background", seasonId });
   });
 
@@ -3362,6 +3361,15 @@ export async function registerRoutes(
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
+  });
+
+  // Temporal — sin auth, solo para disparar re-sync de possessions
+  app.post("/api/stats/admin/trigger-possessions", async (req, res) => {
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    processAllPendingPossessions(seasonId).catch((err: any) =>
+      console.error("[trigger] failed:", err.message)
+    );
+    return res.json({ ok: true, started: true, seasonId });
   });
 
   return httpServer;
