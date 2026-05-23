@@ -39,6 +39,8 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 - `client/src/lib/stats-api.ts` — hooks stats completos
 - `server/routes.ts` — rutas API Express (~3540 líneas)
 - `server/stats-ingest.ts` — ingest endpoint Pi → Railway → Supabase
+- `collector/src/sync/pbp.ts` — parser PBP con ACTION_CODE_MAP completo
+- `collector/src/sync/possessions.ts` — (PENDIENTE CREAR) procesador de posesiones
 - `ios/App/App/ThemePlugin.swift` — plugin nativo iOS para sincronizar UIWindow.backgroundColor con tema
 - `ios/App/App.xcodeproj/project.pbxproj` — MODIFICADO — ThemePlugin registrado en Sources
 
@@ -53,7 +55,6 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 ### Tools que funcionan en Mac (Filesystem MCP):
 - `Filesystem:read_text_file` — **USAR SIEMPRE** para leer archivos del Mac. Funciona con `head`/`tail` para archivos grandes.
 - `Filesystem:search_files` — buscar patrones en archivos del Mac
-- `Filesystem:list_directory` — listar directorios del Mac
 - `filesystem:write_file` (minúscula) — **USAR para escribir archivos completos** en el Mac. Fiable.
 - `filesystem:edit_file` (minúscula) — **PELIGROSO con routes.ts**: corrompe archivos grandes que contienen template literals SQL con `${...}`. Usar solo para archivos pequeños o TypeScript puro sin SQL.
 
@@ -74,19 +75,52 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 5. **Leer código real antes de proponer** — nunca especular sobre el estado del código
 6. **Garantizar antes de implementar** — investigar a fondo y garantizar resultado antes de tocar código
 7. **Cursor para routes.ts** — todo cambio en routes.ts va por prompt Cursor completo, nunca edit_file
+8. **PBP es fuente única de verdad** — boxscore solo para auditoría. Nunca mezclar fuentes para la misma métrica.
 
 ---
 
-## U Stats — Estado actual
+## U Stats — Arquitectura PBP (decisión 2026-05-23)
 
-### Datos reales verificados (Supabase, season_id=2092, competitionId=56)
-- Partidos completados (status=4): 223 partidos únicos
-- Posesiones/equipo/partido real: **80.4** (fórmula: fga + 0.44*fta + tov - off_reb)
-- TOVs reales Zhejiang (external_id=19038): 460 / 1585 tiros = 29% de posesiones
-- Eventos PBP totales: ~116.700 (en Supabase vía Pi)
-- `shot_x/shot_y/shot_zone`: 0 filas — hotspot data nunca sincronizado (Fase 4)
+### Principio fundamental
+Todo viene del PBP. Boxscore = auditoría y validación únicamente.
+La razón: boxscore y PBP son fuentes distintas → PPP por tramo nunca cuadraría con PPP general si vienen de fuentes diferentes.
 
-### Fórmulas implementadas — estado
+### Tablas derivadas (Fase A completada 2026-05-23)
+Creadas en Supabase. El collector las puebla al procesar cada partido.
+
+| Tabla | Contenido | Estado |
+|---|---|---|
+| `pbp_possessions` | 1 fila por posesión — la unidad fundamental | ✅ creada |
+| `pbp_player_game_stats` | 1 fila por jugadora por partido, stats desde PBP | ✅ creada |
+| `pbp_lineup_stats` | 1 fila por quinteto por partido | ✅ creada |
+| `pbp_audit_log` | diff PBP vs boxscore por partido/equipo | ✅ creada |
+
+### Estado del PBP verificado (2026-05-23)
+- 223/223 partidos con PBP (100% cobertura)
+- 96.8% de eventos tienen player_external_id (los 3.2% restantes son team events por diseño)
+- sub_in/sub_out: 100% con player → base para minutos reales
+- tiros, ast, stl, blk, foul, ft: 100% con player
+- 864 rebotes sin player = team rebounds (correcto)
+- 1.000 TOVs sin player = TOTLTO + TNO24S + TNOOTH (team turnovers, correcto)
+- Gap FGM ~10%: action codes no mapeados. Fix aplicado 2026-05-23, pendiente re-sync.
+
+### Roadmap Fases B-F
+- **Fase B** (SIGUIENTE): `collector/src/sync/possessions.ts` — procesador que genera las 3 tablas por partido
+- **Fase C**: nuevos handlers en `server/stats-ingest.ts` para recibir las 3 tablas
+- **Fase D**: reescribir endpoints en `server/routes.ts` para leer de tablas derivadas
+- **Fase E**: UI — vaciar fuente actual, conectar nueva. Añadir quintetos, on/off
+- **Fase F**: re-sync histórico automático (TRUNCATE + Pi reprocesa 223 partidos)
+
+### Documentación
+- `PBP_STATS_BLUEPRINT.md` — arquitectura completa con algoritmos
+- `FORMULAS_STATS.md` — fórmulas implementadas con estado
+- `PBP_EVENTS.md` — catálogo event_types, gaps, visión PBP vs boxscore
+
+---
+
+## U Stats — Estado actual (fórmulas)
+
+### Fórmulas implementadas — estado actual (en routes.ts, fuente boxscore — PENDIENTE migración)
 
 | Métrica | Fórmula | Estado |
 |---|---|---|
@@ -99,63 +133,38 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 | AST/TOV | AST/TOV | ✅ |
 | PIE | Fórmula NBA exacta | ✅ |
 | USG% | Fórmula estándar con minutos | ✅ |
-| ORTG/DRTG equipo | 100×pts/posesiones | ✅ |
-| PPP equipo/liga | pts/posesiones | ✅ |
-| Pace liga | (poss_home+poss_away)/2/games | ✅ ~80.4 tras fix DISTINCT ON |
-| Pace equipo | misma fórmula vía team_box+rival_box | ✅ |
-| PPP por tramo | solo tiros, excluye TOVs | ⚠️ PENDIENTE fix TOVs |
-| pointsByZone paint/mid | coeficiente fijo 70/30 | ⚠️ estimación — tag "est." en UI |
+| ORTG/DRTG equipo | 100×pts/posesiones (boxscore) | ⚠️ pendiente migrar a PBP |
+| PPP equipo/liga | pts/posesiones (boxscore) | ⚠️ pendiente migrar a PBP |
+| Pace liga | (poss_home+poss_away)/2/games | ⚠️ pendiente migrar a PBP |
+| PPP por tramo | PBP con TOVs en denominador | ✅ fix 2026-05-23 |
+| pointsByZone | coeficiente fijo 70/30 | ❌ estimación — tag "est." en UI |
 
-### Fix pendiente — PPP por tramo con TOVs
-**Problema:** PPP por tramo excluye posesiones que terminan en TOV real (29% en Zhejiang).
-Esto infla el PPP ponderado ~0.07 vs PPP general.
-**Fix necesario:** añadir TOVs reales en `team_shots` CTE (equipo) y `shots_lg` CTE (liga):
-```sql
-OR (event_type = 'turnover' AND action_code NOT IN ('TOTLTO','TNOTVR','TNOFGV'))
-```
-**IMPORTANTE:** Este cambio DEBE hacerse via prompt Cursor (nunca edit_file en routes.ts).
-**Ambas CTEs deben tener la misma condición** para mantener consistencia equipo=liga.
+### Nombres tramos pace-segments (actualizado 2026-05-23)
+- 0-8s: **Transition**
+- 8-14s: **Early Offense**
+- 14-24s: **Halfcourt**
 
-### Pace segments — metodología actual
-- Umbrales: 0-8s (Transition) / 8-14s (Demi-trans) / 14-24s (Set play)
-- Inicio posesión: rebote def, robo, falta, FT último, inicio cuarto
-- After_basket (canasta rival): -3s estimados EXCEPTO Q4 últimos 2min (`CASE WHEN quarter < 4 OR clock_sec > 120 THEN 3 ELSE 0 END`)
-- Excluye putbacks (rebote ofensivo propio ≤3s)
-- Umbral mínimo: 200 posesiones detectadas para mostrar datos
-- **Consistencia equipo/liga:** CASE WHEN idéntico en ambas queries ✅
+### Pi — estado (2026-05-23)
+- IP: 192.168.1.7 / ucore-pi.local · usuario: `pablo` · contraseña: `skapol`
+- PM2: proceso `ucore-collector` activo
+- Collector actualizado con nuevos action codes (2026-05-23)
+- PBP re-sync en curso tras TRUNCATE (iniciado esta sesión)
+- `stats_pbp` tenía ~116k eventos antes del TRUNCATE. Re-sync en progreso.
 
-### Pendiente — Pace defensivo por tramos
-Misma métrica pero desde perspectiva defensiva:
-- % ataques concedidos en cada tramo
-- PPP concedido en cada tramo
-Arquitectura idéntica a la ofensiva — cambiar filtro `team_id = ${team.ext_id}` por rival.
-
-### paired CTE en league-averages — fix aplicado
-`SELECT DISTINCT ON (o.game_id) ... ORDER BY o.game_id` — garantiza 1 fila por partido.
-Sin este fix: duplicados inflaban poss_home+poss_away dando pace=40 en vez de ~80.
-
----
-
-## U Stats — Roadmap
-
-**Fase 2 (actual):** UI TeamSheet y PlayerSheet — completada
-**Fase 3:** Bubble chart, comparador radar, coaching dashboard — pendiente
-**Fase 4:** Pi pipeline para hotspot data / shot_x/shot_y (0 filas actualmente)
-
-**PBP como fuente principal (visión):**
-El boxscore de la web es generado por ellos desde el PBP. Nosotros podemos hacer lo mismo
-y obtener más información. Antes de deprecar boxscore: auditar que PBP reconstituye
-exactamente los mismos totales (pts, reb, ast, stl, blk, tov). El boxscore queda como
-checkeo para detectar errores de parsing PBP.
+### Action codes añadidos al mapa (2026-05-23)
+`2PMALY`, `2PMTDK`, `2PAALY`, `2PATDK`, `3PMFLT`, `3PAFLT`, `3PATRN`,
+`TNO5SC`, `TNO8SC`, `FOLPER`, `FOLDSQ`, `TOTSTO`
+MADE_SHOT_CODES y SHOT_CODES actualizados correspondientemente.
 
 ---
 
 ## Infraestructura
 
 ### Pi (scraper)
-- IP: 192.168.1.7 (cambió tras corte de luz; alternativa: ucore-pi.local)
-- PM2: proceso `ucore-collector` — `pm2 status`, `pm2 logs`
-- Tailscale: instalado, pendiente autenticación (`sudo tailscale up`)
+- IP: 192.168.1.7 (también responde en ucore-pi.local)
+- usuario: `pablo` (NO `palant`)
+- PM2: proceso `ucore-collector` — `pm2 status`, `pm2 logs ucore-collector`
+- Tailscale: instalado, pendiente autenticar (`sudo tailscale up`)
 - WCBA API chain: `phasemenus` → `matchmenusschedule` → `matchschedules?teamId=` (string vacío requerido) → `matchinfoscores`
 - Telegram bot: requiere VPN en Pi (bloqueado por firewall chino)
 
@@ -164,10 +173,33 @@ checkeo para detectar errores de parsing PBP.
 - Shot coordinates: 28m×15m, Home arc x=0.0575, Away x=0.9425
 - 6 zonas FIBA verificadas con 12 reference shots
 - PBP action codes: en inglés, confirmados
+- `user_id` en PBP = player_external_id de la jugadora
 
 ---
 
 ## Sesiones anteriores resumidas
+
+### Sesión 2026-05-23 — PBP como fuente única, blueprint arquitectura
+
+**Fixes aplicados:**
+- PPP por tramo: TOVs añadidos al denominador (routes.ts via Cursor) — fix commit `c947527`
+- Nombres tramos pace-segments: Transition / Early Offense / Halfcourt (Stats.tsx)
+- ACTION_CODE_MAP: 12 nuevos códigos añadidos (collector/src/sync/pbp.ts)
+- Collector actualizado en Pi: git pull + npm build + pm2 restart
+
+**Análisis completados:**
+- Auditoría PBP vs boxscore: gap FGM ~10% confirmado = action codes no mapeados (ahora fixeado)
+- Verificación cobertura player_external_id: 96.8% (los sin player son team events por diseño)
+- Team rebounds (REBDEF/REBOFN sin player) y team turnovers (TOTLTO/TNO24S) = correctos por diseño
+- Ambos tipos de eventos sin player DEBEN contarse para stats de equipo aunque no aparezcan en stats individuales
+
+**Documentos creados:**
+- `FORMULAS_STATS.md` — fórmulas con fuente y estado
+- `PBP_EVENTS.md` — catálogo event_types con literatura externa
+- `PBP_STATS_BLUEPRINT.md` — arquitectura completa para migración a PBP como fuente única
+
+**Fase A completada:**
+4 tablas creadas en Supabase: `pbp_possessions`, `pbp_player_game_stats`, `pbp_lineup_stats`, `pbp_audit_log`
 
 ### Sesión 2026-05-22 — Stats audit + pace segments + PPP
 - Barras PPG/RPG/APG: corregidas con avgPlayerPpg/Rpg/Apg (COALESCE)
@@ -176,21 +208,14 @@ checkeo para detectar errores de parsing PBP.
 - after_basket CASE WHEN aplicado simétricamente en equipo y liga
 - paired CTE: DISTINCT ON corregido → pace liga ~80.4 correcto
 - pointsByZone tag "est." añadido en Stats.tsx (coeficiente 70/30 hardcoded)
-- label "0-7"" → "0-8"" corregido en Stats.tsx
-- PPP por tramo implementado y visible (datos solo de tiros, TOVs pendientes)
-
-### Sesión 2026-05-22 — Home layout, permisos, Pi, prefetch
-- HomeDesktop grid 2x2 + Mi Club
-- effectiveRole para preview en capabilities
-- Schedule days clicables
-- Pi: IP 192.168.1.7, pm2 activo, Tailscale instalado
+- PPP por tramo implementado y visible (datos solo de tiros, TOVs pendientes — fixeado 2026-05-23)
 
 ---
 
 ## Bugs activos (por impacto)
 
 **P0:**
-- PPP por tramo no incluye TOVs → inflado vs PPP general (fix en routes.ts via Cursor)
+- PPP tramos vs PPP general no cuadran: fuente diferente (boxscore vs PBP). Fix = Fases B-F.
 - pointsByZone: datos estimados (70/30 hardcoded), tag "est." añadido, datos reales en Fase 4
 
 **P1:**
@@ -206,17 +231,9 @@ checkeo para detectar errores de parsing PBP.
 - Scout en iOS ha perdido la "U" — debe ser "U Scout"
 
 **Pendientes:**
-- Pi: autenticar Tailscale + sync PBP completo
+- Fase B: `collector/src/sync/possessions.ts` — procesador posesiones
+- Pi: autenticar Tailscale + verificar re-sync PBP completo tras TRUNCATE
 - iOS TestFlight: bundle <300KB gzip (actualmente ~509KB)
-- Stats Fase 3: bubble chart, comparador radar, coaching dashboard
+- Stats Fase 3: bubble chart, comparador radar, coaching dashboard (después de Fases B-F)
 - Stats Fase 4: shot_x/shot_y hotspot data
 - Confirmar `backup/motor-v2.1-pre-20260405` estable y mergear
-
----
-
-## Project Knowledge (archivos en Claude Project)
-
-Documentos útiles para mantener en cache (carpeta del proyecto en Claude.ai):
-1. `CLAUDE_CONTEXT.md` — este archivo — estado técnico completo
-2. `FORMULAS_STATS.md` — fórmulas implementadas con fuente estándar y estado (pendiente crear)
-3. `PBP_EVENTS.md` — catálogo event_types y action_codes reales en DB (pendiente crear)
