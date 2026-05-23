@@ -413,7 +413,15 @@ export async function processPossessions(
     }
 
     // ── 3. ABRIR POSESIÓN SI NO HAY UNA (antes de procesar el evento) ────────
-    if (possTid === null) {
+    // IMPORTANTE: assist, block, foul_drawn son decoradores del evento anterior
+    // — NUNCA abren una posesión nueva. Solo abrir con eventos de juego real.
+    const isDecorator = ev.event_type === 'assist'
+      || ev.event_type === 'block'
+      || ev.event_type === 'foul_drawn'
+      || ev.event_type === 'sub_in'
+      || ev.event_type === 'sub_out';
+
+    if (possTid === null && !isDecorator) {
       let st = 'period_start';
       if (i > 0) {
         const prev = events[i - 1];
@@ -431,6 +439,21 @@ export async function processPossessions(
 
     // Shot made (con look-ahead para and-1)
     if ((ev.event_type === 'shot_made' || ev.event_type === 'shot_made_3') && tid === possTid) {
+      possPts += ev.event_type === 'shot_made_3' ? 3 : 2;
+      possFGA++;
+      const isAnd1 = next?.event_type === 'foul' && next.team_id !== tid;
+      if (!isAnd1) close(sec, 'shot_made', ev.quarter);
+      else and1Pending = true;
+      continue;
+    }
+
+    // Shot made del equipo contrario al possTid
+    // Ocurre cuando el PBP registra el tiro ANTES de que haya un evento
+    // que transfiera la posesión (ej: foul shooting donde el tiro entra).
+    // Cerrar la posesión actual del otro equipo y registrar este tiro.
+    if ((ev.event_type === 'shot_made' || ev.event_type === 'shot_made_3') && tid !== possTid && possTid !== null) {
+      close(sec, 'shot_missed', ev.quarter); // cierra posesión del equipo actual
+      open(tid, sec, 'period_start', ev.quarter, ev.score_differential, i);
       possPts += ev.event_type === 'shot_made_3' ? 3 : 2;
       possFGA++;
       const isAnd1 = next?.event_type === 'foul' && next.team_id !== tid;
