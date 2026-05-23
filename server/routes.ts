@@ -10,7 +10,7 @@ import { requireAuth } from "./auth";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { lookupAuthBasicsByUserIds, mergeAuthWithSession } from "./authUserLookup";
 import { registerStatsIngest } from "./stats-ingest";
-import { processAllPendingPossessions } from "./possessions";
+import { processAllPendingPossessions, processPossessions } from "./possessions";
 
 function publicAppOrigin(req: Request): string {
   const env = process.env.APP_PUBLIC_URL ?? process.env.VITE_APP_URL;
@@ -3370,6 +3370,16 @@ export async function registerRoutes(
       console.error("[trigger] failed:", err.message)
     );
     return res.json({ ok: true, started: true, seasonId });
+  });
+
+  app.post("/api/stats/admin/process-game/:gameId", async (req, res) => {
+    const gameId = Number(req.params.gameId);
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    if (isNaN(gameId)) return res.status(400).json({ error: "invalid gameId" });
+    processPossessions(gameId, seasonId).catch((err: any) =>
+      console.error("[process-game] failed:", err.message)
+    );
+    return res.json({ ok: true, gameId, seasonId });
   });
 
   return httpServer;
