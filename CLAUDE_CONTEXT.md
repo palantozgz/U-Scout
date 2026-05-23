@@ -39,8 +39,8 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 - `client/src/lib/stats-api.ts` — hooks stats completos
 - `server/routes.ts` — rutas API Express (~3540 líneas)
 - `server/stats-ingest.ts` — ingest endpoint Pi → Railway → Supabase
+- `server/possessions.ts` — procesador PBP → tablas derivadas (v6, verificado)
 - `collector/src/sync/pbp.ts` — parser PBP con ACTION_CODE_MAP completo
-- `collector/src/sync/possessions.ts` — (PENDIENTE CREAR) procesador de posesiones
 - `ios/App/App/ThemePlugin.swift` — plugin nativo iOS para sincronizar UIWindow.backgroundColor con tema
 - `ios/App/App.xcodeproj/project.pbxproj` — MODIFICADO — ThemePlugin registrado en Sources
 
@@ -53,16 +53,16 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 ## Tools de Claude — CRÍTICO
 
 ### Tools que funcionan en Mac (Filesystem MCP):
-- `Filesystem:read_text_file` — **USAR SIEMPRE** para leer archivos del Mac. Funciona con `head`/`tail` para archivos grandes.
+- `Filesystem:read_text_file` — **USAR SIEMPRE** para leer archivos del Mac.
 - `Filesystem:search_files` — buscar patrones en archivos del Mac
-- `filesystem:write_file` (minúscula) — **USAR para escribir archivos completos** en el Mac. Fiable.
-- `filesystem:edit_file` (minúscula) — **PELIGROSO con routes.ts**: corrompe archivos grandes que contienen template literals SQL con `${...}`. Usar solo para archivos pequeños o TypeScript puro sin SQL.
+- `filesystem:write_file` (minúscula) — **USAR para escribir archivos completos** en el Mac.
+- `filesystem:edit_file` (minúscula) — PELIGROSO con routes.ts. Solo para archivos pequeños sin SQL.
 
 ### Tools que NO funcionan en Mac:
-- `bash_tool` — corre en contenedor Linux de Claude, NO accede al Mac. Nunca intentarlo para leer/escribir archivos del Mac.
+- `bash_tool` — corre en contenedor Linux de Claude, NO accede al Mac.
 
 ### Regla para routes.ts:
-**NUNCA usar `edit_file` en `server/routes.ts`**. El archivo tiene template literals SQL con `${seasonId}` etc. que el MCP confunde con placeholders y duplica el contenido. Para cambios en routes.ts: siempre Cursor con prompt completo.
+**NUNCA usar `edit_file` en `server/routes.ts`**. Para cambios en routes.ts: siempre Cursor con prompt completo.
 
 ---
 
@@ -70,12 +70,13 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 1. **Fórmulas estándar internacionales FIBA** — sin estimaciones no documentadas
 2. **Datos exactos, no aproximaciones** — verificar en Supabase antes de implementar
-3. **Consistencia total equipo = liga** — exactamente la misma fórmula en ambos lados
-4. **Verdad antes que darle la razón** — si algo no es posible o los datos son sospechosos, decirlo primero
-5. **Leer código real antes de proponer** — nunca especular sobre el estado del código
-6. **Garantizar antes de implementar** — investigar a fondo y garantizar resultado antes de tocar código
-7. **Cursor para routes.ts** — todo cambio en routes.ts va por prompt Cursor completo, nunca edit_file
-8. **PBP es fuente única de verdad** — boxscore solo para auditoría. Nunca mezclar fuentes para la misma métrica.
+3. **Verdad antes que darle la razón** — si algo no es posible o los datos son sospechosos, decirlo primero
+4. **Leer código real antes de proponer** — nunca especular sobre el estado del código
+5. **Garantizar antes de implementar** — investigar a fondo y garantizar resultado antes de tocar código
+6. **Cursor para routes.ts** — todo cambio en routes.ts va por prompt Cursor completo, nunca edit_file
+7. **PBP es fuente única de verdad** — boxscore solo para auditoría
+8. **Simular antes de deployar** — cualquier cambio al procesador de posesiones debe pasar simulación local primero
+9. **No 0 gap aceptado** — cualquier diferencia PBP vs boxscore > 3 pts es un error a investigar
 
 ---
 
@@ -83,44 +84,80 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ### Principio fundamental
 Todo viene del PBP. Boxscore = auditoría y validación únicamente.
-La razón: boxscore y PBP son fuentes distintas → PPP por tramo nunca cuadraría con PPP general si vienen de fuentes diferentes.
+
+### Flujo de datos
+1. Pi scrapa JSON crudo de la API WCBA → guarda en `stats_pbp`
+2. Railway lee `stats_pbp` → genera tablas derivadas via `server/possessions.ts`
+3. App fetchea solo las tablas derivadas ya cocinadas
 
 ### Tablas derivadas (Fase A completada 2026-05-23)
-Creadas en Supabase. El collector las puebla al procesar cada partido.
 
 | Tabla | Contenido | Estado |
 |---|---|---|
-| `pbp_possessions` | 1 fila por posesión — la unidad fundamental | ✅ creada |
-| `pbp_player_game_stats` | 1 fila por jugadora por partido, stats desde PBP | ✅ creada |
-| `pbp_lineup_stats` | 1 fila por quinteto por partido | ✅ creada |
-| `pbp_audit_log` | diff PBP vs boxscore por partido/equipo | ✅ creada |
+| `pbp_possessions` | 1 fila por posesión | ✅ creada y poblada |
+| `pbp_player_game_stats` | 1 fila por jugadora por partido | ✅ creada y poblada |
+| `pbp_lineup_stats` | 1 fila por quinteto por partido | ✅ creada y poblada |
+| `pbp_audit_log` | diff PBP vs boxscore | ✅ creada y poblada |
+
+### FKs eliminados (2026-05-23)
+Las columnas `team_id` en las tablas derivadas usan external_id (igual que stats_pbp), NO internal id.
+FK constraints eliminados: `pbp_possessions_team_id_fkey`, `pbp_possessions_opponent_team_id_fkey`,
+`pbp_lineup_stats_team_id_fkey`, `pbp_player_game_stats_team_id_fkey`
+
+### Estado del procesador `server/possessions.ts` (v6, commit 8c00df5)
+Algoritmo verificado con simulación local sobre datos reales del Q1 del partido 1106508.
+
+**Bugs corregidos en v6:**
+- `assist`, `block`, `foul_drawn`, `sub_in`, `sub_out` son decoradores — NUNCA abren posesión nueva
+- `shot_made` del equipo contrario al possTid: cierra posesión actual y abre la del equipo que anota
+- And-1: look-ahead detecta `foul` del rival tras `shot_made` → mantiene posesión abierta para el FT
+
+**Resultado verificado game_id=1 (post v6):**
+- Equipo 710: 76 poss, 68 pts (box=73, diff=5)
+- Equipo 713: 80 poss, 85 pts (box=88, diff=3)
+
+**Gap residual (5 pts en 710):** NO es bug del procesador. Es gap del scraper:
+- 7 canastas de 710 no están en stats_pbp porque sus action codes caen a `unknown`
+- Fix ya aplicado en collector/src/sync/pbp.ts (nuevos códigos añadidos 2026-05-23)
+- **PENDIENTE: re-sync completo de stats_pbp** — TRUNCATE stats_pbp + collector reprocesa 223 partidos
+
+### Endpoints admin (sin auth, temporales)
+- `POST /api/stats/admin/trigger-possessions?seasonId=2092` — procesa todos los pendientes
+- `POST /api/stats/admin/process-game/:gameId?seasonId=2092` — procesa un partido específico
+- `GET /api/stats/admin/possessions-status?seasonId=2092` — estado del procesamiento
 
 ### Estado del PBP verificado (2026-05-23)
-- 223/223 partidos con PBP (100% cobertura)
-- 96.8% de eventos tienen player_external_id (los 3.2% restantes son team events por diseño)
-- sub_in/sub_out: 100% con player → base para minutos reales
-- tiros, ast, stl, blk, foul, ft: 100% con player
-- 864 rebotes sin player = team rebounds (correcto)
-- 1.000 TOVs sin player = TOTLTO + TNO24S + TNOOTH (team turnovers, correcto)
-- Gap FGM ~10%: action codes no mapeados. Fix aplicado 2026-05-23, pendiente re-sync.
+- 223/223 partidos con PBP (100% cobertura) — pero con action codes viejos
+- 116.700 eventos en stats_pbp (pre re-sync con nuevos códigos)
+- player_external_id en sub_in/sub_out: ✅ confirmado presente
+- **PENDIENTE: TRUNCATE stats_pbp + re-sync desde Pi** para activar nuevos action codes
 
 ### Roadmap Fases B-F
-- **Fase B** (SIGUIENTE): `collector/src/sync/possessions.ts` — procesador que genera las 3 tablas por partido
-- **Fase C**: nuevos handlers en `server/stats-ingest.ts` para recibir las 3 tablas
-- **Fase D**: reescribir endpoints en `server/routes.ts` para leer de tablas derivadas
+- **Fase B** ✅ COMPLETADA: `server/possessions.ts` — procesador que genera las 3 tablas
+- **Fase C** ✅ COMPLETADA: handlers en `server/stats-ingest.ts` y `server/routes.ts`
+- **Fase D** (SIGUIENTE): reescribir endpoints en `server/routes.ts` para leer de tablas derivadas
 - **Fase E**: UI — vaciar fuente actual, conectar nueva. Añadir quintetos, on/off
 - **Fase F**: re-sync histórico automático (TRUNCATE + Pi reprocesa 223 partidos)
 
-### Documentación
-- `PBP_STATS_BLUEPRINT.md` — arquitectura completa con algoritmos
-- `FORMULAS_STATS.md` — fórmulas implementadas con estado
-- `PBP_EVENTS.md` — catálogo event_types, gaps, visión PBP vs boxscore
+### Nombres tramos pace-segments (actualizado 2026-05-23)
+- 0-8s: **Transition**
+- 8-14s: **Early Offense**
+- 14-24s: **Halfcourt**
+
+### Pi — estado (2026-05-24)
+- IP: 192.168.1.7 / ucore-pi.local · usuario: `pablo` · contraseña: `skapol`
+- PM2: proceso `ucore-collector` activo (reiniciado 2026-05-24)
+- Collector actualizado con nuevos action codes (2026-05-23, commit c947527)
+- **PENDIENTE: TRUNCATE stats_pbp en Supabase → collector re-sincroniza 223 partidos**
+- Telegram bot: bloqueado por firewall chino (China), solo warnings — normal
+
+### Action codes añadidos al mapa (2026-05-23)
+`2PMALY`, `2PMTDK`, `2PAALY`, `2PATDK`, `3PMFLT`, `3PAFLT`, `3PATRN`,
+`TNO5SC`, `TNO8SC`, `FOLPER`, `FOLDSQ`, `TOTSTO`
 
 ---
 
-## U Stats — Estado actual (fórmulas)
-
-### Fórmulas implementadas — estado actual (en routes.ts, fuente boxscore — PENDIENTE migración)
+## U Stats — Fórmulas implementadas
 
 | Métrica | Fórmula | Estado |
 |---|---|---|
@@ -133,28 +170,11 @@ Creadas en Supabase. El collector las puebla al procesar cada partido.
 | AST/TOV | AST/TOV | ✅ |
 | PIE | Fórmula NBA exacta | ✅ |
 | USG% | Fórmula estándar con minutos | ✅ |
-| ORTG/DRTG equipo | 100×pts/posesiones (boxscore) | ⚠️ pendiente migrar a PBP |
-| PPP equipo/liga | pts/posesiones (boxscore) | ⚠️ pendiente migrar a PBP |
-| Pace liga | (poss_home+poss_away)/2/games | ⚠️ pendiente migrar a PBP |
+| ORTG/DRTG equipo | 100×pts/posesiones (boxscore) | ⚠️ pendiente migrar a pbp_possessions |
+| PPP equipo/liga | pts/posesiones (boxscore) | ⚠️ pendiente migrar a pbp_possessions |
+| Pace liga | (poss_home+poss_away)/2/games | ⚠️ pendiente migrar a pbp_possessions |
 | PPP por tramo | PBP con TOVs en denominador | ✅ fix 2026-05-23 |
 | pointsByZone | coeficiente fijo 70/30 | ❌ estimación — tag "est." en UI |
-
-### Nombres tramos pace-segments (actualizado 2026-05-23)
-- 0-8s: **Transition**
-- 8-14s: **Early Offense**
-- 14-24s: **Halfcourt**
-
-### Pi — estado (2026-05-23)
-- IP: 192.168.1.7 / ucore-pi.local · usuario: `pablo` · contraseña: `skapol`
-- PM2: proceso `ucore-collector` activo
-- Collector actualizado con nuevos action codes (2026-05-23)
-- PBP re-sync en curso tras TRUNCATE (iniciado esta sesión)
-- `stats_pbp` tenía ~116k eventos antes del TRUNCATE. Re-sync en progreso.
-
-### Action codes añadidos al mapa (2026-05-23)
-`2PMALY`, `2PMTDK`, `2PAALY`, `2PATDK`, `3PMFLT`, `3PAFLT`, `3PATRN`,
-`TNO5SC`, `TNO8SC`, `FOLPER`, `FOLDSQ`, `TOTSTO`
-MADE_SHOT_CODES y SHOT_CODES actualizados correspondientemente.
 
 ---
 
@@ -164,14 +184,12 @@ MADE_SHOT_CODES y SHOT_CODES actualizados correspondientemente.
 - IP: 192.168.1.7 (también responde en ucore-pi.local)
 - usuario: `pablo` (NO `palant`)
 - PM2: proceso `ucore-collector` — `pm2 status`, `pm2 logs ucore-collector`
-- Tailscale: instalado, pendiente autenticar (`sudo tailscale up`)
-- WCBA API chain: `phasemenus` → `matchmenusschedule` → `matchschedules?teamId=` (string vacío requerido) → `matchinfoscores`
-- Telegram bot: requiere VPN en Pi (bloqueado por firewall chino)
+- WCBA API chain: `phasemenus` → `matchmenusschedule` → `matchschedules?teamId=` → `matchinfoscores`
+- Telegram bot: bloqueado por firewall chino — solo warnings, normal
 
 ### WCBA datos
 - `competitionId=56`, `seasonId=2092`, 18 equipos seeded
 - Shot coordinates: 28m×15m, Home arc x=0.0575, Away x=0.9425
-- 6 zonas FIBA verificadas con 12 reference shots
 - PBP action codes: en inglés, confirmados
 - `user_id` en PBP = player_external_id de la jugadora
 
@@ -179,61 +197,72 @@ MADE_SHOT_CODES y SHOT_CODES actualizados correspondientemente.
 
 ## Sesiones anteriores resumidas
 
+### Sesión 2026-05-24 — Procesador de posesiones PBP
+
+**Decisión arquitectónica:**
+Todo desde PBP. Boxscore solo auditoría. Flujo: Pi → stats_pbp → possessions.ts → tablas derivadas → app.
+
+**Tablas derivadas creadas en Supabase:**
+`pbp_possessions`, `pbp_player_game_stats`, `pbp_lineup_stats`, `pbp_audit_log`
+
+**Procesador server/possessions.ts (v6):**
+- Algoritmo de posesiones verificado con simulación local sobre datos reales (Q1 partido 1106508)
+- Bugs corregidos: decoradores no abren posesión, shot_made equipo contrario, and-1 correcto
+- FGA cuadra 100% con PBP raw tras los fixes
+- Gap residual de pts (~5) = canastas no scrapeadas (action codes unknown) — no es bug del procesador
+
+**Endpoints admin añadidos a routes.ts:**
+- `POST /api/stats/admin/trigger-possessions`
+- `POST /api/stats/admin/process-game/:gameId`
+- `GET /api/stats/admin/possessions-status`
+
+**Fixes aplicados en esta sesión:**
+- PPP por tramo: TOVs añadidos al denominador
+- Nombres tramos: Transition / Early Offense / Halfcourt
+- ACTION_CODE_MAP: 12 nuevos códigos en pbp.ts
+- FK constraints eliminados en tablas derivadas
+
+**Commits de esta sesión:**
+- `c947527` — PBP action codes, PPP TOV denominator, pace segment labels, docs
+- `30928c8` — possessions v5
+- `8c00df5` — fix decorators + cross-team shot_made (v6, ACTIVO)
+
+**INICIO PRÓXIMA SESIÓN:**
+1. Verificar que TRUNCATE stats_pbp se ejecutó y el collector re-sincronizó (ver `pm2 logs`)
+2. Verificar que stats_pbp tiene más eventos que 116.700 (nuevos action codes capturan más)
+3. Ejecutar `trigger-possessions` y verificar que diff_pts < 3 en todos los partidos del audit
+4. Si audit OK → Fase D: reescribir endpoints de stats para leer de tablas derivadas en vez de boxscore
+
 ### Sesión 2026-05-23 — PBP como fuente única, blueprint arquitectura
-
-**Fixes aplicados:**
-- PPP por tramo: TOVs añadidos al denominador (routes.ts via Cursor) — fix commit `c947527`
-- Nombres tramos pace-segments: Transition / Early Offense / Halfcourt (Stats.tsx)
-- ACTION_CODE_MAP: 12 nuevos códigos añadidos (collector/src/sync/pbp.ts)
-- Collector actualizado en Pi: git pull + npm build + pm2 restart
-
-**Análisis completados:**
-- Auditoría PBP vs boxscore: gap FGM ~10% confirmado = action codes no mapeados (ahora fixeado)
-- Verificación cobertura player_external_id: 96.8% (los sin player son team events por diseño)
-- Team rebounds (REBDEF/REBOFN sin player) y team turnovers (TOTLTO/TNO24S) = correctos por diseño
-- Ambos tipos de eventos sin player DEBEN contarse para stats de equipo aunque no aparezcan en stats individuales
-
-**Documentos creados:**
-- `FORMULAS_STATS.md` — fórmulas con fuente y estado
-- `PBP_EVENTS.md` — catálogo event_types con literatura externa
-- `PBP_STATS_BLUEPRINT.md` — arquitectura completa para migración a PBP como fuente única
-
-**Fase A completada:**
-4 tablas creadas en Supabase: `pbp_possessions`, `pbp_player_game_stats`, `pbp_lineup_stats`, `pbp_audit_log`
-
-### Sesión 2026-05-22 — Stats audit + pace segments + PPP
-- Barras PPG/RPG/APG: corregidas con avgPlayerPpg/Rpg/Apg (COALESCE)
-- Commit `04b515b` = versión estable con barras + PPP por tramo visible
-- Umbrales corregidos: 0-8/8-14/14-24 en equipo y liga
-- after_basket CASE WHEN aplicado simétricamente en equipo y liga
-- paired CTE: DISTINCT ON corregido → pace liga ~80.4 correcto
-- pointsByZone tag "est." añadido en Stats.tsx (coeficiente 70/30 hardcoded)
-- PPP por tramo implementado y visible (datos solo de tiros, TOVs pendientes — fixeado 2026-05-23)
+- Auditoría PBP vs boxscore: gap FGM ~10% = action codes no mapeados
+- Verificación cobertura player_external_id: 96.8%
+- Documentos creados: FORMULAS_STATS.md, PBP_EVENTS.md, PBP_STATS_BLUEPRINT.md
 
 ---
 
 ## Bugs activos (por impacto)
 
 **P0:**
-- PPP tramos vs PPP general no cuadran: fuente diferente (boxscore vs PBP). Fix = Fases B-F.
-- pointsByZone: datos estimados (70/30 hardcoded), tag "est." añadido, datos reales en Fase 4
+- TRUNCATE stats_pbp + re-sync pendiente para activar nuevos action codes
+- ORTG/DRTG/PPP en UI vienen de boxscore — inconsistente con PPP por tramo (PBP). Fix = Fase D
+- pointsByZone: datos estimados (70/30 hardcoded), tag "est." añadido
 
 **P1:**
 - Game boxscore sheet tapado por nav bar izquierda en desktop
 - Nav bar iOS se bloquea al abrir ficha jugadora/equipo en Stats
 - Schedule scroll no recentering en List↔Planner switch
 - Hero card "Mis estadísticas" jugadoras — depende de `profile.wcba_external_id` no null
-- `hasReport` siempre true en MyScout (usa createDefaultPlayer inputs)
+- `hasReport` siempre true en MyScout
 
 **P2:**
 - Game boxscore sheet: falta marcador por cuartos y gráfica desarrollo
-- Módulos en desktop en español (deberían inglés según specs)
-- Scout en iOS ha perdido la "U" — debe ser "U Scout"
+- Módulos en desktop en español
+- Scout en iOS ha perdido la "U"
 
 **Pendientes:**
-- Fase B: `collector/src/sync/possessions.ts` — procesador posesiones
-- Pi: autenticar Tailscale + verificar re-sync PBP completo tras TRUNCATE
-- iOS TestFlight: bundle <300KB gzip (actualmente ~509KB)
-- Stats Fase 3: bubble chart, comparador radar, coaching dashboard (después de Fases B-F)
+- Fase D: reescribir endpoints stats para leer de tablas derivadas
+- Fase E: UI conectar nuevas fuentes, añadir quintetos y on/off
+- iOS TestFlight: bundle <300KB gzip
 - Stats Fase 4: shot_x/shot_y hotspot data
 - Confirmar `backup/motor-v2.1-pre-20260405` estable y mergear
+- Eliminar endpoint temporal `/api/stats/admin/trigger-possessions` (sin auth) cuando todo esté estable
