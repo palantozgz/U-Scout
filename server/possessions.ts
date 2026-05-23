@@ -1,15 +1,18 @@
 /**
- * server/possessions.ts — Procesador de posesiones PBP v3
+ * server/possessions.ts — Procesador de posesiones PBP v4
  *
- * FIBA standard: un rebote ofensivo NO crea nueva posesión — extiende la actual.
- * Una posesión termina cuando: tiro anotado, rebote defensivo rival, robo rival,
- * TOV dead ball, último FT anotado, o fin de período.
+ * FIBA standard:
+ *   - Rebote ofensivo NO crea nueva posesión (extiende la actual)
+ *   - And-1: shot_made + foul defensivo inmediato = el FT pertenece a la misma posesión
+ *   - Último FT: FTH11M, FTH22M, FTH33M (made) o FTH11A, FTH22A, FTH33A (missed)
+ *   - FTs intermedios: FTH21M, FTH31M, FTH32M — acumulan pero no cierran posesión
  *
- * Orden de procesamiento por evento:
- *   1. Eventos de FIN de posesión (shoot_made, def_rebound, steal, TOV, FT final)
- *      → se procesan primero con `continue` para evitar solapamientos
- *   2. Si no hay posesión abierta → abrir nueva
- *   3. Acumular stats en posesión actual
+ * Algoritmo: pasada única hacia adelante con look-ahead de 1 evento para and-1.
+ * Lineup state se construye en primera pasada, posesiones en segunda.
+ *
+ * Eventos sin player_external_id (TOTLTO, REBDEF sin player, etc.):
+ *   → cuentan para stats de equipo en pbp_possessions
+ *   → NO aparecen en pbp_player_game_stats (correcto por diseño)
  */
 
 import { sql } from 'drizzle-orm';
@@ -30,7 +33,6 @@ interface PbpRow {
   away_score: number;
   score_differential: number;
   rebound_type: string | null;
-  assisted_by_external_id: number | null;
 }
 
 interface Possession {
@@ -92,13 +94,21 @@ interface LineupStats {
   stl: number;
 }
 
+// ─── Constantes ───────────────────────────────────────────────────────────────
+
+// Último FT de la serie → cambia posesión si anotado
+const LAST_FT_MADE = new Set(['FTH11M', 'FTH22M', 'FTH33M']);
+// Último FT de la serie → fallado, rebote decide
+const LAST_FT_MISS = new Set(['FTH11A', 'FTH22A', 'FTH33A']);
+// FTs intermedios (no cierran posesión)
+const MID_FT_MADE  = new Set(['FTH21M', 'FTH31M', 'FTH32M']);
+const MID_FT_MISS  = new Set(['FTH21A', 'FTH31A', 'FTH32A']);
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function clockToSec(clock: string): number {
-  if (!clock || !clock.includes(':')) return 0;
-  const parts = clock.split(':');
-  const m = parseInt(parts[0], 10);
-  const s = parseInt(parts[1], 10);
+  if (!clock?.includes(':')) return 0;
+  const [m, s] = clock.split(':').map(Number);
   return isNaN(m) || isNaN(s) ? 0 : m * 60 + s;
 }
 
@@ -109,12 +119,8 @@ function lineupKey(players: Set<number>): string {
 }
 
 function quarterDurationSec(q: number): number {
-  return q <= 4 ? 600 : 300;
+  return q <= 4 ? 600 : 300; // FIBA: 10min cuartos, 5min OT
 }
-
-// Último FT de serie → cambia posesión
-const LAST_FT_MADE_CODES = new Set(['FTH11M', 'FTH22M', 'FTH33M']);
-const LAST_FT_MISS_CODES = new Set(['FTH11A', 'FTH22A', 'FTH33A']);
 
 function emptyPlayer(
   gameId: number, playerExternalId: string,
@@ -142,19 +148,15 @@ export async function processPossessions(
     WHERE id = ${gameInternalId} LIMIT 1
   `);
   const gameRow = (gameRes as any).rows?.[0];
-  if (!gameRow) {
-    console.error(`[possessions] game not found: ${gameInternalId}`);
-    return;
-  }
+  if (!gameRow) { console.error(`[possessions] game not found: ${gameInternalId}`); return; }
   const homeTeamId = Number(gameRow.home_team_id);
   const awayTeamId = Number(gameRow.away_team_id);
 
-  // ── 2. Eventos PBP ordenados ───────────────────────────────────────────────
+  // ── 2. Eventos PBP ────────────────────────────────────────────────────────
   const pbpRes = await db.execute(sql`
     SELECT id, quarter, clock, sequence, event_type, action_code,
            player_external_id, team_id,
-           home_score, away_score, score_differential,
-           rebound_type, assisted_by_external_id
+           home_score, away_score, score_differential, rebound_type
     FROM stats_pbp
     WHERE game_id = ${gameInternalId}
     ORDER BY quarter ASC, sequence ASC
@@ -172,13 +174,9 @@ export async function processPossessions(
     away_score: Number(r.away_score ?? 0),
     score_differential: Number(r.score_differential ?? 0),
     rebound_type: r.rebound_type ?? null,
-    assisted_by_external_id: r.assisted_by_external_id != null ? Number(r.assisted_by_external_id) : null,
   }));
 
-  if (events.length === 0) {
-    console.warn(`[possessions] no events for game ${gameInternalId}`);
-    return;
-  }
+  if (events.length === 0) { console.warn(`[possessions] no events for game ${gameInternalId}`); return; }
 
   // ── 3. Boxscore para seed titulares + auditoría ────────────────────────────
   const boxRes = await db.execute(sql`
@@ -213,7 +211,6 @@ export async function processPossessions(
   const playerMap: Map<string, PlayerStats> = new Map();
   const onCourtSince: Map<string, { teamId: number; entrySec: number; quarter: number }> = new Map();
 
-  // Seed titulares
   for (const [tid, starters] of Array.from(startersByTeam.entries())) {
     starters.forEach(pid => {
       const key = String(pid);
@@ -226,16 +223,15 @@ export async function processPossessions(
     const entry = onCourtSince.get(pkey);
     if (!entry) return;
     const entrySec = entry.quarter === exitQuarter ? entry.entrySec : quarterDurationSec(entry.quarter);
-    const secs = Math.max(0, entrySec - exitSec);
     const ps = playerMap.get(pkey);
-    if (ps) ps.secondsPlayed += secs;
+    if (ps) ps.secondsPlayed += Math.max(0, entrySec - exitSec);
     onCourtSince.delete(pkey);
   }
 
-  // Snapshot de lineup por evento
-  const eventLineupHome: string[] = new Array(events.length).fill('');
-  const eventLineupAway: string[] = new Array(events.length).fill('');
-  let currentQuarter = 1;
+  // Snapshot de lineup por evento (para usar en pasada de posesiones)
+  const snapHome: string[] = new Array(events.length).fill('');
+  const snapAway: string[] = new Array(events.length).fill('');
+  let currentQ = 1;
 
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
@@ -244,7 +240,8 @@ export async function processPossessions(
     const tid = ev.team_id;
     const pkey = pid != null ? String(pid) : null;
 
-    if (ev.quarter !== currentQuarter) {
+    // Cambio de cuarto: cerrar stints abiertos
+    if (ev.quarter !== currentQ) {
       for (const [pk, entry] of Array.from(onCourtSince.entries())) {
         if (entry.quarter < ev.quarter) {
           const ps = playerMap.get(pk);
@@ -252,7 +249,7 @@ export async function processPossessions(
           onCourtSince.set(pk, { ...entry, entrySec: quarterDurationSec(ev.quarter), quarter: ev.quarter });
         }
       }
-      currentQuarter = ev.quarter;
+      currentQ = ev.quarter;
     }
 
     if (ev.event_type === 'sub_in' && tid && pid && pkey) {
@@ -266,8 +263,9 @@ export async function processPossessions(
       flushMinutes(pkey, sec, ev.quarter);
     }
 
-    eventLineupHome[i] = lineupKey(lineups.get(homeTeamId) ?? new Set<number>());
-    eventLineupAway[i] = lineupKey(lineups.get(awayTeamId) ?? new Set<number>());
+    // Snapshot lineup en este evento
+    snapHome[i] = lineupKey(lineups.get(homeTeamId) ?? new Set<number>());
+    snapAway[i] = lineupKey(lineups.get(awayTeamId) ?? new Set<number>());
 
     // Stats individuales
     if (pkey && tid) {
@@ -293,76 +291,78 @@ export async function processPossessions(
     }
   }
 
-  for (const [pkey] of Array.from(onCourtSince.entries())) {
-    flushMinutes(pkey, 0, currentQuarter);
-  }
+  // Cerrar stints al final del partido
+  for (const [pkey] of Array.from(onCourtSince.entries())) flushMinutes(pkey, 0, currentQ);
 
-  // ── 5. Segunda pasada: detección de posesiones ─────────────────────────────
+  // ── 5. Segunda pasada: posesiones ─────────────────────────────────────────
   const possessions: Possession[] = [];
-  const lineupStatsMap: Map<string, LineupStats> = new Map();
+  const lineupMap: Map<string, LineupStats> = new Map();
+
+  function getSnap(teamId: number, idx: number): string {
+    return teamId === homeTeamId ? snapHome[idx] : snapAway[idx];
+  }
 
   function ensureLineup(teamId: number, luId: string): LineupStats {
     const k = `${teamId}:${luId}`;
-    if (!lineupStatsMap.has(k)) {
-      lineupStatsMap.set(k, {
+    if (!lineupMap.has(k)) {
+      lineupMap.set(k, {
         gameId: gameInternalId, teamId, seasonId, lineupId: luId,
         secondsPlayed: 0, offPossessions: 0, defPossessions: 0,
         offPts: 0, defPts: 0, offReb: 0, defReb: 0, tov: 0, stl: 0,
       });
     }
-    return lineupStatsMap.get(k)!;
-  }
-
-  function getLineup(teamId: number, evIdx: number): string {
-    if (teamId === homeTeamId) return eventLineupHome[evIdx] ?? '';
-    return eventLineupAway[evIdx] ?? '';
+    return lineupMap.get(k)!;
   }
 
   // Estado posesión actual
-  let possTeamId: number | null = null;
-  let possStartSec = 600;
-  let possStartType = 'period_start';
-  let possScoreMarginStart = 0;
-  let possStartLineupId = '';
-  let possStartOppLineupId = '';
-  let possPoints = 0;
-  let possFGA = 0;
-  let possFTA = 0;
-  let possTOV = 0;
-  let possORB = 0;
-  let possIsSecondChance = false;
-  let possQuarter = 1;
-  let possNumber = 0;
+  let possTid: number | null = null;   // equipo en ataque
+  let possStart  = 600;
+  let possType   = 'period_start';
+  let possMargin = 0;
+  let possLuOff  = '';
+  let possLuDef  = '';
+  let possPts    = 0;
+  let possFGA    = 0;
+  let possFTA    = 0;
+  let possTOV    = 0;
+  let possORB    = 0;
+  let possSecond = false;
+  let possQ      = 1;
+  let possNum    = 0;
 
-  function openPoss(teamId: number, startSec: number, startType: string, quarter: number, scoreDiff: number, evIdx: number): void {
-    possTeamId = teamId;
-    possStartSec = startSec;
-    possStartType = startType;
-    possQuarter = quarter;
-    possScoreMarginStart = teamId === homeTeamId ? scoreDiff : -scoreDiff;
-    possPoints = possFGA = possFTA = possTOV = possORB = 0;
-    possIsSecondChance = false;
-    possStartLineupId    = getLineup(teamId, evIdx);
-    const opp            = teamId === homeTeamId ? awayTeamId : homeTeamId;
-    possStartOppLineupId = getLineup(opp, evIdx);
+  // and1Pending: si el siguiente evento es un FT del mismo equipo tras shot_made+foul
+  // se guarda el team_id del equipo que va a tirar el FT
+  let and1Pending: number | null = null;
+
+  function open(tid: number, startSec: number, startType: string, q: number, scoreDiff: number, idx: number): void {
+    possTid    = tid;
+    possStart  = startSec;
+    possType   = startType;
+    possQ      = q;
+    possMargin = tid === homeTeamId ? scoreDiff : -scoreDiff;
+    possPts = possFGA = possFTA = possTOV = possORB = 0;
+    possSecond = false;
+    possLuOff  = getSnap(tid, idx);
+    const opp  = tid === homeTeamId ? awayTeamId : homeTeamId;
+    possLuDef  = getSnap(opp, idx);
   }
 
-  function closePoss(endSec: number, endType: string, quarter: number): void {
-    if (possTeamId === null) return;
-    const dur = Math.max(0, possStartSec - endSec);
-    possNumber++;
+  function close(endSec: number, endType: string, q: number): void {
+    if (possTid === null) return;
+    const dur = Math.max(0, possStart - endSec);
+    possNum++;
     const p: Possession = {
       gameId: gameInternalId, seasonId,
-      teamId: possTeamId,
-      opponentTeamId: possTeamId === homeTeamId ? awayTeamId : homeTeamId,
-      possessionNumber: possNumber,
-      quarter,
-      startTimeSec: possStartSec,
+      teamId: possTid,
+      opponentTeamId: possTid === homeTeamId ? awayTeamId : homeTeamId,
+      possessionNumber: possNum,
+      quarter: q,
+      startTimeSec: possStart,
       endTimeSec: endSec,
       durationSec: dur,
-      startType: possStartType,
+      startType: possType,
       endType,
-      points: possPoints,
+      points: possPts,
       shotAttempts: possFGA,
       ftAttempts: possFTA,
       turnovers: possTOV,
@@ -370,127 +370,159 @@ export async function processPossessions(
       isTransition:   dur <= 8,
       isEarlyOffense: dur > 8 && dur <= 14,
       isHalfcourt:    dur > 14,
-      isSecondChance: possIsSecondChance,
-      scoreMarginStart: possScoreMarginStart,
-      lineupId: possStartLineupId,
-      opponentLineupId: possStartOppLineupId,
+      isSecondChance: possSecond,
+      scoreMarginStart: possMargin,
+      lineupId: possLuOff,
+      opponentLineupId: possLuDef,
     };
     possessions.push(p);
 
-    const offLu = ensureLineup(possTeamId, possStartLineupId);
+    // Lineup stats
+    const offLu = ensureLineup(possTid, possLuOff);
     offLu.offPossessions++;
-    offLu.offPts += possPoints;
+    offLu.offPts += possPts;
     offLu.secondsPlayed += dur;
     offLu.offReb += possORB;
     offLu.tov += possTOV;
 
-    const defTeamId = possTeamId === homeTeamId ? awayTeamId : homeTeamId;
-    const defLu = ensureLineup(defTeamId, possStartOppLineupId);
+    const defTid = possTid === homeTeamId ? awayTeamId : homeTeamId;
+    const defLu  = ensureLineup(defTid, possLuDef);
     defLu.defPossessions++;
-    defLu.defPts += possPoints;
+    defLu.defPts += possPts;
 
-    possTeamId = null;
+    possTid = null;
   }
 
-  currentQuarter = 0;
+  currentQ = 0;
 
   for (let i = 0; i < events.length; i++) {
-    const ev = events[i];
-    const sec = clockToSec(ev.clock);
-    const tid = ev.team_id;
+    const ev   = events[i];
+    const sec  = clockToSec(ev.clock);
+    const tid  = ev.team_id;
     const code = ev.action_code ?? '';
+    const next = events[i + 1] ?? null;
 
-    // Cambio de cuarto
-    if (ev.quarter !== currentQuarter) {
-      if (possTeamId !== null) closePoss(0, 'period_end', currentQuarter || ev.quarter);
-      currentQuarter = ev.quarter;
+    // Cambio de cuarto → cerrar posesión abierta
+    if (ev.quarter !== currentQ) {
+      if (possTid !== null) close(0, 'period_end', currentQ || ev.quarter);
+      and1Pending = null;
+      currentQ = ev.quarter;
     }
 
     if (!tid) continue;
 
-    // ── EVENTOS DE FIN DE POSESIÓN (procesados primero con continue) ──────────
+    // ── DETECCIÓN DE FIN DE POSESIÓN ─────────────────────────────────────────
 
-    // 1. Tiro anotado → acumular + cerrar posesión del atacante
-    if ((ev.event_type === 'shot_made' || ev.event_type === 'shot_made_3') && tid === possTeamId) {
-      possPoints += ev.event_type === 'shot_made_3' ? 3 : 2;
+    // 1. SHOT MADE
+    if ((ev.event_type === 'shot_made' || ev.event_type === 'shot_made_3') && tid === possTid) {
+      possPts += ev.event_type === 'shot_made_3' ? 3 : 2;
       possFGA++;
-      closePoss(sec, 'shot_made', ev.quarter);
+
+      // And-1: si el siguiente evento es una falta del rival (FOLDEF) sobre este mismo equipo
+      // el FT pertenece a esta posesión — NO cerrar todavía
+      const isAnd1 = next !== null
+        && next.event_type === 'foul'
+        && next.team_id !== tid;
+
+      if (isAnd1) {
+        and1Pending = tid; // marcar que hay un FT pendiente en esta posesión
+        // No cerrar — continuar acumulando
+      } else {
+        close(sec, 'shot_made', ev.quarter);
+        and1Pending = null;
+      }
       continue;
     }
 
-    // 2. Rebote defensivo → cerrar posesión del atacante, abrir para el reboteador
+    // 2. REBOTE DEFENSIVO → cierra posesión del atacante, abre para el reboteador
     if (ev.event_type === 'rebound' && ev.rebound_type === 'defensive' && tid) {
-      if (possTeamId !== null && possTeamId !== tid) {
-        closePoss(sec, 'shot_missed', ev.quarter);
-      }
-      openPoss(tid, sec, 'def_rebound', ev.quarter, ev.score_differential, i);
-      if (ev.player_external_id) ensureLineup(tid, getLineup(tid, i)).defReb++;
+      if (possTid !== null && possTid !== tid) close(sec, 'shot_missed', ev.quarter);
+      open(tid, sec, 'def_rebound', ev.quarter, ev.score_differential, i);
+      and1Pending = null;
+      if (ev.player_external_id) ensureLineup(tid, getSnap(tid, i)).defReb++;
       continue;
     }
 
-    // 3. Robo → cerrar posesión del rival, abrir para el que roba
+    // 3. ROBO → cierra posesión del rival, abre para el que roba
     if (ev.event_type === 'steal' && tid) {
-      if (possTeamId !== null && possTeamId !== tid) {
-        closePoss(sec, 'turnover', ev.quarter);
-      }
-      openPoss(tid, sec, 'steal', ev.quarter, ev.score_differential, i);
-      if (ev.player_external_id) ensureLineup(tid, getLineup(tid, i)).stl++;
+      if (possTid !== null && possTid !== tid) close(sec, 'turnover', ev.quarter);
+      open(tid, sec, 'steal', ev.quarter, ev.score_differential, i);
+      and1Pending = null;
+      if (ev.player_external_id) ensureLineup(tid, getSnap(tid, i)).stl++;
       continue;
     }
 
-    // 4. TOV dead ball → cerrar posesión del atacante (rival abre en siguiente evento)
-    if (ev.event_type === 'turnover' && tid === possTeamId) {
+    // 4. TURNOVER dead ball → cierra posesión del atacante
+    if (ev.event_type === 'turnover' && tid === possTid) {
       possTOV++;
-      closePoss(sec, 'turnover', ev.quarter);
+      close(sec, 'turnover', ev.quarter);
+      and1Pending = null;
       continue;
     }
 
-    // 5. Último FT anotado → cerrar posesión
-    if (ev.event_type === 'ft_made' && LAST_FT_MADE_CODES.has(code) && tid === possTeamId) {
-      possPoints++;
-      possFTA++;
-      closePoss(sec, 'ft_made', ev.quarter);
+    // 5. ÚLTIMO FT ANOTADO
+    if (ev.event_type === 'ft_made' && LAST_FT_MADE.has(code)) {
+      if (tid === possTid || tid === and1Pending) {
+        possPts++;
+        possFTA++;
+        close(sec, 'ft_made', ev.quarter);
+        and1Pending = null;
+      }
       continue;
     }
 
-    // 6. Último FT fallado → no cambia posesión aquí; el rebote siguiente lo maneja
-    //    Solo acumular el FTA
-    if (ev.event_type === 'ft_missed' && LAST_FT_MISS_CODES.has(code) && tid === possTeamId) {
-      possFTA++;
-      // No cerrar — el rebote siguiente cerrará
+    // 6. ÚLTIMO FT FALLADO → rebote decide, no cerrar aquí
+    if (ev.event_type === 'ft_missed' && LAST_FT_MISS.has(code)) {
+      if (tid === possTid || tid === and1Pending) possFTA++;
+      // No cerrar — el rebote siguiente lo gestiona
       continue;
     }
 
     // ── ABRIR POSESIÓN SI NO HAY UNA ABIERTA ─────────────────────────────────
-    if (possTeamId === null) {
+    if (possTid === null) {
+      // Inferir start_type desde el evento anterior
       let startType = 'period_start';
       if (i > 0) {
         const prev = events[i - 1];
-        if (prev.event_type === 'turnover') startType = 'dead_ball';
-        else if (prev.event_type === 'ft_made' && LAST_FT_MADE_CODES.has(prev.action_code ?? '')) startType = 'made_basket';
-        else if (prev.event_type === 'ft_missed' && LAST_FT_MISS_CODES.has(prev.action_code ?? '')) startType = 'def_rebound';
+        if (prev.event_type === 'turnover')                                   startType = 'dead_ball';
+        else if (prev.event_type === 'ft_made' && LAST_FT_MADE.has(prev.action_code ?? '')) startType = 'made_basket';
+        else if (prev.event_type === 'ft_missed' && LAST_FT_MISS.has(prev.action_code ?? '')) startType = 'def_rebound';
         else if (prev.event_type === 'shot_made' || prev.event_type === 'shot_made_3') startType = 'made_basket';
       }
-      openPoss(tid, sec, startType, ev.quarter, ev.score_differential, i);
+      open(tid, sec, startType, ev.quarter, ev.score_differential, i);
     }
 
     // ── ACUMULAR EN POSESIÓN ACTUAL ───────────────────────────────────────────
-    if (tid === possTeamId) {
-      // Tiro fallado (made se maneja arriba con continue)
+    if (tid === possTid || (and1Pending !== null && tid === and1Pending)) {
+      const isAttacker = tid === possTid || tid === and1Pending;
+      if (!isAttacker) continue;
+
+      // Tiros fallados (los anotados tienen continue arriba)
       if (ev.event_type === 'shot_missed' || ev.event_type === 'shot_missed_3') possFGA++;
-      // FT intermedios (no último)
-      if (ev.event_type === 'ft_made')   { possPoints++; possFTA++; }
-      if (ev.event_type === 'ft_missed') { possFTA++; }
-      // Rebote ofensivo → extiende posesión (FIBA standard)
+
+      // FTs intermedios: acumular sin cerrar
+      if (ev.event_type === 'ft_made'   && (MID_FT_MADE.has(code) || and1Pending === tid)) {
+        possPts++; possFTA++;
+      }
+      if (ev.event_type === 'ft_missed' && MID_FT_MISS.has(code)) possFTA++;
+
+      // Rebote ofensivo → extiende posesión (FIBA standard, NO nueva posesión)
       if (ev.event_type === 'rebound' && ev.rebound_type === 'offensive') {
         possORB++;
-        possIsSecondChance = true;
-        if (ev.player_external_id) ensureLineup(tid, getLineup(tid, i)).offReb++;
+        possSecond = true;
+        if (ev.player_external_id) ensureLineup(tid, getSnap(tid, i)).offReb++;
+      }
+
+      // And-1 resuelto: tras el FT del and-1, la posesión se cerró arriba
+      // Si and1Pending está activo y este evento no es FT, simplemente acumulamos
+      if (and1Pending !== null && ev.event_type !== 'ft_made' && ev.event_type !== 'ft_missed') {
+        // Foul, foul_drawn, sub — no acumular nada especial
       }
     }
   }
 
-  if (possTeamId !== null) closePoss(0, 'period_end', currentQuarter);
+  // Cerrar posesión al final del partido
+  if (possTid !== null) close(0, 'period_end', currentQ);
 
   // ── 6. Insertar en DB ─────────────────────────────────────────────────────
   await db.execute(sql`DELETE FROM pbp_possessions       WHERE game_id = ${gameInternalId}`);
@@ -545,7 +577,7 @@ export async function processPossessions(
     `);
   }
 
-  for (const [, ls] of Array.from(lineupStatsMap.entries())) {
+  for (const [, ls] of Array.from(lineupMap.entries())) {
     if (ls.offPossessions === 0 && ls.defPossessions === 0) continue;
     const offPpp = ls.offPossessions > 0 ? Math.round(ls.offPts / ls.offPossessions * 1000) / 1000 : null;
     const defPpp = ls.defPossessions > 0 ? Math.round(ls.defPts / ls.defPossessions * 1000) / 1000 : null;
@@ -563,8 +595,9 @@ export async function processPossessions(
         ${ls.offReb}, ${ls.defReb}, ${ls.tov}, ${ls.stl}
       )
       ON CONFLICT (game_id, team_id, lineup_id) DO UPDATE SET
-        seconds_played = EXCLUDED.seconds_played,
-        off_possessions = EXCLUDED.off_possessions, def_possessions = EXCLUDED.def_possessions,
+        seconds_played  = EXCLUDED.seconds_played,
+        off_possessions = EXCLUDED.off_possessions,
+        def_possessions = EXCLUDED.def_possessions,
         off_pts = EXCLUDED.off_pts, def_pts = EXCLUDED.def_pts,
         off_ppp = EXCLUDED.off_ppp, def_ppp = EXCLUDED.def_ppp, net_ppp = EXCLUDED.net_ppp,
         off_reb = EXCLUDED.off_reb, def_reb = EXCLUDED.def_reb,
@@ -572,21 +605,21 @@ export async function processPossessions(
     `);
   }
 
-  // ── 7. Auditoría ──────────────────────────────────────────────────────────
+  // ── 7. Auditoría PBP vs Boxscore ──────────────────────────────────────────
   for (const [, extStr] of [[homeTeamId, homeExt], [awayTeamId, awayExt]] as [number, string][]) {
-    const teamExtIdNum = Number(extStr);
-    const pbpPts = possessions.filter(p => p.teamId === teamExtIdNum).reduce((s, p) => s + p.points, 0);
-    const boxForTeam = boxRows.filter((b: any) => String(b.team_external_id) === extStr);
-    const boxPts = boxForTeam.reduce((s: number, b: any) => s + (Number(b.pts) || 0), 0);
-    const boxReb = boxForTeam.reduce((s: number, b: any) => s + (Number(b.reb) || 0), 0);
-    const boxAst = boxForTeam.reduce((s: number, b: any) => s + (Number(b.ast) || 0), 0);
-    const boxTov = boxForTeam.reduce((s: number, b: any) => s + (Number(b.tov) || 0), 0);
-    const teamPlayers = Array.from(playerMap.values()).filter(p => String(p.teamId) === extStr);
-    const pbpReb = teamPlayers.reduce((s, p) => s + p.offReb + p.defReb, 0);
-    const pbpAst = teamPlayers.reduce((s, p) => s + p.ast, 0);
-    const pbpTov = teamPlayers.reduce((s, p) => s + p.tov, 0);
-    const diffPts = boxPts - pbpPts;
-    const status = Math.abs(diffPts) <= 3 ? 'ok' : Math.abs(diffPts) <= 10 ? 'warning' : 'error';
+    const teamExtNum = Number(extStr);
+    const pbpPts = possessions.filter(p => p.teamId === teamExtNum).reduce((s, p) => s + p.points, 0);
+    const box    = boxRows.filter((b: any) => String(b.team_external_id) === extStr);
+    const boxPts = box.reduce((s: number, b: any) => s + (Number(b.pts) || 0), 0);
+    const boxReb = box.reduce((s: number, b: any) => s + (Number(b.reb) || 0), 0);
+    const boxAst = box.reduce((s: number, b: any) => s + (Number(b.ast) || 0), 0);
+    const boxTov = box.reduce((s: number, b: any) => s + (Number(b.tov) || 0), 0);
+    const pls    = Array.from(playerMap.values()).filter(p => String(p.teamId) === extStr);
+    const pbpReb = pls.reduce((s, p) => s + p.offReb + p.defReb, 0);
+    const pbpAst = pls.reduce((s, p) => s + p.ast, 0);
+    const pbpTov = pls.reduce((s, p) => s + p.tov, 0);
+    const diff   = boxPts - pbpPts;
+    const status = Math.abs(diff) <= 3 ? 'ok' : Math.abs(diff) <= 10 ? 'warning' : 'error';
     await db.execute(sql`
       INSERT INTO pbp_audit_log (
         game_id, team_external_id, season_id,
@@ -596,7 +629,7 @@ export async function processPossessions(
         box_tov, pbp_tov, diff_tov, status
       ) VALUES (
         ${gameInternalId}, ${extStr}, ${seasonId},
-        ${boxPts}, ${pbpPts}, ${diffPts},
+        ${boxPts}, ${pbpPts}, ${diff},
         ${boxReb}, ${pbpReb}, ${boxReb - pbpReb},
         ${boxAst}, ${pbpAst}, ${boxAst - pbpAst},
         ${boxTov}, ${pbpTov}, ${boxTov - pbpTov},
@@ -605,7 +638,7 @@ export async function processPossessions(
     `);
   }
 
-  console.log(`[possessions] game ${gameInternalId}: ${possessions.length} poss, ${playerMap.size} players, ${lineupStatsMap.size} lineups`);
+  console.log(`[possessions] game ${gameInternalId}: ${possessions.length} poss, ${playerMap.size} players, ${lineupMap.size} lineups`);
 }
 
 // ─── Procesar todos los partidos pendientes ───────────────────────────────────
@@ -616,8 +649,8 @@ export async function processAllPendingPossessions(seasonId: number): Promise<vo
     FROM stats_games sg
     WHERE sg.status = 4
       AND sg.season_id = ${seasonId}
-      AND EXISTS (SELECT 1 FROM stats_pbp WHERE game_id = sg.id LIMIT 1)
-      AND NOT EXISTS (SELECT 1 FROM pbp_possessions WHERE game_id = sg.id LIMIT 1)
+      AND EXISTS     (SELECT 1 FROM stats_pbp        WHERE game_id = sg.id LIMIT 1)
+      AND NOT EXISTS (SELECT 1 FROM pbp_possessions  WHERE game_id = sg.id LIMIT 1)
     ORDER BY sg.id ASC
   `);
   const pending: any[] = (res as any).rows ?? [];
