@@ -213,8 +213,8 @@ export async function processPossessions(
 
   // Quintetos iniciales desde boxscore
   const startersByTeam: Map<number, Set<number>> = new Map([
-    [homeTeamId, new Set()],
-    [awayTeamId, new Set()],
+    [homeTeamId, new Set<number>()],
+    [awayTeamId, new Set<number>()],
   ]);
   for (const b of boxRows) {
     if (b.is_start_lineup && b.player_external_id) {
@@ -234,21 +234,21 @@ export async function processPossessions(
   // Stats por jugadora
   const playerMap: Map<string, PlayerStats> = new Map();
   // Inicializar titulares
-  for (const [tid, starters] of startersByTeam) {
-    for (const pid of starters) {
+  startersByTeam.forEach((starters, tid) => {
+    Array.from(starters).forEach((pid) => {
       const key = String(pid);
       playerMap.set(key, emptyPlayer(gameInternalId, key, tid, seasonId, true));
-    }
-  }
+    });
+  });
 
   // Tiempo en pista por jugadora: key → { teamId, entrySec, quarter }
   const onCourtSince: Map<string, { teamId: number; entrySec: number; quarter: number }> = new Map();
   // Seed: titulares desde inicio del Q1 (600s)
-  for (const [tid, starters] of startersByTeam) {
-    for (const pid of starters) {
+  startersByTeam.forEach((starters, tid) => {
+    Array.from(starters).forEach((pid) => {
       onCourtSince.set(String(pid), { teamId: tid, entrySec: 600, quarter: 1 });
-    }
-  }
+    });
+  });
 
   // Lineup stats
   const lineupMap: Map<string, LineupStats> = new Map();
@@ -364,7 +364,7 @@ export async function processPossessions(
     // Cambio de cuarto
     if (ev.quarter !== currentQuarter) {
       // Cerrar stints abiertos del cuarto anterior
-      for (const [pk, entry] of onCourtSince) {
+      Array.from(onCourtSince.entries()).forEach(([pk, entry]) => {
         if (entry.quarter < ev.quarter) {
           const ps = playerMap.get(pk);
           if (ps) ps.secondsPlayed += Math.max(0, entry.entrySec);
@@ -374,7 +374,7 @@ export async function processPossessions(
             quarter: ev.quarter,
           });
         }
-      }
+      });
       // Cerrar posesión abierta
       if (curTeamId !== null) {
         closePoss(0, 'period_end', currentQuarter);
@@ -504,7 +504,7 @@ export async function processPossessions(
 
   // Cerrar al final del partido
   if (curTeamId !== null) closePoss(0, 'period_end', currentQuarter);
-  for (const [pkey] of onCourtSince) flushMinutes(pkey, 0, currentQuarter);
+  Array.from(onCourtSince.keys()).forEach((pkey) => flushMinutes(pkey, 0, currentQuarter));
 
   // ── 6. Materializar en Supabase ───────────────────────────────────────────
 
@@ -542,7 +542,7 @@ export async function processPossessions(
   }
 
   // Insertar player game stats
-  for (const [, ps] of playerMap) {
+  for (const ps of Array.from(playerMap.values())) {
     await db.execute(sql`
       INSERT INTO pbp_player_game_stats (
         game_id, player_external_id, team_id, season_id,
@@ -570,7 +570,7 @@ export async function processPossessions(
   }
 
   // Insertar lineup stats
-  for (const [, ls] of lineupMap) {
+  for (const ls of Array.from(lineupMap.values())) {
     if (ls.offPossessions === 0 && ls.defPossessions === 0) continue;
     const offPpp = ls.offPossessions > 0
       ? Math.round(ls.offPts / ls.offPossessions * 1000) / 1000 : null;

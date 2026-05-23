@@ -8,6 +8,7 @@
 import type { Express, Request, Response } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
+import { processPossessions } from "./possessions";
 
 // ─── Auth middleware ───────────────────────────────────────────────────────────
 function requireIngestKey(req: Request, res: Response, next: () => void) {
@@ -294,6 +295,21 @@ async function handlePBP(rows: any[]): Promise<number> {
     `);
     count++;
   }
+
+  // Fire-and-forget: procesar posesiones en background
+  if (rows.length > 0) {
+    const extGameId = rows[0].gameId;
+    const gRes = await db.execute(sql`
+      SELECT id, season_id FROM stats_games WHERE external_game_id = ${extGameId} LIMIT 1
+    `);
+    const gRow = (gRes as any).rows?.[0];
+    if (gRow) {
+      processPossessions(Number(gRow.id), Number(gRow.season_id ?? 2092)).catch(err =>
+        console.error('[ingest] processPossessions failed:', err.message)
+      );
+    }
+  }
+
   return count;
 }
 

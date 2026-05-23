@@ -3321,5 +3321,48 @@ export async function registerRoutes(
     }
   });
 
+  // POST /api/stats/admin/process-possessions
+  // Dispara el procesamiento de todos los partidos pendientes de possessions
+  // Útil para re-sync histórico
+  app.post("/api/stats/admin/process-possessions", requireAuth, async (req, res) => {
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    // Fire and forget — puede tardar varios minutos
+    import("./possessions").then(({ processAllPendingPossessions }) => {
+      processAllPendingPossessions(seasonId).catch(err =>
+        console.error("[admin] processAllPendingPossessions failed:", err.message)
+      );
+    });
+    return res.json({ ok: true, message: "Processing started in background", seasonId });
+  });
+
+  // GET /api/stats/admin/possessions-status
+  // Estado del procesamiento: cuántos partidos tienen possessions vs total
+  app.get("/api/stats/admin/possessions-status", requireAuth, async (req, res) => {
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    try {
+      const totalRes = await db.execute(sql`
+        SELECT COUNT(*) AS total FROM stats_games
+        WHERE status = 4 AND season_id = ${seasonId}
+      `);
+      const processedRes = await db.execute(sql`
+        SELECT COUNT(DISTINCT game_id) AS processed FROM pbp_possessions
+        WHERE season_id = ${seasonId}
+      `);
+      const auditRes = await db.execute(sql`
+        SELECT status, COUNT(*) AS cnt FROM pbp_audit_log
+        WHERE season_id = ${seasonId}
+        GROUP BY status
+      `);
+      const total = Number((totalRes as any).rows?.[0]?.total ?? 0);
+      const processed = Number((processedRes as any).rows?.[0]?.processed ?? 0);
+      const audit = Object.fromEntries(
+        ((auditRes as any).rows ?? []).map((r: any) => [r.status, Number(r.cnt)])
+      );
+      return res.json({ total, processed, pending: total - processed, audit });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }
