@@ -228,10 +228,12 @@ Todo desde PBP. Boxscore solo auditoría. Flujo: Pi → stats_pbp → possession
 - `8c00df5` — fix decorators + cross-team shot_made (v6, ACTIVO)
 
 **INICIO PRÓXIMA SESIÓN:**
-1. Verificar que TRUNCATE stats_pbp se ejecutó y el collector re-sincronizó (ver `pm2 logs`)
-2. Verificar que stats_pbp tiene más eventos que 116.700 (nuevos action codes capturan más)
-3. Ejecutar `trigger-possessions` y verificar que diff_pts < 3 en todos los partidos del audit
-4. Si audit OK → Fase D: reescribir endpoints de stats para leer de tablas derivadas en vez de boxscore
+1. Verificar que el re-sync del PBP terminó: `pm2 logs ucore-collector --lines 20` en la Pi
+2. Verificar 0 unmapped: `SELECT action_code, COUNT(*) FROM stats_pbp WHERE event_type='unknown' GROUP BY action_code ORDER BY COUNT(*) DESC`
+3. TRUNCATE pbp_possessions/pbp_player_game_stats/pbp_lineup_stats/pbp_audit_log
+4. Disparar: `curl -s -X POST "https://u-scout-production.up.railway.app/api/stats/admin/trigger-possessions?seasonId=2092"`
+5. Verificar audit: `SELECT team_external_id, box_pts, pbp_pts, diff_pts, status FROM pbp_audit_log WHERE season_id=2092 ORDER BY ABS(diff_pts) DESC LIMIT 10`
+6. Si diff_pts=0 en todos → Fase D: reescribir endpoints stats para leer de tablas derivadas
 
 ### Sesión 2026-05-23 — PBP como fuente única, blueprint arquitectura
 - Auditoría PBP vs boxscore: gap FGM ~10% = action codes no mapeados
