@@ -2816,7 +2816,7 @@ export async function registerRoutes(
         team_shots AS (
           SELECT * FROM all_events
           WHERE team_id = ${team.ext_id}
-            AND event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3')
+            AND event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3','turnover')
             AND clock ~ '^[0-9]+:[0-9]{2}$'
         ),
         possession_times AS (
@@ -2963,7 +2963,7 @@ export async function registerRoutes(
               ELSE 0
             END AS shot_pts
           FROM all_events_lg
-          WHERE event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3')
+          WHERE event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3','turnover')
             AND clock ~ '^[0-9]+:[0-9]{2}$'
         ),
         poss_lg AS (

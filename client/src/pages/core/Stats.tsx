@@ -3796,7 +3796,7 @@ function StatsTeamSheet({
                   </p>
                   {[
                     {
-                      label: locale === "zh" ? "快攻" : locale === "es" ? "Transición" : "Transition",
+                      label: locale === "zh" ? "快攻" : locale === "es" ? "Transition" : "Transition",
                       sublabel: "0 – 8\"",
                       pct: paceQ.data.transition_pct,
                       league: paceQ.data.league?.transition_pct,
@@ -3805,7 +3805,7 @@ function StatsTeamSheet({
                       color: "bg-emerald-500",
                     },
                     {
-                      label: locale === "zh" ? "半快攻" : locale === "es" ? "Demi-trans." : "Demi-trans.",
+                      label: locale === "zh" ? "早期进攻" : locale === "es" ? "Early Offense" : "Early Offense",
                       sublabel: "8 – 14\"",
                       pct: paceQ.data.demi_pct,
                       league: paceQ.data.league?.demi_pct,
@@ -3814,7 +3814,7 @@ function StatsTeamSheet({
                       color: "bg-amber-500",
                     },
                     {
-                      label: locale === "zh" ? "阵地战" : locale === "es" ? "Organizado" : "Set play",
+                      label: locale === "zh" ? "阵地战" : locale === "es" ? "Halfcourt" : "Halfcourt",
                       sublabel: "> 14\"",
                       pct: paceQ.data.halfcourt_pct,
                       league: paceQ.data.league?.halfcourt_pct,
