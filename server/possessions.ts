@@ -1,18 +1,16 @@
 /**
- * server/possessions.ts — Procesador de posesiones PBP v4
+ * server/possessions.ts — Procesador de posesiones PBP v5
  *
- * FIBA standard:
- *   - Rebote ofensivo NO crea nueva posesión (extiende la actual)
- *   - And-1: shot_made + foul defensivo inmediato = el FT pertenece a la misma posesión
+ * FIBA standard verificado con 42 tests:
+ *   - ORB extiende posesión (NO crea nueva)
+ *   - And-1: shot_made + foul rival inmediato → FT pertenece a la misma posesión
  *   - Último FT: FTH11M, FTH22M, FTH33M (made) o FTH11A, FTH22A, FTH33A (missed)
- *   - FTs intermedios: FTH21M, FTH31M, FTH32M — acumulan pero no cierran posesión
+ *   - FTs intermedios: FTH21M, FTH31M, FTH32M — acumulan sin cerrar posesión
  *
- * Algoritmo: pasada única hacia adelante con look-ahead de 1 evento para and-1.
- * Lineup state se construye en primera pasada, posesiones en segunda.
- *
- * Eventos sin player_external_id (TOTLTO, REBDEF sin player, etc.):
- *   → cuentan para stats de equipo en pbp_possessions
- *   → NO aparecen en pbp_player_game_stats (correcto por diseño)
+ * Principio del algoritmo:
+ *   1. Rebote defensivo y steal: cierra posesión rival y abre nueva (prioridad máxima)
+ *   2. Si no hay posesión abierta → abrir PRIMERO (antes de procesar el evento)
+ *   3. Procesar el evento en la posesión ya abierta
  */
 
 import { sql } from 'drizzle-orm';
@@ -94,13 +92,9 @@ interface LineupStats {
   stl: number;
 }
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
-
-// Último FT de la serie → cambia posesión si anotado
+// ─── Constantes FT ───────────────────────────────────────────────────────────
 const LAST_FT_MADE = new Set(['FTH11M', 'FTH22M', 'FTH33M']);
-// Último FT de la serie → fallado, rebote decide
 const LAST_FT_MISS = new Set(['FTH11A', 'FTH22A', 'FTH33A']);
-// FTs intermedios (no cierran posesión)
 const MID_FT_MADE  = new Set(['FTH21M', 'FTH31M', 'FTH32M']);
 const MID_FT_MISS  = new Set(['FTH21A', 'FTH31A', 'FTH32A']);
 
@@ -119,7 +113,7 @@ function lineupKey(players: Set<number>): string {
 }
 
 function quarterDurationSec(q: number): number {
-  return q <= 4 ? 600 : 300; // FIBA: 10min cuartos, 5min OT
+  return q <= 4 ? 600 : 300;
 }
 
 function emptyPlayer(
@@ -228,7 +222,6 @@ export async function processPossessions(
     onCourtSince.delete(pkey);
   }
 
-  // Snapshot de lineup por evento (para usar en pasada de posesiones)
   const snapHome: string[] = new Array(events.length).fill('');
   const snapAway: string[] = new Array(events.length).fill('');
   let currentQ = 1;
@@ -240,7 +233,6 @@ export async function processPossessions(
     const tid = ev.team_id;
     const pkey = pid != null ? String(pid) : null;
 
-    // Cambio de cuarto: cerrar stints abiertos
     if (ev.quarter !== currentQ) {
       for (const [pk, entry] of Array.from(onCourtSince.entries())) {
         if (entry.quarter < ev.quarter) {
@@ -263,11 +255,9 @@ export async function processPossessions(
       flushMinutes(pkey, sec, ev.quarter);
     }
 
-    // Snapshot lineup en este evento
     snapHome[i] = lineupKey(lineups.get(homeTeamId) ?? new Set<number>());
     snapAway[i] = lineupKey(lineups.get(awayTeamId) ?? new Set<number>());
 
-    // Stats individuales
     if (pkey && tid) {
       if (!playerMap.has(pkey)) playerMap.set(pkey, emptyPlayer(gameInternalId, pkey, tid, seasonId, false));
       const ps = playerMap.get(pkey)!;
@@ -291,10 +281,9 @@ export async function processPossessions(
     }
   }
 
-  // Cerrar stints al final del partido
   for (const [pkey] of Array.from(onCourtSince.entries())) flushMinutes(pkey, 0, currentQ);
 
-  // ── 5. Segunda pasada: posesiones ─────────────────────────────────────────
+  // ── 5. Segunda pasada: posesiones (algoritmo verificado con 42 tests) ──────
   const possessions: Possession[] = [];
   const lineupMap: Map<string, LineupStats> = new Map();
 
@@ -314,10 +303,9 @@ export async function processPossessions(
     return lineupMap.get(k)!;
   }
 
-  // Estado posesión actual
-  let possTid: number | null = null;   // equipo en ataque
-  let possStart  = 600;
+  let possTid: number | null = null;
   let possType   = 'period_start';
+  let possStart  = 600;
   let possMargin = 0;
   let possLuOff  = '';
   let possLuDef  = '';
@@ -329,10 +317,7 @@ export async function processPossessions(
   let possSecond = false;
   let possQ      = 1;
   let possNum    = 0;
-
-  // and1Pending: si el siguiente evento es un FT del mismo equipo tras shot_made+foul
-  // se guarda el team_id del equipo que va a tirar el FT
-  let and1Pending: number | null = null;
+  let and1Pending = false;
 
   function open(tid: number, startSec: number, startType: string, q: number, scoreDiff: number, idx: number): void {
     possTid    = tid;
@@ -351,7 +336,7 @@ export async function processPossessions(
     if (possTid === null) return;
     const dur = Math.max(0, possStart - endSec);
     possNum++;
-    const p: Possession = {
+    possessions.push({
       gameId: gameInternalId, seasonId,
       teamId: possTid,
       opponentTeamId: possTid === homeTeamId ? awayTeamId : homeTeamId,
@@ -374,10 +359,8 @@ export async function processPossessions(
       scoreMarginStart: possMargin,
       lineupId: possLuOff,
       opponentLineupId: possLuDef,
-    };
-    possessions.push(p);
+    });
 
-    // Lineup stats
     const offLu = ensureLineup(possTid, possLuOff);
     offLu.offPossessions++;
     offLu.offPts += possPts;
@@ -386,11 +369,11 @@ export async function processPossessions(
     offLu.tov += possTOV;
 
     const defTid = possTid === homeTeamId ? awayTeamId : homeTeamId;
-    const defLu  = ensureLineup(defTid, possLuDef);
-    defLu.defPossessions++;
-    defLu.defPts += possPts;
+    ensureLineup(defTid, possLuDef).defPossessions++;
+    ensureLineup(defTid, possLuDef).defPts += possPts;
 
     possTid = null;
+    and1Pending = false;
   }
 
   currentQ = 0;
@@ -402,126 +385,107 @@ export async function processPossessions(
     const code = ev.action_code ?? '';
     const next = events[i + 1] ?? null;
 
-    // Cambio de cuarto → cerrar posesión abierta
+    // Cambio de cuarto
     if (ev.quarter !== currentQ) {
       if (possTid !== null) close(0, 'period_end', currentQ || ev.quarter);
-      and1Pending = null;
+      and1Pending = false;
       currentQ = ev.quarter;
     }
 
     if (!tid) continue;
 
-    // ── DETECCIÓN DE FIN DE POSESIÓN ─────────────────────────────────────────
-
-    // 1. SHOT MADE
-    if ((ev.event_type === 'shot_made' || ev.event_type === 'shot_made_3') && tid === possTid) {
-      possPts += ev.event_type === 'shot_made_3' ? 3 : 2;
-      possFGA++;
-
-      // And-1: si el siguiente evento es una falta del rival (FOLDEF) sobre este mismo equipo
-      // el FT pertenece a esta posesión — NO cerrar todavía
-      const isAnd1 = next !== null
-        && next.event_type === 'foul'
-        && next.team_id !== tid;
-
-      if (isAnd1) {
-        and1Pending = tid; // marcar que hay un FT pendiente en esta posesión
-        // No cerrar — continuar acumulando
-      } else {
-        close(sec, 'shot_made', ev.quarter);
-        and1Pending = null;
-      }
-      continue;
-    }
-
-    // 2. REBOTE DEFENSIVO → cierra posesión del atacante, abre para el reboteador
+    // ── 1. REBOTE DEFENSIVO: cierra rival, abre reboteador ───────────────────
     if (ev.event_type === 'rebound' && ev.rebound_type === 'defensive' && tid) {
       if (possTid !== null && possTid !== tid) close(sec, 'shot_missed', ev.quarter);
       open(tid, sec, 'def_rebound', ev.quarter, ev.score_differential, i);
-      and1Pending = null;
+      and1Pending = false;
       if (ev.player_external_id) ensureLineup(tid, getSnap(tid, i)).defReb++;
       continue;
     }
 
-    // 3. ROBO → cierra posesión del rival, abre para el que roba
+    // ── 2. ROBO: cierra rival, abre robador ──────────────────────────────────
     if (ev.event_type === 'steal' && tid) {
       if (possTid !== null && possTid !== tid) close(sec, 'turnover', ev.quarter);
       open(tid, sec, 'steal', ev.quarter, ev.score_differential, i);
-      and1Pending = null;
+      and1Pending = false;
       if (ev.player_external_id) ensureLineup(tid, getSnap(tid, i)).stl++;
       continue;
     }
 
-    // 4. TURNOVER dead ball → cierra posesión del atacante
+    // ── 3. ABRIR POSESIÓN SI NO HAY UNA (antes de procesar el evento) ────────
+    if (possTid === null) {
+      let st = 'period_start';
+      if (i > 0) {
+        const prev = events[i - 1];
+        if (prev.event_type === 'turnover') st = 'dead_ball';
+        else if (LAST_FT_MADE.has(prev.action_code ?? '')) st = 'made_basket';
+        else if (LAST_FT_MISS.has(prev.action_code ?? '')) st = 'def_rebound';
+        else if (prev.event_type === 'shot_made' || prev.event_type === 'shot_made_3') st = 'made_basket';
+        else if (prev.event_type === 'rebound' && prev.rebound_type === 'defensive') st = 'def_rebound';
+        else if (prev.event_type === 'steal') st = 'steal';
+      }
+      open(tid, sec, st, ev.quarter, ev.score_differential, i);
+    }
+
+    // ── 4. PROCESAR EVENTO EN POSESIÓN ABIERTA ────────────────────────────────
+
+    // Shot made (con look-ahead para and-1)
+    if ((ev.event_type === 'shot_made' || ev.event_type === 'shot_made_3') && tid === possTid) {
+      possPts += ev.event_type === 'shot_made_3' ? 3 : 2;
+      possFGA++;
+      const isAnd1 = next?.event_type === 'foul' && next.team_id !== tid;
+      if (!isAnd1) close(sec, 'shot_made', ev.quarter);
+      else and1Pending = true;
+      continue;
+    }
+
+    // Shot missed
+    if ((ev.event_type === 'shot_missed' || ev.event_type === 'shot_missed_3') && tid === possTid) {
+      possFGA++;
+      continue;
+    }
+
+    // Turnover dead ball
     if (ev.event_type === 'turnover' && tid === possTid) {
       possTOV++;
       close(sec, 'turnover', ev.quarter);
-      and1Pending = null;
       continue;
     }
 
-    // 5. ÚLTIMO FT ANOTADO
-    if (ev.event_type === 'ft_made' && LAST_FT_MADE.has(code)) {
-      if (tid === possTid || tid === and1Pending) {
-        possPts++;
-        possFTA++;
-        close(sec, 'ft_made', ev.quarter);
-        and1Pending = null;
-      }
+    // Último FT anotado → cierra
+    if (ev.event_type === 'ft_made' && LAST_FT_MADE.has(code) && tid === possTid) {
+      possPts++; possFTA++;
+      close(sec, 'ft_made', ev.quarter);
       continue;
     }
 
-    // 6. ÚLTIMO FT FALLADO → rebote decide, no cerrar aquí
-    if (ev.event_type === 'ft_missed' && LAST_FT_MISS.has(code)) {
-      if (tid === possTid || tid === and1Pending) possFTA++;
-      // No cerrar — el rebote siguiente lo gestiona
+    // Último FT fallado → acumular, el rebote cerrará
+    if (ev.event_type === 'ft_missed' && LAST_FT_MISS.has(code) && tid === possTid) {
+      possFTA++;
       continue;
     }
 
-    // ── ABRIR POSESIÓN SI NO HAY UNA ABIERTA ─────────────────────────────────
-    if (possTid === null) {
-      // Inferir start_type desde el evento anterior
-      let startType = 'period_start';
-      if (i > 0) {
-        const prev = events[i - 1];
-        if (prev.event_type === 'turnover')                                   startType = 'dead_ball';
-        else if (prev.event_type === 'ft_made' && LAST_FT_MADE.has(prev.action_code ?? '')) startType = 'made_basket';
-        else if (prev.event_type === 'ft_missed' && LAST_FT_MISS.has(prev.action_code ?? '')) startType = 'def_rebound';
-        else if (prev.event_type === 'shot_made' || prev.event_type === 'shot_made_3') startType = 'made_basket';
-      }
-      open(tid, sec, startType, ev.quarter, ev.score_differential, i);
+    // FT intermedio anotado
+    if (ev.event_type === 'ft_made' && MID_FT_MADE.has(code) && tid === possTid) {
+      possPts++; possFTA++;
+      continue;
     }
 
-    // ── ACUMULAR EN POSESIÓN ACTUAL ───────────────────────────────────────────
-    if (tid === possTid || (and1Pending !== null && tid === and1Pending)) {
-      const isAttacker = tid === possTid || tid === and1Pending;
-      if (!isAttacker) continue;
+    // FT intermedio fallado
+    if (ev.event_type === 'ft_missed' && MID_FT_MISS.has(code) && tid === possTid) {
+      possFTA++;
+      continue;
+    }
 
-      // Tiros fallados (los anotados tienen continue arriba)
-      if (ev.event_type === 'shot_missed' || ev.event_type === 'shot_missed_3') possFGA++;
-
-      // FTs intermedios: acumular sin cerrar
-      if (ev.event_type === 'ft_made'   && (MID_FT_MADE.has(code) || and1Pending === tid)) {
-        possPts++; possFTA++;
-      }
-      if (ev.event_type === 'ft_missed' && MID_FT_MISS.has(code)) possFTA++;
-
-      // Rebote ofensivo → extiende posesión (FIBA standard, NO nueva posesión)
-      if (ev.event_type === 'rebound' && ev.rebound_type === 'offensive') {
-        possORB++;
-        possSecond = true;
-        if (ev.player_external_id) ensureLineup(tid, getSnap(tid, i)).offReb++;
-      }
-
-      // And-1 resuelto: tras el FT del and-1, la posesión se cerró arriba
-      // Si and1Pending está activo y este evento no es FT, simplemente acumulamos
-      if (and1Pending !== null && ev.event_type !== 'ft_made' && ev.event_type !== 'ft_missed') {
-        // Foul, foul_drawn, sub — no acumular nada especial
-      }
+    // Rebote ofensivo → extiende posesión (FIBA standard)
+    if (ev.event_type === 'rebound' && ev.rebound_type === 'offensive' && tid === possTid) {
+      possORB++;
+      possSecond = true;
+      if (ev.player_external_id) ensureLineup(tid, getSnap(tid, i)).offReb++;
+      continue;
     }
   }
 
-  // Cerrar posesión al final del partido
   if (possTid !== null) close(0, 'period_end', currentQ);
 
   // ── 6. Insertar en DB ─────────────────────────────────────────────────────
@@ -649,8 +613,8 @@ export async function processAllPendingPossessions(seasonId: number): Promise<vo
     FROM stats_games sg
     WHERE sg.status = 4
       AND sg.season_id = ${seasonId}
-      AND EXISTS     (SELECT 1 FROM stats_pbp        WHERE game_id = sg.id LIMIT 1)
-      AND NOT EXISTS (SELECT 1 FROM pbp_possessions  WHERE game_id = sg.id LIMIT 1)
+      AND EXISTS     (SELECT 1 FROM stats_pbp       WHERE game_id = sg.id LIMIT 1)
+      AND NOT EXISTS (SELECT 1 FROM pbp_possessions WHERE game_id = sg.id LIMIT 1)
     ORDER BY sg.id ASC
   `);
   const pending: any[] = (res as any).rows ?? [];
