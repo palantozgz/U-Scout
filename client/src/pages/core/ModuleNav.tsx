@@ -92,8 +92,13 @@ export function ModuleNav() {
 
       {/* ── Desktop md+: sidebar vertical izquierda ────────────────── */}
       <nav
-        className="hidden md:flex fixed left-0 top-0 bottom-0 z-[90] w-12 lg:w-48 flex-col bg-card/95 backdrop-blur-md pt-6 pb-6 gap-0.5"
-        style={{ borderRight: "1px solid hsl(var(--border) / 0.6)" }}
+        className="hidden md:flex fixed left-0 top-0 bottom-0 z-[90] w-12 lg:w-48 flex-col bg-card/95 backdrop-blur-md pb-6 gap-0.5"
+        style={{
+          borderRight: "1px solid hsl(var(--border) / 0.6)",
+          paddingLeft: "env(safe-area-inset-left)",
+          paddingTop: "max(1.5rem, env(safe-area-inset-top))",
+          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
+        }}
       >
         {/* Brand */}
         <div
