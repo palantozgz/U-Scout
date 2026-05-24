@@ -22,7 +22,10 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 - `server/routes.ts` — rutas API Express
 - `server/possessions.ts` — procesador PBP v6 (algoritmo verificado)
 - `server/stats-ingest.ts` — ingest endpoint Pi → Railway → Supabase
-- `collector/src/sync/pbp.ts` — parser PBP con ACTION_CODE_MAP completo (75 códigos WCBA)
+- `collector/src/sync/pbp.ts` — parser PBP con ACTION_CODE_MAP completo (auditado 2026-05-24)
+- `collector/src/sync/possessions.ts` — procesador posesiones desde stats_pbp
+- `collector/src/supabaseClient.ts` — cliente Supabase para collector (creado 2026-05-24)
+- `collector/src/ingest.ts` — IngestType + fetchSyncStatus
 - `client/src/lib/stats-api.ts` — hooks stats completos
 - `client/src/pages/core/Stats.tsx` — U Stats UI
 
@@ -55,7 +58,7 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ### Flujo de datos
 ```
-API WCBA → collector (Pi) → stats_pbp → possessions.ts (Railway) → tablas derivadas → app
+API WCBA → collector/pbp.ts (Pi) → stats_pbp → collector/possessions.ts (Pi) → ingest → Railway → tablas derivadas → app
 ```
 
 ### Tablas derivadas
@@ -90,13 +93,22 @@ API WCBA → collector (Pi) → stats_pbp → possessions.ts (Railway) → tabla
 
 - IP: `192.168.1.7` / `ucore-pi.local` · usuario: `pablo` · contraseña: `skapol`
 - PM2: `ucore-collector` activo
-- Action codes WCBA: 75 únicos, todos mapeados (verificado con script sobre API real)
-- **Re-sync en curso** (iniciado 2026-05-24 04:34) — procesa 223 partidos con código actualizado
-- Código activo: commit `cd739a4`
+- Código activo: commit `80a7b88` (2026-05-24)
+- **GitHub no accesible desde Pi** (HTTP2 framing layer error) — usar SCP para actualizaciones
+- `@supabase/supabase-js` instalado en Pi (necesario para possessions.ts)
 
-### Action codes WCBA confirmados (75 únicos, todos mapeados)
-Verificado ejecutando script contra API WCBA real para los 223 partidos de season_id=2092.
-Ningún código WCBA cae a `unknown` con el mapa actual.
+### Action codes WCBA — diccionario completo (auditado 2026-05-24)
+- Sistema: Genius Sports FIBA LiveStats — formato `[actionType][M=made|A=attempt][subType]`
+- Fuentes: Genius Sports Warehouse API docs + FIBA Statisticians Manual 2024 + PBP context analysis
+- FLT y FLO son mutuamente excluyentes por partido = variante de operador, mismo tipo de tiro
+- Códigos administrativos (TOTLTO, TOTSTO, TNOSTL) → `'unknown'` — nunca contar como eventos estadísticos
+- TNOSTL era `'turnover'` → causaba doble conteo con TNOBHD+STEBAL para el mismo hecho
+- MADE3_CODES estaba incompleto (faltaban 3PMSBK, 3PMFAD, 3PMPUL, 3PMFLT) → pointsFromCode devolvía 2pts para triples
+
+### collector/src/sync/possessions.ts — estado
+- Compila limpio (0 errores TypeScript)
+- Seed de titulares: usa `is_start_lineup` del boxscore + mapping `team_external_id→internal` via PBP cross-reference
+- Bug P2 conocido: bloque TOV-sin-robo usa `!action_code.startsWith('STEAL')` — nunca filtra (STEBAL ≠ STEAL*); impacto reducido porque TNOSTL→unknown ya no llega como turnover
 
 ---
 
@@ -119,24 +131,34 @@ Ningún código WCBA cae a `unknown` con el mapa actual.
 
 ## INICIO PRÓXIMA SESIÓN — orden estricto
 
-### 1. Verificar re-sync PBP completo
-```bash
-ssh pablo@ucore-pi.local
-pm2 logs ucore-collector --lines 20 --nostream
-```
-Buscar: `PBP: all up to date` o `NIGHTLY SYNC DONE`
+### 1. Verificar que stats_pbp tiene 0 unknowns
+El collector corrió con código viejo hasta el sync de 2026-05-24 11:06. El nuevo código (TNOSTL→unknown, nuevos códigos añadidos) está en el Pi desde 2026-05-24 ~20:30. El próximo sync nocturno (19:00 hora Pi = 11:00 UTC) procesará los partidos nuevos con el mapa correcto, pero los 223 partidos históricos en stats_pbp siguen teniendo los eventos mal clasificados.
 
-### 2. Verificar 0 unknowns en stats_pbp
 ```sql
 SELECT action_code, COUNT(*)
-FROM stats_pbp
-WHERE event_type = 'unknown'
-GROUP BY action_code
-ORDER BY COUNT(*) DESC;
+FROM stats_pbp WHERE event_type = 'unknown'
+GROUP BY action_code ORDER BY COUNT(*) DESC;
 ```
-**Debe devolver 0 filas.** Si hay unknowns, identificar los códigos y añadir al mapa antes de continuar.
+
+Si devuelve filas → TRUNCATE stats_pbp + re-sync. Si 0 filas → continuar.
+
+### 2. TRUNCATE stats_pbp + re-sync histórico
+Solo si el paso 1 muestra unknowns (probable):
+```sql
+TRUNCATE TABLE stats_pbp;
+```
+Luego en el Pi:
+```bash
+ssh pablo@ucore-pi.local
+# dentro del Pi:
+pm2 stop ucore-collector
+node dist/index.js --force-pbp-sync
+# o modificar el cron para forzar re-sync inmediato
+pm2 restart ucore-collector
+```
 
 ### 3. TRUNCATE tablas derivadas y reprocesar
+Después de confirmar 0 unknowns en stats_pbp:
 ```sql
 TRUNCATE TABLE pbp_possessions;
 TRUNCATE TABLE pbp_player_game_stats;
@@ -146,9 +168,8 @@ TRUNCATE TABLE pbp_audit_log;
 ```bash
 curl -s -X POST "https://u-scout-production.up.railway.app/api/stats/admin/trigger-possessions?seasonId=2092"
 ```
-Esperar 5-10 minutos.
 
-### 4. Verificar audit — objetivo diff_pts = 0 en todos
+### 4. Verificar audit — objetivo diff_pts = 0
 ```sql
 SELECT team_external_id, box_pts, pbp_pts, diff_pts, status
 FROM pbp_audit_log
@@ -156,24 +177,83 @@ WHERE season_id = 2092
 ORDER BY ABS(diff_pts) DESC
 LIMIT 20;
 ```
-Si hay partidos con diff_pts != 0: investigar con los eventos reales de ese game_id.
 
 ### 5. Si audit OK → verificar UI
 La UI ya lee de PBP (Fase D completada). Verificar que los datos aparecen correctamente en Stats.
 
 ---
 
+## Sesiones anteriores resumidas
+
+### Sesión 2026-05-24 — Auditoría completa action codes, collector compila limpio
+
+**Problema raíz descubierto:**
+El commit c947527 (2026-05-23) documentó 12 nuevos action codes en FORMULAS_STATS.md pero NUNCA los escribió en `collector/src/sync/pbp.ts`. El Pi tenía el `dist/` compilado con código viejo y generaba 175 eventos `unknown` por partido.
+
+**Investigación:**
+- Sistema confirmado: Genius Sports FIBA LiveStats — códigos son `[actionType][M/A][subType]`
+- Documentación oficial: developer.geniussports.com + FIBA Statisticians Manual 2024
+- TOTSTO/TOTLTO: confirmados como marcadores administrativos de cambio de posesión via análisis de contexto PBP (aparecen después de FGM, FTM, steals ya registrados — nunca standalone)
+- FLT: mutuamente excluyente con FLO por partido = variante de operador del mismo tipo de tiro
+
+**Fixes en pbp.ts:**
+- TNOSTL → `'unknown'` (era `'turnover'` — doble conteo con TNOBHD+STEBAL)
+- TOTLTO → `'unknown'` (era `'turnover'`)
+- TOTSTO → `'unknown'` (no estaba en el mapa)
+- MADE3_CODES completado (faltaban 3PMSBK, 3PMFAD, 3PMPUL, 3PMFLT → triples contaban como 2pts)
+- 2PMPUL/2PAPUL añadidos al ACTION_CODE_MAP (estaban en SHOT_CODES pero no en el mapa → unknown)
+- Nuevos códigos: 2PMALY, 2PAALY, 2PMTDK, 2PATDK, 3PMFLT, 3PAFLT, 3PATRN, TNO5SC, TNO8SC, FOLPER, FOLDSQ
+
+**Fixes en collector infrastructure:**
+- `collector/src/supabaseClient.ts` creado (possessions.ts lo necesita para leer stats_pbp)
+- `IngestType` ampliado: pbp_possessions, pbp_player_game_stats, pbp_lineup_stats, pbp_audit
+- `fetchSyncStatus` restaurado en ingest.ts (se perdió en reescritura)
+- `SyncStatus.boxDone` (no boxscoresDone) — compatibilidad con boxscores.ts
+- `GameRow` interface en possessions.ts — fix TypeScript implicit any en lambdas
+- Seed de titulares en possessions.ts: reemplazado bloque vacío con seed real usando `is_start_lineup` del boxscore + mapping `team_external_id→internal` via cross-reference con PBP events
+
+**Pi — actualizaciones vía SCP (GitHub no accesible desde Pi):**
+- `collector/src/sync/pbp.ts`
+- `collector/src/sync/possessions.ts`
+- `collector/src/ingest.ts`
+- `collector/src/supabaseClient.ts`
+- `npm install @supabase/supabase-js` en Pi
+- Build limpio + pm2 restart confirmado
+
+**Commit:** `80a7b88`
+
+---
+
+### Sesión 2026-05-23 — PBP como fuente única, blueprint arquitectura
+
+**Fixes aplicados:**
+- PPP por tramo: TOVs añadidos al denominador (routes.ts via Cursor) — fix commit `c947527`
+- Nombres tramos pace-segments: Transition / Early Offense / Halfcourt (Stats.tsx)
+- ACTION_CODE_MAP: 12 nuevos códigos DOCUMENTADOS (pero no aplicados — ver sesión 2026-05-24)
+- Collector actualizado en Pi: git pull + npm build + pm2 restart
+
+**Fase A completada:**
+4 tablas creadas en Supabase: `pbp_possessions`, `pbp_player_game_stats`, `pbp_lineup_stats`, `pbp_audit_log`
+
+**Documentos creados:**
+- `FORMULAS_STATS.md` — fórmulas con fuente y estado
+- `PBP_EVENTS.md` — catálogo event_types con literatura externa
+- `PBP_STATS_BLUEPRINT.md` — arquitectura completa
+
+---
+
 ## Bugs activos (por impacto)
 
 **P0:**
-- Re-sync PBP en curso — pendiente verificar completion y audit
-- `pointsByZone` eliminado de team endpoint (no hay datos de coordenadas) — pendiente confirmar que UI no rompe
+- `stats_pbp` histórico tiene eventos mal clasificados (TNOSTL como turnover, unknowns) — requiere TRUNCATE + re-sync antes de procesar posesiones
+- `pbp_possessions` / `pbp_player_game_stats` / `pbp_lineup_stats` vacías hasta completar re-sync
 
 **P1:**
 - Nav bar iOS se bloquea al abrir ficha jugadora/equipo en Stats
 - Hero card "Mis estadísticas" jugadoras — depende de `profile.wcba_external_id` no null
 - `hasReport` siempre true en MyScout
 - Schedule scroll no recentering en List↔Planner switch
+- possessions.ts bloque TOV-sin-robo: `!action_code.startsWith('STEAL')` nunca filtra (P2 en práctica tras TNOSTL→unknown)
 
 **P2:**
 - Game boxscore: falta marcador por cuartos
@@ -185,3 +265,4 @@ La UI ya lee de PBP (Fase D completada). Verificar que los datos aparecen correc
 - Stats Fase 4: shot_x/shot_y hotspot data
 - iOS TestFlight: bundle <300KB gzip
 - Eliminar endpoints admin sin auth cuando todo esté estable
+- Confirmar `backup/motor-v2.1-pre-20260405` estable y mergear
