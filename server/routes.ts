@@ -3304,5 +3304,276 @@ export async function registerRoutes(
     return res.json({ ok: true, gameId, seasonId });
   });
 
+  app.get("/api/stats/team/:id/lineups", async (req, res) => {
+    try {
+      const teamId = Number(req.params.id);
+      const seasonId = Number(req.query.seasonId ?? 2092);
+      const minPoss = Number(req.query.minPossessions ?? 10);
+      const sortBy = String(req.query.sortBy ?? "seconds");
+
+      const validSort: Record<string, string> = {
+        netPpp: "net_ppp",
+        offPpp: "off_ppp",
+        defPpp: "def_ppp",
+        seconds: "total_seconds",
+      };
+      const orderCol = validSort[sortBy] ?? "total_seconds";
+
+      const result = await db.execute(sql`
+        SELECT
+          lineup_id,
+          SUM(seconds_played)   AS total_seconds,
+          SUM(off_possessions)  AS off_possessions,
+          SUM(def_possessions)  AS def_possessions,
+          SUM(off_pts)          AS off_pts,
+          SUM(def_pts)          AS def_pts,
+          CASE WHEN SUM(off_possessions) > 0
+            THEN ROUND(SUM(off_pts)::numeric / SUM(off_possessions) * 100, 1)
+            ELSE NULL END AS ortg,
+          CASE WHEN SUM(def_possessions) > 0
+            THEN ROUND(SUM(def_pts)::numeric / SUM(def_possessions) * 100, 1)
+            ELSE NULL END AS drtg,
+          CASE
+            WHEN SUM(off_possessions) > 0 AND SUM(def_possessions) > 0
+            THEN ROUND(
+              (SUM(off_pts)::numeric / SUM(off_possessions) -
+               SUM(def_pts)::numeric / SUM(def_possessions)) * 100, 1)
+            ELSE NULL END AS net_rtg,
+          ROUND(SUM(off_pts)::numeric / NULLIF(SUM(off_possessions), 0), 3) AS off_ppp,
+          ROUND(SUM(def_pts)::numeric / NULLIF(SUM(def_possessions), 0), 3) AS def_ppp,
+          ROUND(
+            (SUM(off_pts)::numeric / NULLIF(SUM(off_possessions), 0)) -
+            (SUM(def_pts)::numeric / NULLIF(SUM(def_possessions), 0)), 3
+          ) AS net_ppp,
+          SUM(off_reb)  AS off_reb,
+          SUM(def_reb)  AS def_reb,
+          SUM(tov)      AS tov,
+          SUM(stl)      AS stl,
+          COUNT(DISTINCT game_id) AS games_played
+        FROM pbp_lineup_stats
+        WHERE team_id = ${teamId}
+          AND season_id = ${seasonId}
+        GROUP BY lineup_id
+        HAVING SUM(off_possessions) >= ${minPoss}
+        ORDER BY ${sql.raw(orderCol)} DESC NULLS LAST
+        LIMIT 50
+      `);
+
+      const rows = (result as any).rows ?? [];
+
+      const allPlayerIds = new Set<string>();
+      for (const r of rows) {
+        String(r.lineup_id).split("-").forEach((id: string) => allPlayerIds.add(id));
+      }
+
+      const playerNames: Record<string, string> = {};
+      if (allPlayerIds.size > 0) {
+        const ids = Array.from(allPlayerIds).map(Number).filter((n) => !isNaN(n));
+        if (ids.length > 0) {
+          const namesRes = await db.execute(sql`
+            SELECT external_id, name_zh, name_en
+            FROM stats_players
+            WHERE external_id::text IN (${sql.join(ids.map((id: number) => sql`${String(id)}`), sql`, `)})
+          `);
+          for (const p of (namesRes as any).rows ?? []) {
+            playerNames[String(p.external_id)] = String(p.name_zh || p.name_en || p.external_id);
+          }
+        }
+      }
+
+      const enrichedRows = rows.map((r: any) => ({
+        lineupId: r.lineup_id,
+        playerIds: String(r.lineup_id).split("-"),
+        playerNames: String(r.lineup_id).split("-").map((id: string) => playerNames[id] ?? id),
+        totalSeconds: Number(r.total_seconds ?? 0),
+        minutesPlayed: Math.round(Number(r.total_seconds ?? 0) / 60 * 10) / 10,
+        offPossessions: Number(r.off_possessions ?? 0),
+        defPossessions: Number(r.def_possessions ?? 0),
+        offPts: Number(r.off_pts ?? 0),
+        defPts: Number(r.def_pts ?? 0),
+        ortg: r.ortg != null ? Number(r.ortg) : null,
+        drtg: r.drtg != null ? Number(r.drtg) : null,
+        netRtg: r.net_rtg != null ? Number(r.net_rtg) : null,
+        offPpp: r.off_ppp != null ? Number(r.off_ppp) : null,
+        defPpp: r.def_ppp != null ? Number(r.def_ppp) : null,
+        netPpp: r.net_ppp != null ? Number(r.net_ppp) : null,
+        offReb: Number(r.off_reb ?? 0),
+        defReb: Number(r.def_reb ?? 0),
+        tov: Number(r.tov ?? 0),
+        stl: Number(r.stl ?? 0),
+        gamesPlayed: Number(r.games_played ?? 0),
+      }));
+
+      res.json(enrichedRows);
+    } catch (err: any) {
+      console.error("[lineups]", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/stats/team/:id/on-off/:playerId", async (req, res) => {
+    try {
+      const teamId = Number(req.params.id);
+      const playerExternalId = String(req.params.playerId);
+      const seasonId = Number(req.query.seasonId ?? 2092);
+
+      const result = await db.execute(sql`
+        WITH lineup_agg AS (
+          SELECT
+            lineup_id,
+            SUM(off_possessions)::int AS off_poss,
+            SUM(def_possessions)::int AS def_poss,
+            SUM(off_pts)::int         AS off_pts,
+            SUM(def_pts)::int         AS def_pts,
+            SUM(seconds_played)::int  AS seconds
+          FROM pbp_lineup_stats
+          WHERE team_id = ${teamId}
+            AND season_id = ${seasonId}
+          GROUP BY lineup_id
+        )
+        SELECT
+          CASE
+            WHEN lineup_id LIKE ${`%${playerExternalId}%`} THEN 'on'
+            ELSE 'off'
+          END AS split,
+          SUM(off_poss)  AS off_poss,
+          SUM(def_poss)  AS def_poss,
+          SUM(off_pts)   AS off_pts,
+          SUM(def_pts)   AS def_pts,
+          SUM(seconds)   AS seconds,
+          CASE WHEN SUM(off_poss) > 0
+            THEN ROUND(SUM(off_pts)::numeric / SUM(off_poss) * 100, 1)
+            ELSE NULL END AS ortg,
+          CASE WHEN SUM(def_poss) > 0
+            THEN ROUND(SUM(def_pts)::numeric / SUM(def_poss) * 100, 1)
+            ELSE NULL END AS drtg
+        FROM lineup_agg
+        GROUP BY split
+      `);
+
+      const rows = (result as any).rows ?? [];
+      const onRow = rows.find((r: any) => r.split === "on") ?? {};
+      const offRow = rows.find((r: any) => r.split === "off") ?? {};
+
+      const toSplit = (r: any) => ({
+        offPossessions: Number(r.off_poss ?? 0),
+        defPossessions: Number(r.def_poss ?? 0),
+        offPts: Number(r.off_pts ?? 0),
+        defPts: Number(r.def_pts ?? 0),
+        seconds: Number(r.seconds ?? 0),
+        minutesPlayed: Math.round(Number(r.seconds ?? 0) / 60 * 10) / 10,
+        ortg: r.ortg != null ? Number(r.ortg) : null,
+        drtg: r.drtg != null ? Number(r.drtg) : null,
+        netRtg:
+          r.ortg != null && r.drtg != null
+            ? Math.round((Number(r.ortg) - Number(r.drtg)) * 10) / 10
+            : null,
+      });
+
+      const onSplit = toSplit(onRow);
+      const offSplit = toSplit(offRow);
+
+      res.json({
+        playerExternalId,
+        teamId,
+        seasonId,
+        on: onSplit,
+        off: offSplit,
+        netRtgDiff:
+          onSplit.netRtg != null && offSplit.netRtg != null
+            ? Math.round((onSplit.netRtg - offSplit.netRtg) * 10) / 10
+            : null,
+      });
+    } catch (err: any) {
+      console.error("[on-off]", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/stats/players/combined", async (req, res) => {
+    try {
+      const teamId = Number(req.query.teamId);
+      const seasonId = Number(req.query.seasonId ?? 2092);
+      const minPoss = Number(req.query.minPossessions ?? 5);
+      const playerIdsParam = String(req.query.playerIds ?? "");
+
+      if (!playerIdsParam || !teamId) {
+        return res.status(400).json({ error: "playerIds and teamId required" });
+      }
+
+      const playerIds = playerIdsParam.split(",").map((s) => s.trim()).filter(Boolean);
+      if (playerIds.length < 2 || playerIds.length > 5) {
+        return res.status(400).json({ error: "playerIds must be 2-5 ids" });
+      }
+
+      const result = await db.execute(sql`
+        SELECT
+          lineup_id,
+          SUM(seconds_played)   AS seconds,
+          SUM(off_possessions)  AS off_poss,
+          SUM(def_possessions)  AS def_poss,
+          SUM(off_pts)          AS off_pts,
+          SUM(def_pts)          AS def_pts,
+          SUM(off_reb)          AS off_reb,
+          SUM(def_reb)          AS def_reb,
+          SUM(tov)              AS tov,
+          SUM(stl)              AS stl,
+          COUNT(DISTINCT game_id) AS games
+        FROM pbp_lineup_stats
+        WHERE team_id = ${teamId}
+          AND season_id = ${seasonId}
+          AND (
+            ${sql.raw(
+              playerIds.map((pid) => `lineup_id ~ '(^|-)${pid}(-|$)'`).join(" AND "),
+            )}
+          )
+        GROUP BY lineup_id
+        HAVING SUM(off_possessions) >= ${minPoss}
+      `);
+
+      const rows = (result as any).rows ?? [];
+
+      const totalOff = rows.reduce((s: number, r: any) => s + Number(r.off_poss ?? 0), 0);
+      const totalDef = rows.reduce((s: number, r: any) => s + Number(r.def_poss ?? 0), 0);
+      const totalOffPts = rows.reduce((s: number, r: any) => s + Number(r.off_pts ?? 0), 0);
+      const totalDefPts = rows.reduce((s: number, r: any) => s + Number(r.def_pts ?? 0), 0);
+      const totalSec = rows.reduce((s: number, r: any) => s + Number(r.seconds ?? 0), 0);
+
+      const ortg = totalOff > 0 ? Math.round((totalOffPts / totalOff) * 100 * 10) / 10 : null;
+      const drtg = totalDef > 0 ? Math.round((totalDefPts / totalDef) * 100 * 10) / 10 : null;
+
+      res.json({
+        playerIds,
+        teamId,
+        seasonId,
+        lineupsFound: rows.length,
+        totalSeconds: totalSec,
+        minutesPlayed: Math.round((totalSec / 60) * 10) / 10,
+        offPossessions: totalOff,
+        defPossessions: totalDef,
+        offPts: totalOffPts,
+        defPts: totalDefPts,
+        ortg,
+        drtg,
+        netRtg: ortg != null && drtg != null ? Math.round((ortg - drtg) * 10) / 10 : null,
+        offPpp: totalOff > 0 ? Math.round((totalOffPts / totalOff) * 1000) / 1000 : null,
+        defPpp: totalDef > 0 ? Math.round((totalDefPts / totalDef) * 1000) / 1000 : null,
+        lineups: rows.map((r: any) => ({
+          lineupId: r.lineup_id,
+          seconds: Number(r.seconds ?? 0),
+          offPoss: Number(r.off_poss ?? 0),
+          defPoss: Number(r.def_poss ?? 0),
+          ortg:
+            Number(r.off_poss ?? 0) > 0
+              ? Math.round((Number(r.off_pts ?? 0) / Number(r.off_poss)) * 100 * 10) / 10
+              : null,
+        })),
+      });
+    } catch (err: any) {
+      console.error("[combined]", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }
