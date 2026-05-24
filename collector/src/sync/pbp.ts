@@ -4,152 +4,192 @@ import { fetchSyncStatus, ingest } from '../ingest';
 import { logger } from '../logger';
 import { classifyShots, type ShotPoint } from './shotZones';
 
-// ─── Action code map (WCBA real codes) ───────────────────────────────────────
+// ─── Action code map (WCBA / Genius Sports FIBA LiveStats) ───────────────────
+// Format: [actionType][M=made|A=attempt][subType]
+// Sources: Genius Sports LiveStats API docs, FIBA Statisticians Manual 2024,
+//          PBP context analysis of 223 WCBA games (2025-26 season).
+//
+// Administrative events (TOTLTO, TOTSTO) map to 'unknown'.
+// These are Genius Sports system markers that fire on every possession change —
+// confirmed by PBP context: always follow an already-recorded FGM/FTM/steal,
+// never standalone. Treating them as turnovers would double-count.
 const ACTION_CODE_MAP: Record<string, string> = {
-  // Substitutions
+
+  // ── Substitutions ──────────────────────────────────────────────────────────
   SUBONC: 'sub_in',
   SUBOFF: 'sub_out',
   SUBIN:  'sub_in',    // legacy fallback
   SUBOUT: 'sub_out',   // legacy fallback
 
-  // 2P shots
-  '2PMJMP': 'shot_made',    // 2P made jump
-  '2PMLAY': 'shot_made',    // 2P made layup
-  '2PMDLA': 'shot_made',    // 2P made driving layup
-  '2PMHOK': 'shot_made',    // 2P made hook
-  '2PMTIP': 'shot_made',    // 2P made tip
-  '2PMFLO': 'shot_made',    // 2P made floater
-  '2PAJMP': 'shot_missed',  // 2P attempt jump
-  '2PALAY': 'shot_missed',  // 2P attempt layup
-  '2PADLA': 'shot_missed',  // 2P attempt driving layup
-  '2PAHOK': 'shot_missed',  // 2P attempt hook
-  '2PATIP': 'shot_missed',  // 2P attempt tip
-  '2PAFLO': 'shot_missed',  // 2P attempt floater
-  MADE2:    'shot_made',     // legacy fallback
-  MISS2:    'shot_missed',   // legacy fallback
+  // ── 2P field goals — made ──────────────────────────────────────────────────
+  '2PMJMP': 'shot_made',  // jump shot
+  '2PMLAY': 'shot_made',  // layup
+  '2PMDLA': 'shot_made',  // driving layup
+  '2PMHOK': 'shot_made',  // hook shot
+  '2PMTIP': 'shot_made',  // tip-in / putback
+  '2PMFLO': 'shot_made',  // floater (floating jump shot)
+  '2PMFLT': 'shot_made',  // flat shot (low-arc; mutually exclusive with FLO by game — same opertor variance)
+  '2PMTLA': 'shot_made',  // turnaround layup
+  '2PMSBK': 'shot_made',  // step-back
+  '2PMPUL': 'shot_made',  // pull-up jump
+  '2PMTRN': 'shot_made',  // turnaround jump
+  '2PMFAD': 'shot_made',  // fadeaway
+  '2PMALY': 'shot_made',  // alley-oop finish (confirmed: REBOFN→2PMALY same player)
+  '2PMTDK': 'shot_made',  // tip dunk (confirmed: REBOFN→2PMTDK same player)
+  MADE2:    'shot_made',   // legacy fallback
 
-  // 3P shots
-  '3PMJMP': 'shot_made_3',    // 3P made jump
-  '3PMCOR': 'shot_made_3',    // 3P made corner
-  '3PMSBK': 'shot_made_3',    // 3P made step-back
-  '3PMFAD': 'shot_made_3',    // 3P made fadeaway
-  '3PMPUL': 'shot_made_3',    // 3P made pull-up
-  '3PAJMP': 'shot_missed_3',  // 3P attempt jump
-  '3PACOR': 'shot_missed_3',  // 3P attempt corner
-  '3PASBK': 'shot_missed_3',  // 3P attempt step-back
-  '3PAFAD': 'shot_missed_3',  // 3P attempt fadeaway
-  '3PAPUL': 'shot_missed_3',  // 3P attempt pull-up
-  MADE3:    'shot_made_3',    // legacy fallback
+  // ── 2P field goals — missed ────────────────────────────────────────────────
+  '2PAJMP': 'shot_missed',  // jump shot
+  '2PALAY': 'shot_missed',  // layup
+  '2PADLA': 'shot_missed',  // driving layup
+  '2PAHOK': 'shot_missed',  // hook shot
+  '2PATIP': 'shot_missed',  // tip-in
+  '2PAFLO': 'shot_missed',  // floater
+  '2PAFLT': 'shot_missed',  // flat shot
+  '2PATLA': 'shot_missed',  // turnaround layup
+  '2PASBK': 'shot_missed',  // step-back
+  '2PAPUL': 'shot_missed',  // pull-up jump
+  '2PATRN': 'shot_missed',  // turnaround jump
+  '2PAFAD': 'shot_missed',  // fadeaway
+  '2PAALY': 'shot_missed',  // alley-oop (missed)
+  '2PATDK': 'shot_missed',  // tip dunk (missed)
+  MISS2:    'shot_missed',  // legacy fallback
+
+  // ── 3P field goals — made ──────────────────────────────────────────────────
+  '3PMJMP': 'shot_made_3',  // jump shot
+  '3PMCOR': 'shot_made_3',  // corner 3
+  '3PMSBK': 'shot_made_3',  // step-back
+  '3PMFAD': 'shot_made_3',  // fadeaway
+  '3PMPUL': 'shot_made_3',  // pull-up
+  '3PMFLT': 'shot_made_3',  // flat shot
+  MADE3:    'shot_made_3',  // legacy fallback
+
+  // ── 3P field goals — missed ────────────────────────────────────────────────
+  '3PAJMP': 'shot_missed_3',  // jump shot
+  '3PACOR': 'shot_missed_3',  // corner 3
+  '3PASBK': 'shot_missed_3',  // step-back
+  '3PAFAD': 'shot_missed_3',  // fadeaway
+  '3PAPUL': 'shot_missed_3',  // pull-up
+  '3PAFLT': 'shot_missed_3',  // flat shot
+  '3PATRN': 'shot_missed_3',  // turnaround
   MISS3:    'shot_missed_3',  // legacy fallback
 
-  // Free throws
+  // ── Free throws ────────────────────────────────────────────────────────────
   FTH11M:  'ft_made',    // FT 1of1 made
-  FTH11A:  'ft_missed',  // FT 1of1 attempt
+  FTH11A:  'ft_missed',  // FT 1of1 missed
   FTH21M:  'ft_made',    // FT 1of2 made
-  FTH21A:  'ft_missed',  // FT 1of2 attempt (missed)
+  FTH21A:  'ft_missed',  // FT 1of2 missed
   FTH22M:  'ft_made',    // FT 2of2 made
-  FTH22A:  'ft_missed',  // FT 2of2 attempt (missed)
+  FTH22A:  'ft_missed',  // FT 2of2 missed
   FTH31M:  'ft_made',    // FT 1of3 made
-  FTH31A:  'ft_missed',
+  FTH31A:  'ft_missed',  // FT 1of3 missed
   FTH32M:  'ft_made',    // FT 2of3 made
-  FTH32A:  'ft_missed',
+  FTH32A:  'ft_missed',  // FT 2of3 missed
   FTH33M:  'ft_made',    // FT 3of3 made
-  FTH33A:  'ft_missed',
+  FTH33A:  'ft_missed',  // FT 3of3 missed
   FT_MADE: 'ft_made',    // legacy fallback
   FT_MISS: 'ft_missed',  // legacy fallback
 
-  // Rebounds
-  REBDEF:  'rebound',   // defensive rebound
-  REBOFN:  'rebound',   // offensive rebound
-  REBOUND: 'rebound',   // legacy fallback
+  // ── Rebounds ───────────────────────────────────────────────────────────────
+  REBDEF:  'rebound',  // defensive rebound (individual or team)
+  REBOFN:  'rebound',  // offensive rebound (individual or team)
+  REBOUND: 'rebound',  // legacy fallback
 
-  // Assists, steals, blocks
+  // ── Assists / steals / blocks ──────────────────────────────────────────────
   ASSIST:  'assist',
-  STEBAL:  'steal',
+  STEBAL:  'steal',   // steal credited to the defensive player
   BLKBAL:  'block',
+  BLKSHT:  'block',   // alternate code for block
   STEAL:   'steal',   // legacy fallback
   BLOCK:   'block',   // legacy fallback
 
-  // Fouls
-  FOLDEF:  'foul',        // foul defense (committed)
-  FOLOFF:  'foul',        // foul offense
-  FDRAWN:  'foul_drawn',  // foul drawn
-  FOUL:    'foul',        // legacy fallback
+  // ── Fouls — committed ──────────────────────────────────────────────────────
+  FOLDEF:  'foul',      // defensive personal foul (most common)
+  FOLOFF:  'foul',      // offensive foul → causes turnover via TNOOFF
+  FOLOFN:  'foul',      // offensive foul in act of shooting → no turnover, opponent gets FTs
+  FOLPER:  'foul',      // personal foul variant — confirmed in double-foul situations
+  FOLDSQ:  'foul',      // disqualifying foul (5th personal foul, FIBA rules)
+  FOLUSM:  'foul',      // unsportsmanlike foul
+  FOLTEC:  'foul',      // technical foul
+  FOUL:    'foul',      // legacy fallback
+  // Foul drawn (credited to the fouled player)
+  FDRAWN:  'foul_drawn',
 
-  // Turnovers
-  TNOPAS:  'turnover',   // bad pass
-  TNOBHD:  'turnover',   // bad handle
-  TNOOFF:  'turnover',   // offensive foul turnover
-  TNOSTL:  'turnover',   // stolen
-  TOTLTO:  'turnover',   // team timeout? (check — could be team turnover)
-  TURNOVER:'turnover',   // legacy fallback
-
-  // Timeouts
-  TMOLEG:  'timeout',   // legal timeout
-  TMOILL:  'timeout',   // illegal timeout
-  TIMEOUT: 'timeout',   // legacy fallback
-
-  // Blocks
-  BLKSHT:  'block',     // block shot
-
-  // More 2P variants
-  '2PMTLA': 'shot_made',    // 2P made turnaround layup
-  '2PATLA': 'shot_missed',  // 2P attempt turnaround layup
-  '2PMSBK': 'shot_made',    // 2P made step-back
-  '2PASBK': 'shot_missed',  // 2P attempt step-back
-  '2PMPUL': 'shot_made',    // 2P made pull-up
-  '2PAPUL': 'shot_missed',  // 2P attempt pull-up
-  '2PMTRN': 'shot_made',    // 2P made turnaround
-  '2PATRN': 'shot_missed',  // 2P attempt turnaround
-  '2PMFAD': 'shot_made',    // 2P made fadeaway
-  '2PAFAD': 'shot_missed',  // 2P attempt fadeaway
-  '2PMFLT': 'shot_made',    // 2P made flat
-  '2PAFLT': 'shot_missed',  // 2P attempt flat
-
-  // More turnovers
+  // ── Turnovers — individual ─────────────────────────────────────────────────
+  TNOPAS:  'turnover',  // bad pass (intercepted or out of bounds off a pass)
+  TNOBHD:  'turnover',  // bad handle / ball-handling error
+  TNOOFF:  'turnover',  // offensive foul turnover (charge called)
+  TNOSTL:  'turnover',  // stolen — credited to the offensive player who lost it
+                        // NOTE: appears alongside STEBAL; possessions.ts must deduplicate
   TNODDR:  'turnover',  // double dribble
   TNOTRV:  'turnover',  // travelling
-  TNO3SC:  'turnover',  // 3 second violation
-  TNO24S:  'turnover',  // 24 second violation
-  TNOBCT:  'turnover',  // backcourt
-  TNOOTH:  'turnover',  // other turnover
-  TNOOBD:  'turnover',  // out of bounds
+  TNOOBD:  'turnover',  // out of bounds (offensive player)
+  TNOOTH:  'turnover',  // other / unclassified
+  TURNOVER:'turnover',  // legacy fallback
+  // Turnovers — violations (rules / clock based)
+  TNO3SC:  'turnover',  // 3-second violation (lane)
+  TNO5SC:  'turnover',  // 5-second violation (inbound count)
+  TNO8SC:  'turnover',  // 8-second violation (backcourt, FIBA rule)
+  TNO24S:  'turnover',  // shot clock violation (24s)
+  TNOBCT:  'turnover',  // backcourt violation
 
-  // More fouls
-  FOLUSM:  'foul',      // unsportsmanlike
-  FOLTEC:  'foul',      // technical foul
-  FOLOFN:  'foul',      // offensive foul no turnover
+  // ── Administrative possession markers — NOT turnovers ──────────────────────
+  // Genius Sports LiveStats system events that fire on every possession change.
+  // Confirmed by PBP analysis: always follow an already-recorded FGM/FTM/steal.
+  // Treating as turnovers would double-count losses of possession.
+  TOTLTO:  'unknown',  // team-level possession transition out (administrative)
+  TOTSTO:  'unknown',  // team-level possession stop (administrative, same semantics)
 
-  // Jump ball results
-  JUBSUC:  'jumpball',  // jump ball success
-  JUBFAL:  'jumpball',  // jump ball fail
+  // ── Timeouts ───────────────────────────────────────────────────────────────
+  TMOLEG:  'timeout',  // legal timeout
+  TMOILL:  'timeout',  // illegal timeout / delay of game
+  TIMEOUT: 'timeout',  // legacy fallback
 
-  // Other
-  JUMPBALL:  'jumpball',
-  CHALLENGE: 'challenge',
-  STRTPD:    'period_start',
-  ENDPD:     'period_end',
+  // ── Jump ball ──────────────────────────────────────────────────────────────
+  JUBSUC:   'jumpball',  // jump ball won
+  JUBFAL:   'jumpball',  // jump ball lost
+  JUMPBALL: 'jumpball',  // legacy fallback
+
+  // ── Other ──────────────────────────────────────────────────────────────────
+  CHALLENGE:   'challenge',
+  STRTPD:      'period_start',
+  ENDPD:       'period_end',
 };
 
-// Shot codes for shot chart lookup (made + missed 2P and 3P)
+// ─── Code sets used by syncPBP logic ─────────────────────────────────────────
+
+// All shot attempts (made + missed, 2P + 3P). Used for shot chart lookup.
 const SHOT_CODES = new Set([
-  '2PMJMP','2PMLAY','2PMDLA','2PMHOK','2PMTIP','2PMFLO',
-  '2PMTLA','2PMSBK','2PMTRN','2PMFAD','2PMFLT',
-  '2PAJMP','2PALAY','2PADLA','2PAHOK','2PATIP','2PAFLO',
-  '2PATLA','2PASBK','2PATRN','2PAFAD','2PAFLT','2PAPUL',
-  '3PMJMP','3PMCOR','3PMSBK','3PMFAD','3PMPUL',
-  '3PAJMP','3PACOR','3PASBK','3PAFAD','3PAPUL',
+  // 2P made
+  '2PMJMP','2PMLAY','2PMDLA','2PMHOK','2PMTIP','2PMFLO','2PMFLT',
+  '2PMTLA','2PMSBK','2PMPUL','2PMTRN','2PMFAD','2PMALY','2PMTDK',
+  // 2P missed
+  '2PAJMP','2PALAY','2PADLA','2PAHOK','2PATIP','2PAFLO','2PAFLT',
+  '2PATLA','2PASBK','2PAPUL','2PATRN','2PAFAD','2PAALY','2PATDK',
+  // 3P made
+  '3PMJMP','3PMCOR','3PMSBK','3PMFAD','3PMPUL','3PMFLT',
+  // 3P missed
+  '3PAJMP','3PACOR','3PASBK','3PAFAD','3PAPUL','3PAFLT','3PATRN',
+  // legacy
   'MADE2','MISS2','MADE3','MISS3',
 ]);
 
+// Made field goals (2P + 3P). Used for points calc and assist inference.
 const MADE_SHOT_CODES = new Set([
-  '2PMJMP','2PMLAY','2PMDLA','2PMHOK','2PMTIP','2PMFLO',
-  '2PMTLA','2PMSBK','2PMTRN','2PMFAD','2PMFLT','2PMPUL','MADE2',
-  '3PMJMP','3PMCOR','3PMSBK','3PMFAD','3PMPUL','MADE3',
+  '2PMJMP','2PMLAY','2PMDLA','2PMHOK','2PMTIP','2PMFLO','2PMFLT',
+  '2PMTLA','2PMSBK','2PMPUL','2PMTRN','2PMFAD','2PMALY','2PMTDK',
+  '3PMJMP','3PMCOR','3PMSBK','3PMFAD','3PMPUL','3PMFLT',
+  'MADE2','MADE3',
 ]);
 
-const MADE3_CODES = new Set(['3PMJMP','3PMCOR','MADE3']);
-const FT_MADE_CODES = new Set(['FTH11M','FTH21M','FTH22M','FTH31M','FTH32M','FTH33M','FT_MADE']);
+// Made 3-pointers only. Used by pointsFromCode to assign 3pts correctly.
+const MADE3_CODES = new Set([
+  '3PMJMP','3PMCOR','3PMSBK','3PMFAD','3PMPUL','3PMFLT','MADE3',
+]);
+
+const FT_MADE_CODES = new Set([
+  'FTH11M','FTH21M','FTH22M','FTH31M','FTH32M','FTH33M','FT_MADE',
+]);
 
 const REBOUND_CODES = new Set(['REBDEF','REBOFN','REBOUND']);
 

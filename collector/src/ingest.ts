@@ -1,7 +1,19 @@
 import { ucoreClient } from './client';
 import { logger } from './logger';
 
-export type IngestType = 'standings' | 'schedule' | 'boxscores' | 'player_boxscores' | 'player_stats' | 'pbp' | 'shot_chart' | 'roster';
+export type IngestType =
+  | 'standings'
+  | 'schedule'
+  | 'boxscores'
+  | 'player_boxscores'
+  | 'player_stats'
+  | 'pbp'
+  | 'shot_chart'
+  | 'roster'
+  | 'pbp_possessions'
+  | 'pbp_player_game_stats'
+  | 'pbp_lineup_stats'
+  | 'pbp_audit';
 
 export interface IngestPayload {
   type: IngestType;
@@ -10,7 +22,25 @@ export interface IngestPayload {
   data: unknown;
 }
 
+export interface SyncStatus {
+  pbpDone: number[];
+  boxDone: number[];
+}
+
 async function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+
+export async function fetchSyncStatus(): Promise<SyncStatus> {
+  try {
+    const res = await ucoreClient.get('/api/stats/sync-status');
+    return {
+      pbpDone:  Array.isArray(res.data?.pbpDone)  ? res.data.pbpDone  : [],
+      boxDone:  Array.isArray(res.data?.boxDone)   ? res.data.boxDone  : [],
+    };
+  } catch (err: any) {
+    logger.warn('fetchSyncStatus failed, assuming nothing done', { error: err.message });
+    return { pbpDone: [], boxDone: [] };
+  }
+}
 
 export async function ingest(payload: IngestPayload): Promise<void> {
   let lastErr: Error | null = null;
@@ -27,17 +57,4 @@ export async function ingest(payload: IngestPayload): Promise<void> {
   }
   logger.error('Ingest failed after 3 retries', { type: payload.type, error: lastErr?.message });
   throw lastErr;
-}
-
-export async function fetchSyncStatus(): Promise<{ pbpDone: number[]; boxDone: number[] }> {
-  try {
-    const res = await ucoreClient.get('/api/stats/sync-status');
-    return {
-      pbpDone: (res.data?.pbpDone ?? []).map(Number),
-      boxDone: (res.data?.boxDone ?? []).map(Number),
-    };
-  } catch (err: any) {
-    logger.warn('fetchSyncStatus failed, will process all games', { error: err.message });
-    return { pbpDone: [], boxDone: [] };
-  }
 }
