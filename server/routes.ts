@@ -1598,49 +1598,45 @@ export async function registerRoutes(
     }
   });
 
-  // ─── GET /api/stats/players — promedios temporada desde player_boxscores ────
-  app.get("/api/stats/players", requireAuth, async (_req, res) => {
+  // ─── GET /api/stats/players — promedios temporada desde pbp_player_game_stats ─
+  app.get("/api/stats/players", requireAuth, async (req, res) => {
+    const seasonId = Number(req.query.seasonId ?? 2092);
     let rows;
     try {
       rows = await db.execute(sql`
       SELECT
-        sp.external_id                                AS "externalId",
-        sp.name_zh                                    AS "playerName",
-        sp.name_en                                    AS "playerNameEn",
-        sp.position                                   AS "position",
-        sp.photo_url                                  AS "photoUrl",
-        st.name_zh                                    AS "teamName",
-        st.name_en                                    AS "teamNameEn",
-        '2025-26'                                     AS season,
-        COUNT(DISTINCT pb.game_id)::int               AS games,
-        ROUND(AVG(
-          CASE WHEN pb.minutes ~ '^\d+:\d{2}$'
-            THEN (SPLIT_PART(pb.minutes, ':', 1)::numeric * 60 + SPLIT_PART(pb.minutes, ':', 2)::numeric) / 60
-            ELSE NULL END
-        )::numeric, 1)                                AS mpg,
-        ROUND(AVG(pb.pts)::numeric, 1)                AS ppg,
-        ROUND(AVG(pb.reb)::numeric, 1)                AS rpg,
-        ROUND(AVG(pb.ast)::numeric, 1)                AS apg,
-        ROUND(AVG(pb.stl)::numeric, 1)                AS spg,
-        ROUND(AVG(pb.blk)::numeric, 1)                AS bpg,
-        ROUND(AVG(pb.tov)::numeric, 1)                AS topg,
-        CASE WHEN SUM(pb.fga) > 0
-          THEN ROUND((SUM(pb.fgm)::float / SUM(pb.fga) * 100)::numeric, 1)
-          ELSE NULL END                               AS "fgPct",
-        CASE WHEN SUM(pb.tpa) > 0
-          THEN ROUND((SUM(pb.tpm)::float / SUM(pb.tpa) * 100)::numeric, 1)
-          ELSE NULL END                               AS "fg3Pct",
-        CASE WHEN SUM(pb.fta) > 0
-          THEN ROUND((SUM(pb.ftm)::float / SUM(pb.fta) * 100)::numeric, 1)
-          ELSE NULL END                               AS "ftPct"
-      FROM stats_player_boxscores pb
-      JOIN stats_games sg ON sg.id = pb.game_id
-      JOIN stats_players sp ON sp.external_id = pb.player_external_id
-      LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
-      WHERE sg.status = 4
-      GROUP BY sp.external_id, sp.name_zh, sp.name_en, sp.position, sp.photo_url, st.name_zh, st.name_en
-      HAVING COUNT(DISTINCT pb.game_id) > 0
-      ORDER BY ppg DESC
+        pgs.player_external_id AS "externalId",
+        sp.name_zh AS "nameZh",
+        sp.name_en AS "nameEn",
+        sp.position,
+        sp.photo_url AS "photoUrl",
+        st.name_zh AS "teamName",
+        st.name_en AS "teamNameEn",
+        st.external_id::text AS "teamExternalId",
+        COUNT(DISTINCT pgs.game_id) AS games,
+        ROUND(AVG(pgs.seconds_played / 60.0)::numeric, 1) AS mpg,
+        ROUND(AVG(pgs.pts)::numeric, 1) AS ppg,
+        ROUND(AVG(pgs.reb)::numeric, 1) AS rpg,
+        ROUND(AVG(pgs.ast)::numeric, 1) AS apg,
+        ROUND(AVG(pgs.stl)::numeric, 1) AS spg,
+        ROUND(AVG(pgs.blk)::numeric, 1) AS bpg,
+        ROUND(AVG(pgs.tov)::numeric, 1) AS topg,
+        ROUND(CASE WHEN SUM(pgs.fga)>0 THEN SUM(pgs.fgm)::numeric/SUM(pgs.fga)*100 END, 1) AS "fgPct",
+        ROUND(CASE WHEN SUM(pgs.fg3a)>0 THEN SUM(pgs.fg3m)::numeric/SUM(pgs.fg3a)*100 END, 1) AS "fg3Pct",
+        ROUND(CASE WHEN SUM(pgs.fta)>0 THEN SUM(pgs.ftm)::numeric/SUM(pgs.fta)*100 END, 1) AS "ftPct",
+        ROUND(CASE WHEN SUM(pgs.fga+0.44*pgs.fta)>0 THEN SUM(pgs.pts)::numeric/(2*(SUM(pgs.fga)+0.44*SUM(pgs.fta)))*100 END, 1) AS "tsPct",
+        ROUND(CASE WHEN SUM(pgs.fga)>0 THEN (SUM(pgs.fgm)+0.5*SUM(pgs.fg3m))::numeric/SUM(pgs.fga)*100 END, 1) AS "eFGPct",
+        ROUND(CASE WHEN SUM(pgs.tov)>0 THEN SUM(pgs.ast)::numeric/SUM(pgs.tov) END, 2) AS "astTovRatio",
+        ROUND(CASE WHEN SUM(pgs.fga)>0 THEN SUM(pgs.fta)::numeric/SUM(pgs.fga) END, 3) AS "ftRate",
+        ROUND(AVG(pgs.off_reb)::numeric, 1) AS "orbPerGame",
+        ROUND(AVG(pgs.def_reb)::numeric, 1) AS "drbPerGame"
+      FROM pbp_player_game_stats pgs
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
+      LEFT JOIN stats_teams st ON st.external_id = pgs.team_id
+      GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.position, sp.photo_url, st.name_zh, st.name_en, st.external_id
+      HAVING COUNT(DISTINCT pgs.game_id) >= 1
+      ORDER BY AVG(pgs.pts) DESC NULLS LAST
     `);
     } catch (err) {
       console.error(err);
@@ -1648,13 +1644,13 @@ export async function registerRoutes(
     }
     const players = ((rows as any).rows ?? []).map((r: any) => ({
       externalId: String(r.externalId ?? ""),
-      playerName: String(r.playerName ?? ""),
-      playerNameEn: r.playerNameEn ?? null,
+      playerName: String(r.nameZh ?? ""),
+      playerNameEn: r.nameEn ?? null,
       position: r.position ?? null,
       photoUrl: r.photoUrl ?? null,
       teamName: r.teamName ?? null,
       teamNameEn: r.teamNameEn ?? null,
-      season: String(r.season ?? ""),
+      season: "2025-26",
       games: Number(r.games ?? 0),
       mpg: Number(r.mpg ?? 0),
       ppg: Number(r.ppg ?? 0),
@@ -1666,6 +1662,16 @@ export async function registerRoutes(
       fgPct: r.fgPct != null ? Number(r.fgPct) : null,
       fg3Pct: r.fg3Pct != null ? Number(r.fg3Pct) : null,
       ftPct: r.ftPct != null ? Number(r.ftPct) : null,
+      tsPct: r.tsPct != null ? Number(r.tsPct) : null,
+      eFGPct: r.eFGPct != null ? Number(r.eFGPct) : null,
+      astTovRatio: r.astTovRatio != null ? Number(r.astTovRatio) : null,
+      ftRate: r.ftRate != null ? Number(r.ftRate) : null,
+      orbPerGame: r.orbPerGame != null ? Number(r.orbPerGame) : null,
+      drbPerGame: r.drbPerGame != null ? Number(r.drbPerGame) : null,
+      usagePct: null,
+      pie: null,
+      homeSplit: { pts: 0, reb: 0, ast: 0 },
+      awaySplit: { pts: 0, reb: 0, ast: 0 },
     }));
     return res.json({ players });
   });
@@ -2507,21 +2513,23 @@ export async function registerRoutes(
 
     const playersRow = await db.execute(sql`
       SELECT
-        sp.external_id                                AS "externalId",
-        sp.name_zh                                    AS "nameZh",
-        sp.name_en                                    AS "nameEn",
-        sp.jersey_number                              AS "jerseyNumber",
+        pgs.player_external_id AS "externalId",
+        sp.name_zh AS "nameZh",
+        sp.name_en AS "nameEn",
+        sp.jersey_number AS "jerseyNumber",
         sp.position,
-        COUNT(DISTINCT pb.game_id)::int               AS games,
-        ROUND(AVG(pb.pts)::numeric, 1)                AS ppg,
-        ROUND(AVG(pb.reb)::numeric, 1)                AS rpg,
-        ROUND(AVG(pb.ast)::numeric, 1)                AS apg
-      FROM stats_players sp
-      LEFT JOIN stats_player_boxscores pb ON pb.player_external_id = sp.external_id
-      LEFT JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-      WHERE sp.team_id = (SELECT id FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1)
-      GROUP BY sp.external_id, sp.name_zh, sp.name_en, sp.jersey_number, sp.position
-      ORDER BY ppg DESC NULLS LAST
+        COUNT(DISTINCT pgs.game_id)::int AS games,
+        ROUND(AVG(pgs.pts)::numeric, 1) AS ppg,
+        ROUND(AVG(pgs.reb)::numeric, 1) AS rpg,
+        ROUND(AVG(pgs.ast)::numeric, 1) AS apg
+      FROM pbp_player_game_stats pgs
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
+      LEFT JOIN stats_teams st ON st.external_id = pgs.team_id
+      WHERE pgs.team_id = ${Number(externalId)}
+      GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.jersey_number, sp.position
+      HAVING COUNT(DISTINCT pgs.game_id) >= 1
+      ORDER BY AVG(pgs.pts) DESC NULLS LAST
     `);
     const players = ((playersRow as any).rows ?? []).map((p: any) => ({
       externalId: p.externalId,
@@ -2545,61 +2553,17 @@ export async function registerRoutes(
     let pointsByZone: { paint: number; mid: number; fg3: number; ft: number } | null = null;
     try {
       const rtgRow = await db.execute(sql`
-      WITH team_ref AS (
-        SELECT id FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1
-      ),
-      team_games AS (
         SELECT
-          sg.id AS game_id,
-          CASE WHEN sg.home_team_id = tr.id THEN sg.home_score
-               ELSE sg.away_score END AS team_pts,
-          CASE WHEN sg.home_team_id = tr.id THEN sg.away_score
-               ELSE sg.home_score END AS opp_pts
-        FROM stats_games sg
-        CROSS JOIN team_ref tr
-        WHERE (sg.home_team_id = tr.id OR sg.away_team_id = tr.id)
-          AND sg.status = 4 AND sg.season_id = ${seasonId}
-      ),
-      team_box AS (
-        SELECT
-          pb.game_id,
-          SUM(pb.fga) AS fga, SUM(pb.fta) AS fta, SUM(pb.tov) AS tov,
-          SUM(pb.off_reb) AS orb, SUM(pb.pts) AS pts,
-          SUM(pb.fgm) AS fgm, SUM(pb.tpm) AS tpm, SUM(pb.ftm) AS ftm
-        FROM stats_player_boxscores pb
-        JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-        WHERE pb.team_external_id = (SELECT external_id::text FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1)
-        GROUP BY pb.game_id
-      ),
-      rival_box AS (
-        SELECT
-          pb.game_id,
-          SUM(pb.fga) AS r_fga, SUM(pb.fta) AS r_fta,
-          SUM(pb.tov) AS r_tov, SUM(pb.off_reb) AS r_orb
-        FROM stats_player_boxscores pb
-        JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-        WHERE pb.team_external_id != (SELECT external_id::text FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1)
-        AND pb.game_id IN (SELECT game_id FROM team_box)
-        GROUP BY pb.game_id
-      )
-      SELECT
-        ROUND(100.0 * SUM(tg.team_pts) / NULLIF(SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb), 0), 1) AS "ortg",
-        ROUND(100.0 * SUM(tg.opp_pts) / NULLIF(SUM(rb.r_fga + 0.44 * rb.r_fta + rb.r_tov - rb.r_orb), 0), 1) AS "drtg",
-        ROUND(SUM(tg.team_pts)::numeric / NULLIF(SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb), 0), 3) AS "pppOf",
-        ROUND(SUM(tg.opp_pts)::numeric / NULLIF(SUM(rb.r_fga + 0.44 * rb.r_fta + rb.r_tov - rb.r_orb), 0), 3) AS "pppDef",
-        ROUND(
-          ((SUM(tb.fga + 0.44 * tb.fta + tb.tov - tb.orb) +
-            SUM(rb.r_fga + 0.44 * rb.r_fta + rb.r_tov - rb.r_orb)) / 2.0)
-          / NULLIF(COUNT(DISTINCT tb.game_id), 0)
-        , 1) AS "paceEst",
-        SUM(tb.fgm - tb.tpm) AS "paint2Fgm",
-        SUM(tb.tpm)          AS "fg3m",
-        SUM(tb.ftm)          AS "ftm",
-        SUM(tb.pts)          AS "totalPts"
-      FROM team_games tg
-      JOIN team_box tb ON tb.game_id = tg.game_id
-      JOIN rival_box rb ON rb.game_id = tb.game_id
-    `);
+          ROUND(100.0 * SUM(p.points) / NULLIF(COUNT(*), 0), 1) AS ortg,
+          ROUND(100.0 * SUM(op.points) / NULLIF(COUNT(op.*), 0), 1) AS drtg,
+          ROUND(SUM(p.points)::numeric / NULLIF(COUNT(*), 0), 3) AS "pppOf",
+          ROUND(SUM(op.points)::numeric / NULLIF(COUNT(op.*), 0), 3) AS "pppDef",
+          ROUND((COUNT(*) + COUNT(op.*)) / 2.0 / NULLIF(COUNT(DISTINCT p.game_id), 0), 1) AS "paceEst"
+        FROM pbp_possessions p
+        JOIN stats_games sg ON sg.id = p.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        JOIN pbp_possessions op ON op.game_id = p.game_id AND op.team_id != p.team_id
+        WHERE p.team_id = ${Number(externalId)}
+      `);
       const rtg = (rtgRow as any).rows?.[0] ?? {};
       ortg   = rtg.ortg   != null ? Number(rtg.ortg)   : null;
       drtg   = rtg.drtg   != null ? Number(rtg.drtg)   : null;
@@ -2607,18 +2571,6 @@ export async function registerRoutes(
       pppOf  = rtg.pppOf  != null ? Number(rtg.pppOf)  : null;
       pppDef = rtg.pppDef != null ? Number(rtg.pppDef) : null;
       paceEst = rtg.paceEst != null ? Number(rtg.paceEst) : null;
-      const paint2Pts = rtg.paint2Fgm != null ? Number(rtg.paint2Fgm) * 2 : 0;
-      const fg3Pts    = rtg.fg3m != null ? Number(rtg.fg3m) * 3 : 0;
-      const ftPts     = rtg.ftm  != null ? Number(rtg.ftm)      : 0;
-      const zTot      = paint2Pts + fg3Pts + ftPts || 1;
-      if (rtg.totalPts != null) {
-        pointsByZone = {
-          paint: Math.round(paint2Pts * 0.70 / zTot * 100) / 100,
-          mid:   Math.round(paint2Pts * 0.30 / zTot * 100) / 100,
-          fg3:   Math.round(fg3Pts / zTot * 100) / 100,
-          ft:    Math.round(ftPts   / zTot * 100) / 100,
-        };
-      }
     } catch (rtgErr: any) {
       console.error("[stats/team] ORTG/DRTG query failed:", rtgErr?.message ?? rtgErr);
     }
@@ -3064,14 +3016,14 @@ export async function registerRoutes(
       const rows = await db.execute(sql`
         WITH league_reb AS (
           SELECT
-            pb.team_external_id,
-            SUM(pb.off_reb) AS orb,
-            SUM(pb.def_reb) AS drb,
-            pb.game_id
-          FROM stats_player_boxscores pb
-          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-          ${position ? sql`JOIN stats_players sp ON sp.external_id = pb.player_external_id AND sp.position = ${position}` : sql``}
-          GROUP BY pb.team_external_id, pb.game_id
+            pgs.team_id::text AS team_external_id,
+            SUM(pgs.off_reb) AS orb,
+            SUM(pgs.def_reb) AS drb,
+            pgs.game_id
+          FROM pbp_player_game_stats pgs
+          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          ${position ? sql`JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id AND sp.position = ${position}` : sql``}
+          GROUP BY pgs.team_id, pgs.game_id
         ),
         orb_calc AS (
           SELECT
@@ -3085,51 +3037,44 @@ export async function registerRoutes(
           GROUP BY a.team_external_id
         )
         SELECT
-          ROUND((
-            SELECT AVG(team_pts) FROM (
-              SELECT SUM(pb2.pts) AS team_pts
-              FROM stats_player_boxscores pb2
-              JOIN stats_games sg2 ON sg2.id = pb2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-              GROUP BY pb2.game_id, pb2.team_external_id
-            ) t
-          )::numeric, 1) AS "avgPpg",
-          ROUND(AVG(pb.reb)::numeric, 1)  AS "avgRpg",
-          ROUND(AVG(pb.ast)::numeric, 1)  AS "avgApg",
-          ROUND(AVG(pb.stl)::numeric, 1)  AS "avgSpg",
-          ROUND(AVG(pb.blk)::numeric, 1)  AS "avgBpg",
+          ROUND(AVG(pgs.pts)::numeric, 1) AS "avgPpg",
+          ROUND(AVG(pgs.reb)::numeric, 1)  AS "avgRpg",
+          ROUND(AVG(pgs.ast)::numeric, 1)  AS "avgApg",
+          ROUND(AVG(pgs.stl)::numeric, 1)  AS "avgSpg",
+          ROUND(AVG(pgs.blk)::numeric, 1)  AS "avgBpg",
           ROUND(
-            CASE WHEN SUM(pb.fga) > 0
-              THEN SUM(pb.fgm)::numeric / SUM(pb.fga) * 100 END, 1
+            CASE WHEN SUM(pgs.fga) > 0
+              THEN SUM(pgs.fgm)::numeric / SUM(pgs.fga) * 100 END, 1
           ) AS "avgFgPct",
           ROUND(
-            CASE WHEN SUM(pb.tpa) > 0
-              THEN SUM(pb.tpm)::numeric / SUM(pb.tpa) * 100 END, 1
+            CASE WHEN SUM(pgs.fg3a) > 0
+              THEN SUM(pgs.fg3m)::numeric / SUM(pgs.fg3a) * 100 END, 1
           ) AS "avgFg3Pct",
           ROUND(
-            CASE WHEN SUM(pb.fga) > 0
-              THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::numeric / SUM(pb.fga) * 100 END, 1
+            CASE WHEN SUM(pgs.fga) > 0
+              THEN (SUM(pgs.fgm) + 0.5 * SUM(pgs.fg3m))::numeric / SUM(pgs.fga) * 100 END, 1
           ) AS "avgEFGPct",
           ROUND(
-            CASE WHEN (SUM(pb.fga) + 0.44 * SUM(pb.fta)) > 0
-              THEN SUM(pb.pts)::numeric / (2 * (SUM(pb.fga) + 0.44 * SUM(pb.fta))) * 100 END, 1
+            CASE WHEN (SUM(pgs.fga) + 0.44 * SUM(pgs.fta)) > 0
+              THEN SUM(pgs.pts)::numeric / (2 * (SUM(pgs.fga) + 0.44 * SUM(pgs.fta))) * 100 END, 1
           ) AS "avgTsPct",
           ROUND(
-            CASE WHEN (SUM(pb.fga) + 0.44 * SUM(pb.fta) + SUM(pb.tov)) > 0
-              THEN SUM(pb.tov)::numeric / (SUM(pb.fga) + 0.44 * SUM(pb.fta) + SUM(pb.tov)) * 100 END, 1
+            CASE WHEN (SUM(pgs.fga) + 0.44 * SUM(pgs.fta) + SUM(pgs.tov)) > 0
+              THEN SUM(pgs.tov)::numeric / (SUM(pgs.fga) + 0.44 * SUM(pgs.fta) + SUM(pgs.tov)) * 100 END, 1
           ) AS "avgTovPct",
           ROUND(
-            CASE WHEN SUM(pb.fga) > 0
-              THEN SUM(pb.fta)::numeric / SUM(pb.fga) END, 3
+            CASE WHEN SUM(pgs.fga) > 0
+              THEN SUM(pgs.fta)::numeric / SUM(pgs.fga) END, 3
           ) AS "avgFtRate",
           ROUND(
             100.0 * SUM(oc.total_orb) / NULLIF(SUM(oc.total_orb) + SUM(oc.rival_drb), 0), 1
           ) AS "avgOrbPct",
-          ROUND(AVG(pb.off_reb)::numeric, 1) AS "avgOrbPerGame",
-          ROUND(AVG(pb.def_reb)::numeric, 1) AS "avgDrbPerGame"
-        FROM stats_player_boxscores pb
-        JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-        ${position ? sql`JOIN stats_players sp ON sp.external_id = pb.player_external_id AND sp.position = ${position}` : sql``}
-        LEFT JOIN orb_calc oc ON oc.team_external_id = pb.team_external_id
+          ROUND(AVG(pgs.off_reb)::numeric, 1) AS "avgOrbPerGame",
+          ROUND(AVG(pgs.def_reb)::numeric, 1) AS "avgDrbPerGame"
+        FROM pbp_player_game_stats pgs
+        JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        ${position ? sql`JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id AND sp.position = ${position}` : sql``}
+        LEFT JOIN orb_calc oc ON oc.team_external_id = pgs.team_id::text
       `);
       const row = (rows as any).rows?.[0] ?? {};
 
@@ -3140,15 +3085,15 @@ export async function registerRoutes(
           ROUND(AVG(sub.apg)::numeric, 1) AS avg_player_apg
         FROM (
           SELECT
-            pb2.player_external_id,
-            AVG(COALESCE(pb2.pts, 0)) AS ppg,
-            AVG(COALESCE(pb2.reb, 0)) AS rpg,
-            AVG(COALESCE(pb2.ast, 0)) AS apg
-          FROM stats_player_boxscores pb2
-          JOIN stats_games sg2 ON sg2.id = pb2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-          ${position ? sql`JOIN stats_players sp2 ON sp2.external_id = pb2.player_external_id AND sp2.position = ${position}` : sql``}
-          GROUP BY pb2.player_external_id
-          HAVING COUNT(DISTINCT pb2.game_id) >= 3
+            pgs2.player_external_id,
+            AVG(COALESCE(pgs2.pts, 0)) AS ppg,
+            AVG(COALESCE(pgs2.reb, 0)) AS rpg,
+            AVG(COALESCE(pgs2.ast, 0)) AS apg
+          FROM pbp_player_game_stats pgs2
+          JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+          ${position ? sql`JOIN stats_players sp2 ON sp2.external_id::text = pgs2.player_external_id AND sp2.position = ${position}` : sql``}
+          GROUP BY pgs2.player_external_id
+          HAVING COUNT(DISTINCT pgs2.game_id) >= 3
         ) sub
       `);
       const pa = (playerAvgRows as any).rows?.[0] ?? {};
@@ -3160,39 +3105,16 @@ export async function registerRoutes(
       let lgPpp:  number | null = null;
       try {
         const rtgLgRows = await db.execute(sql`
-          WITH own AS (
-            SELECT
-              pb.game_id,
-              pb.team_external_id,
-              SUM(pb.fga + 0.44 * pb.fta + pb.tov - pb.off_reb) AS poss
-            FROM stats_player_boxscores pb
-            JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-            GROUP BY pb.game_id, pb.team_external_id
-          ),
-          paired AS (
-            SELECT DISTINCT ON (o.game_id)
-              o.game_id,
-              sg.home_score AS home_pts,
-              sg.away_score AS away_pts,
-              o.poss        AS poss_home,
-              r.poss        AS poss_away
-            FROM own o
-            JOIN stats_games sg ON sg.id = o.game_id
-            JOIN stats_teams st ON st.external_id::text = o.team_external_id
-              AND st.id = sg.home_team_id
-            JOIN own r ON r.game_id = o.game_id AND r.team_external_id != o.team_external_id
-            ORDER BY o.game_id
-          )
           SELECT
-            ROUND(100.0 * (SUM(home_pts) + SUM(away_pts)) / NULLIF(SUM(poss_home) + SUM(poss_away), 0), 1) AS ortg,
-            ROUND(100.0 * (SUM(home_pts) + SUM(away_pts)) / NULLIF(SUM(poss_home) + SUM(poss_away), 0), 1) AS drtg,
-            ROUND((SUM(poss_home) + SUM(poss_away)) / 2.0 / NULLIF(COUNT(DISTINCT game_id), 0), 1) AS pace,
-            ROUND((SUM(home_pts) + SUM(away_pts))::numeric / NULLIF(SUM(poss_home) + SUM(poss_away), 0), 3) AS ppp
-          FROM paired
+            ROUND(100.0 * SUM(points) / NULLIF(COUNT(*), 0), 1) AS ortg,
+            ROUND(SUM(points)::numeric / NULLIF(COUNT(*), 0), 3) AS ppp,
+            ROUND(COUNT(*)::numeric / NULLIF(COUNT(DISTINCT game_id) / 2.0, 0), 1) AS pace
+          FROM pbp_possessions
+          WHERE season_id = ${seasonId}
         `);
         const r2 = (rtgLgRows as any).rows?.[0] ?? {};
         lgOrtg = r2.ortg != null ? Number(r2.ortg) : null;
-        lgDrtg = r2.drtg != null ? Number(r2.drtg) : null;
+        lgDrtg = lgOrtg;
         lgPace = r2.pace != null ? Number(r2.pace) : null;
         lgPpp  = r2.ppp  != null ? Number(r2.ppp)  : null;
       } catch (rtgErr: any) {
@@ -3205,13 +3127,13 @@ export async function registerRoutes(
         const drbRows = await db.execute(sql`
           WITH per_game AS (
             SELECT
-              pb.game_id,
-              pb.team_external_id,
-              SUM(pb.def_reb) AS drb,
-              SUM(pb.off_reb) AS orb
-            FROM stats_player_boxscores pb
-            JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-            GROUP BY pb.game_id, pb.team_external_id
+              pgs.game_id,
+              pgs.team_id::text AS team_external_id,
+              SUM(pgs.def_reb) AS drb,
+              SUM(pgs.off_reb) AS orb
+            FROM pbp_player_game_stats pgs
+            JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+            GROUP BY pgs.game_id, pgs.team_id
           )
           SELECT
             ROUND(
@@ -3266,24 +3188,24 @@ export async function registerRoutes(
       const rows = await db.execute(sql`
         WITH player_avgs AS (
           SELECT
-            pb.player_external_id,
-            AVG(pb.pts)  AS ppg,
-            AVG(pb.reb)  AS rpg,
-            AVG(pb.ast)  AS apg,
-            AVG(pb.stl)  AS spg,
-            AVG(pb.blk)  AS bpg,
-            CASE WHEN (SUM(pb.fga) + 0.44 * SUM(pb.fta)) > 0
-              THEN SUM(pb.pts)::float / (2 * (SUM(pb.fga) + 0.44 * SUM(pb.fta))) * 100
+            pgs.player_external_id,
+            AVG(pgs.pts)  AS ppg,
+            AVG(pgs.reb)  AS rpg,
+            AVG(pgs.ast)  AS apg,
+            AVG(pgs.stl)  AS spg,
+            AVG(pgs.blk)  AS bpg,
+            CASE WHEN (SUM(pgs.fga) + 0.44 * SUM(pgs.fta)) > 0
+              THEN SUM(pgs.pts)::float / (2 * (SUM(pgs.fga) + 0.44 * SUM(pgs.fta))) * 100
             END AS ts_pct,
-            CASE WHEN SUM(pb.fga) > 0
-              THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::float / SUM(pb.fga) * 100
+            CASE WHEN SUM(pgs.fga) > 0
+              THEN (SUM(pgs.fgm) + 0.5 * SUM(pgs.fg3m))::float / SUM(pgs.fga) * 100
             END AS efg_pct,
-          SUM(pb.tpa)::float / COUNT(DISTINCT pb.game_id) AS tpa_per_game
-          FROM stats_player_boxscores pb
-          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-          ${positionPct ? sql`JOIN stats_players sp ON sp.external_id = pb.player_external_id AND sp.position = ${positionPct}` : sql``}
-          GROUP BY pb.player_external_id
-          HAVING COUNT(DISTINCT pb.game_id) >= 5
+            SUM(pgs.fg3a)::float / COUNT(DISTINCT pgs.game_id) AS tpa_per_game
+          FROM pbp_player_game_stats pgs
+          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          ${positionPct ? sql`JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id AND sp.position = ${positionPct}` : sql``}
+          GROUP BY pgs.player_external_id
+          HAVING COUNT(DISTINCT pgs.game_id) >= 5
         )
         SELECT
           percentile_cont(0.95) WITHIN GROUP (ORDER BY ppg)    AS "p95Ppg",
