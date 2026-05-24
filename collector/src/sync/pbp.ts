@@ -9,10 +9,10 @@ import { classifyShots, type ShotPoint } from './shotZones';
 // Sources: Genius Sports LiveStats API docs, FIBA Statisticians Manual 2024,
 //          PBP context analysis of 223 WCBA games (2025-26 season).
 //
-// Administrative events (TOTLTO, TOTSTO) map to 'unknown'.
-// These are Genius Sports system markers that fire on every possession change —
-// confirmed by PBP context: always follow an already-recorded FGM/FTM/steal,
-// never standalone. Treating them as turnovers would double-count.
+// Administrative events (TOTLTO, TOTSTO) → 'unknown'.
+// TNOSTL → 'unknown': it is the team-level acknowledgment of a steal that is
+// ALREADY recorded as TNOBHD/TNOPAS (turnover) + STEBAL (steal) on the same
+// clock. Treating it as 'turnover' would double-count individual player turnovers.
 const ACTION_CODE_MAP: Record<string, string> = {
 
   // ── Substitutions ──────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ const ACTION_CODE_MAP: Record<string, string> = {
   '2PMHOK': 'shot_made',  // hook shot
   '2PMTIP': 'shot_made',  // tip-in / putback
   '2PMFLO': 'shot_made',  // floater (floating jump shot)
-  '2PMFLT': 'shot_made',  // flat shot (low-arc; mutually exclusive with FLO by game — same opertor variance)
+  '2PMFLT': 'shot_made',  // flat shot (low-arc; operator variance of FLO)
   '2PMTLA': 'shot_made',  // turnaround layup
   '2PMSBK': 'shot_made',  // step-back
   '2PMPUL': 'shot_made',  // pull-up jump
@@ -112,31 +112,27 @@ const ACTION_CODE_MAP: Record<string, string> = {
   FOLUSM:  'foul',      // unsportsmanlike foul
   FOLTEC:  'foul',      // technical foul
   FOUL:    'foul',      // legacy fallback
-  // Foul drawn (credited to the fouled player)
-  FDRAWN:  'foul_drawn',
+  FDRAWN:  'foul_drawn', // foul drawn (credited to the fouled player)
 
   // ── Turnovers — individual ─────────────────────────────────────────────────
   TNOPAS:  'turnover',  // bad pass (intercepted or out of bounds off a pass)
   TNOBHD:  'turnover',  // bad handle / ball-handling error
   TNOOFF:  'turnover',  // offensive foul turnover (charge called)
-  TNOSTL:  'turnover',  // stolen — credited to the offensive player who lost it
-                        // NOTE: appears alongside STEBAL; possessions.ts must deduplicate
   TNODDR:  'turnover',  // double dribble
   TNOTRV:  'turnover',  // travelling
   TNOOBD:  'turnover',  // out of bounds (offensive player)
   TNOOTH:  'turnover',  // other / unclassified
   TURNOVER:'turnover',  // legacy fallback
-  // Turnovers — violations (rules / clock based)
+  // Turnovers — clock/rules violations
   TNO3SC:  'turnover',  // 3-second violation (lane)
   TNO5SC:  'turnover',  // 5-second violation (inbound count)
   TNO8SC:  'turnover',  // 8-second violation (backcourt, FIBA rule)
   TNO24S:  'turnover',  // shot clock violation (24s)
   TNOBCT:  'turnover',  // backcourt violation
 
-  // ── Administrative possession markers — NOT turnovers ──────────────────────
-  // Genius Sports LiveStats system events that fire on every possession change.
-  // Confirmed by PBP analysis: always follow an already-recorded FGM/FTM/steal.
-  // Treating as turnovers would double-count losses of possession.
+  // ── Administrative / redundant markers — mapped to 'unknown' ──────────────
+  // These fire alongside already-recorded events and must NOT be counted again.
+  TNOSTL:  'unknown',  // team-level steal acknowledgment — STEBAL+TNOBHD already recorded
   TOTLTO:  'unknown',  // team-level possession transition out (administrative)
   TOTSTO:  'unknown',  // team-level possession stop (administrative, same semantics)
 
@@ -288,7 +284,6 @@ export async function syncPBP(gameId: number): Promise<void> {
         shotX = info.x; shotY = info.y; shotMade = info.made;
         shotZone = info.zone; shotBandSide = info.bandSide; shotDistM = info.distM;
       }
-      // Fallback: derive made from action code
       if (shotMade === null) shotMade = MADE_SHOT_CODES.has(actionCode);
     }
 
@@ -337,7 +332,6 @@ export async function syncPBP(gameId: number): Promise<void> {
       && Math.sign(scoreDiff) !== Math.sign(prevDiff);
     const tie = scoreDiff === 0;
 
-    // Collect unmapped (deduplicated, log once at end)
     if (actionCode && eventType === 'unknown') unmappedCodes.add(actionCode);
 
     if (userId != null && teamId != null) {

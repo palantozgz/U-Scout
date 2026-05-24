@@ -164,34 +164,53 @@ export async function processPossessions(
   lineups.set(homeTeamId, new Set());
   lineups.set(awayTeamId, new Set());
 
-  // Seed con titulares del boxscore
-  for (const [teamExtStr, players] of Object.entries(boxByTeam)) {
-    // Buscar el internal team id
-    const teamInt = players[0]?.team_external_id
-      ? (homeTeamId) // se asigna abajo correctamente
-      : null;
-    for (const p of players) {
-      if (p.is_start_lineup && p.player_external_id) {
-        // Identificar si es home o away por team_external_id
-        // Se resuelve al procesar sub_in — aquí solo sembramos
+  // Seed de titulares desde boxscore (is_start_lineup = true).
+  // En WCBA, el PBP no registra sub_in para los titulares al inicio — empiezan
+  // directamente en pista. El boxscore es la única fuente fiable de titulares.
+  // Necesitamos mapear team_external_id → internal team_id.
+  // homeTeamId y awayTeamId son los IDs internos de Supabase.
+  // Los boxRows tienen team_external_id (el ID de la WCBA API).
+  // Obtenemos el mapping buscando el team_external_id en los primeros eventos del PBP.
+  const teamExtToInt: Map<string, number> = new Map();
+  for (const ev of events) {
+    if (ev.team_id && ev.team_id === homeTeamId) {
+      // Buscar en boxRows el team_external_id que corresponde a homeTeamId
+      // Usamos el primer evento del PBP donde team_id coincide con homeTeamId
+      // y miramos qué team_external_id tienen sus jugadoras en el boxscore
+      break;
+    }
+  }
+  // Approach más directo: los boxRows tienen team_external_id como string.
+  // Los events tienen team_id como número interno (el mismo que homeTeamId/awayTeamId).
+  // Buscamos en los eventos del PBP para establecer el mapping.
+  for (const ev of events) {
+    if (!ev.team_id || !ev.player_external_id) continue;
+    // Buscar este player en el boxscore para encontrar su team_external_id
+    for (const [extStr, players] of Object.entries(boxByTeam)) {
+      for (const p of players) {
+        if (String(p.player_external_id) === String(ev.player_external_id)) {
+          teamExtToInt.set(extStr, ev.team_id);
+          break;
+        }
       }
     }
+    if (teamExtToInt.size === 2) break; // tenemos ambos equipos
   }
 
-  // Mejor seed: el primer sub_in de cada equipo al inicio del partido nos da los titulares.
-  // Procesamos los eventos para construir el lineup inicial antes de la primera posesión.
   const startersByTeam: Map<number, Set<number>> = new Map();
-  for (const ev of events) {
-    if (ev.quarter > 1) break; // solo primer cuarto
-    if ((ev.event_type === 'sub_in') && ev.team_id && ev.player_external_id) {
-      if (!startersByTeam.has(ev.team_id)) startersByTeam.set(ev.team_id, new Set());
-      if ((startersByTeam.get(ev.team_id)!.size < 5)) {
-        startersByTeam.get(ev.team_id)!.add(ev.player_external_id);
+  for (const [teamExtStr, players] of Object.entries(boxByTeam)) {
+    const internalTeamId = teamExtToInt.get(teamExtStr);
+    if (!internalTeamId) continue;
+    const starters = new Set<number>();
+    for (const p of players) {
+      if (p.is_start_lineup && p.player_external_id) {
+        starters.add(Number(p.player_external_id));
       }
     }
-  }
-  for (const [tid, players] of startersByTeam) {
-    lineups.set(tid, new Set(players));
+    if (starters.size > 0) {
+      startersByTeam.set(internalTeamId, starters);
+      lineups.set(internalTeamId, new Set(starters));
+    }
   }
 
   // ── Estado por jugadora ─────────────────────────────────────────────────────
