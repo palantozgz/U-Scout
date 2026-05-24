@@ -20,14 +20,13 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ## Archivos clave
 - `server/routes.ts` — rutas API Express
-- `server/possessions.ts` — procesador PBP v6 (algoritmo verificado)
+- `server/possessions.ts` — procesador PBP **v6.2** (algoritmo verificado contra partido real)
 - `server/stats-ingest.ts` — ingest endpoint Pi → Railway → Supabase
 - `collector/src/sync/pbp.ts` — parser PBP con ACTION_CODE_MAP completo (auditado 2026-05-24)
-- `collector/src/sync/possessions.ts` — procesador posesiones desde stats_pbp
-- `collector/src/supabaseClient.ts` — cliente Supabase para collector (creado 2026-05-24)
 - `collector/src/ingest.ts` — IngestType + fetchSyncStatus
 - `client/src/lib/stats-api.ts` — hooks stats completos
 - `client/src/pages/core/Stats.tsx` — U Stats UI
+- `client/src/pages/core/ModuleNav.tsx` — nav bar (safe-area iOS fix aplicado 2026-05-25)
 
 ## NUNCA tocar
 - `Profile.tsx` · `schema.ts` · `migrations/`
@@ -54,223 +53,219 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## U Stats — Arquitectura (completada 2026-05-24)
+## U Stats — Arquitectura
 
 ### Flujo de datos
 ```
-API WCBA → collector/pbp.ts (Pi) → stats_pbp → collector/possessions.ts (Pi) → ingest → Railway → tablas derivadas → app
+API WCBA → collector/pbp.ts (Pi) → stats_pbp → Railway/possessions.ts v6.2 → tablas derivadas → app
 ```
+
+**IMPORTANTE:** El procesador de posesiones corre en Railway (`server/possessions.ts`), NO en el Pi.
+El Pi solo hace ingest de PBP crudo a `stats_pbp`. Railway procesa las posesiones en background
+al recibir cada partido via `handlePBP()` en `stats-ingest.ts`.
 
 ### Tablas derivadas
 
 | Tabla | Contenido | Estado |
 |---|---|---|
-| `pbp_possessions` | 1 fila por posesión | ✅ activa |
+| `pbp_possessions` | 1 fila por posesión | ✅ activa — v6.2 |
 | `pbp_player_game_stats` | 1 fila por jugadora por partido | ✅ activa |
-| `pbp_lineup_stats` | 1 fila por quinteto por partido | ✅ activa |
+| `pbp_lineup_stats` | 1 fila por quinteto por partido | ✅ activa — columnas off_ppp/def_ppp/net_ppp añadidas |
 | `pbp_audit_log` | diff PBP vs boxscore | ✅ activa |
 
-### Endpoints de stats — fuente actual (Fase D completada)
+### Endpoints de stats
 
 | Endpoint | Fuente | Estado |
 |---|---|---|
-| `/api/stats/players` | `pbp_player_game_stats` | ✅ PBP |
-| `/api/stats/player/:id` | `pbp_player_game_stats` | ✅ PBP |
-| `/api/stats/team/:id` ORTG/PPP/Pace | `pbp_possessions` | ✅ PBP |
-| `/api/stats/team/:id` roster | `pbp_player_game_stats` | ✅ PBP |
-| `/api/stats/league-averages` | `pbp_possessions` + `pbp_player_game_stats` | ✅ PBP |
-| `/api/stats/player-percentiles` | `pbp_player_game_stats` | ✅ PBP |
-| `/api/stats/team/:id/pace-segments` | `stats_pbp` | ✅ PBP |
+| `/api/stats/players` | `pbp_player_game_stats` | ✅ |
+| `/api/stats/player/:id` | `pbp_player_game_stats` | ✅ |
+| `/api/stats/team/:id` | `pbp_possessions` | ✅ |
+| `/api/stats/league-averages` | `pbp_possessions` | ✅ |
+| `/api/stats/player-percentiles` | `pbp_player_game_stats` | ✅ |
+| `/api/stats/team/:id/pace-segments` | `stats_pbp` | ✅ (B4 pendiente) |
+| `/api/stats/team/:id/lineups` | `pbp_lineup_stats` | ✅ NUEVO 2026-05-25 |
+| `/api/stats/team/:id/on-off/:playerId` | `pbp_lineup_stats` | ✅ NUEVO 2026-05-25 |
+| `/api/stats/players/combined` | `pbp_lineup_stats` | ✅ NUEVO 2026-05-25 |
 | `/api/stats/standings` | `stats_standings` | ✅ oficial WCBA |
 | `/api/stats/game/:id/boxscore` | `stats_player_boxscores` | ✅ auditoría |
 
 ---
 
-## Collector (Pi) — estado
+## Procesador de posesiones v6.2 — arquitectura
 
-- IP: `192.168.1.7` / `ucore-pi.local` · usuario: `pablo` · contraseña: `skapol`
-- PM2: `ucore-collector` activo
-- Código activo: commit `80a7b88` (2026-05-24)
-- **GitHub no accesible desde Pi** (HTTP2 framing layer error) — usar SCP para actualizaciones
-- `@supabase/supabase-js` instalado en Pi
+### Por qué v6.2 (vs v5)
+v5 usaba flujo reactivo — inferencia por tipo de evento con lookaheads frágiles.
+Bug principal: FTs de equipo A durante posesión de equipo B no se contabilizaban en possessions
+(el `tid` del FT era el atacante pero `possTid` era el defensor → ningún bloque los capturaba).
+Resultado: HOME -10pts en possessions vs boxscore en partido real.
 
-### Action codes WCBA — diccionario completo (auditado 2026-05-24)
-- Sistema: Genius Sports FIBA LiveStats — formato `[actionType][M=made|A=attempt][subType]`
-- Fuentes: Genius Sports Warehouse API docs + FIBA Statisticians Manual 2024 + PBP context
-- FLT y FLO mutuamente excluyentes por partido = variante de operador, mismo tipo de tiro
-- Administrativos: TOTLTO, TOTSTO, TNOSTL → `'unknown'` — nunca contar como eventos estadísticos
-- MADE3_CODES completo: incluye 3PMSBK, 3PMFAD, 3PMPUL, 3PMFLT
+v6.2 usa dos pasadas explícitas:
 
----
+### Pasada 1A: lineup tracking + player stats + snapshots
+- Sub_in/sub_out actualizan `lineups` y `onCourtSince`
+- Snapshot de lineup por evento → `snapHome[i]` / `snapAway[i]`
+- Player stats acumuladas por evento (independiente de posesión)
+- Minutos por stint con flush en cambio de cuarto
 
-## AUDITORÍA COMPLETA DE STATS (2026-05-24)
+### Pasada 1B: inferir offense_team_id por evento
+El `team_id` del evento NO es siempre el equipo atacante:
 
-### Fórmulas correctas (routes.ts — fuente boxscore)
-✅ PPG, RPG, APG, SPG, BPG, TOPg — medias aritméticas correctas
-✅ FG%, 3P%, FT% — fórmula FIBA estándar
-✅ eFG% = (FGM+0.5×3PM)/FGA
-✅ TS% = PTS/(2×(FGA+0.44×FTA))
-✅ FT Rate = FTA/FGA (sin ×100, igual que BBRef)
-✅ TOV% = TOV/(FGA+0.44×FTA+TOV)
-✅ ORB%/DRB% — fórmula BBRef con CTE rival correcta
-✅ USG% — fórmula BBRef exacta con minutos
-✅ PIE — fórmula NBA exacta
-✅ ORTG/DRTG — Dean Oliver, posesiones = FGA+0.44×FTA+TOV-ORB
-✅ Pace = (poss_own+poss_rival)/2/games
+| Código | offense = |
+|---|---|
+| shot/turnover/ORB | tid (atacante) |
+| REBDEF | tid (reboteador pasa a atacar) |
+| STEBAL | tid (robador pasa a atacar) |
+| FOLDEF/FOLPER/FOLDSQ/FOLUSM/FOLTEC | rival de tid (fouler es defensor) |
+| FOLOFF/FOLOFN | tid (fouler es atacante) |
+| ft_made/ft_missed | tid (tirador siempre es atacante) |
+| JUBSUC | tid (ganador del jump ball) |
+| decoradores (assist, foul_drawn, block, sub, timeout, unknown) | último offense conocido |
 
-### Bugs confirmados (possessions.ts)
+### Pasada 2: posesiones por cambio de offense_team_id
+- startTimeSec = clockSec del ÚLTIMO evento de la posesión ANTERIOR (no del primero de la actual)
+  → esto corrige dur=0 masivo de v5 (41% → 2%)
+- endTimeSec = clockSec del último evento de juego de esta posesión
+- dur = startTimeSec - endTimeSec (reloj FIBA cuenta hacia atrás)
+- And-1 detectado por lookahead: shot_made seguido de FT del mismo offense
 
-**B1 — CRÍTICO: Posesión doble en steal**
-Para cada steal, el PBP tiene: TNOBHD (turnover) + STEBAL (steal).
-El bloque de turnover abre posesión del defensor. Luego el bloque de steal la cierra y abre de nuevo.
-Resultado: posesión abierta dos veces, conteo de posesiones inflado, PPP distorsionado.
-Fix: cuando `event_type === 'steal'`, el bloque de turnover no debe ejecutarse.
-Solución: añadir `&& ev.event_type !== 'steal'` no es suficiente — hay que mirar si el evento SIGUIENTE es steal antes de cerrar por turnover.
-Implementación: lookahead `events[i+1]?.event_type === 'steal'` → no cerrar posesión en el turnover, dejar que el steal lo haga.
-
-**B2 — MEDIO: Minutos multi-cuarto**
-`flushMinutesForPlayer` solo cubre la transición al cuarto inmediatamente anterior.
-Jugadoras que juegan 3+ cuartos sin sustituirse pierden minutos de los cuartos intermedios.
-Fix: el bucle de cierre de cuarto (`isNewQuarter`) ya hace `ps.secondsPlayed += entry.entrySec` para el cuarto anterior y resetea. Este es el mecanismo correcto — pero `flushMinutesForPlayer` luego también suma, lo que puede duplicar. Necesita revisión con caso de prueba concreto.
-
-**B3 — BAJO: plusMinus siempre 0**
-No implementado. TODO en el código.
-Fix: al cerrar stint de una jugadora, `plusMinus += score_differential_exit - score_differential_entry`.
-
-### Bugs conocidos (routes.ts)
-
-**B4 — CONOCIDO: PPP por tramo inflado ~15-20%**
-`pace-segments` usa tiros como denominador, no posesiones totales.
-Nombre correcto de lo que calcula: PPT (Points Per Shot attempt), no PPP.
-Estado: documentado, pendiente fix via Cursor.
-
-**B5 — CONOCIDO: pointsByZone inventado**
-Split 70/30 pintura/mid hardcodeado sin datos de coordenadas.
-Estado: tag "est." en UI, pendiente Fase 4 (shot coordinates).
-
-**B6 — MENOR: isTransition usa reloj de partido**
-Proxy razonable sin shot clock. No comparable con Synergy pero válido para uso interno.
-
-### Fórmulas correctas (possessions.ts)
-✅ points, shotAttempts, ftAttempts, turnovers, offensiveRebounds — acumulación correcta
-✅ durationSec = possStartSec - endTimeSec en segundos de reloj FIBA
-✅ isSecondChance = hubo rebote ofensivo en la posesión
-✅ lineupId = snapshot del quinteto al inicio de posesión
-✅ scoreMarginStart = diferencial desde perspectiva del equipo atacante
-✅ Seed de titulares: usa is_start_lineup del boxscore + mapping team_external_id→internal
+### Verificación contra partido real 1108582
+- HOME 65pts: possessions=65 ✅ diff=0
+- AWAY 74pts: possessions=74 ✅ diff=0
+- HOME FTA: events=21, possessions=21 ✅
+- AWAY FTA: events=17, possessions=17 ✅
+- Dur=0: 2/153 (1%) — sub-segundo físicamente correctos
+- AvgDur: 16.7s — rango FIBA correcto (10-20s)
+- Pace: 19.1 poss/cuarto — rango FIBA correcto
 
 ---
 
-## INICIO PRÓXIMA SESIÓN — orden estricto
+## Collector (Pi) — estado 2026-05-25
 
-### 0. FIX PREVIO AL RE-SYNC: B1 en possessions.ts (steal doble posesión)
-Antes de truncar y reprocesar, corregir B1 o los datos procesados serán incorrectos.
-El fix requiere lookahead en el loop de eventos:
-```typescript
-// En el bloque de turnover (possessions.ts):
-// Antes de cerrar posesión, verificar si el siguiente evento es steal
-const nextEv = events[i + 1];
-const nextIsSteal = nextEv?.event_type === 'steal' && nextEv?.team_id !== tid;
-if (!nextIsSteal) {
-  closePossession(clockSec, 'turnover', ev.quarter);
-  const nextTeam = tid === homeTeamId ? awayTeamId : homeTeamId;
-  startPossession(nextTeam, clockSec, 'dead_ball', ev.quarter, ev.score_differential);
-}
-// El steal manejará el cambio de posesión correctamente
-```
+- IP: `192.168.1.7` · usuario: `pablo` · contraseña: `skapol`
+- PM2: `ucore-collector` activo (restart #9)
+- Código activo: commit `80a7b88`
+- **GitHub no accesible desde Pi** — usar SCP para actualizaciones
+- Re-sync nocturno en curso desde 02:35 (procesando 223 partidos PBP)
+- TOTLTO es el ÚNICO action_code que debe quedar como `unknown` — correcto
 
-### 1. Verificar que stats_pbp tiene 0 unknowns
+### Action codes WCBA
+- Sistema: Genius Sports FIBA LiveStats
+- TOTLTO/TOTSTO/TNOSTL → `'unknown'` (administrativos, no estadísticos)
+- FOLDEF/FOLPER/FOLDSQ/FOLUSM → `'foul'` (fouler = defensor)
+
+---
+
+## Estado de re-sync 2026-05-25
+
+**Pendiente al cierre de sesión:**
+- stats_pbp truncada ✅ y re-sync en curso en el Pi (iniciado ~02:35)
+- pbp_possessions/pbp_player_game_stats/pbp_lineup_stats/pbp_audit_log truncadas ✅
+- El trigger de posesiones todavía NO se ha lanzado — hacerlo MAÑANA
+
+**Al inicio de próxima sesión:**
+1. Verificar sync completo: `pm2 logs ucore-collector --lines 5 --nostream` → buscar `=== NIGHTLY SYNC DONE ===`
+2. Verificar unknowns — solo TOTLTO debe aparecer:
 ```sql
-SELECT action_code, COUNT(*)
-FROM stats_pbp WHERE event_type = 'unknown'
+SELECT action_code, COUNT(*) FROM stats_pbp WHERE event_type = 'unknown'
 GROUP BY action_code ORDER BY COUNT(*) DESC;
 ```
-Si hay unknowns → TRUNCATE stats_pbp + re-sync nocturno.
-
-### 2. TRUNCATE tablas derivadas y reprocesar
-Solo después de fix B1 y 0 unknowns:
-```sql
-TRUNCATE TABLE pbp_possessions;
-TRUNCATE TABLE pbp_player_game_stats;
-TRUNCATE TABLE pbp_lineup_stats;
-TRUNCATE TABLE pbp_audit_log;
-```
+3. Lanzar trigger de posesiones:
 ```bash
 curl -s -X POST "https://u-scout-production.up.railway.app/api/stats/admin/trigger-possessions?seasonId=2092"
 ```
-
-### 3. Verificar audit — objetivo diff_pts = 0
+4. Auditar — objetivo diff_pts = 0:
 ```sql
 SELECT team_external_id, box_pts, pbp_pts, diff_pts, status
 FROM pbp_audit_log WHERE season_id = 2092
 ORDER BY ABS(diff_pts) DESC LIMIT 20;
 ```
-
----
-
-## Sesiones anteriores resumidas
-
-### Sesión 2026-05-24 — Action codes completos, auditoría stats, collector compila limpio
-
-**Problema raíz descubierto:**
-commit c947527 documentó 12 nuevos action codes pero NUNCA los escribió en pbp.ts.
-175 eventos/partido clasificados como 'unknown'.
-
-**Fixes en pbp.ts:**
-- TNOSTL → 'unknown' (era 'turnover' — doble conteo)
-- TOTLTO / TOTSTO → 'unknown' (marcadores administrativos)
-- MADE3_CODES completado (triples contaban como 2pts)
-- 2PMPUL/2PAPUL añadidos al mapa
-- Nuevos: 2PMALY, 2PAALY, 2PMTDK, 2PATDK, 3PMFLT, 3PAFLT, 3PATRN, TNO5SC, TNO8SC, FOLPER, FOLDSQ
-
-**Fixes en collector infrastructure:**
-- supabaseClient.ts creado
-- IngestType ampliado (pbp_possessions, pbp_player_game_stats, pbp_lineup_stats, pbp_audit)
-- fetchSyncStatus restaurado
-- GameRow interface — fix TypeScript
-- Seed de titulares desde boxscore (bloque anterior vacío)
-
-**Conocimiento nuevo:**
-- WCBA usa Genius Sports FIBA LiveStats
-- GitHub no accesible desde Pi — usar SCP
-- Auditoría completa de fórmulas: ver sección AUDITORÍA COMPLETA
-
-**Commit:** `80a7b88`
-
----
-
-### Sesión 2026-05-23 — PBP como fuente única, blueprint arquitectura
-- PPP por tramo: TOVs añadidos al denominador — fix commit `c947527`
-- Fase A: 4 tablas derivadas creadas en Supabase
-- Documentos: FORMULAS_STATS.md, PBP_EVENTS.md, PBP_STATS_BLUEPRINT.md
+5. Verificar quintetos:
+```sql
+SELECT team_id, COUNT(DISTINCT lineup_id) AS lineups, SUM(off_possessions) AS poss
+FROM pbp_lineup_stats WHERE season_id = 2092
+GROUP BY team_id ORDER BY team_id;
+```
 
 ---
 
 ## Bugs activos (por impacto)
 
-**P0:**
-- **B1**: Posesión doble en steal — `possessions.ts` abre posesión dos veces para cada steal — CORREGIR ANTES de cualquier re-sync
-- `stats_pbp` histórico tiene eventos mal clasificados — requiere TRUNCATE + re-sync
-- `pbp_possessions` / `pbp_player_game_stats` / `pbp_lineup_stats` vacías hasta completar re-sync
-
 **P1:**
-- **B2**: Minutos multi-cuarto en possessions.ts — jugadoras sin sustitución entre cuartos pierden minutos
-- **B4**: PPP por tramo inflado ~15-20% (denominador son tiros, no posesiones)
-- Nav bar iOS se bloquea al abrir ficha jugadora/equipo en Stats
-- Hero card "Mis estadísticas" jugadoras — depende de `profile.wcba_external_id` no null
-- `hasReport` siempre true en MyScout
-- Schedule scroll no recentering en List↔Planner switch
+- **B4**: PPP por tramo inflado — `pace-segments` usa tiros como denominador, no posesiones.
+  Nombre correcto: PPT (Points Per Shot), no PPP. Pendiente fix via Cursor.
+- **Hero card "Mis estadísticas"** jugadoras — depende de `profile.wcba_external_id` no null.
+  Verificar en Supabase que los perfiles de jugadoras tienen el campo.
+- **`hasReport` en MyScout** — función mira `catchAndShootFrequency` y `perimeterThreats`
+  que son campos de versiones antiguas. Perfiles viejos en DB pueden tener esos campos activos
+  → botón siempre dice "Ver informe". No bloqueante. Investigar en producción cuántos perfiles afectados.
 
 **P2:**
-- **B3**: plusMinus siempre 0 — no implementado
-- **B5**: pointsByZone: split 70/30 inventado (tag "est." en UI)
-- Game boxscore: falta marcador por cuartos
-- Módulos en desktop en español
-- Scout en iOS ha perdido la "U"
+- **B3**: plusMinus siempre 0 — no implementado en possessions.ts.
+- **B5**: pointsByZone: split 70/30 inventado (tag "est." en UI). Pendiente Fase 4 shot coords.
+- Game boxscore: falta marcador por cuartos.
+- Módulos en desktop en español.
+- Scout en iOS ha perdido la "U" en el icono del módulo.
 
-**Pendientes futuros:**
-- Fase E: UI quintetos y on/off
-- Stats Fase 4: shot_x/shot_y hotspot data
-- iOS TestFlight: bundle <300KB gzip
-- Eliminar endpoints admin sin auth
+**Resueltos esta sesión (2026-05-25):**
+- ✅ Nav bar iOS safe-area — `ModuleNav.tsx` añade `env(safe-area-inset-left/top/bottom)` al sidebar
+- ✅ possessions.ts v6.2 — puntos exactos, FTs exactos, dur media correcta
+- ✅ Endpoints lineups/on-off/combined deployados en Railway
+- ✅ stats_pbp truncada y re-sync con ACTION_CODE_MAP correcto
+
+**Eliminados de pendientes:**
+- Schedule scroll no recentering — descartado por Pablo
+- Nav bar iOS bloqueo al abrir ficha — resuelto (safe-area fix)
+
+---
+
+## Pendientes futuros
+
+- Fase E: UI quintetos y on/off (endpoints ya listos, falta UI)
+- Stats Fase 4: shot_x/shot_y hotspot data (Pi pipeline)
+- iOS TestFlight: bundle <300KB gzip (actualmente ~509KB)
+  - Plan: lazy i18n (~-120KB) + React.lazy code splitting (~-100KB)
+- Eliminar endpoints admin sin auth (`/api/stats/admin/...`)
 - Confirmar `backup/motor-v2.1-pre-20260405` estable y mergear
+- OverridePanel integration — pendiente full wiring a Supabase
+- Favicon replacement (muestra icono Replit)
+- Club logo: upload imagen real (replace emoji picker)
+
+---
+
+## Sesiones anteriores resumidas
+
+### Sesión 2026-05-25 — possessions v6.2, lineups endpoints, iOS safe-area
+
+**Problema central:** v5 del procesador tenía bug fundamental donde FTs del equipo atacante
+durante posesión del defensor no se contabilizaban → -10pts por partido en possessions.
+Causa raíz: todos los bloques de FT tenían `&& tid === possTid` — si el FOLDEF cambiaba el
+equipo atacante nominal sin cerrar posesión, los FTs quedaban huérfanos.
+
+**Solución v6.2:** dos pasadas. Pasada 1B infiere `offense_team_id` por tipo de acción —
+FOLDEF → offense = rival del fouler. Pasada 2 agrupa por cambio de offense_team_id.
+startTimeSec = clock del cierre anterior (no del primer evento de la posesión actual)
+→ corrige dur=0 masivo de 41% a 2%.
+
+**Verificación:** partido real 1108582, HOME 65pts AWAY 74pts.
+possessions: HOME=65 AWAY=74, diff=0. FTA exactos. AvgDur=16.7s. ✅
+
+**iOS safe-area:** `ModuleNav.tsx` sidebar añade padding con `env(safe-area-inset-*)`.
+Sidebar en iPhone landscape no quedaba tapada por cámara/notch.
+
+**Commits:**
+- `3ee80c3` — possessions v6.2 + 3 endpoints stats (lineups/on-off/combined)
+- `d46a7e4` — ModuleNav safe-area iOS
+
+### Sesión 2026-05-24 — Action codes completos, auditoría stats, collector
+
+**Problema:** commit c947527 documentó 12 nuevos action codes pero NUNCA los escribió en pbp.ts.
+175 eventos/partido clasificados como 'unknown'.
+
+**Fixes en pbp.ts:** TNOSTL → 'unknown', TOTLTO/TOTSTO → 'unknown', MADE3_CODES completado,
+nuevos: 2PMALY, 2PAALY, 2PMTDK, 2PATDK, 3PMFLT, 3PAFLT, 3PATRN, TNO5SC, TNO8SC, FOLPER, FOLDSQ.
+
+**Commit:** `80a7b88`
+
+### Sesión 2026-05-23 — PBP como fuente única, blueprint arquitectura
+- Fase A: 4 tablas derivadas creadas en Supabase
+- Documentos: FORMULAS_STATS.md, PBP_EVENTS.md, PBP_STATS_BLUEPRINT.md
