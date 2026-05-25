@@ -27,6 +27,8 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 - `client/src/lib/stats-api.ts` — hooks stats completos
 - `client/src/pages/core/Stats.tsx` — U Stats UI
 - `client/src/pages/core/ModuleNav.tsx` — nav bar (safe-area iOS fix aplicado 2026-05-25)
+- `client/src/pages/core/Playbook.tsx` — tabs Defensiva/Ofensiva/ATOs + Defensive System Builder wizard
+- `client/src/lib/defensive-system.ts` — lógica pura del builder (portada del HTML, sin DOM)
 
 ## NUNCA tocar
 - `Profile.tsx` · `schema.ts` · `migrations/`
@@ -205,12 +207,16 @@ GROUP BY team_id ORDER BY team_id;
 - Game boxscore: falta marcador por cuartos.
 - Módulos en desktop en español.
 - Scout en iOS ha perdido la "U" en el icono del módulo.
+- Playbook: tabs Ofensiva y ATOs son placeholders — pendiente contenido real.
 
 **Resueltos esta sesión (2026-05-25):**
 - ✅ Nav bar iOS safe-area — `ModuleNav.tsx` añade `env(safe-area-inset-left/top/bottom)` al sidebar
 - ✅ possessions.ts v6.2 — puntos exactos, FTs exactos, dur media correcta
 - ✅ Endpoints lineups/on-off/combined deployados en Railway
 - ✅ stats_pbp truncada y re-sync con ACTION_CODE_MAP correcto
+- ✅ Playbook: tabs Defensiva/Ofensiva/ATOs + Defensive System Builder completo portado a React
+- ✅ Card Scout en Home → "U Scout" (sin tocar nav bar)
+- ✅ Commits: `1870cfc` (CLAUDE_CONTEXT), `7cc38da` (playbook + locales)
 
 **Eliminados de pendientes:**
 - Schedule scroll no recentering — descartado por Pablo
