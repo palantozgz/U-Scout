@@ -755,16 +755,19 @@ export async function processPossessions(
   }
 
   // Auditoría PBP vs Boxscore
-  for (const [tid, ext] of [[homeTeamId, homeExt], [awayTeamId, awayExt]] as [number, string][]) {
+  for (const [tid, ext, extId] of [[homeTeamId, homeExt, homeTeamExtId], [awayTeamId, awayExt, awayTeamExtId]] as [number, string, number][]) {
     const pbpPts = possessions
-      .filter(p => p.teamId === tid)
+      .filter(p => p.teamId === extId)
       .reduce((s, p) => s + p.points, 0);
     const box    = boxRows.filter((b: any) => String(b.team_external_id) === ext);
     const boxPts = box.reduce((s: number, b: any) => s + (Number(b.pts) || 0), 0);
     const boxReb = box.reduce((s: number, b: any) => s + (Number(b.reb) || 0), 0);
     const boxAst = box.reduce((s: number, b: any) => s + (Number(b.ast) || 0), 0);
     const boxTov = box.reduce((s: number, b: any) => s + (Number(b.tov) || 0), 0);
-    const pls    = Array.from(playerMap.values()).filter(p => p.teamId === tid);
+    const pls = Array.from(playerMap.values()).filter(p => p.teamId === homeTeamId || p.teamId === awayTeamId).filter(p => {
+      const isHome = extId === homeTeamExtId;
+      return isHome ? p.teamId === homeTeamId : p.teamId === awayTeamId;
+    });
     const pbpReb = pls.reduce((s, p) => s + p.offReb + p.defReb, 0);
     const pbpAst = pls.reduce((s, p) => s + p.ast, 0);
     const pbpTov = pls.reduce((s, p) => s + p.tov, 0);
