@@ -133,7 +133,7 @@ function DefensiveSystemBuilder({ onSaved }: { onSaved: () => void }) {
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Progress */}
-      <div className="px-4 md:px-6 pb-4">
+      <div className="pb-4">
         <div className="flex justify-between text-[10px] font-bold text-muted-foreground mb-2">
           <span>{done ? 'Completado' : `Paso ${wizard.stepIndex + 1} de ${N}`}</span>
           <span>{pct}%</span>
@@ -143,7 +143,7 @@ function DefensiveSystemBuilder({ onSaved }: { onSaved: () => void }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-6 pb-4">
+      <div className="flex-1 overflow-y-auto min-h-0 pb-4">
         {done ? (
           <div className="space-y-3 max-w-2xl">
             {errors.length > 0 ? (
@@ -189,7 +189,7 @@ function DefensiveSystemBuilder({ onSaved }: { onSaved: () => void }) {
       </div>
 
       {savingName !== null && (
-        <div className="px-4 md:px-6 py-3 border-t border-border/50 bg-card/80 backdrop-blur space-y-2.5">
+        <div className="py-3 border-t border-border/50 bg-card/80 backdrop-blur space-y-2.5">
           <p className="text-xs font-bold text-foreground">Nombre del plan</p>
           <div className="flex gap-2 max-w-md">
             <input type="text" value={savingName} onChange={e => setSavingName(e.target.value)}
@@ -208,7 +208,7 @@ function DefensiveSystemBuilder({ onSaved }: { onSaved: () => void }) {
         </div>
       )}
 
-      <div className="px-4 md:px-6 pb-4 pt-3 flex gap-2 border-t border-border/40">
+      <div className="pb-4 pt-3 flex gap-2 border-t border-border/40">
         <button type="button" disabled={!wizard.history.length} onClick={back}
           className="h-10 px-5 rounded-lg border border-border text-sm font-semibold text-muted-foreground disabled:opacity-25 hover:text-foreground hover:border-border/80 transition-colors">
           Atrás
@@ -268,7 +268,7 @@ function PlaybookHub({ onNavigate, plans }: { onNavigate: (v: PlaybookView) => v
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0">
-      <div className="px-4 md:px-8 pb-8 space-y-6">
+      <div className="pb-6 space-y-6">
 
         {/* KPI bar */}
         <div className="grid grid-cols-4 gap-px bg-border/30 rounded-xl overflow-hidden border border-border/30">
@@ -392,13 +392,13 @@ export default function Playbook() {
   const meta = isWizard ? WIZARD_META[view] : null;
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden md:pl-12 lg:pl-48">
-      <main className="relative z-10 flex flex-col flex-1 min-h-0 w-full max-w-5xl mx-auto">
+    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden pb-16 md:pb-0">
+      <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 pb-6 max-w-5xl mx-auto w-full gap-3 overflow-y-auto min-h-0">
         <ModuleHeader module="playbook" tagline={tagline} />
 
         {/* Wizard back + title */}
         {isWizard && meta && (
-          <div className="px-4 md:px-8 pb-3 flex items-center gap-3 flex-wrap">
+          <div className="pb-3 flex items-center gap-3 flex-wrap">
             <button type="button" onClick={() => setView('hub')}
               className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -412,7 +412,7 @@ export default function Playbook() {
           </div>
         )}
 
-        <div className="flex flex-col flex-1 min-h-0 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
+        <div className="flex flex-col flex-1 min-h-0">
           {view === 'hub'               && <PlaybookHub onNavigate={setView} plans={plans} />}
           {view === 'wizard-defensive'  && <DefensiveSystemBuilder onSaved={handleSaved} />}
           {view === 'wizard-offensive'  && <ComingSoonWizard icon={Zap}      title="Sistema ofensivo" desc="Diseño de jugadas, acciones base y principios de ataque — próximamente." />}
