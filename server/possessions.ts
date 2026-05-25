@@ -174,13 +174,10 @@ export async function processPossessions(
 
   // ── 1. Datos del partido ───────────────────────────────────────────────────
   const gameRes = await db.execute(sql`
-    SELECT sg.id, sg.home_team_id, sg.away_team_id,
-           ht.external_id AS home_ext_id,
-           at.external_id AS away_ext_id
-    FROM stats_games sg
-    JOIN stats_teams ht ON ht.id = sg.home_team_id
-    JOIN stats_teams at ON at.id = sg.away_team_id
-    WHERE sg.id = ${gameInternalId} LIMIT 1
+    SELECT id, home_team_id, away_team_id,
+           home_team_ext_id, away_team_ext_id
+    FROM stats_games
+    WHERE id = ${gameInternalId} LIMIT 1
   `);
   const gameRow = (gameRes as any).rows?.[0];
   if (!gameRow) {
@@ -189,9 +186,8 @@ export async function processPossessions(
   }
   const homeTeamId = Number(gameRow.home_team_id);
   const awayTeamId = Number(gameRow.away_team_id);
-  // IDs externos (WCBA API) — usados en pasada 1B y 2 porque stats_pbp.team_id es externo
-  const homeTeamExtId = Number(gameRow.home_ext_id);
-  const awayTeamExtId = Number(gameRow.away_ext_id);
+  const homeTeamExtId = Number(gameRow.home_team_ext_id);
+  const awayTeamExtId = Number(gameRow.away_team_ext_id);
 
   // ── 2. Eventos PBP ────────────────────────────────────────────────────────
   const pbpRes = await db.execute(sql`
