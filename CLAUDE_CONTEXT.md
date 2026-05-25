@@ -27,8 +27,8 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 - `client/src/lib/stats-api.ts` — hooks stats completos
 - `client/src/pages/core/Stats.tsx` — U Stats UI
 - `client/src/pages/core/ModuleNav.tsx` — nav bar (safe-area iOS fix aplicado 2026-05-25)
-- `client/src/pages/core/Playbook.tsx` — tabs Defensiva/Ofensiva/ATOs + Defensive System Builder wizard
-- `client/src/lib/defensive-system.ts` — lógica pura del builder (portada del HTML, sin DOM)
+- `client/src/pages/core/Playbook.tsx` — hub + wizard v5 completo (35 pasos, 12 secciones, showIf, KYP, cognitive rating)
+- `client/src/lib/defensive-system.ts` — motor v5 completo (portado de defensive-system-builder-v5.html)
 
 ## NUNCA tocar
 - `Profile.tsx` · `schema.ts` · `migrations/`
@@ -207,14 +207,21 @@ GROUP BY team_id ORDER BY team_id;
 - Game boxscore: falta marcador por cuartos.
 - Módulos en desktop en español.
 - Scout en iOS ha perdido la "U" en el icono del módulo.
-- Playbook: tabs Ofensiva y ATOs son placeholders — pendiente contenido real.
+- Playbook: Ofensiva y ATOs son placeholders — pendiente contenido real.
+- Defensive system wizard: preguntas en inglés (terminología profesional) — decisión intencional, no traducir.
+- `defensive-system-builder-v5.html` en raíz del repo — fuente de referencia, no borrar.
 
 **Resueltos esta sesión (2026-05-25):**
 - ✅ Nav bar iOS safe-area — `ModuleNav.tsx` añade `env(safe-area-inset-left/top/bottom)` al sidebar
 - ✅ possessions.ts v6.2 — puntos exactos, FTs exactos, dur media correcta
 - ✅ Endpoints lineups/on-off/combined deployados en Railway
 - ✅ stats_pbp truncada y re-sync con ACTION_CODE_MAP correcto
-- ✅ Playbook: tabs Defensiva/Ofensiva/ATOs + Defensive System Builder completo portado a React
+- ✅ Playbook hub con tactical dashboard layout (max-w-5xl, grid 2col desktop)
+- ✅ Defensive System v5: wizard completo 35 pasos, 12 secciones, showIf condicionales, KYP rules, cognitive rating, personnel analysis
+- ✅ i18n playbook: 50 claves playbook_* en es/en/zh
+- ✅ auto-process possessions on Railway startup (server/index.ts setTimeout 5s)
+- ✅ stats_games.home_team_ext_id / away_team_ext_id — desnormalización para evitar join en possessions
+- ✅ Commits: 489e2d7 (wizard v5 + i18n)
 - ✅ Card Scout en Home → "U Scout" (sin tocar nav bar)
 - ✅ Commits: `1870cfc` (CLAUDE_CONTEXT), `7cc38da` (playbook + locales)
 
