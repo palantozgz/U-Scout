@@ -58,5 +58,14 @@ export function log(message: string, source = "express") {
   const port = parseInt(process.env.PORT ?? "5000", 10);
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
+
+    // Auto-process pending possessions on startup (fire-and-forget)
+    setTimeout(() => {
+      import('./possessions').then(({ processAllPendingPossessions }) => {
+        processAllPendingPossessions(2092).catch(err =>
+          console.error('[startup] possessions auto-process failed:', err.message)
+        );
+      });
+    }, 5000); // 5s delay to let DB connections stabilize
   });
 })();
