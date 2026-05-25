@@ -138,7 +138,7 @@ async function handleSchedule(rows: any[], seasonId: number, competitionId: numb
         ${r.scheduledAt ?? null}, ${r.status ?? 0}
       )
       ON CONFLICT (external_game_id) DO UPDATE SET
-        status = EXCLUDED.status,
+        status = GREATEST(stats_games.status, EXCLUDED.status),
         scheduled_at = COALESCE(EXCLUDED.scheduled_at, stats_games.scheduled_at),
         updated_at = NOW()
     `);

@@ -2725,8 +2725,10 @@ export async function registerRoutes(
   });
 
   // ─── GET /api/stats/team/:externalId/pace-segments ──────────────────────────
-  // % tiros por tramo de posesión usando stats_pbp.
+  // % posesiones por tramo (tiros + TOV como fin de posesión) usando stats_pbp.
+  // PPP por tramo = puntos / posesiones (TOV cuenta en denominador con 0 pts).
   // FIBA: clock descuenta, cuartos 10min. Excluye putbacks. Ajusta -3s tras canasta.
+  const paceSegmentsMetadata = { ppp_includes_tov: true as const };
   app.get("/api/stats/team/:externalId/pace-segments", requireAuth, async (req, res) => {
     const { externalId } = req.params;
     const seasonId = Number(req.query.seasonId ?? 2092);
@@ -2870,7 +2872,12 @@ export async function registerRoutes(
       const total = rows.length;
       if (total < 200) {
         res.set("Cache-Control", "private, max-age=300");
-        return res.json({ insufficient_data: true, possessions: total, min_required: 200 });
+        return res.json({
+          insufficient_data: true,
+          possessions: total,
+          min_required: 200,
+          metadata: paceSegmentsMetadata,
+        });
       }
 
       let transition = 0, demi = 0, halfcourt = 0, sum = 0;
@@ -3000,6 +3007,7 @@ export async function registerRoutes(
         ppp_demi:       pppDemi,
         ppp_halfcourt:  pppHalfcourt,
         league,
+        metadata: paceSegmentsMetadata,
       });
     } catch (err: any) {
       console.error("[stats/pace-segments] Error:", err?.message ?? err);
@@ -3571,6 +3579,244 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       console.error("[combined]", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Playbook plans (Supabase playbook_plans) ───────────────────────────────
+  function mapPlaybookPlanRow(row: Record<string, unknown>) {
+    return {
+      id: String(row.id),
+      clubId: String(row.club_id),
+      type: String(row.type ?? "defensive"),
+      name: String(row.name ?? ""),
+      opponentName: (row.opponent_name as string | null) ?? null,
+      gameId: row.game_id != null ? Number(row.game_id) : null,
+      seasonLabel: (row.season_label as string | null) ?? null,
+      notes: (row.notes as string | null) ?? null,
+      answers: (row.answers as Record<string, unknown>) ?? {},
+      report: (row.report as Record<string, unknown>) ?? {},
+      visibility: row.visibility as "draft" | "staff" | "players",
+      createdBy: String(row.created_by),
+      createdAt: String(row.created_at),
+      updatedAt: String(row.updated_at),
+      publishedAt: (row.published_at as string | null) ?? null,
+      publishedBy: (row.published_by as string | null) ?? null,
+    };
+  }
+
+  async function playbookClubId(req: Request, res: import("express").Response): Promise<string | null> {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      res.status(500).json({ error: "Supabase not configured" });
+      return null;
+    }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("club_id")
+      .eq("id", req.user!.id)
+      .single();
+    const clubId = profile?.club_id;
+    if (!clubId) {
+      res.status(400).json({ error: "No club" });
+      return null;
+    }
+    return String(clubId);
+  }
+
+  app.get("/api/playbook/plans", requireAuth, async (req, res) => {
+    try {
+      const clubId = await playbookClubId(req, res);
+      if (!clubId) return;
+
+      const supabase = getSupabaseAdmin()!;
+      const uid = req.user!.id;
+      const role = req.user!.role;
+
+      let query = supabase
+        .from("playbook_plans")
+        .select("*")
+        .eq("club_id", clubId)
+        .order("updated_at", { ascending: false });
+
+      if (role === "player") {
+        query = query.eq("visibility", "players");
+      } else {
+        query = query.or(
+          `and(visibility.eq.draft,created_by.eq.${uid}),visibility.in.(staff,players)`,
+        );
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error("[playbook/plans GET]", error.message);
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.json((data ?? []).map((row) => mapPlaybookPlanRow(row as Record<string, unknown>)));
+    } catch (err: any) {
+      console.error("[playbook/plans GET]", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/playbook/plans", requireAuth, async (req, res) => {
+    try {
+      const clubId = await playbookClubId(req, res);
+      if (!clubId) return;
+
+      const body = req.body ?? {};
+      const supabase = getSupabaseAdmin()!;
+      const insertRow = {
+        club_id: clubId,
+        type: body.type ?? "defensive",
+        name: body.name ?? "Untitled",
+        answers: body.answers ?? {},
+        report: body.report ?? {},
+        opponent_name: body.opponent_name ?? body.opponentName ?? null,
+        game_id: body.game_id ?? body.gameId ?? null,
+        season_label: body.season_label ?? body.seasonLabel ?? null,
+        notes: body.notes ?? null,
+        visibility: body.visibility ?? "draft",
+        created_by: req.user!.id,
+      };
+
+      const { data, error } = await supabase
+        .from("playbook_plans")
+        .insert(insertRow)
+        .select("*")
+        .single();
+
+      if (error) {
+        console.error("[playbook/plans POST]", error.message);
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.status(201).json(mapPlaybookPlanRow(data as Record<string, unknown>));
+    } catch (err: any) {
+      console.error("[playbook/plans POST]", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/api/playbook/plans/:id", requireAuth, async (req, res) => {
+    try {
+      const clubId = await playbookClubId(req, res);
+      if (!clubId) return;
+
+      const planId = req.params.id as string;
+      const supabase = getSupabaseAdmin()!;
+      const uid = req.user!.id;
+      const role = req.user!.role;
+
+      const { data: existing, error: fetchErr } = await supabase
+        .from("playbook_plans")
+        .select("*")
+        .eq("id", planId)
+        .eq("club_id", clubId)
+        .single();
+
+      if (fetchErr || !existing) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+
+      const canEdit =
+        existing.created_by === uid ||
+        role === "head_coach" ||
+        role === "coach";
+      if (!canEdit) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const body = req.body ?? {};
+      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+      if (body.name !== undefined) patch.name = body.name;
+      if (body.answers !== undefined) patch.answers = body.answers;
+      if (body.report !== undefined) patch.report = body.report;
+      if (body.opponent_name !== undefined) patch.opponent_name = body.opponent_name;
+      if (body.opponentName !== undefined) patch.opponent_name = body.opponentName;
+      if (body.game_id !== undefined) patch.game_id = body.game_id;
+      if (body.gameId !== undefined) patch.game_id = body.gameId;
+      if (body.season_label !== undefined) patch.season_label = body.season_label;
+      if (body.seasonLabel !== undefined) patch.season_label = body.seasonLabel;
+      if (body.notes !== undefined) patch.notes = body.notes;
+      if (body.published_at !== undefined) patch.published_at = body.published_at;
+      if (body.publishedAt !== undefined) patch.published_at = body.publishedAt;
+      if (body.published_by !== undefined) patch.published_by = body.published_by;
+      if (body.publishedBy !== undefined) patch.published_by = body.publishedBy;
+
+      if (body.visibility !== undefined) {
+        patch.visibility = body.visibility;
+        if (
+          (body.visibility === "staff" || body.visibility === "players") &&
+          !existing.published_at &&
+          body.published_at == null &&
+          body.publishedAt == null
+        ) {
+          patch.published_at = new Date().toISOString();
+          patch.published_by = uid;
+        }
+      }
+
+      const { data, error } = await supabase
+        .from("playbook_plans")
+        .update(patch)
+        .eq("id", planId)
+        .eq("club_id", clubId)
+        .select("*")
+        .single();
+
+      if (error) {
+        console.error("[playbook/plans PATCH]", error.message);
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.json(mapPlaybookPlanRow(data as Record<string, unknown>));
+    } catch (err: any) {
+      console.error("[playbook/plans PATCH]", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/playbook/plans/:id", requireAuth, async (req, res) => {
+    try {
+      const clubId = await playbookClubId(req, res);
+      if (!clubId) return;
+
+      const planId = req.params.id as string;
+      const supabase = getSupabaseAdmin()!;
+      const uid = req.user!.id;
+
+      const { data: existing, error: fetchErr } = await supabase
+        .from("playbook_plans")
+        .select("id, created_by, club_id")
+        .eq("id", planId)
+        .eq("club_id", clubId)
+        .single();
+
+      if (fetchErr || !existing) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+
+      if (existing.created_by !== uid) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const { error } = await supabase
+        .from("playbook_plans")
+        .delete()
+        .eq("id", planId)
+        .eq("club_id", clubId);
+
+      if (error) {
+        console.error("[playbook/plans DELETE]", error.message);
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[playbook/plans DELETE]", err.message);
       res.status(500).json({ error: err.message });
     }
   });

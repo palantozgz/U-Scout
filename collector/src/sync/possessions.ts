@@ -9,6 +9,13 @@
  *
  * Filosofía: los eventos sin player_external_id (team rebounds, team turnovers)
  * cuentan para stats de EQUIPO (en possessions) pero no para stats individuales.
+ *
+ * B1 FIX (2026-05-25): lookahead en bloque de turnover.
+ * Para cada steal, el PBP emite TNOBHD (turnover) seguido de STEBAL (steal)
+ * en el mismo clock. Sin el fix, el bloque de turnover abría una posesión del
+ * defensor que el bloque de steal inmediatamente cerraba y re-abría → posesión
+ * fantasma de 0s con 0 pts. Fix: si events[i+1] es steal del equipo rival,
+ * el bloque de turnover no cierra ni abre posesión — el steal lo hace solo.
  */
 
 import { ingest } from '../ingest';
@@ -309,7 +316,6 @@ export async function processPossessions(
     possessions.push(poss);
 
     // Lineup stats — equipo atacante
-    const offKey = `${currentPossTeamId}:${possStartLineupId}`;
     const offLu = ensureLineup(currentPossTeamId, possStartLineupId);
     offLu.offPossessions++;
     offLu.offPts += possPoints;
@@ -319,8 +325,7 @@ export async function processPossessions(
 
     // Lineup stats — equipo defensor
     const defTeamId = currentPossTeamId === homeTeamId ? awayTeamId : homeTeamId;
-    const defLineupId = possStartOpponentLineupId;
-    const defLu = ensureLineup(defTeamId, defLineupId);
+    const defLu = ensureLineup(defTeamId, possStartOpponentLineupId);
     defLu.defPossessions++;
     defLu.defPts += possPoints;
   }
@@ -523,13 +528,23 @@ export async function processPossessions(
       startPossession(tid, clockSec, 'steal', ev.quarter, ev.score_differential);
     }
 
-    // Pérdida sin robo (dead ball TOV: TOTLTO, 24s, etc.)
+    // Pérdida sin robo (dead ball TOV).
+    // B1 FIX: si el siguiente evento es un steal del equipo rival, NO procesamos
+    // el cambio de posesión aquí — el bloque de steal de arriba lo manejará.
+    // Sin el fix: el turnover abría una posesión del defensor, y el steal la
+    // cerraba y re-abría → posesión fantasma de 0s con 0 pts inflando el conteo.
     if (ev.event_type === 'turnover' && !ev.action_code?.startsWith('STEAL')
         && tid && currentPossTeamId === tid) {
-      closePossession(clockSec, 'turnover', ev.quarter);
-      // El rival recibe el balón muerto
-      const nextTeam = tid === homeTeamId ? awayTeamId : homeTeamId;
-      startPossession(nextTeam, clockSec, 'dead_ball', ev.quarter, ev.score_differential);
+      const nextEv = events[i + 1];
+      const nextIsSteal = nextEv?.event_type === 'steal' && nextEv?.team_id !== tid;
+      if (!nextIsSteal) {
+        // TOV muerto normal (24s, out-of-bounds, etc.) — el rival recibe balón muerto
+        closePossession(clockSec, 'turnover', ev.quarter);
+        const nextTeam = tid === homeTeamId ? awayTeamId : homeTeamId;
+        startPossession(nextTeam, clockSec, 'dead_ball', ev.quarter, ev.score_differential);
+      }
+      // Si nextIsSteal === true: no hacer nada aquí.
+      // El bloque de steal procesará: closePossession del atacante + startPossession del defensor.
     }
 
     // Último tiro libre → puede cambiar posesión

@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { CalendarDays, BarChart3, Target, Heart, Building2 } from "lucide-react";
+import { CalendarDays, BarChart3, Target, Heart, Building2, BookOpen } from "lucide-react";
 import { useHomeData } from "@/lib/useHomeData";
 import { ModuleNav } from "./ModuleNav";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
@@ -324,11 +324,10 @@ export default function HomeMobile() {
                   testId="ucore-home-card-stats"
                 />
                 <ModCard
-                  icon={<Target className="w-6 h-6" />}
+                  icon={<BookOpen className="w-6 h-6" />}
                   title="U Playbook"
                   subtitle={t("home_playbook_sub")}
-                  comingSoon
-                  onClick={() => {}}
+                  onClick={() => setLocation("/playbook")}
                   testId="ucore-home-card-playbook"
                 />
               </>

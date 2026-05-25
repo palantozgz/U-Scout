@@ -213,7 +213,10 @@ interface ShotInfo {
 export async function syncPBP(gameId: number): Promise<void> {
   const pbpRes = await wcbaClient.get(`/api/v2/game/${gameId}/actions`);
   const actions: any[] = Array.isArray(pbpRes.data) ? pbpRes.data : (pbpRes.data?.data ?? []);
-  if (actions.length === 0) { logger.warn('PBP: empty', { gameId }); return; }
+  if (actions.length === 0) {
+    logger.error('PBP: API devolvió array vacío — partido sin datos', { gameId });
+    return;
+  }
 
   // Shot chart (non-fatal)
   const shotLookup = new Map<string, ShotInfo>();

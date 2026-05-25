@@ -25,8 +25,10 @@ import {
   usePlayerPercentiles,
   useGameBoxscore,
   usePaceSegments,
+  useTeamLineups,
   toTitleCase,
   type PlayerSeasonStats,
+  type LineupRow,
   type LeaderRow,
   type StandingsRow,
   type GameLogEntry,
@@ -142,6 +144,24 @@ function translatePosition(pos: string | null | undefined, locale: string): stri
     中锋: "Center",
   };
   return map[pos] ?? pos;
+}
+
+/** Lineup label: last token of each player name (fits mobile). */
+function lineupShortNames(names: string[]): string {
+  return names
+    .map((n) => {
+      const parts = n.trim().split(/\s+/).filter(Boolean);
+      return parts.length > 1 ? parts[parts.length - 1]! : (parts[0] ?? n);
+    })
+    .join(" / ");
+}
+
+function lineupTotalPoss(row: LineupRow): number {
+  return row.offPossessions + row.defPossessions;
+}
+
+function fmtLineupRtg(ppp: number | null): string {
+  return ppp != null ? (ppp * 100).toFixed(1) : "—";
 }
 
 export default function Stats() {
@@ -3286,11 +3306,21 @@ function StatsTeamSheet({
 
   const team = data?.team;
   const paceQ = usePaceSegments(team?.externalId, seasonId);
+  const lineupsQ = useTeamLineups(team?.externalId, seasonId);
+  const lineups = lineupsQ.data?.lineups ?? [];
+  const showLineupsTab = !lineupsQ.isLoading && lineups.length > 0;
+  const topLineups = useMemo(
+    () =>
+      [...lineups]
+        .sort((a, b) => lineupTotalPoss(b) - lineupTotalPoss(a))
+        .slice(0, 10),
+    [lineups],
+  );
   const players = data?.players ?? [];
   const teamGameLog: TeamGameLogEntry[] = team?.gameLog ?? [];
   const pointsByZone = team?.pointsByZone ?? null;
 
-  const [activeTab, setActiveTab] = useState<"ficha" | "avanzado" | "partidos" | "roster">("ficha");
+  const [activeTab, setActiveTab] = useState<"ficha" | "avanzado" | "partidos" | "roster" | "quintetos">("ficha");
   const [rosterSort, setRosterSort] = useState<"ppg" | "rpg" | "apg" | "pos" | "jersey">("ppg");
   const [rosterSortDir, setRosterSortDir] = useState<"asc" | "desc">("desc");
   const [boxscoreGameId, setBoxscoreGameId] = useState<string | null>(null);
@@ -3355,6 +3385,14 @@ function StatsTeamSheet({
     reboundsLabel: es ? "Rebotes · Asistencias · Eficiencia" : zh ? "篮板助攻效率" : "Reb · Ast · Efficiency",
     pointsZone: es ? "Puntos por zona" : zh ? "得分区域" : "Points by Zone",
     lineups: es ? "Quintetos · +/−" : zh ? "阵容正负值" : "Lineups +/−",
+    tabQuintetos: es ? "Quintetos" : zh ? "阵容" : "Lineups",
+    colLineup: es ? "Quinteto" : zh ? "阵容" : "Lineup",
+    colPoss: es ? "Poss" : zh ? "回合" : "Poss",
+    lineupsEmpty: es
+      ? "Sin datos de quintetos para esta temporada"
+      : zh
+        ? "本赛季暂无阵容数据"
+        : "No lineup data for this season",
     piPending: es ? "Disponible cuando Pi sincronice" : zh ? "Pi数据同步后可用" : "Available when Pi syncs",
     showRoster: es ? "Ver plantilla completa" : zh ? "查看完整名单" : "View full roster",
     players14: (n: number) => (es ? `${n} jugadoras` : zh ? `${n}名球员` : `${n} players`),
@@ -3480,6 +3518,20 @@ function StatsTeamSheet({
             {t === "ficha" ? L.tabFicha : t === "avanzado" ? L.tabAvanzado : L.tabPartidos}
           </button>
         ))}
+        {showLineupsTab && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("quintetos")}
+            className={cn(
+              "flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors border-b-2",
+              activeTab === "quintetos"
+                ? "text-primary border-primary"
+                : "text-muted-foreground border-transparent",
+            )}
+          >
+            {L.tabQuintetos}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setActiveTab("roster")}
@@ -3987,16 +4039,68 @@ function StatsTeamSheet({
                 </div>
               )}
 
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
-                  {L.lineups}
-                </p>
-                <div className="rounded-2xl border border-dashed border-border bg-muted/10 px-4 py-6 text-center">
-                  <p className="text-xs font-bold text-muted-foreground/60">
-                    📡 {L.piPending}
-                  </p>
+            </div>
+          )}
+
+          {activeTab === "quintetos" && (
+            <div className="px-4 py-4">
+              {topLineups.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
+                  <p className="text-sm font-bold text-muted-foreground">{L.lineupsEmpty}</p>
                 </div>
-              </div>
+              ) : (
+                <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                  <div className="grid grid-cols-[1.4fr_0.45fr_0.5fr_0.5fr_0.5fr] gap-0 px-3 py-2 border-b border-border bg-muted/20 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                    <span>{L.colLineup}</span>
+                    <span className="text-right">{L.colPoss}</span>
+                    <span className="text-right">ORTG</span>
+                    <span className="text-right">DRTG</span>
+                    <span className="text-right">NET</span>
+                  </div>
+                  {topLineups.map((row, i) => {
+                    const poss = lineupTotalPoss(row);
+                    const netVal = row.netPpp != null ? row.netPpp * 100 : null;
+                    return (
+                      <div
+                        key={row.lineupId}
+                        className={cn(
+                          "grid grid-cols-[1.4fr_0.45fr_0.5fr_0.5fr_0.5fr] gap-0 items-center px-3 py-2.5 text-xs",
+                          i < topLineups.length - 1 && "border-b border-border/50",
+                        )}
+                      >
+                        <p className="text-[10px] font-bold text-foreground leading-snug truncate pr-1">
+                          {lineupShortNames(row.playerNames)}
+                        </p>
+                        <p className="text-right font-black tabular-nums text-foreground">{poss}</p>
+                        <p className="text-right font-black tabular-nums text-foreground">
+                          {fmtLineupRtg(row.offPpp)}
+                        </p>
+                        <p className="text-right font-black tabular-nums text-foreground">
+                          {fmtLineupRtg(row.defPpp)}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-right font-black tabular-nums",
+                            netVal != null
+                              ? netVal > 0
+                                ? "text-green-600 dark:text-green-400"
+                                : netVal < 0
+                                  ? "text-destructive"
+                                  : "text-foreground"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {netVal != null
+                            ? netVal > 0
+                              ? `+${netVal.toFixed(1)}`
+                              : netVal.toFixed(1)
+                            : "—"}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

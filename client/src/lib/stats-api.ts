@@ -494,3 +494,192 @@ export function usePaceSegments(externalId: string | null | undefined, seasonId?
     retry: 0,
   });
 }
+
+export interface LineupRow {
+  lineupId: string;
+  playerIds: string[];
+  playerNames: string[];
+  gamesPlayed: number;
+  offPossessions: number;
+  defPossessions: number;
+  offPpp: number | null;
+  defPpp: number | null;
+  netPpp: number | null;
+  minutesEstimated: number | null;
+}
+
+export interface OnOffRow {
+  playerId: string;
+  playerName: string;
+  onOffPpp: number | null;
+  offOffPpp: number | null;
+  impact: number | null;
+  possessionsOn: number;
+  possessionsOff: number;
+}
+
+type LineupApiRow = {
+  lineupId?: string;
+  playerIds?: string[];
+  playerNames?: string[];
+  gamesPlayed?: number;
+  offPossessions?: number;
+  defPossessions?: number;
+  offPpp?: number | null;
+  defPpp?: number | null;
+  netPpp?: number | null;
+  minutesPlayed?: number | null;
+  minutesEstimated?: number | null;
+};
+
+function normalizeLineupRow(row: LineupApiRow): LineupRow {
+  return {
+    lineupId: String(row.lineupId ?? ""),
+    playerIds: row.playerIds ?? [],
+    playerNames: row.playerNames ?? [],
+    gamesPlayed: Number(row.gamesPlayed ?? 0),
+    offPossessions: Number(row.offPossessions ?? 0),
+    defPossessions: Number(row.defPossessions ?? 0),
+    offPpp: row.offPpp != null ? Number(row.offPpp) : null,
+    defPpp: row.defPpp != null ? Number(row.defPpp) : null,
+    netPpp: row.netPpp != null ? Number(row.netPpp) : null,
+    minutesEstimated:
+      row.minutesEstimated != null
+        ? Number(row.minutesEstimated)
+        : row.minutesPlayed != null
+          ? Number(row.minutesPlayed)
+          : null,
+  };
+}
+
+function netPppFromSplit(split: {
+  netRtg?: number | null;
+  offPts?: number;
+  defPts?: number;
+  offPossessions?: number;
+  defPossessions?: number;
+}): number | null {
+  if (split.netRtg != null) return Math.round((Number(split.netRtg) / 100) * 1000) / 1000;
+  const offPoss = Number(split.offPossessions ?? 0);
+  const defPoss = Number(split.defPossessions ?? 0);
+  if (offPoss <= 0 || defPoss <= 0) return null;
+  return (
+    Math.round(
+      (Number(split.offPts ?? 0) / offPoss - Number(split.defPts ?? 0) / defPoss) * 1000,
+    ) / 1000
+  );
+}
+
+export function useTeamLineups(teamExternalId: string | null | undefined, seasonId?: number) {
+  return useQuery({
+    queryKey: ["stats-team-lineups", teamExternalId, seasonId ?? 2092],
+    queryFn: async () => {
+      const r = await apiRequest(
+        "GET",
+        `/api/stats/team/${teamExternalId}/lineups?seasonId=${seasonId ?? 2092}`,
+      );
+      const raw = await r.json();
+      const arr: LineupApiRow[] = Array.isArray(raw)
+        ? raw
+        : ((raw as { lineups?: LineupApiRow[] }).lineups ?? []);
+      return { lineups: arr.map(normalizeLineupRow) };
+    },
+    enabled: Boolean(teamExternalId),
+    staleTime: 1000 * 60 * 30,
+    retry: 0,
+  });
+}
+
+export function usePlayerOnOff(
+  teamExternalId: string | null | undefined,
+  playerId: string | null | undefined,
+  seasonId?: number,
+) {
+  return useQuery({
+    queryKey: ["stats-player-on-off", teamExternalId, playerId, seasonId ?? 2092],
+    queryFn: async () => {
+      const r = await apiRequest(
+        "GET",
+        `/api/stats/team/${teamExternalId}/on-off/${playerId}?seasonId=${seasonId ?? 2092}`,
+      );
+      const raw = (await r.json()) as {
+        playerExternalId?: string;
+        on?: {
+          offPossessions?: number;
+          defPossessions?: number;
+          offPts?: number;
+          defPts?: number;
+          netRtg?: number | null;
+        };
+        off?: {
+          offPossessions?: number;
+          defPossessions?: number;
+          offPts?: number;
+          defPts?: number;
+          netRtg?: number | null;
+        };
+        netRtgDiff?: number | null;
+      };
+      const onSplit = raw.on ?? {};
+      const offSplit = raw.off ?? {};
+      const onOffPpp = netPppFromSplit(onSplit);
+      const offOffPpp = netPppFromSplit(offSplit);
+      const onOff: OnOffRow = {
+        playerId: String(raw.playerExternalId ?? playerId ?? ""),
+        playerName: "",
+        onOffPpp,
+        offOffPpp,
+        impact:
+          raw.netRtgDiff != null
+            ? Math.round((Number(raw.netRtgDiff) / 100) * 1000) / 1000
+            : onOffPpp != null && offOffPpp != null
+              ? Math.round((onOffPpp - offOffPpp) * 1000) / 1000
+              : null,
+        possessionsOn:
+          Number(onSplit.offPossessions ?? 0) + Number(onSplit.defPossessions ?? 0),
+        possessionsOff:
+          Number(offSplit.offPossessions ?? 0) + Number(offSplit.defPossessions ?? 0),
+      };
+      return { onOff };
+    },
+    enabled: Boolean(teamExternalId && playerId),
+    staleTime: 1000 * 60 * 30,
+    retry: 0,
+  });
+}
+
+export interface CombinedLineupsResult {
+  playerIds: string[];
+  teamId: number;
+  seasonId: number;
+  lineupsFound: number;
+  offPossessions: number;
+  defPossessions: number;
+  ortg: number | null;
+  drtg: number | null;
+  netRtg: number | null;
+  offPpp: number | null;
+  defPpp: number | null;
+}
+
+export function usePlayersCombinedLineups(
+  teamExternalId: string | null | undefined,
+  playerIds: string[] | null | undefined,
+  seasonId?: number,
+) {
+  return useQuery({
+    queryKey: ["stats-players-combined", teamExternalId, playerIds?.join(","), seasonId ?? 2092],
+    queryFn: async () => {
+      const qs = new URLSearchParams({
+        teamId: String(teamExternalId),
+        seasonId: String(seasonId ?? 2092),
+        playerIds: playerIds!.join(","),
+      });
+      const r = await apiRequest("GET", `/api/stats/players/combined?${qs.toString()}`);
+      return r.json() as Promise<CombinedLineupsResult>;
+    },
+    enabled: Boolean(teamExternalId && playerIds && playerIds.length >= 2),
+    staleTime: 1000 * 60 * 30,
+    retry: 0,
+  });
+}

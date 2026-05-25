@@ -22,7 +22,18 @@ async function runNightlySync(): Promise<void> {
   logger.info('=== NIGHTLY SYNC START ===');
   try {
     const games = await syncSchedule();
+    // status=4: finalizado oficial
+    // status=3 con score: finalizado pero API bug (no actualiza a 4)
+    // status=3 sin score pero con scheduled_at pasado >2h: puede tener PBP parcial
     const finished = games.filter(g => g.status === 4);
+    const probablyFinished = games.filter(g =>
+      g.status === 3 &&
+      g.homeScore != null && g.awayScore != null
+    );
+    const candidatesForPBP = games.filter(g =>
+      g.status === 4 ||
+      (g.status === 3 && g.homeScore != null && g.awayScore != null)
+    );
     const matchIdMap = new Map(games.map(g => [g.gameId, g.matchId]));
     gamesTotal = games.length;
 
@@ -30,8 +41,15 @@ async function runNightlySync(): Promise<void> {
     await syncRosters();
     await syncNewBoxscores(finished.map(g => g.gameId), matchIdMap);
     await syncNewPlayerBoxscores(finished.map(g => g.gameId));
-    await syncNewPBP(finished.map(g => g.gameId));
-    pbpSynced = finished.length;
+    await syncNewPBP(candidatesForPBP.map(g => g.gameId));
+    pbpSynced = candidatesForPBP.length;
+
+    if (probablyFinished.length > 0) {
+      logger.warn('Partidos status=3 con marcador — API bug WCBA, procesando PBP igualmente', {
+        count: probablyFinished.length,
+        gameIds: probablyFinished.map(g => g.gameId),
+      });
+    }
 
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
     lastNightlySync = new Date().toISOString();

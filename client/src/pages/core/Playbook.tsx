@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Shield, Zap, BookOpen, Film, ChevronRight, RotateCcw, Plus, ArrowLeft, Save } from 'lucide-react';
+import { Shield, Zap, BookOpen, Film, ChevronRight, RotateCcw, Plus, ArrowLeft, Save, Pencil, Loader2 } from 'lucide-react';
+import { useCapabilities } from '@/lib/capabilities';
+import {
+  usePlans,
+  useCreatePlan,
+  useUpdatePlan,
+  type PlaybookPlan,
+} from '@/lib/playbook-api';
 import { ModuleNav } from '@/pages/core/ModuleNav';
 import { ModuleHeader } from '@/components/branding/ModuleHeader';
 import { useLocale } from '@/lib/i18n';
@@ -13,23 +20,12 @@ import {
   type Answers, type KypRule, type Report, type StepDef, type StepOption,
 } from '@/lib/defensive-system';
 
-type PlaybookView = 'hub' | 'wizard-defensive' | 'wizard-offensive' | 'wizard-atos';
+type PlaybookView = 'hub' | 'wizard-defensive' | 'wizard-offensive' | 'wizard-atos' | 'review-defensive';
 
-interface SavedPlan {
-  id: string;
-  name: string;
-  createdAt: string;
-  report: Report;
-  answers: Answers;
-}
+type PlanSavePayload = { name: string; answers: Answers; report: Report };
 
-const STORAGE_KEY = 'playbook_defensive_plans';
-function loadPlans(): SavedPlan[] {
-  try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
-}
-function savePlan(plan: SavedPlan): void {
-  const plans = loadPlans(); plans.unshift(plan);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(plans.slice(0, 20)));
+function planReport(plan: PlaybookPlan): Report {
+  return plan.report as unknown as Report;
 }
 
 function fmt(t: (k: I18nKey) => string, key: I18nKey, vars: Record<string, string>): string {
@@ -105,12 +101,339 @@ function ReportChip({ label, value, highlight }: { label: string; value: string;
   );
 }
 
-function DefensiveSystemBuilder({ onSaved }: { onSaved: () => void }) {
+function DefensivePlanReportContent({ report, t }: { report: Report; t: (k: I18nKey) => string }) {
+  const tac = report.tac;
+  const checks = report.checks;
+  return (
+    <>
+      {checks.errors.length > 0 && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/6 p-3 space-y-1">
+          <p className="text-[9px] font-black uppercase tracking-wider text-destructive/70">{t('playbook_report_conflicts')}</p>
+          {checks.errors.map((e, i) => <p key={i} className="text-xs text-destructive leading-relaxed">{e}</p>)}
+        </div>
+      )}
+      {checks.warnings.length > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/6 p-3 space-y-1">
+          <p className="text-[9px] font-black uppercase tracking-wider text-amber-500/70">{t('playbook_report_warnings')}</p>
+          {checks.warnings.map((w, i) => <p key={i} className="text-xs text-amber-500 leading-relaxed">{w}</p>)}
+        </div>
+      )}
+      <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
+        <p className="text-[9px] font-black tracking-[2px] uppercase text-blue-400/70">{t('playbook_report_identity')}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <ReportChip label="Priority" value={stepLabel('priority', report.answers.priority as string, report.answers)} highlight />
+          <ReportChip label="Drive direction" value={stepLabel('driveDirection', report.answers.driveDirection as string, report.answers)} />
+          <ReportChip label="On-ball" value={stepLabel('onBall', report.answers.onBall as string, report.answers)} />
+          <ReportChip label="Pickup point" value={stepLabel('pickupPoint', report.answers.pickupPoint as string, report.answers)} />
+        </div>
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <ReportChip label="Off-ball stance" value={tac.offBallStance} />
+          <ReportChip label="Help-side anchor" value={tac.helpSideAnchor} />
+        </div>
+      </div>
+      <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
+        <p className="text-[9px] font-black tracking-[2px] uppercase text-orange-400/70">{t('playbook_report_ballscreens')}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <ReportChip label="PnR anchor" value={stepLabel('pnrCoverage', report.answers.pnrCoverage as string, report.answers)} highlight />
+          <ReportChip label="Subtype" value={stepLabel('coverageSubtype', report.answers.coverageSubtype as string, report.answers)} />
+          <ReportChip label="Side PnR" value={stepLabel('sideRule', report.answers.sideRule as string, report.answers)} />
+          <ReportChip label="Middle PnR" value={stepLabel('middleRule', report.answers.middleRule as string, report.answers)} />
+          <ReportChip label="DHO" value={stepLabel('dhoRule', report.answers.dhoRule as string, report.answers)} />
+          <ReportChip label="Help" value={`${tac.helpStructure} / ${tac.helpTiming}`} />
+        </div>
+        {tac.nextCoverageSummary !== '—' && (
+          <div className="pt-1">
+            <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-1">Next coverage</p>
+            <p className="text-xs text-foreground/80 leading-relaxed">{tac.nextCoverageSummary}</p>
+          </div>
+        )}
+        {tac.popAnswerSummary !== '—' && (
+          <div>
+            <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-1">Pop answer</p>
+            <p className="text-xs text-foreground/80 leading-relaxed">{tac.popAnswerSummary}</p>
+          </div>
+        )}
+      </div>
+      <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
+        <p className="text-[9px] font-black tracking-[2px] uppercase text-primary/70">{t('playbook_report_derived')}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <ReportChip label="Tag" value={tac.lowManTag} />
+          <ReportChip label="Rotation" value={tac.rotationModel} />
+          <ReportChip label="Penetration" value={tac.penetration} />
+          <ReportChip label="Closeouts" value={tac.closeoutStyle} />
+          <ReportChip label="Mismatch" value={tac.mismatchSummary} />
+          <ReportChip label="Post" value={tac.postAnswer} />
+        </div>
+        {tac.rescramSummary !== '—' && (
+          <div className="pt-1">
+            <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-1">Reswitch</p>
+            <p className="text-xs text-foreground/80">{tac.rescramSummary}</p>
+          </div>
+        )}
+      </div>
+      {(report.answers.pinDownRule || report.answers.backScreenRule || report.answers.stagRule) && (
+        <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-yellow-400/70">{t('playbook_report_offscreens')}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {report.answers.pinDownRule && <ReportChip label="Pin-down" value={stepLabel('pinDownRule', report.answers.pinDownRule as string, report.answers)} />}
+            {report.answers.backScreenRule && <ReportChip label="Back screen" value={stepLabel('backScreenRule', report.answers.backScreenRule as string, report.answers)} />}
+            {report.answers.flareRule && <ReportChip label="Flare" value={stepLabel('flareRule', report.answers.flareRule as string, report.answers)} />}
+            {report.answers.stagRule && <ReportChip label="Stagger" value={stepLabel('stagRule', report.answers.stagRule as string, report.answers)} />}
+          </div>
+        </div>
+      )}
+      {report.answers.earlyPnrCoverage && (
+        <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-red-400/70">{t('playbook_report_early')}</p>
+          <p className="text-xs text-foreground/80 leading-relaxed">{tac.earlyPnrSummary}</p>
+          {tac.earlyBigRole !== '—' && <p className="text-xs text-muted-foreground leading-relaxed">{tac.earlyBigRole}</p>}
+        </div>
+      )}
+      {report.answers.spainCoverage && tac.spainSummary !== '—' && (
+        <div className="rounded-xl border border-border bg-card/50 p-4 space-y-1.5">
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-purple-400/70">{t('playbook_report_spain')}</p>
+          <p className="text-xs text-foreground/80 leading-relaxed">{tac.spainSummary}</p>
+        </div>
+      )}
+      <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
+        <p className="text-[9px] font-black tracking-[2px] uppercase text-blue-400/70">{t('playbook_report_transition')}</p>
+        <p className="text-xs text-foreground/80 leading-relaxed">{tac.transitionDesc}</p>
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <ReportChip label="Rebote ofensivo" value={stepLabel('reboundBalance', report.answers.reboundBalance as string, report.answers)} />
+          <ReportChip label="Prioridad" value={stepLabel('transitionPriority', report.answers.transitionPriority as string, report.answers)} />
+        </div>
+      </div>
+      {tac.tradeoffs.length > 0 && (
+        <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-primary/70">{t('playbook_report_tradeoffs')}</p>
+          {tac.tradeoffs.map((line, i) => (
+            <p key={i} className="text-xs text-foreground/75 leading-relaxed border-l-2 border-primary/20 pl-3">{line}</p>
+          ))}
+        </div>
+      )}
+      {(tac.personnelIssues.length > 0 || tac.personnelWarnings.length > 0) && (
+        <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-primary/70">{t('playbook_report_personnel')}</p>
+          {tac.personnelIssues.map((issue, i) => (
+            <div key={i} className="rounded-lg border border-destructive/30 bg-destructive/5 p-2.5">
+              <p className="text-[9px] font-bold text-destructive/80 mb-0.5">{issue.field}</p>
+              <p className="text-xs text-destructive/70 leading-relaxed">{issue.detail}</p>
+            </div>
+          ))}
+          {tac.personnelWarnings.map((w, i) => (
+            <div key={i} className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-2.5">
+              <p className="text-[9px] font-bold text-amber-500/80 mb-0.5">{w.field}</p>
+              <p className="text-xs text-amber-500/70 leading-relaxed">{w.detail}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {(report.answers.kypRules as KypRule[])?.length > 0 && (
+        <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-emerald-400/70">{t('playbook_report_kyp')}</p>
+          {(report.answers.kypRules as KypRule[]).map((rule, i) => (
+            <div key={i} className="rounded-lg border border-border p-2.5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-blue-400 mb-0.5">{rule.role}</p>
+              <p className="text-xs text-foreground/80">{rule.action}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function reviewSectionTitle(locale: string, es: string, en: string, zh: string): string {
+  if (locale === 'zh') return zh;
+  if (locale === 'es') return es;
+  return en;
+}
+
+function DefensivePlanReview({
+  plan,
+  onBack,
+  onEdit,
+  onVisibilityChange,
+  visibilityUpdating = false,
+  readOnly = false,
+}: {
+  plan: PlaybookPlan;
+  onBack: () => void;
+  onEdit?: () => void;
+  onVisibilityChange?: (visibility: PlaybookPlan['visibility']) => void;
+  visibilityUpdating?: boolean;
+  readOnly?: boolean;
+}) {
+  const { t, locale } = useLocale();
+  const report = planReport(plan);
+  const tac = report.tac;
+  const dateStr = new Date(plan.createdAt).toLocaleDateString(
+    locale === 'es' ? 'es-ES' : locale === 'zh' ? 'zh-CN' : 'en-US',
+    { day: '2-digit', month: 'short', year: 'numeric' },
+  );
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 pb-4 space-y-4">
+        <div>
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-emerald-500/60 mb-0.5">{t('playbook_report_generated')}</p>
+          <h2 className="text-xl font-black text-foreground leading-tight">{plan.name}</h2>
+          <p className="text-[11px] text-muted-foreground mt-1">{dateStr}</p>
+        </div>
+
+        <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-primary/70 mb-1">{t('playbook_report_cognitive')}</p>
+          <p className="text-sm font-bold text-foreground leading-snug">{tac.cognitiveRating}</p>
+          <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+            {reviewSectionTitle(locale, 'Carga', 'Load', '负荷')}: {tac.cognitiveLoad}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-blue-400/70">
+            {reviewSectionTitle(locale, 'Sistema base', 'Base system', '基础体系')}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <ReportChip label="Priority" value={stepLabel('priority', report.answers.priority as string, report.answers)} highlight />
+            <ReportChip label="Drive direction" value={stepLabel('driveDirection', report.answers.driveDirection as string, report.answers)} />
+            <ReportChip label="On-ball" value={stepLabel('onBall', report.answers.onBall as string, report.answers)} />
+            <ReportChip label="Pickup point" value={stepLabel('pickupPoint', report.answers.pickupPoint as string, report.answers)} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <ReportChip label="Off-ball stance" value={tac.offBallStance} />
+            <ReportChip label="Help-side anchor" value={tac.helpSideAnchor} />
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-orange-400/70">
+            {reviewSectionTitle(locale, 'Cobertura PnR', 'PnR coverage', '挡拆防守')}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <ReportChip label="PnR anchor" value={stepLabel('pnrCoverage', report.answers.pnrCoverage as string, report.answers)} highlight />
+            <ReportChip label="Subtype" value={stepLabel('coverageSubtype', report.answers.coverageSubtype as string, report.answers)} />
+            <ReportChip label="Side PnR" value={stepLabel('sideRule', report.answers.sideRule as string, report.answers)} />
+            <ReportChip label="Middle PnR" value={stepLabel('middleRule', report.answers.middleRule as string, report.answers)} />
+            <ReportChip label="DHO" value={stepLabel('dhoRule', report.answers.dhoRule as string, report.answers)} />
+          </div>
+          {tac.nextCoverageSummary !== '—' && (
+            <p className="text-xs text-foreground/80 leading-relaxed">{tac.nextCoverageSummary}</p>
+          )}
+          {tac.popAnswerSummary !== '—' && (
+            <p className="text-xs text-foreground/80 leading-relaxed">{tac.popAnswerSummary}</p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-cyan-400/70">
+            {reviewSectionTitle(locale, 'Help Defense', 'Help defense', '协防体系')}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <ReportChip label="Help structure" value={tac.helpStructure} />
+            <ReportChip label="Help timing" value={tac.helpTiming} />
+            <ReportChip label="Tag" value={tac.lowManTag} />
+            <ReportChip label="Rotation" value={tac.rotationModel} />
+            <ReportChip label="Penetration" value={tac.penetration} />
+            <ReportChip label="Closeouts" value={tac.closeoutStyle} />
+          </div>
+        </div>
+
+        {(report.answers.kypRules as KypRule[])?.length > 0 && (
+          <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
+            <p className="text-[9px] font-black tracking-[2px] uppercase text-emerald-400/70">{t('playbook_report_kyp')}</p>
+            {(report.answers.kypRules as KypRule[]).map((rule, i) => (
+              <div key={i} className="rounded-lg border border-border p-2.5">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-blue-400 mb-0.5">{rule.role}</p>
+                <p className="text-xs text-foreground/80">{rule.action}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {report.checks.errors.length > 0 && (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/6 p-3 space-y-1">
+            <p className="text-[9px] font-black uppercase tracking-wider text-destructive/70">{t('playbook_report_conflicts')}</p>
+            {report.checks.errors.map((e, i) => <p key={i} className="text-xs text-destructive leading-relaxed">{e}</p>)}
+          </div>
+        )}
+        {report.checks.warnings.length > 0 && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/6 p-3 space-y-1">
+            <p className="text-[9px] font-black uppercase tracking-wider text-amber-500/70">{t('playbook_report_warnings')}</p>
+            {report.checks.warnings.map((w, i) => <p key={i} className="text-xs text-amber-500 leading-relaxed">{w}</p>)}
+          </div>
+        )}
+
+        {!readOnly && onVisibilityChange && (
+          <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
+            <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground/70">
+              {reviewSectionTitle(locale, 'Visibilidad', 'Visibility', '可见性')}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { v: 'draft' as const, label: reviewSectionTitle(locale, 'Borrador', 'Draft', '草稿'), color: 'border-border bg-muted/30 text-muted-foreground' },
+                { v: 'staff' as const, label: 'Staff', color: 'border-blue-400/40 bg-blue-400/10 text-blue-400' },
+                { v: 'players' as const, label: reviewSectionTitle(locale, 'Jugadoras', 'Players', '球员'), color: 'border-emerald-400/40 bg-emerald-400/10 text-emerald-400' },
+              ]).map(({ v, label, color }) => (
+                <button
+                  key={v}
+                  type="button"
+                  disabled={visibilityUpdating}
+                  onClick={() => onVisibilityChange(v)}
+                  className={cn(
+                    'h-8 px-3 rounded-full border text-[11px] font-bold transition-colors',
+                    color,
+                    plan.visibility === v && 'ring-2 ring-primary/50 ring-offset-1 ring-offset-background',
+                    visibilityUpdating && 'opacity-50 cursor-not-allowed',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="pb-4 pt-3 flex gap-2 border-t border-border/40">
+        <button type="button" onClick={onBack}
+          className="h-10 px-5 rounded-lg border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors">
+          {reviewSectionTitle(locale, 'Volver', 'Back', '返回')}
+        </button>
+        {!readOnly && onEdit && (
+          <button type="button" onClick={onEdit}
+            className="flex items-center gap-1.5 h-10 px-4 rounded-lg border border-primary/40 bg-primary/8 text-primary text-xs font-bold hover:bg-primary/15 transition-colors">
+            <Pencil className="w-3.5 h-3.5" />
+            {reviewSectionTitle(locale, 'Editar', 'Edit', '编辑')}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DefensiveSystemBuilder({
+  onSaved,
+  initialPlan,
+  savePending = false,
+}: {
+  onSaved: (data: PlanSavePayload) => void;
+  initialPlan?: PlaybookPlan | null;
+  savePending?: boolean;
+}) {
   const { t } = useLocale();
   const [wizard, setWizard] = useState<WizardState>({ answers: {}, stepIndex: 0, history: [] });
   const [report, setReport] = useState<Report | null>(null);
   const [savingName, setSavingName] = useState<string | null>(null);
   const [kypDraft, setKypDraft] = useState<KypRule[]>([]);
+
+  useEffect(() => {
+    if (!initialPlan) return;
+    const answers = initialPlan.answers as Answers;
+    const visible = getVisibleSteps(answers);
+    setWizard({ answers, stepIndex: visible.length, history: [] });
+    setReport(buildReport(answers) as Report);
+    setKypDraft((answers.kypRules as KypRule[]) || []);
+  }, [initialPlan?.id]);
 
   const visibleSteps = getVisibleSteps(wizard.answers);
   const N = visibleSteps.length;
@@ -197,16 +520,13 @@ function DefensiveSystemBuilder({ onSaved }: { onSaved: () => void }) {
   }
 
   function confirmSave() {
-    if (!report || savingName === null) return;
-    savePlan({
-      id: Date.now().toString(),
+    if (!report || savingName === null || savePending) return;
+    onSaved({
       name: savingName.trim() || report.name,
-      createdAt: new Date().toISOString(),
-      report,
       answers: wizard.answers,
+      report,
     });
     setSavingName(null);
-    onSaved();
   }
 
   // Text step state
@@ -260,182 +580,23 @@ function DefensiveSystemBuilder({ onSaved }: { onSaved: () => void }) {
         {done ? (
           // ── REPORT VIEW ──
           <div className="space-y-4">
-            {report && (() => {
-              const tac = report.tac;
-              const checks = report.checks;
-              return (
-                <>
-                  {/* Name bar */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[9px] font-black tracking-[2px] uppercase text-emerald-500/60 mb-0.5">{t('playbook_report_generated')}</p>
-                      <h3 className="text-xl font-black text-foreground leading-tight">{report.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">{tac.cognitiveRating}</p>
-                    </div>
-                    <button type="button" onClick={handleSave}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold shrink-0 hover:bg-primary/90 transition-colors">
-                      <Save className="w-3.5 h-3.5" />
-                      {t('playbook_save')}
-                    </button>
+            {report && (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[9px] font-black tracking-[2px] uppercase text-emerald-500/60 mb-0.5">{t('playbook_report_generated')}</p>
+                    <h3 className="text-xl font-black text-foreground leading-tight">{report.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">{report.tac.cognitiveRating}</p>
                   </div>
-
-                  {/* Errors / warnings */}
-                  {checks.errors.length > 0 && (
-                    <div className="rounded-xl border border-destructive/40 bg-destructive/6 p-3 space-y-1">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-destructive/70">{t('playbook_report_conflicts')}</p>
-                      {checks.errors.map((e, i) => <p key={i} className="text-xs text-destructive leading-relaxed">{e}</p>)}
-                    </div>
-                  )}
-                  {checks.warnings.length > 0 && (
-                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/6 p-3 space-y-1">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-amber-500/70">{t('playbook_report_warnings')}</p>
-                      {checks.warnings.map((w, i) => <p key={i} className="text-xs text-amber-500 leading-relaxed">{w}</p>)}
-                    </div>
-                  )}
-
-                  {/* Identity */}
-                  <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
-                    <p className="text-[9px] font-black tracking-[2px] uppercase text-blue-400/70">{t('playbook_report_identity')}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <ReportChip label="Priority" value={stepLabel('priority', report.answers.priority as string, report.answers)} highlight />
-                      <ReportChip label="Drive direction" value={stepLabel('driveDirection', report.answers.driveDirection as string, report.answers)} />
-                      <ReportChip label="On-ball" value={stepLabel('onBall', report.answers.onBall as string, report.answers)} />
-                      <ReportChip label="Pickup point" value={stepLabel('pickupPoint', report.answers.pickupPoint as string, report.answers)} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <ReportChip label="Off-ball stance" value={tac.offBallStance} />
-                      <ReportChip label="Help-side anchor" value={tac.helpSideAnchor} />
-                    </div>
-                  </div>
-
-                  {/* Ball screens */}
-                  <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
-                    <p className="text-[9px] font-black tracking-[2px] uppercase text-orange-400/70">{t('playbook_report_ballscreens')}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <ReportChip label="PnR anchor" value={stepLabel('pnrCoverage', report.answers.pnrCoverage as string, report.answers)} highlight />
-                      <ReportChip label="Subtype" value={stepLabel('coverageSubtype', report.answers.coverageSubtype as string, report.answers)} />
-                      <ReportChip label="Side PnR" value={stepLabel('sideRule', report.answers.sideRule as string, report.answers)} />
-                      <ReportChip label="Middle PnR" value={stepLabel('middleRule', report.answers.middleRule as string, report.answers)} />
-                      <ReportChip label="DHO" value={stepLabel('dhoRule', report.answers.dhoRule as string, report.answers)} />
-                      <ReportChip label="Help" value={`${tac.helpStructure} / ${tac.helpTiming}`} />
-                    </div>
-                    {tac.nextCoverageSummary !== '—' && (
-                      <div className="pt-1">
-                        <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-1">Next coverage</p>
-                        <p className="text-xs text-foreground/80 leading-relaxed">{tac.nextCoverageSummary}</p>
-                      </div>
-                    )}
-                    {tac.popAnswerSummary !== '—' && (
-                      <div>
-                        <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-1">Pop answer</p>
-                        <p className="text-xs text-foreground/80 leading-relaxed">{tac.popAnswerSummary}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Derived system */}
-                  <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
-                    <p className="text-[9px] font-black tracking-[2px] uppercase text-primary/70">{t('playbook_report_derived')}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <ReportChip label="Tag" value={tac.lowManTag} />
-                      <ReportChip label="Rotation" value={tac.rotationModel} />
-                      <ReportChip label="Penetration" value={tac.penetration} />
-                      <ReportChip label="Closeouts" value={tac.closeoutStyle} />
-                      <ReportChip label="Mismatch" value={tac.mismatchSummary} />
-                      <ReportChip label="Post" value={tac.postAnswer} />
-                    </div>
-                    {tac.rescramSummary !== '—' && (
-                      <div className="pt-1">
-                        <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-1">Reswitch</p>
-                        <p className="text-xs text-foreground/80">{tac.rescramSummary}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Off-ball screens (if answered) */}
-                  {(report.answers.pinDownRule || report.answers.backScreenRule || report.answers.stagRule) && (
-                    <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
-                      <p className="text-[9px] font-black tracking-[2px] uppercase text-yellow-400/70">{t('playbook_report_offscreens')}</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {report.answers.pinDownRule && <ReportChip label="Pin-down" value={stepLabel('pinDownRule', report.answers.pinDownRule as string, report.answers)} />}
-                        {report.answers.backScreenRule && <ReportChip label="Back screen" value={stepLabel('backScreenRule', report.answers.backScreenRule as string, report.answers)} />}
-                        {report.answers.flareRule && <ReportChip label="Flare" value={stepLabel('flareRule', report.answers.flareRule as string, report.answers)} />}
-                        {report.answers.stagRule && <ReportChip label="Stagger" value={stepLabel('stagRule', report.answers.stagRule as string, report.answers)} />}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Early offense (if answered) */}
-                  {report.answers.earlyPnrCoverage && (
-                    <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
-                      <p className="text-[9px] font-black tracking-[2px] uppercase text-red-400/70">{t('playbook_report_early')}</p>
-                      <p className="text-xs text-foreground/80 leading-relaxed">{tac.earlyPnrSummary}</p>
-                      {tac.earlyBigRole !== '—' && <p className="text-xs text-muted-foreground leading-relaxed">{tac.earlyBigRole}</p>}
-                    </div>
-                  )}
-
-                  {/* Spain PnR (if answered) */}
-                  {report.answers.spainCoverage && tac.spainSummary !== '—' && (
-                    <div className="rounded-xl border border-border bg-card/50 p-4 space-y-1.5">
-                      <p className="text-[9px] font-black tracking-[2px] uppercase text-purple-400/70">{t('playbook_report_spain')}</p>
-                      <p className="text-xs text-foreground/80 leading-relaxed">{tac.spainSummary}</p>
-                    </div>
-                  )}
-
-                  {/* Transition */}
-                  <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
-                    <p className="text-[9px] font-black tracking-[2px] uppercase text-blue-400/70">{t('playbook_report_transition')}</p>
-                    <p className="text-xs text-foreground/80 leading-relaxed">{tac.transitionDesc}</p>
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <ReportChip label="Rebote ofensivo" value={stepLabel('reboundBalance', report.answers.reboundBalance as string, report.answers)} />
-                      <ReportChip label="Prioridad" value={stepLabel('transitionPriority', report.answers.transitionPriority as string, report.answers)} />
-                    </div>
-                  </div>
-
-                  {/* Trade-offs */}
-                  {tac.tradeoffs.length > 0 && (
-                    <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
-                      <p className="text-[9px] font-black tracking-[2px] uppercase text-primary/70">{t('playbook_report_tradeoffs')}</p>
-                      {tac.tradeoffs.map((t, i) => (
-                        <p key={i} className="text-xs text-foreground/75 leading-relaxed border-l-2 border-primary/20 pl-3">{t}</p>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Personnel analysis */}
-                  {(tac.personnelIssues.length > 0 || tac.personnelWarnings.length > 0) && (
-                    <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
-                      <p className="text-[9px] font-black tracking-[2px] uppercase text-primary/70">{t('playbook_report_personnel')}</p>
-                      {tac.personnelIssues.map((issue, i) => (
-                        <div key={i} className="rounded-lg border border-destructive/30 bg-destructive/5 p-2.5">
-                          <p className="text-[9px] font-bold text-destructive/80 mb-0.5">{issue.field}</p>
-                          <p className="text-xs text-destructive/70 leading-relaxed">{issue.detail}</p>
-                        </div>
-                      ))}
-                      {tac.personnelWarnings.map((w, i) => (
-                        <div key={i} className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-2.5">
-                          <p className="text-[9px] font-bold text-amber-500/80 mb-0.5">{w.field}</p>
-                          <p className="text-xs text-amber-500/70 leading-relaxed">{w.detail}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* KYP Rules */}
-                  {(report.answers.kypRules as KypRule[])?.length > 0 && (
-                    <div className="rounded-xl border border-border bg-card/50 p-4 space-y-2">
-                      <p className="text-[9px] font-black tracking-[2px] uppercase text-emerald-400/70">{t('playbook_report_kyp')}</p>
-                      {(report.answers.kypRules as KypRule[]).map((rule, i) => (
-                        <div key={i} className="rounded-lg border border-border p-2.5">
-                          <p className="text-[9px] font-bold uppercase tracking-wider text-blue-400 mb-0.5">{rule.role}</p>
-                          <p className="text-xs text-foreground/80">{rule.action}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              );
-            })()}
+                  <button type="button" onClick={handleSave} disabled={savePending}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold shrink-0 hover:bg-primary/90 transition-colors disabled:opacity-50">
+                    <Save className="w-3.5 h-3.5" />
+                    {t('playbook_save')}
+                  </button>
+                </div>
+                <DefensivePlanReportContent report={report} t={t} />
+              </>
+            )}
           </div>
         ) : (
           // ── WIZARD STEP ──
@@ -529,9 +690,9 @@ function DefensiveSystemBuilder({ onSaved }: { onSaved: () => void }) {
               onKeyDown={e => { if (e.key === 'Enter') confirmSave(); if (e.key === 'Escape') setSavingName(null); }}
               className="flex-1 h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
               placeholder={t('playbook_save_name_placeholder')} autoFocus />
-            <button type="button" onClick={confirmSave}
-              className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors">
-              {t('playbook_save')}
+            <button type="button" onClick={confirmSave} disabled={savePending}
+              className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-50">
+              {savePending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('playbook_save')}
             </button>
             <button type="button" onClick={() => setSavingName(null)}
               className="h-10 px-3 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
@@ -604,7 +765,94 @@ const COLOR_MAP: Record<string, { text: string; border: string; bg: string; badg
   purple:  { text: 'text-purple-400',  border: 'border-purple-400/20',  bg: 'bg-purple-400/4',  badge: 'bg-purple-400/10 text-purple-400 border-purple-400/25',  dot: 'bg-purple-400' },
 };
 
-function PlaybookHub({ onNavigate, plans }: { onNavigate: (v: PlaybookView) => void; plans: SavedPlan[] }) {
+function PlaybookPlayerView({ plans }: { plans: PlaybookPlan[] }) {
+  const { locale } = useLocale();
+  const [selected, setSelected] = useState<PlaybookPlan | null>(null);
+
+  if (selected) {
+    return (
+      <DefensivePlanReview
+        plan={selected}
+        onBack={() => setSelected(null)}
+        readOnly
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 pb-4 space-y-4">
+        <div>
+          <h2 className="text-xl font-black text-foreground leading-tight">
+            {reviewSectionTitle(locale, 'Libro de jugadas del equipo', 'Team Playbook', '球队战术手册')}
+          </h2>
+        </div>
+
+        {plans.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card/30 flex flex-col items-center justify-center min-h-[200px] px-6 text-center">
+            <Shield className="w-10 h-10 text-muted-foreground/30 mb-3" strokeWidth={1.5} />
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+              {reviewSectionTitle(
+                locale,
+                'Tu cuerpo técnico aún no ha publicado planes',
+                'Your coaching staff has not published plans yet',
+                '教练组尚未发布战术计划',
+              )}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-blue-400/20 bg-card/20 overflow-hidden">
+            <div className="px-5 py-3 border-b border-border/20 bg-blue-400/4">
+              <p className="text-sm font-black text-foreground">
+                {reviewSectionTitle(locale, 'Planes defensivos', 'Defensive plans', '防守计划')}
+              </p>
+            </div>
+            <div className="divide-y divide-border/15">
+              {plans.map((plan) => (
+                <button
+                  key={plan.id}
+                  type="button"
+                  onClick={() => setSelected(plan)}
+                  className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-card/60 transition-colors"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-blue-400" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-foreground truncate">{plan.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                      {stepLabel('pnrCoverage', planReport(plan).answers.pnrCoverage as string, planReport(plan).answers)}
+                    </p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="pb-4 pt-3 border-t border-border/40">
+        <p className="text-[11px] text-muted-foreground text-center leading-relaxed px-2">
+          {reviewSectionTitle(
+            locale,
+            'Los planes se sincronizan cuando el coach los comparte',
+            'Plans sync when your coach shares them',
+            '计划将在教练分享后同步',
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PlaybookHub({
+  onNavigate,
+  onSelectPlan,
+  plans,
+}: {
+  onNavigate: (v: PlaybookView) => void;
+  onSelectPlan: (plan: PlaybookPlan) => void;
+  plans: PlaybookPlan[];
+}) {
   const { t } = useLocale();
   const counts: Record<string, number> = { 'wizard-defensive': plans.length, 'wizard-offensive': 0, 'wizard-atos': 0 };
 
@@ -676,16 +924,22 @@ function PlaybookHub({ onNavigate, plans }: { onNavigate: (v: PlaybookView) => v
                   {defensivePlans.length > 0 ? (
                     <div className="space-y-0">
                       {defensivePlans.map((plan) => (
-                        <div key={plan.id} className="flex items-center gap-3 py-2.5 border-b border-border/15 last:border-0">
+                        <button
+                          key={plan.id}
+                          type="button"
+                          onClick={() => onSelectPlan(plan)}
+                          className="w-full flex items-center gap-3 py-2.5 border-b border-border/15 last:border-0 text-left hover:bg-card/50 transition-colors rounded-lg -mx-1 px-1"
+                        >
                           <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', c.dot)} />
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-bold text-foreground truncate">{plan.name}</p>
-                            <p className="text-[10px] text-muted-foreground truncate mt-0.5">{stepLabel('pnrCoverage', plan.report.answers.pnrCoverage as string, plan.report.answers)}</p>
+                            <p className="text-[10px] text-muted-foreground truncate mt-0.5">{stepLabel('pnrCoverage', planReport(plan).answers.pnrCoverage as string, planReport(plan).answers)}</p>
                           </div>
                           <span className="text-[10px] font-mono text-muted-foreground/45 shrink-0 tabular-nums">
                             {new Date(plan.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
                           </span>
-                        </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0" />
+                        </button>
                       ))}
                       {plans.length > 4 && (
                         <p className="text-[10px] text-muted-foreground/50 py-2 pl-4">+{plans.length - 4} planes más</p>
@@ -712,31 +966,103 @@ function PlaybookHub({ onNavigate, plans }: { onNavigate: (v: PlaybookView) => v
 
 export default function Playbook() {
   const { t } = useLocale();
+  const caps = useCapabilities();
+  const isPlayerUX = caps.canUsePlayerUX;
   const [view, setView] = useState<PlaybookView>('hub');
-  const [plans, setPlans] = useState<SavedPlan[]>([]);
+  const plansQ = usePlans('defensive');
+  const plans = plansQ.data ?? [];
+  const createPlan = useCreatePlan();
+  const updatePlan = useUpdatePlan();
+  const [selectedPlan, setSelectedPlan] = useState<PlaybookPlan | null>(null);
+  const [editPlan, setEditPlan] = useState<PlaybookPlan | null>(null);
+  const savePending = createPlan.isPending || updatePlan.isPending;
 
-  useEffect(() => { setPlans(loadPlans()); }, []);
+  useEffect(() => {
+    if (!selectedPlan) return;
+    const fresh = plans.find((p) => p.id === selectedPlan.id);
+    if (fresh) setSelectedPlan(fresh);
+  }, [plans, selectedPlan?.id]);
 
-  function handleSaved() { setPlans(loadPlans()); setView('hub'); }
+  async function handleSaved(data: PlanSavePayload) {
+    try {
+      if (editPlan) {
+        await updatePlan.mutateAsync({
+          id: editPlan.id,
+          name: data.name,
+          answers: data.answers as Record<string, unknown>,
+          report: data.report as unknown as Record<string, unknown>,
+        });
+      } else {
+        await createPlan.mutateAsync({
+          type: 'defensive',
+          name: data.name,
+          answers: data.answers as Record<string, unknown>,
+          report: data.report as unknown as Record<string, unknown>,
+          visibility: 'draft',
+        });
+      }
+      setEditPlan(null);
+      setView('hub');
+    } catch {
+      /* mutation error surfaced by query client */
+    }
+  }
+
+  function navigateHub(v: PlaybookView) {
+    setEditPlan(null);
+    setSelectedPlan(null);
+    setView(v);
+  }
+
+  function handleSelectPlan(plan: PlaybookPlan) {
+    setSelectedPlan(plan);
+    setView('review-defensive');
+  }
+
+  function handleEditPlan() {
+    if (!selectedPlan) return;
+    setEditPlan(selectedPlan);
+    setSelectedPlan(null);
+    setView('wizard-defensive');
+  }
 
   const tagline = t('playbook_tagline');
 
-  const isWizard = view !== 'hub';
+  const isWizard = view === 'wizard-defensive' || view === 'wizard-offensive' || view === 'wizard-atos';
   const wizardMeta = isWizard ? {
     'wizard-defensive': { label: t('playbook_wizard_defensive'), icon: Shield, color: 'text-blue-400' },
     'wizard-offensive': { label: t('playbook_wizard_offensive'), icon: Zap, color: 'text-amber-400' },
     'wizard-atos':      { label: t('playbook_wizard_atos'), icon: BookOpen, color: 'text-emerald-400' },
   }[view] : null;
 
+  if (isPlayerUX) {
+    return (
+      <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden pb-16 md:pb-0">
+        <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 pb-6 max-w-5xl mx-auto w-full gap-3 overflow-y-auto min-h-0">
+          <ModuleHeader module="playbook" tagline={tagline} />
+          <div className="flex flex-col flex-1 min-h-0">
+            {plansQ.isLoading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <PlaybookPlayerView plans={plans} />
+            )}
+          </div>
+        </main>
+        <ModuleNav />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden pb-16 md:pb-0">
       <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 pb-6 max-w-5xl mx-auto w-full gap-3 overflow-y-auto min-h-0">
         <ModuleHeader module="playbook" tagline={tagline} />
 
-        {/* Wizard back + title */}
         {isWizard && wizardMeta && (
           <div className="pb-3 flex items-center gap-3 flex-wrap">
-            <button type="button" onClick={() => setView('hub')}
+            <button type="button" onClick={() => { setEditPlan(null); setView('hub'); }}
               className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-3.5 h-3.5" />
               {t('playbook_back')}
@@ -750,10 +1076,41 @@ export default function Playbook() {
         )}
 
         <div className="flex flex-col flex-1 min-h-0">
-          {view === 'hub'               && <PlaybookHub onNavigate={setView} plans={plans} />}
-          {view === 'wizard-defensive'  && <DefensiveSystemBuilder onSaved={handleSaved} />}
-          {view === 'wizard-offensive'  && <ComingSoonWizard icon={Zap}      title={t('playbook_offensive_title')} desc={t('playbook_offensive_desc')} />}
-          {view === 'wizard-atos'       && <ComingSoonWizard icon={BookOpen} title={t('playbook_atos_title')} desc={t('playbook_atos_desc')} />}
+          {plansQ.isLoading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+          {view === 'hub' && (
+            <PlaybookHub
+              onNavigate={navigateHub}
+              onSelectPlan={handleSelectPlan}
+              plans={plans}
+            />
+          )}
+          {view === 'review-defensive' && selectedPlan && (
+            <DefensivePlanReview
+              plan={selectedPlan}
+              onBack={() => { setSelectedPlan(null); setView('hub'); }}
+              onEdit={handleEditPlan}
+              onVisibilityChange={(visibility) =>
+                updatePlan.mutate({ id: selectedPlan.id, visibility })
+              }
+              visibilityUpdating={updatePlan.isPending}
+            />
+          )}
+          {view === 'wizard-defensive' && (
+            <DefensiveSystemBuilder
+              onSaved={handleSaved}
+              initialPlan={editPlan}
+              savePending={savePending}
+            />
+          )}
+            </>
+          )}
+          {view === 'wizard-offensive' && <ComingSoonWizard icon={Zap} title={t('playbook_offensive_title')} desc={t('playbook_offensive_desc')} />}
+          {view === 'wizard-atos' && <ComingSoonWizard icon={BookOpen} title={t('playbook_atos_title')} desc={t('playbook_atos_desc')} />}
         </div>
       </main>
       <ModuleNav />
