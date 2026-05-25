@@ -174,8 +174,13 @@ export async function processPossessions(
 
   // ── 1. Datos del partido ───────────────────────────────────────────────────
   const gameRes = await db.execute(sql`
-    SELECT id, home_team_id, away_team_id FROM stats_games
-    WHERE id = ${gameInternalId} LIMIT 1
+    SELECT sg.id, sg.home_team_id, sg.away_team_id,
+           ht.external_id AS home_ext_id,
+           at.external_id AS away_ext_id
+    FROM stats_games sg
+    JOIN stats_teams ht ON ht.id = sg.home_team_id
+    JOIN stats_teams at ON at.id = sg.away_team_id
+    WHERE sg.id = ${gameInternalId} LIMIT 1
   `);
   const gameRow = (gameRes as any).rows?.[0];
   if (!gameRow) {
@@ -184,6 +189,9 @@ export async function processPossessions(
   }
   const homeTeamId = Number(gameRow.home_team_id);
   const awayTeamId = Number(gameRow.away_team_id);
+  // IDs externos (WCBA API) — usados en pasada 1B y 2 porque stats_pbp.team_id es externo
+  const homeTeamExtId = Number(gameRow.home_ext_id);
+  const awayTeamExtId = Number(gameRow.away_ext_id);
 
   // ── 2. Eventos PBP ────────────────────────────────────────────────────────
   const pbpRes = await db.execute(sql`
@@ -370,7 +378,7 @@ export async function processPossessions(
 
   for (const ev of enriched) {
     const tid = ev.team_id;
-    const rival = tid ? (tid === homeTeamId ? awayTeamId : homeTeamId) : null;
+    const rival = tid ? (tid === homeTeamExtId ? awayTeamExtId : homeTeamExtId) : null;
     const code = ev.action_code ?? '';
 
     if (!tid) {
@@ -447,7 +455,7 @@ export async function processPossessions(
   }
 
   function getSnap(teamId: number, idx: number): string {
-    return teamId === homeTeamId ? snapHome[idx] : snapAway[idx];
+    return teamId === homeTeamExtId ? snapHome[idx] : snapAway[idx];
   }
 
   // Detectar and-1: shot_made seguido de FT del mismo equipo en los próximos eventos
@@ -492,7 +500,7 @@ export async function processPossessions(
     const poss: Possession = {
       gameId: gameInternalId, seasonId,
       teamId: possTid,
-      opponentTeamId: possTid === homeTeamId ? awayTeamId : homeTeamId,
+      opponentTeamId: possTid === homeTeamExtId ? awayTeamExtId : homeTeamExtId,
       possessionNumber: possNum, quarter: q,
       startTimeSec: possStartSec, endTimeSec: endSec, durationSec: dur,
       endType, points: possPts,
@@ -516,7 +524,7 @@ export async function processPossessions(
     offLu.offReb += possORB;
     offLu.tov += possTOV;
 
-    const defTid = possTid === homeTeamId ? awayTeamId : homeTeamId;
+    const defTid = possTid === homeTeamExtId ? awayTeamExtId : homeTeamExtId;
     const defLu  = ensureLineup(defTid, possLuDef);
     defLu.defPossessions++;
     defLu.defPts += possPts;
@@ -532,11 +540,11 @@ export async function processPossessions(
     possStartSec = startSec;
     possEndSec   = startSec;
     possQ        = q;
-    possMargin   = offTeam === homeTeamId ? scoreDiff : -scoreDiff;
+    possMargin   = offTeam === homeTeamExtId ? scoreDiff : -scoreDiff;
     possPts = possFGA = possFTA = possTOV = possORB = 0;
     possSecond   = false;
     possLuOff    = getSnap(offTeam, snapIdx);
-    const opp    = offTeam === homeTeamId ? awayTeamId : homeTeamId;
+    const opp    = offTeam === homeTeamExtId ? awayTeamExtId : homeTeamExtId;
     possLuDef    = getSnap(opp, snapIdx);
     possEndType  = 'period_end';
   }
