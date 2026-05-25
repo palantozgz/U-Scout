@@ -37,7 +37,7 @@ const es = {
   ucore_nav_stats: "Stats",
   ucore_nav_playbook: "Playbook",
   ucore_nav_club: "Mi Club",
-  ucore_card_scout_title: "Scout",
+  ucore_card_scout_title: "U Scout",
   ucore_card_scout_sub_staff: "Crea informes de scouting",
   ucore_card_scout_sub_player: "Todos los informes",
   ucore_card_schedule_title: "U Schedule & Wellness",
