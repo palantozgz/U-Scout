@@ -2558,7 +2558,32 @@ export async function registerRoutes(
           ROUND(100.0 * SUM(op.points) / NULLIF(COUNT(op.*), 0), 1) AS drtg,
           ROUND(SUM(p.points)::numeric / NULLIF(COUNT(*), 0), 3) AS "pppOf",
           ROUND(SUM(op.points)::numeric / NULLIF(COUNT(op.*), 0), 3) AS "pppDef",
-          ROUND((COUNT(*) + COUNT(op.*)) / 2.0 / NULLIF(COUNT(DISTINCT p.game_id), 0), 1) AS "paceEst"
+          ROUND(
+            (
+              (SELECT COUNT(*) FROM pbp_possessions
+               JOIN stats_games sg ON sg.id = pbp_possessions.game_id
+               WHERE pbp_possessions.team_id = ${Number(externalId)}
+                 AND sg.status = 4
+                 AND sg.season_id = ${seasonId})
+              +
+              (SELECT COUNT(*) FROM pbp_possessions
+               JOIN stats_games sg ON sg.id = pbp_possessions.game_id
+               WHERE pbp_possessions.team_id != ${Number(externalId)}
+                 AND pbp_possessions.game_id IN (
+                   SELECT sg2.id FROM stats_games sg2
+                   JOIN stats_teams st ON st.external_id = ${Number(externalId)}
+                   WHERE (sg2.home_team_id = st.id OR sg2.away_team_id = st.id)
+                     AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+                 ))
+            ) / 2.0
+            / NULLIF(
+              (SELECT COUNT(DISTINCT sg3.id) FROM stats_games sg3
+               JOIN stats_teams st ON st.external_id = ${Number(externalId)}
+               WHERE (sg3.home_team_id = st.id OR sg3.away_team_id = st.id)
+                 AND sg3.status = 4 AND sg3.season_id = ${seasonId}),
+              0),
+            1
+          ) AS "paceEst"
         FROM pbp_possessions p
         JOIN stats_games sg ON sg.id = p.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
         JOIN pbp_possessions op ON op.game_id = p.game_id AND op.team_id != p.team_id
@@ -3116,13 +3141,19 @@ export async function registerRoutes(
           SELECT
             ROUND(100.0 * SUM(points) / NULLIF(COUNT(*), 0), 1) AS ortg,
             ROUND(SUM(points)::numeric / NULLIF(COUNT(*), 0), 3) AS ppp,
-            ROUND(COUNT(*)::numeric / NULLIF(COUNT(DISTINCT game_id) / 2.0, 0), 1) AS pace
+            ROUND(COUNT(*)::numeric / NULLIF(COUNT(DISTINCT game_id) * 2.0, 0), 1) AS pace
+          FROM pbp_possessions
+          WHERE season_id = ${seasonId}
+        `);
+        const drtgLgRows = await db.execute(sql`
+          SELECT ROUND(100.0 * SUM(points) / NULLIF(COUNT(*), 0), 1) AS drtg
           FROM pbp_possessions
           WHERE season_id = ${seasonId}
         `);
         const r2 = (rtgLgRows as any).rows?.[0] ?? {};
+        const rDrtg = (drtgLgRows as any).rows?.[0] ?? {};
         lgOrtg = r2.ortg != null ? Number(r2.ortg) : null;
-        lgDrtg = lgOrtg;
+        lgDrtg = rDrtg.drtg != null ? Number(rDrtg.drtg) : null;
         lgPace = r2.pace != null ? Number(r2.pace) : null;
         lgPpp  = r2.ppp  != null ? Number(r2.ppp)  : null;
       } catch (rtgErr: any) {
