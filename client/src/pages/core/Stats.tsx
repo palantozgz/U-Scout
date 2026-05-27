@@ -26,6 +26,7 @@ import {
   useGameBoxscore,
   usePaceSegments,
   useTeamLineups,
+  usePlayerOnOff,
   toTitleCase,
   type PlayerSeasonStats,
   type LineupRow,
@@ -40,7 +41,7 @@ import {
 type MainTab = "liga" | "jugadoras";
 type LigaSegment = "clasificacion" | "lideres";
 type JugadorasSort = "ppg" | "rpg" | "apg";
-type LeaderStatKey = "ppg" | "rpg" | "apg" | "spg" | "bpg" | "fgPct";
+type LeaderStatKey = "ppg" | "rpg" | "apg" | "spg" | "bpg" | "fgPct" | "tsPct" | "topg";
 type PlayerSheetId = string | null;
 
 function parseMainTab(search: string): MainTab {
@@ -69,6 +70,10 @@ function leaderStatLabel(key: LeaderStatKey, L: Record<string, string>): string 
       return L.leaderBPG;
     case "fgPct":
       return L.leaderFG;
+    case "tsPct":
+      return "TS%";
+    case "topg":
+      return "TOPG";
     default:
       return key;
   }
@@ -78,7 +83,7 @@ function formatLeaderValue(stat: string, value: unknown): string {
   if (value == null || value === "") return "—";
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return "—";
-  if (stat === "fgPct") return `${n.toFixed(1)}%`;
+  if (stat === "fgPct" || stat === "tsPct") return `${n.toFixed(1)}%`;
   return n.toFixed(1);
 }
 
@@ -164,6 +169,8 @@ function fmtLineupRtg(ppp: number | null): string {
   return ppp != null ? (ppp * 100).toFixed(1) : "—";
 }
 
+const OWN_TEAM_NAME_FALLBACK = "Inner Mongolia";
+
 export default function Stats() {
   const { t, locale } = useLocale();
   const es = locale === "es";
@@ -234,7 +241,7 @@ export default function Stats() {
     tbd: "—",
   };
 
-  const LEADER_STAT_KEYS: LeaderStatKey[] = ["ppg", "rpg", "apg", "spg", "bpg", "fgPct"];
+  const LEADER_STAT_KEYS: LeaderStatKey[] = ["ppg", "rpg", "apg", "spg", "bpg", "fgPct", "tsPct", "topg"];
 
   const [mainTab, setMainTab] = useState<MainTab>(() => {
     const fromUrl = parseMainTab(search);
@@ -476,7 +483,12 @@ export default function Stats() {
 
   const ownL5 = useMemo(() => {
     if (standingsRows.length === 0) return null;
-    const ownTeamName = "Inner Mongolia";
+    // TODO: use profile.teamName / profile.teamNameEn when UserProfile exposes club team fields
+    const profileTeam =
+      (profile as { teamNameEn?: string | null; teamName?: string | null })?.teamNameEn?.trim() ||
+      (profile as { teamNameEn?: string | null; teamName?: string | null })?.teamName?.trim() ||
+      "";
+    const ownTeamName = profileTeam || OWN_TEAM_NAME_FALLBACK;
     const own =
       standingsRows.find(
         (r) =>
@@ -484,7 +496,7 @@ export default function Stats() {
           (r.teamNameEn ?? "").toLowerCase().includes(ownTeamName.toLowerCase()),
       ) ?? null;
     return own;
-  }, [standingsRows]);
+  }, [standingsRows, profile]);
 
   const standingsGroups = useMemo(() => {
     const rows = standingsRows;
@@ -587,13 +599,15 @@ export default function Stats() {
         : isDesktop && (playerSheetId || teamSheetId) ? 'max-w-2xl'
         : 'max-w-5xl'
       }`}>
-        <div className="mt-3 mb-1 rounded-xl border border-border bg-muted/40 px-4 py-3 flex items-center gap-3">
-          <BarChart3 className="w-5 h-5 text-primary/60 shrink-0" />
-          <div>
-            <p className="text-xs font-bold text-foreground">{locale === "es" ? "Datos WCBA en integración" : locale === "zh" ? "WCBA数据集成中" : "Live WCBA data coming soon"}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{locale === "es" ? "Los datos en tiempo real llegarán en breve." : locale === "zh" ? "实时数据即将接入。" : "Real-time stats will appear here automatically."}</p>
+        {playersWithGamesForSeason.length === 0 && standingsRows.length === 0 && (
+          <div className="mt-3 mb-1 rounded-xl border border-border bg-muted/40 px-4 py-3 flex items-center gap-3">
+            <BarChart3 className="w-5 h-5 text-primary/60 shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-foreground">{locale === "es" ? "Datos WCBA en integración" : locale === "zh" ? "WCBA数据集成中" : "Live WCBA data coming soon"}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{locale === "es" ? "Los datos en tiempo real llegarán en breve." : locale === "zh" ? "实时数据即将接入。" : "Real-time stats will appear here automatically."}</p>
+            </div>
           </div>
-        </div>
+        )}
         <div className="flex items-center justify-end pt-2 pb-1">
           <button
             type="button"
@@ -708,7 +722,17 @@ export default function Stats() {
                   <p className="text-[9px] font-black uppercase tracking-wider text-blue-500 mb-1">
                     {es ? "Próximo rival" : zh ? "下场对手" : "Next opponent"}
                   </p>
-                  <p className="text-lg font-black text-foreground">{nextMatch.rivalName}</p>
+                  {rivalStanding?.teamExternalId ? (
+                    <button
+                      type="button"
+                      onClick={() => setTeamSheetId(String(rivalStanding.teamExternalId))}
+                      className="text-lg font-black text-foreground text-left hover:text-primary transition-colors"
+                    >
+                      {nextMatch.rivalName}
+                    </button>
+                  ) : (
+                    <p className="text-lg font-black text-foreground">{nextMatch.rivalName}</p>
+                  )}
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                     <span>
                       {new Date(nextMatch.matchDate).toLocaleDateString(
@@ -744,6 +768,15 @@ export default function Stats() {
                         </span>
                       )}
                     </p>
+                  )}
+                  {rivalStanding?.teamExternalId && (
+                    <button
+                      type="button"
+                      onClick={() => setTeamSheetId(String(rivalStanding.teamExternalId))}
+                      className="text-[11px] font-bold text-primary mt-2 hover:underline"
+                    >
+                      {es ? "Ver análisis completo →" : zh ? "查看完整分析 →" : "View full analysis →"}
+                    </button>
                   )}
                 </div>
 
@@ -940,7 +973,9 @@ export default function Stats() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-xs text-muted-foreground px-0.5 -mt-1">{L.leadersSubtitle}</p>
+                    <p className="text-xs text-muted-foreground px-0.5 -mt-1">
+                      {"Top 10 · " + leaderStatLabel(leaderStat, L)}
+                    </p>
                   <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
                     {leadersRows.slice(0, 10).map((row: LeaderRow, idx: number) => (
                       <button
@@ -2267,6 +2302,7 @@ function StatsPlayerSheet({
   const player = data?.player;
   const gameLog = data?.gameLog ?? [];
   const leagueAvg = leagueAvgQ.data;
+  const onOffQ = usePlayerOnOff(player?.teamExternalId ?? null, externalId, undefined);
 
   type DeepTab = "forma" | "deep" | "partidos";
   const [deepTab, setDeepTab] = useState<DeepTab>("forma");
@@ -2508,6 +2544,16 @@ function StatsPlayerSheet({
     starter: es ? "Titular" : zh ? "首发" : "Starter",
     vsLeague: es ? "vs liga" : zh ? "vs联赛" : "vs league",
     noLeagueData: es ? "Sin datos de liga" : zh ? "暂无联赛数据" : "No league data",
+    onOffTitle: "On/Off",
+    onCourt: es ? "En cancha" : zh ? "在场" : "On court",
+    offCourt: es ? "Fuera" : zh ? "下场" : "Off court",
+    impact: es ? "Impacto" : zh ? "影响" : "Impact",
+    onOffInsufficient: (n: number) =>
+      es
+        ? `Muestra insuficiente (${n} pos.)`
+        : zh
+          ? `样本不足（${n}回合）`
+          : `Insufficient sample (${n} poss.)`,
   };
 
   const pos = player ? translatePosition(player.position, locale) : null;
@@ -2899,6 +2945,89 @@ function StatsPlayerSheet({
           {/* Tab: Deep stats */}
           {deepTab === "deep" && (
             <div className={cn("space-y-4", isDesktop ? "p-4" : "p-3")}>
+              {(player.usagePct != null ||
+                player.pie != null ||
+                player.ftRate != null ||
+                player.astTovRatio != null) && (
+                <div className="grid grid-cols-2 gap-2">
+                  {player.usagePct != null && (
+                    <AdvChip
+                      label="USG%"
+                      value={player.usagePct}
+                      p95={null}
+                      fmt={(v) => `${v.toFixed(1)}%`}
+                    />
+                  )}
+                  {player.pie != null && (
+                    <AdvChip label="PIE" value={player.pie} p95={null} fmt={(v) => `${v.toFixed(1)}`} />
+                  )}
+                  {player.ftRate != null && (
+                    <AdvChip label="FT Rate" value={player.ftRate} p95={null} fmt={(v) => v.toFixed(3)} />
+                  )}
+                  {player.astTovRatio != null && (
+                    <AdvChip
+                      label="AST/TOV"
+                      value={player.astTovRatio}
+                      p95={null}
+                      fmt={(v) => v.toFixed(2)}
+                    />
+                  )}
+                </div>
+              )}
+
+              <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">
+                  {L.onOffTitle}
+                </p>
+                {onOffQ.isLoading && (
+                  <div className="flex justify-center py-3">
+                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+                {!onOffQ.isLoading && (() => {
+                  const onOff = onOffQ.data?.onOff;
+                  const possOn = onOff?.possessionsOn ?? 0;
+                  if (!onOff || possOn < 20) {
+                    return (
+                      <p className="text-xs font-bold text-muted-foreground">{L.onOffInsufficient(possOn)}</p>
+                    );
+                  }
+                  const fmtNetLine = (ppp: number | null) => {
+                    if (ppp == null) return "—";
+                    const net = ppp * 100;
+                    return `NET ${net >= 0 ? "+" : ""}${net.toFixed(1)}`;
+                  };
+                  const netClass = (ppp: number | null) =>
+                    ppp == null
+                      ? "text-foreground"
+                      : ppp * 100 >= 0
+                        ? "text-emerald-400"
+                        : "text-red-400";
+                  const impactNet = onOff.impact != null ? onOff.impact * 100 : null;
+                  return (
+                    <div className="space-y-1.5 text-xs font-bold tabular-nums">
+                      <p className={netClass(onOff.onOffPpp)}>
+                        {L.onCourt}: {fmtNetLine(onOff.onOffPpp)}
+                      </p>
+                      <p className={netClass(onOff.offOffPpp)}>
+                        {L.offCourt}: {fmtNetLine(onOff.offOffPpp)}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-sm font-black pt-1 border-t border-border/50",
+                          impactNet != null && impactNet >= 0 ? "text-primary" : "text-destructive",
+                        )}
+                      >
+                        {L.impact}:{" "}
+                        {impactNet != null
+                          ? `${impactNet >= 0 ? "+" : ""}${impactNet.toFixed(1)}`
+                          : "—"}
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+
               {advStats && (
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60 mb-2">
@@ -3312,6 +3441,7 @@ function StatsTeamSheet({
   const topLineups = useMemo(
     () =>
       [...lineups]
+        .filter((row) => lineupTotalPoss(row) >= 20)
         .sort((a, b) => lineupTotalPoss(b) - lineupTotalPoss(a))
         .slice(0, 10),
     [lineups],
@@ -3393,6 +3523,11 @@ function StatsTeamSheet({
       : zh
         ? "本赛季暂无阵容数据"
         : "No lineup data for this season",
+    lineupsInsufficient: es
+      ? "Datos insuficientes (mín. 20 posesiones)"
+      : zh
+        ? "数据不足（至少20回合）"
+        : "Insufficient data (min. 20 possessions)",
     piPending: es ? "Disponible cuando Pi sincronice" : zh ? "Pi数据同步后可用" : "Available when Pi syncs",
     showRoster: es ? "Ver plantilla completa" : zh ? "查看完整名单" : "View full roster",
     players14: (n: number) => (es ? `${n} jugadoras` : zh ? `${n}名球员` : `${n} players`),
@@ -4046,12 +4181,15 @@ function StatsTeamSheet({
             <div className="px-4 py-4">
               {topLineups.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
-                  <p className="text-sm font-bold text-muted-foreground">{L.lineupsEmpty}</p>
+                  <p className="text-sm font-bold text-muted-foreground">
+                    {lineups.length > 0 ? L.lineupsInsufficient : L.lineupsEmpty}
+                  </p>
                 </div>
               ) : (
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[1.4fr_0.45fr_0.5fr_0.5fr_0.5fr] gap-0 px-3 py-2 border-b border-border bg-muted/20 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                  <div className="grid grid-cols-[1.4fr_0.4fr_0.4fr_0.5fr_0.5fr_0.5fr] gap-0 px-3 py-2 border-b border-border bg-muted/20 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
                     <span>{L.colLineup}</span>
+                    <span className="text-right">{L.colG}</span>
                     <span className="text-right">{L.colPoss}</span>
                     <span className="text-right">ORTG</span>
                     <span className="text-right">DRTG</span>
@@ -4064,13 +4202,14 @@ function StatsTeamSheet({
                       <div
                         key={row.lineupId}
                         className={cn(
-                          "grid grid-cols-[1.4fr_0.45fr_0.5fr_0.5fr_0.5fr] gap-0 items-center px-3 py-2.5 text-xs",
+                          "grid grid-cols-[1.4fr_0.4fr_0.4fr_0.5fr_0.5fr_0.5fr] gap-0 items-center px-3 py-2.5 text-xs",
                           i < topLineups.length - 1 && "border-b border-border/50",
                         )}
                       >
                         <p className="text-[10px] font-bold text-foreground leading-snug truncate pr-1">
                           {lineupShortNames(row.playerNames)}
                         </p>
+                        <p className="text-right font-black tabular-nums text-foreground">{row.gamesPlayed}</p>
                         <p className="text-right font-black tabular-nums text-foreground">{poss}</p>
                         <p className="text-right font-black tabular-nums text-foreground">
                           {fmtLineupRtg(row.offPpp)}

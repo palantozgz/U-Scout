@@ -2798,6 +2798,11 @@ export async function registerRoutes(
           WHERE team_id = ${team.ext_id}
             AND event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3','turnover')
             AND clock ~ '^[0-9]+:[0-9]{2}$'
+          UNION ALL
+          SELECT * FROM all_events
+          WHERE team_id = ${team.ext_id}
+            AND event_type = 'ft_made'
+            AND clock ~ '^[0-9]+:[0-9]{2}$'
         ),
         possession_times AS (
           SELECT
@@ -2882,10 +2887,12 @@ export async function registerRoutes(
         SELECT
           poss_start_sec - clock_sec AS pos_time,
           CASE
+            WHEN event_type = 'ft_made' THEN 1
             WHEN event_type IN ('shot_made','shot_made_3') THEN
               CASE event_type WHEN 'shot_made_3' THEN 3 ELSE 2 END
             ELSE 0
-          END AS shot_pts
+          END AS shot_pts,
+          (event_type <> 'ft_made') AS counts_possession
         FROM possession_times
         WHERE poss_type != 'unknown'
           AND poss_start_sec IS NOT NULL
@@ -2894,7 +2901,7 @@ export async function registerRoutes(
       `);
 
       const rows = (pbpRows as any).rows ?? [];
-      const total = rows.length;
+      const total = rows.filter((r: { counts_possession?: boolean }) => r.counts_possession !== false).length;
       if (total < 200) {
         res.set("Cache-Control", "private, max-age=300");
         return res.json({
@@ -2910,10 +2917,17 @@ export async function registerRoutes(
       for (const r of rows) {
         const t = Number(r.pos_time);
         const pts = Number(r.shot_pts ?? 0);
-        sum += t;
-        if (t <= 8) { transition++; ptsTransition += pts; }
-        else if (t <= 14) { demi++; ptsDemi += pts; }
-        else { halfcourt++; ptsHalfcourt += pts; }
+        const countsPoss = r.counts_possession !== false;
+        if (countsPoss) {
+          sum += t;
+          if (t <= 8) { transition++; ptsTransition += pts; }
+          else if (t <= 14) { demi++; ptsDemi += pts; }
+          else { halfcourt++; ptsHalfcourt += pts; }
+        } else if (t > 0 && t <= 24) {
+          if (t <= 8) ptsTransition += pts;
+          else if (t <= 14) ptsDemi += pts;
+          else ptsHalfcourt += pts;
+        }
       }
       const pppTransition = transition > 0 ? Math.round(ptsTransition / transition * 1000) / 1000 : null;
       const pppDemi       = demi       > 0 ? Math.round(ptsDemi       / demi       * 1000) / 1000 : null;
@@ -2943,6 +2957,7 @@ export async function registerRoutes(
         shots_lg AS (
           SELECT *,
             CASE
+              WHEN event_type = 'ft_made' THEN 1
               WHEN event_type IN ('shot_made','shot_made_3') THEN
                 CASE event_type WHEN 'shot_made_3' THEN 3 ELSE 2 END
               ELSE 0
@@ -2950,10 +2965,16 @@ export async function registerRoutes(
           FROM all_events_lg
           WHERE event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3','turnover')
             AND clock ~ '^[0-9]+:[0-9]{2}$'
+          UNION ALL
+          SELECT *,
+            1 AS shot_pts
+          FROM all_events_lg
+          WHERE event_type = 'ft_made'
+            AND clock ~ '^[0-9]+:[0-9]{2}$'
         ),
         poss_lg AS (
           SELECT
-            cs, shot_pts,
+            cs, shot_pts, event_type,
             CASE
               WHEN lag1_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
                    AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
@@ -2995,17 +3016,17 @@ export async function registerRoutes(
           )
         )
         SELECT
-          COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=24) AS total,
-          COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=8)  AS tr,
-          COUNT(*) FILTER (WHERE pos_time>8 AND pos_time<=14) AS dm,
-          COUNT(*) FILTER (WHERE pos_time>14 AND pos_time<=24) AS hc,
-          ROUND(AVG(pos_time) FILTER (WHERE pos_time>0 AND pos_time<=24)::numeric,1) AS avg_pt,
+          COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=24 AND event_type <> 'ft_made') AS total,
+          COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=8 AND event_type <> 'ft_made')  AS tr,
+          COUNT(*) FILTER (WHERE pos_time>8 AND pos_time<=14 AND event_type <> 'ft_made') AS dm,
+          COUNT(*) FILTER (WHERE pos_time>14 AND pos_time<=24 AND event_type <> 'ft_made') AS hc,
+          ROUND(AVG(pos_time) FILTER (WHERE pos_time>0 AND pos_time<=24 AND event_type <> 'ft_made')::numeric,1) AS avg_pt,
           ROUND(SUM(shot_pts) FILTER (WHERE pos_time>0 AND pos_time<=8)::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=8), 0), 3) AS ppp_tr,
+            / NULLIF(COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=8 AND event_type <> 'ft_made'), 0), 3) AS ppp_tr,
           ROUND(SUM(shot_pts) FILTER (WHERE pos_time>8 AND pos_time<=14)::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE pos_time>8 AND pos_time<=14), 0), 3) AS ppp_dm,
+            / NULLIF(COUNT(*) FILTER (WHERE pos_time>8 AND pos_time<=14 AND event_type <> 'ft_made'), 0), 3) AS ppp_dm,
           ROUND(SUM(shot_pts) FILTER (WHERE pos_time>14 AND pos_time<=24)::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE pos_time>14 AND pos_time<=24), 0), 3) AS ppp_hc
+            / NULLIF(COUNT(*) FILTER (WHERE pos_time>14 AND pos_time<=24 AND event_type <> 'ft_made'), 0), 3) AS ppp_hc
         FROM poss_lg
       `);
       const lg = (lgRows as any).rows?.[0] ?? {};
