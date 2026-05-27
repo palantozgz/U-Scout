@@ -12,25 +12,186 @@
 - DB: Supabase (PostgreSQL)
 - **Repo real:** `/Users/palant/Downloads/U scout/ucore/` ← SIEMPRE trabajar aquí
 - **GitHub:** https://github.com/palantozgz/U-Scout.git
-- `/Users/palant/Downloads/U scout/` es wrapper vacío — NO tocar
+- `/Users/palant/Downloads/U scout/` es wrapper con .env — NO es el repo
 
 ## Stack
 React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/ui · Tailwind v4
 Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
+---
+
+## Principios de datos — NO NEGOCIABLES
+
+1. **PBP es fuente única de verdad.** Absolutamente todos los datos de stats en la app deben provenir de las tablas derivadas del PBP (`pbp_possessions`, `pbp_player_game_stats`, `pbp_lineup_stats`).
+2. **`stats_player_boxscores` solo existe para auditoría** — el único endpoint que puede leerlo es `/api/stats/game/:id/boxscore`.
+3. **`stats_standings` solo existe como datos de clasificación oficial** — W/L/racha desde WCBA API. No se usa para métricas de rendimiento.
+4. **Ninguna métrica de rendimiento (PPG, RPG, eFG%, ORTG, etc.) puede salir de boxscores.** Nunca.
+
+**Estado de migración (pendiente):**
+- `/api/stats/player/:id` → todavía lee de `stats_player_boxscores` ❌
+- `/api/stats/leaders` → todavía lee de `stats_player_boxscores` ❌
+- `/api/stats/games` → todavía lee de `stats_player_boxscores` ❌
+- `/api/stats/team/:id` (datos base W/L/ppg) → lee de `stats_standings` (aceptable para W/L, no para métricas)
+- Todos los demás endpoints ya usan PBP ✅
+
+---
+
+## Herramientas de Claude — CRÍTICO
+
+### Qué puede hacer cada herramienta
+
+| Herramienta | Puede | No puede |
+|---|---|---|
+| `Filesystem:read_text_file` | Leer archivos del Mac | Ejecutar código |
+| `filesystem:write_file` | Escribir archivos en el Mac | Acceder a red |
+| `bash_tool` | Grep/sed/python sobre archivos copiados al contenedor Linux | Acceder al Mac, Pi, ni APIs externas |
+| `Control your Mac:osascript` con `do shell script` | curl, git, npm en el Mac | SSH con contraseña interactiva |
+| `Filesystem:copy_file_user_to_claude` | Copiar archivo del Mac al contenedor Linux para análisis con bash_tool | — |
+
+### Regla bash_tool
+**NUNCA usar bash_tool para acceder al Mac, Pi, o APIs.** Solo sirve para analizar archivos ya copiados al contenedor Linux via `Filesystem:copy_file_user_to_claude`. Perder tokens intentando `ssh` o `curl` desde bash_tool es un error que no debe repetirse.
+
+### Acceso a Supabase (directo, sin Terminal UI)
+Credenciales en `/Users/palant/Downloads/U scout/.env` — leer de ahí, nunca hardcodear en context.
+```applescript
+-- Leer credenciales del .env:
+set envContent to do shell script "cat '/Users/palant/Downloads/U scout/.env'"
+-- Extraer SERVICE_KEY y SUPA_URL, luego:
+set result to do shell script "curl -s --max-time 15 '" & SUPA_URL & "/rest/v1/TABLA?select=CAMPOS&limit=N' -H 'apikey: " & SERVICE_KEY & "' -H 'Authorization: Bearer " & SERVICE_KEY & "'"
+```
+Patrón real verificado: `do shell script` + `curl` + service key funciona directamente. Devuelve JSON. RLS bloqueó con anon key — siempre usar service key.
+
+**Para queries SQL complejas:** pedir a Pablo que ejecute en Supabase SQL Editor. La REST API no soporta SQL arbitrario sin función RPC.
+
+### Acceso a API WCBA (directo)
+```applescript
+set result to do shell script "curl -s --max-time 10 'https://www.cba.net.cn/datahub/cbamatch/games/ENDPOINT?PARAMS' -H 'Referer: https://www.cba.net.cn/' -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' -H 'Accept: application/json, text/plain, */*' -H 'Accept-Language: zh-CN,zh;q=0.9'"
+```
+Endpoints confirmados: `phasemenus`, `matchmenusschedule`, `matchschedules`, `matchinfoscores`, `pbpinfo`.
+
+### Acceso a la Pi
+- IP: `192.168.1.7` · usuario: `pablo` · contraseña: `skapol`
+- **No hay clave SSH configurada.** SSH con contraseña requiere `sshpass` (no instalado) o acceso interactivo.
+- **Para habilitar SSH sin contraseña (una vez):**
+  ```bash
+  ssh-keygen -t ed25519 -f ~/.ssh/pi_ucore -N "" && ssh-copy-id -i ~/.ssh/pi_ucore.pub pablo@192.168.1.7
+  ```
+  Después de esto: `do shell script "ssh -i ~/.ssh/pi_ucore pablo@192.168.1.7 'COMANDO'"` funcionará sin contraseña.
+- **Hasta entonces:** Claude no puede acceder a la Pi directamente. Necesita que Pablo ejecute comandos manualmente.
+
+---
+
+## Arquitectura del sistema de datos
+
+### Flujo de datos
+```
+API WCBA
+  → collector/pbp.ts (Pi) → stats_pbp (raw PBP)
+  → collector/boxscores.ts (Pi) → stats_player_boxscores (SOLO AUDITORÍA)
+  → collector/standings.ts (Pi) → stats_standings (SOLO W/L oficial)
+  
+stats_pbp → possessions.ts v6.2 (Railway) → tablas derivadas:
+  → pbp_possessions         (1 fila por posesión)
+  → pbp_player_game_stats   (1 fila por jugadora por partido)
+  → pbp_lineup_stats        (1 fila por quinteto por partido)
+  → pbp_audit_log           (diff PBP vs boxscore)
+  
+tablas derivadas → endpoints Express → UI React
+```
+
+### Estado del audit — 2026-05-27
+- 440 partidos: status=ok, max_diff=0 ✅
+- 2 partidos en error: game_id=286 (partido 1106673, boxscore=0 porque sync nocturno pendiente)
+- El PBP procesado es correcto.
+
+### Tablas derivadas — campos clave
+
+**`pbp_player_game_stats`** (fuente principal para métricas de jugadoras):
+`player_external_id, team_id, game_id, pts, reb, ast, stl, blk, tov, fgm, fga, fg3m, fg3a, ftm, fta, off_reb, def_reb, fouls, plus_minus, seconds_played, is_starter`
+
+**`pbp_possessions`** (fuente principal para métricas de equipo):
+`game_id, team_id, points, possession_type, duration_seconds`
+
+**`pbp_lineup_stats`** (fuente para quintetos y on/off):
+`lineup_id, team_id, game_id, season_id, off_possessions, def_possessions, off_pts, def_pts, off_reb, def_reb, tov, stl, total_seconds`
+
+---
+
+## Collector (Pi) — estado
+
+- IP: `192.168.1.7` · usuario: `pablo` · contraseña: `skapol`
+- PM2: `ucore-collector` activo
+- Código activo en Pi: commit `80a7b88`
+- **GitHub no accesible desde Pi** — usar SCP para actualizaciones
+- TOTLTO y TOTSTO son los únicos action_codes que quedan como `unknown`
+- Fix pendiente de SCP: commit `d0f2622` (candidatesForPBP status=3 con marcador)
+
+### Action codes WCBA
+- Sistema: Genius Sports FIBA LiveStats
+- TOTLTO/TOTSTO/TNOSTL → `'unknown'` (administrativos)
+- FOLDEF/FOLPER/FOLDSQ/FOLUSM → `'foul'` (fouler = defensor)
+
+---
+
+## Procesador de posesiones v6.2 (server/possessions.ts)
+
+### Pasada 1B: inferir offense_team_id
+
+| Código | offense = |
+|---|---|
+| shot/turnover/ORB | tid (atacante) |
+| REBDEF | tid (reboteador pasa a atacar) |
+| STEBAL | tid (robador pasa a atacar) |
+| FOLDEF/FOLPER/FOLDSQ/FOLUSM/FOLTEC | rival de tid |
+| FOLOFF/FOLOFN | tid (fouler es atacante) |
+| ft_made/ft_missed | tid (tirador siempre es atacante) |
+| JUBSUC | tid (ganador del jump ball) |
+| decoradores | último offense conocido |
+
+### Verificación (partido 1108582)
+- HOME 65pts: possessions=65 ✅ diff=0
+- AWAY 74pts: possessions=74 ✅ diff=0
+
+---
+
+## Estándares de trabajo (no negociables)
+
+1. **Verdad antes que velocidad** — si hay dudas, investigar antes de proponer
+2. **Leer código real antes de proponer** — nunca especular sobre el estado del código
+3. **Simular antes de deployar** — especialmente el procesador de posesiones
+4. **Gap cero** — diff PBP vs boxscore debe ser 0 en todos los partidos
+5. **PBP es fuente única** — ningún endpoint de rendimiento lee de boxscores
+6. **Cursor para routes.ts** — nunca edit_file directo; siempre prompt Cursor completo
+7. **npm run check exit 0** antes de cada commit
+
+### Reglas de entrega de código
+- NUNCA "añade estas líneas aquí"
+- Siempre uno de: archivo completo para copy-paste, comando terminal, o prompt Cursor completo
+- Nunca mezclar métodos
+- `npm run check` exit 0 antes de cualquier commit
+
+### Arquitectura de sesiones de trabajo
+Para cualquier investigación de datos, el orden correcto es:
+1. Verificar qué devuelve la API WCBA (do shell script + curl)
+2. Verificar qué llega a Supabase (do shell script + Supabase REST o SQL Editor)
+3. Verificar qué produce el procesador (leer possessions.ts, comparar con audit_log)
+4. Verificar qué exponen los endpoints (leer routes.ts)
+5. Verificar qué muestra la UI (leer Stats.tsx)
+Solo cuando los 5 niveles son correctos, proponer cambios.
+
+---
+
 ## Archivos clave
-- `server/routes.ts` — rutas API Express
-- `server/possessions.ts` — procesador PBP **v6.2** (algoritmo verificado contra partido real)
+- `server/routes.ts` — rutas API Express (god file — leer en chunks)
+- `server/possessions.ts` — procesador PBP v6.2
 - `server/stats-ingest.ts` — ingest endpoint Pi → Railway → Supabase
-- `collector/src/sync/pbp.ts` — parser PBP con ACTION_CODE_MAP completo (auditado 2026-05-24)
+- `collector/src/sync/pbp.ts` — parser PBP con ACTION_CODE_MAP completo
 - `collector/src/sync/schedule.ts` — sync de partidos
 - `collector/src/index.ts` — nightly sync + candidatesForPBP logic
-- `collector/src/ingest.ts` — IngestType + fetchSyncStatus
-- `client/src/lib/stats-api.ts` — hooks stats completos (incluye useTeamLineups, usePlayerOnOff, usePlayersCombinedLineups)
-- `client/src/lib/playbook-api.ts` — hooks Playbook (usePlans, useCreatePlan, useUpdatePlan, useDeletePlan)
-- `client/src/pages/core/Stats.tsx` — U Stats UI
-- `client/src/pages/core/ModuleNav.tsx` — nav bar (safe-area iOS fix aplicado 2026-05-25)
-- `client/src/pages/core/Playbook.tsx` — hub + wizard v5 + review + split auth coach/player
+- `collector/src/config.ts` — configuración WCBA API base URL y parámetros
+- `client/src/lib/stats-api.ts` — hooks TanStack Query de stats
+- `client/src/pages/core/Stats.tsx` — U Stats UI (god file — leer en chunks)
+- `client/src/pages/core/Playbook.tsx` — U Playbook UI
 - `client/src/lib/defensive-system.ts` — motor v5 completo
 
 ## NUNCA tocar
@@ -40,242 +201,119 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ---
 
-## Tools de Claude — CRÍTICO
-- `Filesystem:read_text_file` — leer archivos del Mac
-- `filesystem:write_file` — escribir archivos completos en el Mac
-- `bash_tool` — corre en Linux, NO accede al Mac
-- `Control your Mac:osascript` — ejecuta en Mac pero NO puede SSH con contraseña interactiva
+## Estado de módulos — 2026-05-27
 
----
+### U Stats — endpoints y fuentes
 
-## Estándares de trabajo de Pablo (no negociables)
-1. Verdad antes que velocidad — si hay dudas, investigar primero
-2. Leer código real antes de proponer — nunca especular
-3. Simular antes de deployar — especialmente procesador de posesiones
-4. Gap cero aceptado — diff PBP vs boxscore debe ser 0
-5. PBP es fuente única de verdad — boxscore solo auditoría
-6. Cursor para routes.ts — nunca edit_file directo
-
----
-
-## U Stats — Arquitectura
-
-### Flujo de datos
-```
-API WCBA → collector/pbp.ts (Pi) → stats_pbp → Railway/possessions.ts v6.2 → tablas derivadas → app
-```
-
-**IMPORTANTE:** El procesador de posesiones corre en Railway (`server/possessions.ts`), NO en el Pi.
-El Pi solo hace ingest de PBP crudo a `stats_pbp`. Railway procesa las posesiones en background
-al recibir cada partido via `handlePBP()` en `stats-ingest.ts`.
-
-### Tablas derivadas
-
-| Tabla | Contenido | Estado |
+| Endpoint | Fuente actual | Estado |
 |---|---|---|
-| `pbp_possessions` | 1 fila por posesión | ✅ activa — v6.2 |
-| `pbp_player_game_stats` | 1 fila por jugadora por partido | ✅ activa |
-| `pbp_lineup_stats` | 1 fila por quinteto por partido | ✅ activa — columnas off_ppp/def_ppp/net_ppp añadidas |
-| `pbp_audit_log` | diff PBP vs boxscore | ✅ activa |
+| `/api/stats/players` | `pbp_player_game_stats` | ✅ PBP |
+| `/api/stats/player/:id` | `stats_player_boxscores` | ❌ pendiente migración |
+| `/api/stats/games` | `stats_player_boxscores` | ❌ pendiente migración |
+| `/api/stats/leaders` | `stats_player_boxscores` | ❌ pendiente migración |
+| `/api/stats/standings` | `stats_standings` | ⚠️ aceptable solo para W/L |
+| `/api/stats/team/:id` (ORTG/DRTG/PPP/Pace) | `pbp_possessions` | ✅ PBP |
+| `/api/stats/team/:id` (roster) | `pbp_player_game_stats` | ✅ PBP |
+| `/api/stats/team/:id` (W/L base) | `stats_standings` | ⚠️ aceptable |
+| `/api/stats/game/:id/boxscore` | `stats_player_boxscores` | ✅ único uso legítimo |
+| `/api/stats/league-averages` | `pbp_player_game_stats` | ✅ PBP |
+| `/api/stats/player-percentiles` | `pbp_player_game_stats` | ✅ PBP |
+| `/api/stats/team/:id/lineups` | `pbp_lineup_stats` | ✅ PBP |
+| `/api/stats/team/:id/on-off/:id` | `pbp_lineup_stats` | ✅ PBP |
+| `/api/stats/team/:id/pace-segments` | `stats_pbp` (raw) | ⚠️ metodología proxy — ver nota |
 
-### Endpoints de stats
+**Nota pace-segments:** usa LAG sobre el reloj del PBP para estimar tiempo de posesión. No es comparable con PPP general (que usa `pbp_possessions`). Los valores de PPP por tramo son señal cualitativa, no cifra exacta. No mostrar en la misma pantalla que el ORTG sin advertencia.
 
-| Endpoint | Fuente | Estado |
-|---|---|---|
-| `/api/stats/players` | `pbp_player_game_stats` | ✅ |
-| `/api/stats/player/:id` | `pbp_player_game_stats` | ✅ |
-| `/api/stats/team/:id` | `pbp_possessions` | ✅ |
-| `/api/stats/league-averages` | `pbp_possessions` | ✅ |
-| `/api/stats/player-percentiles` | `pbp_player_game_stats` | ✅ |
-| `/api/stats/team/:id/pace-segments` | `stats_pbp` | ✅ fix completo — TOVs en denominador + TL en numerador |
-| `/api/stats/team/:id/lineups` | `pbp_lineup_stats` | ✅ |
-| `/api/stats/team/:id/on-off/:playerId` | `pbp_lineup_stats` | ✅ |
-| `/api/stats/players/combined` | `pbp_lineup_stats` | ✅ |
-| `/api/stats/standings` | `stats_standings` | ✅ oficial WCBA |
-| `/api/stats/game/:id/boxscore` | `stats_player_boxscores` | ✅ auditoría |
+### U Stats — UI
+La UI en Stats.tsx tiene:
+- Tab Liga: Standings (W/L/PPG/NET/eFG%), Líderes (PPG/RPG/APG/SPG/BPG/FG%/TS%/TOPG)
+- Tab Jugadoras: lista ordenable con filtros (posición, equipo, avanzados), ficha individual
+- Ficha jugadora: radar, barras vs liga, PPG/RPG/APG/SPG/BPG/TOPG/MPG, home/away splits, game log, deep tab (USG%, PIE, FT Rate, AST/TOV, on/off)
+- TeamSheet: Overview (ORTG/DRTG/Pace/4Factores/zones), Advanced (pace-segments), Quintetos, Partidos, Roster
+- Coach Dashboard: colapsable, próximo rival + nuestro registro (ownTeamName usa `OWN_TEAM_NAME_FALLBACK = "Inner Mongolia"`)
 
-### Endpoints Playbook
+### U Playbook
+- Wizard defensivo: 35 pasos, 12 secciones, motor v5, persistencia Supabase (`playbook_plans`)
+- Split auth: coach crea/edita/publica, jugadora solo lectura
+- Ofensiva y ATOs: placeholders
 
-| Endpoint | Comportamiento | Estado |
-|---|---|---|
-| `GET /api/playbook/plans` | club_id desde profiles; RLS por rol | ✅ |
-| `POST /api/playbook/plans` | Insert con created_by, visibility default draft | ✅ |
-| `PATCH /api/playbook/plans/:id` | Edición si autor o coach/head_coach | ✅ |
-| `DELETE /api/playbook/plans/:id` | Solo el autor | ✅ |
-
----
-
-## Procesador de posesiones v6.2 — arquitectura
-
-### Pasada 1B: inferir offense_team_id por evento
-
-| Código | offense = |
-|---|---|
-| shot/turnover/ORB | tid (atacante) |
-| REBDEF | tid (reboteador pasa a atacar) |
-| STEBAL | tid (robador pasa a atacar) |
-| FOLDEF/FOLPER/FOLDSQ/FOLUSM/FOLTEC | rival de tid (fouler es defensor) |
-| FOLOFF/FOLOFN | tid (fouler es atacante) |
-| ft_made/ft_missed | tid (tirador siempre es atacante) |
-| JUBSUC | tid (ganador del jump ball) |
-| decoradores (assist, foul_drawn, block, sub, timeout, unknown) | último offense conocido |
-
-### Verificación contra partido real 1108582
-- HOME 65pts: possessions=65 ✅ diff=0
-- AWAY 74pts: possessions=74 ✅ diff=0
-- Dur=0: 2/153 (1%) — sub-segundo físicamente correctos
-- AvgDur: 16.7s — rango FIBA correcto
+### U Scout
+- Motor v5 + ReportSlidesV1 (3 slides)
+- MyScout: canónico por equipo + sandbox colapsable
+- Bug: `hasReport` siempre true (mira campos de versión antigua)
 
 ---
 
-## Collector (Pi) — estado 2026-05-26
+## Bugs activos
 
-- IP: `192.168.1.7` · usuario: `pablo` · contraseña: `skapol`
-- PM2: `ucore-collector` activo
-- Código activo en Pi: commit `80a7b88`
-- **GitHub no accesible desde Pi** — usar SCP para actualizaciones
-- TOTLTO y TOTSTO son los únicos action_codes que deben quedar como `unknown`
+**P1 — bloquean datos correctos:**
+- `player/:id`, `leaders`, `games` leen de boxscores — migración PBP pendiente
+- Hero card "Mis estadísticas" jugadoras depende de `profile.wcba_external_id` no null
 
-### Fix collector pendiente deploy al Pi
-En `collector/src/index.ts`: `candidatesForPBP` incluye partidos status=3 con marcador.
-En `server/stats-ingest.ts`: `handleSchedule` usa `GREATEST(status, EXCLUDED.status)`.
-En `collector/src/sync/pbp.ts`: PBP vacío loguea como `logger.error`.
-**Cambios en repo (commit d0f2622) pero NO en el Pi todavía.**
-Cuando estés en casa: SCP del collector al Pi y `pm2 restart ucore-collector`.
+**P2 — datos incorrectos/incompletos:**
+- `plusMinus` siempre 0 (B3) — tracking jugadoras en possessions.ts no implementado
+- `pointsByZone` split 70/30 inventado (B5) — bloqueado hasta shot coords del Pi
+- Game boxscore sin marcador por cuartos
+- pace-segments: metodología proxy (no comparable con ORTG)
+- `ownTeamName` hardcodeado como "Inner Mongolia" en Stats.tsx
 
-### Action codes WCBA
-- Sistema: Genius Sports FIBA LiveStats
-- TOTLTO/TOTSTO/TNOSTL → `'unknown'` (administrativos)
-- FOLDEF/FOLPER/FOLDSQ/FOLUSM → `'foul'` (fouler = defensor)
-
----
-
-## Estado DB temporada 2092 — 2026-05-26
-
-- **224 partidos** en stats_games (correcto para temporada completa WCBA 2024-25)
-  - Grupo A (phase 27172): 132 partidos ✅ todos status=4
-  - Grupo B (phase 27206): 60 partidos, 59 status=4, 1 status=3 (partido 1106673)
-  - Playoffs (phases 27743/27747/27753/27757): 32 partidos ✅
-- **Audit:** 440 ok, 0 warning, 0 error, max_diff=0 ✅
-- **Quintetos:** 18 equipos procesados, 1.694–2.521 posesiones por equipo ✅
+**P2 — UI:**
+- Lineups en chino (lineupShortNames usa name_zh si no hay name_en)
+- Roster con filas sin nombre (jugadoras sin entrada en stats_players)
+- Filtro de equipos en tab Jugadoras innecesario (quitar)
+- Módulos desktop en español
+- Scout iOS ha perdido la "U" en el icono
 
 ---
 
-## Playbook — arquitectura actual
+## Pendientes futuros (por prioridad)
 
-### Tabla Supabase: `playbook_plans`
-Campos: id, club_id, type, name, opponent_name, opponent_ext_id, game_id,
-season_label, notes, answers (jsonb), report (jsonb), visibility, created_by,
-created_at, updated_at, published_at, published_by
+### Bloqueante — arquitectura
+1. **Auditar datos crudos de la API WCBA**: qué endpoints tienen shot coords, qué campos devuelve el PBP real, qué fiabilidad tiene cada dato
+2. **Definir arquitectura teórica** de DB basada en lo que la API realmente puede dar
+3. **Migrar DB** si la arquitectura cambia
+4. **Revisar scraper** para capturar todos los campos disponibles
+5. **Revisar possessions.ts** para procesar correctamente
+6. **Migrar endpoints** a PBP puro
 
-Visibility states: `draft` → `staff` → `players`
+### Operacional urgente
+- SCP collector fix (candidatesForPBP) al Pi + pm2 restart
+- Configurar SSH key para Pi (una vez): `ssh-keygen -t ed25519 -f ~/.ssh/pi_ucore -N "" && ssh-copy-id -i ~/.ssh/pi_ucore.pub pablo@192.168.1.7`
 
-RLS: staff ve drafts propios + staff/players de su club; jugadoras solo ven visibility=players
-
-### Split auth en UI
-- Coach/head_coach (`isPlayerUX=false`): hub completo con wizard, crear/editar/publicar
-- Player (`isPlayerUX=true`): `PlaybookPlayerView` — solo lectura, sin botón Nuevo
-
-### Tipos de plan implementados
-- `defensive` ✅ — wizard 35 pasos, 12 secciones, motor v5, persistencia Supabase
-- `offensive` — placeholder (ComingSoonWizard)
-- `atos` — placeholder (ComingSoonWizard)
-
----
-
-## Bugs activos (por impacto)
-
-**P1:**
-- **Hero card "Mis estadísticas"** jugadoras — depende de `profile.wcba_external_id` no null.
-  Verificar en Supabase que los perfiles de jugadoras tienen el campo.
-- **`hasReport` en MyScout** — función mira campos de versiones antiguas. Perfiles viejos → botón
-  siempre dice "Ver informe". Investigar cuántos afectados.
-
-**P2:**
-- **B3**: plusMinus siempre 0 — no implementado en possessions.ts.
-- **B5**: pointsByZone: split 70/30 inventado (tag "est." en UI). Pendiente Fase 4 shot coords.
-- Game boxscore: falta marcador por cuartos.
-- Módulos en desktop en español.
-- Scout en iOS ha perdido la "U" en el icono del módulo.
-- Playbook: Ofensiva y ATOs son placeholders.
-- `defensive-system-builder-v5.html` en raíz del repo — fuente de referencia, no borrar.
-
-**Resueltos sesión 2026-05-27 (tarde):**
-- ✅ Stats UI: banner condicional (solo sin datos), líderes subtítulo dinámico
-- ✅ Stats UI: líderes añaden TS% y TOPG como categorías
-- ✅ Stats UI: quintetos filtro ≥20 posesiones + columna gamesPlayed
-- ✅ Stats UI: Coach Dashboard → nombre rival tappable abre TeamSheet
-- ✅ Stats UI: ownTeamName via `OWN_TEAM_NAME_FALLBACK` constante (desacoplado de hardcode)
-- ✅ Stats UI: deepTab "deep" en PlayerSheet relleno — USG%, PIE, FT Rate, AST/TOV (AdvChip)
-- ✅ Stats UI: On/Off en deepTab "deep" usando `usePlayerOnOff` (umbral ≥20 posesiones)
-- ✅ Backend: pace-segments numerador TL corregido — ft_made UNION ALL en CTE de puntos
-  (denominador intacto, flag counts_possession separa posesiones de puntos de TL)
-- ✅ Commit: `7db1c29`
-
-**Resueltos sesión 2026-05-27 (mañana):**
-- ✅ Fix PACE equipo: eliminado JOIN cartesiano, valor correcto ~81 poss/partido (era 6580)
-- ✅ Fix PACE liga: divisor corregido, valor correcto ~81.4 (era 325.5)
-- ✅ Fix DRTG liga: query independiente en vez de `lgDrtg = lgOrtg`
-- ✅ Auditoría completa de todas las fórmulas de U Stats con datos reales de Supabase
-- ✅ Commit: `6e2dc8f`
-
----
-
-## Pendientes futuros
-
-- **Pi (urgente):** SCP collector actualizado (fix candidatesForPBP) + `pm2 restart ucore-collector`
-- **Hero card jugadoras:** verificar `profile.wcba_external_id` en Supabase
-- **B3 (+/-):** plusMinus siempre 0 — requiere tracking de jugadoras en possessions.ts (sesión propia)
-- **B5 (shot zones):** bloqueado hasta Pi pipeline Fase 4 (shot_x/y coords)
-- **Game boxscore cuartos:** backend + UI (sesión propia ~1h)
-- **iOS TestFlight:** bundle <300KB gzip (actualmente ~509KB)
-  - Plan: lazy i18n (~-120KB) + React.lazy code splitting (~-100KB)
+### Técnico pendiente
 - Eliminar endpoints admin sin auth (`/api/stats/admin/...`)
-- Confirmar `backup/motor-v2.1-pre-20260405` estable y mergear
-- OverridePanel integration — pendiente full wiring a Supabase
-- Favicon replacement (muestra icono Replit)
-- Club logo: upload imagen real (replace emoji picker)
-- Playbook: Ofensiva y ATOs — contenido real del wizard
+- iOS TestFlight: bundle <300KB (actualmente ~509KB) — lazy i18n + React.lazy
+- OverridePanel integration Supabase
+- Confirmar motor v2.1 backup estable y mergear
 
 ---
 
-## Sesiones anteriores resumidas
+## Sesiones anteriores (resumen)
 
-### Sesión 2026-05-27 — Audit U Stats + plan + implementación fixes
+### Sesión 2026-05-27 — Audit, plan de implementación, fixes UI
 
-**Audit:** Lectura real de Stats.tsx, stats-api.ts, routes.ts. Detectados varios ítems
-del contexto como "pendientes" que ya estaban implementados (TS%/eFG% en barras,
-home/away splits, radar). Contexto corregido.
+**Audit real:** Lectura directa de Stats.tsx, stats-api.ts, routes.ts. Confirmado que player/:id, leaders, games todavía leen de boxscores. Identificado que pace-segments usa metodología incompatible con ORTG general.
 
-**Bloque 1 (Stats.tsx UI):**
-Banner condicional, subtítulo líderes dinámico, TS%/TOPG en líderes, quintetos filtro ≥20
-posesiones + columna gamesPlayed, Coach Dashboard tappable al TeamSheet del rival,
-`OWN_TEAM_NAME_FALLBACK` constante.
+**Fixes implementados (commit 7db1c29):**
+- Stats UI: banner condicional, líderes dinámico, TS%/TOPG en líderes
+- Stats UI: quintetos filtro ≥20 posesiones + gamesPlayed
+- Stats UI: Coach Dashboard tappable al TeamSheet del rival
+- Stats UI: deepTab "deep" — USG%, PIE, FT Rate, AST/TOV, On/Off
+- Backend: pace-segments TL en numerador añadido luego revertido (ft_made crea ruido)
 
-**Bloque 2 (StatsPlayerSheet):**
-deepTab "deep" relleno con USG%, PIE, FT Rate, AST/TOV como AdvChips + sección On/Off
-usando `usePlayerOnOff` con umbral de muestra ≥20 posesiones.
+**Infraestructura Claude (sesión 2026-05-27 tarde):**
+- Confirmado: `do shell script` puede acceder a Supabase (REST API) y API WCBA directamente
+- Pi: no hay SSH key — requiere setup manual una vez
+- bash_tool: solo para analizar archivos copiados, nunca para red/Mac
 
-**Bloque 3 (routes.ts):**
-pace-segments numerador TL: ft_made UNION ALL en CTE de puntos. Flag `counts_possession`
-separa posesiones reales de puntos de TL. Denominador intacto (B4 preservado).
-
-### Sesión 2026-05-26 — Stats UI, Playbook Supabase, fix collector, partido 1106673
-**Stats:** Fix B4 (pace-segments denominador TOVs), hooks quintetos, UI quintetos en TeamSheet.
-**Playbook:** Migración completa localStorage → Supabase. Split auth coach/player.
-**Collector:** fix candidatesForPBP (status=3). Pendiente SCP al Pi.
-**Partido 1106673:** PBP ingestado manualmente (487 eventos), posesiones 78/76 correctas.
+### Sesión 2026-05-26 — Stats UI, Playbook Supabase, fix collector
 Commits: `d0f2622`, `6640196`
 
-### Sesión 2026-05-25 — possessions v6.2, lineups endpoints, iOS safe-area
-- possessions.ts v6.2: bug FTs huérfanos corregido, diff=0 verificado
-- 3 endpoints stats nuevos: lineups/on-off/combined
-- ModuleNav safe-area iOS
-- Commits: `3ee80c3`, `d46a7e4`
+### Sesión 2026-05-25 — possessions v6.2, lineups, iOS safe-area
+Commits: `3ee80c3`, `d46a7e4`
 
-### Sesión 2026-05-24 — Action codes completos, auditoría stats, collector
-- Fix pbp.ts: 12 action codes nuevos añadidos — Commit: `80a7b88`
+### Sesión 2026-05-24 — Action codes completos
+Commit: `80a7b88`
 
-### Sesión 2026-05-23 — PBP como fuente única, blueprint arquitectura
-- 4 tablas derivadas creadas en Supabase
-- Documentos: FORMULAS_STATS.md, PBP_EVENTS.md, PBP_STATS_BLUEPRINT.md
+### Sesión 2026-05-23 — Blueprint arquitectura PBP
+FORMULAS_STATS.md, PBP_EVENTS.md, PBP_STATS_BLUEPRINT.md creados
