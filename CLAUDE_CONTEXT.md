@@ -269,12 +269,12 @@ La UI en Stats.tsx tiene:
 ## Pendientes futuros (por prioridad)
 
 ### Bloqueante — arquitectura
-1. **Auditar datos crudos de la API WCBA**: qué endpoints tienen shot coords, qué campos devuelve el PBP real, qué fiabilidad tiene cada dato
-2. **Definir arquitectura teórica** de DB basada en lo que la API realmente puede dar
+1. ~~Auditar datos crudos de la API WCBA~~ ✅ completado 2026-05-27
+2. **Definir arquitectura teórica** de DB basada en lo que la API puede dar (próxima sesión)
 3. **Migrar DB** si la arquitectura cambia
-4. **Revisar scraper** para capturar todos los campos disponibles
-5. **Revisar possessions.ts** para procesar correctamente
-6. **Migrar endpoints** a PBP puro
+4. **Añadir hotspot + periodScores al scraper** (collector/src/sync/pbp.ts ya integra hotspot; falta añadir periodScores de matchinfoscores)
+5. **Migrar endpoints** player/:id, leaders, games a PBP puro (pbp_player_game_stats)
+6. **Revisar possessions.ts** para incorporar shot_zone en pbp_possessions
 
 ### Operacional urgente
 - SCP collector fix (candidatesForPBP) al Pi + pm2 restart
@@ -290,7 +290,30 @@ La UI en Stats.tsx tiene:
 
 ## Sesiones anteriores (resumen)
 
-### Sesión 2026-05-27 — Audit, plan de implementación, fixes UI
+### Sesión 2026-05-27 — Audit API WCBA + shotZones.ts calibrado
+
+**Infraestructura Claude:**
+- SSH key configurada para Pi (~/.ssh/pi_ucore). Desde fuera de casa la Pi no es accesible (IP local 192.168.1.7).
+- Acceso directo a Supabase y API WCBA via `do shell script` confirmado.
+- bash_tool: SOLO para analizar archivos copiados al contenedor Linux. Nunca para red ni Mac.
+
+**Audit completo API WCBA (partido 1106508, Dongguan vs Jiangsu):**
+
+Endpoints y schemas confirmados:
+- `/api/v2/game/:id/actions` — PBP. 17 campos. Sin coordenadas. action_code, user_id (playerId), team_id, current_period, start_time (reloj MM:SS), home_score, away_score, direction.
+- `/datahub/cbamatch/games/hotspot/hotspotdata?gameId=&teamId=` — Shot coords. 10 campos: playerId, teamType, period, fgTypeStatus (made/missed), pointX, pointY (normalizadas 0-1), isStartLineUp. Sin action_id.
+- `/datahub/cbamatch/games/player/playerdata?gameId=` — Boxscore jugadora. 27 campos incluyendo positiveNegativeValue (+/-), isStartLineUp, minutes ("MM:SS"), twoPoints/threePoints/foulShot (formato "X-Y (XX.X%)").
+- `/datahub/cbamatch/games/matchinfoscores?matchId=&gameId=` — Info partido. Incluye `periods: ["13","23","27","25"]` (marcador por cuartos).
+
+Verificación hotspot: 142 shots — match exacto con PBP, 0 diferencias por jugadora. No hay action_id → link por (playerId, period, made/missed, orden).
+
+**shotZones.ts creado y verificado (commit de65882):**
+- 6 zonas FIBA: restricted_area, paint_non_ra, midrange_baseline, midrange_elbow, three_corner, three_above_break
+- Sistema de coordenadas: full court 28×15m, aro Home x=0.0575, Away x=0.9425, espejo solo en X
+- bandSide: left/right/center (relativo al ataque, Y<0.45=left)
+- collector tsc: exit 0, repo npm run check: exit 0
+
+### Sesión 2026-05-27 (mañana) — Audit, plan de implementación, fixes UI
 
 **Audit real:** Lectura directa de Stats.tsx, stats-api.ts, routes.ts. Confirmado que player/:id, leaders, games todavía leen de boxscores. Identificado que pace-segments usa metodología incompatible con ORTG general.
 
