@@ -243,9 +243,9 @@ export async function syncPBP(gameId: number): Promise<void> {
     for (const c of classifyShots(shotPoints)) {
       const key = `${c.playerId}_${c.period}_${c.pointX.toFixed(5)}`;
       shotLookup.set(key, {
-        x: c.normalizedX, y: c.normalizedY,
-        made: MADE_SHOT_CODES.has(c as any) || c.fgTypeStatus,
-        zone: c.zone, bandSide: c.bandSide, distM: c.distToAroM,
+        x: c.normalizedX ?? 0, y: c.normalizedY ?? 0,
+        made: c.fgTypeStatus,
+        zone: c.zone ?? 'midrange_elbow', bandSide: c.bandSide ?? 'center', distM: c.distToAroM ?? 0,
       });
     }
     logger.info('Shot chart fetched', { gameId, shots: shotLookup.size });
