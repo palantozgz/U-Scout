@@ -27,12 +27,10 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 3. **`stats_standings` solo existe como datos de clasificación oficial** — W/L/racha desde WCBA API. No se usa para métricas de rendimiento.
 4. **Ninguna métrica de rendimiento (PPG, RPG, eFG%, ORTG, etc.) puede salir de boxscores.** Nunca.
 
-**Estado de migración (pendiente):**
-- `/api/stats/player/:id` → todavía lee de `stats_player_boxscores` ❌
-- `/api/stats/leaders` → todavía lee de `stats_player_boxscores` ❌
-- `/api/stats/games` → todavía lee de `stats_player_boxscores` ❌
-- `/api/stats/team/:id` (datos base W/L/ppg) → lee de `stats_standings` (aceptable para W/L, no para métricas)
-- Todos los demás endpoints ya usan PBP ✅
+**Estado de migración:**
+- Todos los endpoints de rendimiento usan PBP ✅
+- `/api/stats/players/all-detail` y `/api/stats/player-link` → aún leen boxscores, pero **sin consumidores activos en la UI** — candidatos a eliminar
+- `/api/stats/team/:id` (W/L base) → `stats_standings` (aceptable para W/L únicamente)
 
 ---
 
@@ -71,13 +69,9 @@ Endpoints confirmados: `phasemenus`, `matchmenusschedule`, `matchschedules`, `ma
 
 ### Acceso a la Pi
 - IP: `192.168.1.7` · usuario: `pablo` · contraseña: `skapol`
-- **No hay clave SSH configurada.** SSH con contraseña requiere `sshpass` (no instalado) o acceso interactivo.
-- **Para habilitar SSH sin contraseña (una vez):**
-  ```bash
-  ssh-keygen -t ed25519 -f ~/.ssh/pi_ucore -N "" && ssh-copy-id -i ~/.ssh/pi_ucore.pub pablo@192.168.1.7
-  ```
-  Después de esto: `do shell script "ssh -i ~/.ssh/pi_ucore pablo@192.168.1.7 'COMANDO'"` funcionará sin contraseña.
-- **Hasta entonces:** Claude no puede acceder a la Pi directamente. Necesita que Pablo ejecute comandos manualmente.
+- **SSH key configurada:** `~/.ssh/pi_ucore` ✅
+- Desde casa: `do shell script "ssh -i ~/.ssh/pi_ucore pablo@192.168.1.7 'COMANDO'"` funciona directamente
+- Desde fuera de casa: Pi no accesible (IP local 192.168.1.7)
 
 ---
 
@@ -208,9 +202,9 @@ Solo cuando los 5 niveles son correctos, proponer cambios.
 | Endpoint | Fuente actual | Estado |
 |---|---|---|
 | `/api/stats/players` | `pbp_player_game_stats` | ✅ PBP |
-| `/api/stats/player/:id` | `stats_player_boxscores` | ❌ pendiente migración |
-| `/api/stats/games` | `stats_player_boxscores` | ❌ pendiente migración |
-| `/api/stats/leaders` | `stats_player_boxscores` | ❌ pendiente migración |
+| `/api/stats/player/:id` | `pbp_player_game_stats` | ✅ PBP |
+| `/api/stats/games` | `pbp_player_game_stats` | ✅ PBP |
+| `/api/stats/leaders` | `pbp_player_game_stats` | ✅ PBP |
 | `/api/stats/standings` | `stats_standings` | ⚠️ aceptable solo para W/L |
 | `/api/stats/team/:id` (ORTG/DRTG/PPP/Pace) | `pbp_possessions` | ✅ PBP |
 | `/api/stats/team/:id` (roster) | `pbp_player_game_stats` | ✅ PBP |
@@ -269,16 +263,17 @@ La UI en Stats.tsx tiene:
 ## Pendientes futuros (por prioridad)
 
 ### Bloqueante — arquitectura
-1. ~~Auditar datos crudos de la API WCBA~~ ✅ completado 2026-05-27
-2. **Definir arquitectura teórica** de DB basada en lo que la API puede dar (próxima sesión)
-3. **Migrar DB** si la arquitectura cambia
-4. **Añadir hotspot + periodScores al scraper** (collector/src/sync/pbp.ts ya integra hotspot; falta añadir periodScores de matchinfoscores)
-5. **Migrar endpoints** player/:id, leaders, games a PBP puro (pbp_player_game_stats)
-6. **Revisar possessions.ts** para incorporar shot_zone en pbp_possessions
+1. ~~Auditar datos crudos de la API WCBA~~ ✅
+2. ~~Definir arquitectura teórica~~ ✅ — schema supabase-stats-schema.sql ya tiene todo
+3. ~~Migrar endpoints player/:id, leaders, games~~ ✅ commit 0f6f67a
+4. **Añadir hotspot + periodScores al scraper** — requiere SCP a Pi (en casa)
+5. **Calcular plus_minus real** desde pbp_lineup_stats en possessions.ts
+6. **Eliminar endpoints huérfanos** players/all-detail y player-link (sin consumidores)
+7. **Shot chart UI** — bloqueado hasta que hotspot esté scrapeado y shot_zone relleno
 
 ### Operacional urgente
 - SCP collector fix (candidatesForPBP) al Pi + pm2 restart
-- Configurar SSH key para Pi (una vez): `ssh-keygen -t ed25519 -f ~/.ssh/pi_ucore -N "" && ssh-copy-id -i ~/.ssh/pi_ucore.pub pablo@192.168.1.7`
+- ~~SSH key Pi~~ ✅ configurada en ~/.ssh/pi_ucore
 
 ### Técnico pendiente
 - Eliminar endpoints admin sin auth (`/api/stats/admin/...`)
