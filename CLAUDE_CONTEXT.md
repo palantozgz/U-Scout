@@ -22,15 +22,14 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 
 ## Principios de datos — NO NEGOCIABLES
 
-1. **PBP es fuente única de verdad.** Absolutamente todos los datos de stats en la app deben provenir de las tablas derivadas del PBP (`pbp_possessions`, `pbp_player_game_stats`, `pbp_lineup_stats`).
-2. **`stats_player_boxscores` solo existe para auditoría** — el único endpoint que puede leerlo es `/api/stats/game/:id/boxscore`.
-3. **`stats_standings` solo existe como datos de clasificación oficial** — W/L/racha desde WCBA API. No se usa para métricas de rendimiento.
-4. **Ninguna métrica de rendimiento (PPG, RPG, eFG%, ORTG, etc.) puede salir de boxscores.** Nunca.
+1. **PBP es fuente única de verdad.** Todos los datos de stats provienen de tablas derivadas del PBP.
+2. **`stats_player_boxscores`** — solo para `/api/stats/game/:id/boxscore` (auditoría) y `/api/stats/sync-status` (metadata collector). Nada más.
+3. **`stats_standings`** — solo W/L/racha oficial. No para métricas de rendimiento.
+4. **Ninguna métrica de rendimiento puede salir de boxscores.** Nunca.
 
-**Estado de migración:**
-- Todos los endpoints de rendimiento usan PBP ✅
-- `/api/stats/players/all-detail` y `/api/stats/player-link` → aún leen boxscores, pero **sin consumidores activos en la UI** — candidatos a eliminar
-- `/api/stats/team/:id` (W/L base) → `stats_standings` (aceptable para W/L únicamente)
+**Estado migración: COMPLETO ✅**
+Todos los endpoints de rendimiento leen de `pbp_player_game_stats` o `pbp_possessions`.
+Únicas referencias legítimas a boxscores: `/api/stats/game/:id/boxscore` y `/api/stats/sync-status`.
 
 ---
 
@@ -264,12 +263,13 @@ La UI en Stats.tsx tiene:
 
 ### Bloqueante — arquitectura
 1. ~~Auditar datos crudos de la API WCBA~~ ✅
-2. ~~Definir arquitectura teórica~~ ✅ — schema supabase-stats-schema.sql ya tiene todo
+2. ~~Definir arquitectura teórica~~ ✅
 3. ~~Migrar endpoints player/:id, leaders, games~~ ✅ commit 0f6f67a
-4. **Añadir hotspot + periodScores al scraper** — requiere SCP a Pi (en casa)
-5. **Calcular plus_minus real** desde pbp_lineup_stats en possessions.ts
-6. **Eliminar endpoints huérfanos** players/all-detail y player-link (sin consumidores)
-7. **Shot chart UI** — bloqueado hasta que hotspot esté scrapeado y shot_zone relleno
+4. ~~Migrar standings/team eFG%/ORB%/DRB%~~ ✅ commit 639d517
+5. ~~Eliminar endpoints huérfanos~~ ✅ commit 639d517
+6. ~~plus_minus real desde PBP~~ ✅ commit 62bdc84 (reprocesado en curso)
+7. **Añadir hotspot + periodScores al scraper** — requiere SCP a Pi (en casa)
+8. **Shot chart UI** — bloqueado hasta que hotspot esté scrapeado
 
 ### Operacional urgente
 - SCP collector fix (candidatesForPBP) al Pi + pm2 restart
