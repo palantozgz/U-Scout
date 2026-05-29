@@ -221,7 +221,6 @@ export default function Stats() {
     bpg: "BPG",
     topg: "TOPG",
     plusMinus: "+/-",
-    allTeams: es ? "Todos" : zh ? "全部" : "All",
     tapRowMore: es ? "Toca una fila para ver más" : zh ? "点按查看更多" : "Tap a row for more",
     leadersEmpty: es ? "Sin líderes" : zh ? "暂无数据" : "No leaders yet",
     standingsEmpty: es ? "Sin clasificación" : zh ? "暂无排名" : "No standings",
@@ -252,8 +251,6 @@ export default function Stats() {
   const [ligaSegment, setLigaSegment] = useState<LigaSegment>("clasificacion");
   const [showCoachDash, setShowCoachDash] = useState(false);
   const [leaderStat, setLeaderStat] = useState<LeaderStatKey>("ppg");
-  const [jugadorasTeam, setJugadorasTeam] = useState<string>("");
-  const chipsScrollRef = useRef<HTMLDivElement>(null);
   const [jugadorasSort, setJugadorasSort] = useState<JugadorasSort>("ppg");
   const [jugadorasSortDir, setJugadorasSortDir] = useState<"asc" | "desc">("desc");
   const [jugadorasSearch, setJugadorasSearch] = useState("");
@@ -275,7 +272,6 @@ export default function Stats() {
 
   const clearAllFilters = () => {
     setJugadorasPos("");
-    setJugadorasTeam("");
     setJugadorasSearch("");
     setAdvMinGames("");
     setAdvMinPpg("");
@@ -312,7 +308,6 @@ export default function Stats() {
   useEffect(() => {
     setJugadorasLimit(50);
   }, [
-    jugadorasTeam,
     jugadorasSort,
     jugadorasSearch,
     jugadorasPos,
@@ -322,12 +317,6 @@ export default function Stats() {
     advMinApg,
     advMinMpg,
   ]);
-
-  useEffect(() => {
-    if (chipsScrollRef.current) {
-      chipsScrollRef.current.scrollLeft = 0;
-    }
-  }, [jugadorasTeam]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -360,14 +349,6 @@ export default function Stats() {
     return filtered.length > 0 ? filtered : playersRaw;
   }, [playersRaw, seasonMetaLabel]);
 
-  const teamOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of playersForSeason) {
-      if (p.games > 0 && p.teamName?.trim()) set.add(p.teamName.trim());
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [playersForSeason]);
-
   const handleJugadorasSortClick = (k: JugadorasSort) => {
     if (jugadorasSort === k) {
       setJugadorasSortDir((d) => (d === "desc" ? "asc" : "desc"));
@@ -379,7 +360,6 @@ export default function Stats() {
 
   const jugadorasFiltered = useMemo(() => {
     let list = playersForSeason.filter((p) => p.games > 0);
-    if (jugadorasTeam.trim()) list = list.filter((p) => p.teamName === jugadorasTeam);
 
     if (jugadorasPos) {
       list = list.filter((p) => {
@@ -416,7 +396,6 @@ export default function Stats() {
     );
   }, [
     playersForSeason,
-    jugadorasTeam,
     jugadorasSort,
     debouncedSearch,
     jugadorasSortDir,
@@ -1098,7 +1077,7 @@ export default function Stats() {
                     {hasAdvFilter && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
                     {es ? "Filtros" : zh ? "筛选" : "Filters"}
                   </button>
-                  {(jugadorasPos || jugadorasTeam || jugadorasSearch.trim() || hasAdvFilter) && (
+                  {(jugadorasPos || jugadorasSearch.trim() || hasAdvFilter) && (
                     <button
                       type="button"
                       onClick={clearAllFilters}
@@ -1107,38 +1086,6 @@ export default function Stats() {
                       {es ? "Limpiar" : zh ? "清除" : "Clear"}
                     </button>
                   )}
-                </div>
-                <div
-                  ref={chipsScrollRef}
-                  className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1 scroll-snap-type-x-mandatory"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setJugadorasTeam("")}
-                    className={cn(
-                      "scroll-snap-align-start shrink-0 rounded-full border px-3 py-1.5 text-xs font-black transition-colors",
-                      !jugadorasTeam.trim()
-                        ? "border-primary bg-primary/15 text-primary"
-                        : "border-border bg-card text-muted-foreground hover:bg-muted/40",
-                    )}
-                  >
-                    {L.allTeams}
-                  </button>
-                  {teamOptions.map((name) => (
-                    <button
-                      key={name}
-                      type="button"
-                      onClick={() => setJugadorasTeam(name)}
-                      className={cn(
-                        "scroll-snap-align-start shrink-0 max-w-[200px] truncate rounded-full border px-3 py-1.5 text-xs font-black transition-colors",
-                        jugadorasTeam === name
-                          ? "border-primary bg-primary/15 text-primary"
-                          : "border-border bg-card text-muted-foreground hover:bg-muted/40",
-                      )}
-                    >
-                      {name}
-                    </button>
-                  ))}
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -1215,7 +1162,7 @@ export default function Stats() {
                 )}
 
                 {/* Estado vacío por filtro activo — no bloqueante */}
-                {jugadorasFiltered.length === 0 && (jugadorasPos || jugadorasTeam || jugadorasSearch.trim() || hasAdvFilter) && (
+                {jugadorasFiltered.length === 0 && (jugadorasPos || jugadorasSearch.trim() || hasAdvFilter) && (
                   <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center space-y-2">
                     <p className="text-sm font-bold text-muted-foreground">
                       {es ? "Sin resultados con estos filtros" : zh ? "筛选无结果" : "No results for these filters"}
@@ -3428,7 +3375,6 @@ function StatsTeamSheet({
 }) {
   const es = locale === "es";
   const zh = locale === "zh";
-  const preferEn = locale === "en" || locale === "es";
   const { data, isLoading, isError } = useTeamDetail(externalId, seasonId);
   const leagueAvgQ = useLeagueAverages(seasonId);
   const leagueAvg = leagueAvgQ.data;
@@ -3461,7 +3407,8 @@ function StatsTeamSheet({
     "小前锋": 4, "大前锋": 5, "前锋": 6,
     "中锋": 7,
   };
-  const activePlayers = [...players.filter((p) => p.games > 0)].sort((a, b) => {
+  const rosterFiltered = players.filter((p) => p.nameEn?.trim() || p.nameZh?.trim());
+  const activePlayers = [...rosterFiltered.filter((p) => p.games > 0)].sort((a, b) => {
     if (rosterSort === "pos") {
       const pa = POS_ORDER[a.position ?? ""] ?? 99;
       const pb2 = POS_ORDER[b.position ?? ""] ?? 99;
@@ -4367,9 +4314,7 @@ function StatsTeamSheet({
                     ))}
                   </div>
                   {activePlayers.map((p: TeamRosterPlayer) => {
-                    const name = preferEn && p.nameEn?.trim()
-                      ? (toTitleCase(p.nameEn) ?? p.nameEn.trim())
-                      : p.nameZh;
+                    const name = p.nameEn?.trim() || p.nameZh || "—";
                     return (
                       <button
                         key={p.externalId}
