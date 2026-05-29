@@ -249,7 +249,7 @@ export default function Stats() {
     return canUsePlayerUX ? "jugadoras" : "liga";
   });
   const [ligaSegment, setLigaSegment] = useState<LigaSegment>("clasificacion");
-  const [showCoachDash, setShowCoachDash] = useState(false);
+  const [showCoachDash, setShowCoachDash] = useState(!canUsePlayerUX);
   const [leaderStat, setLeaderStat] = useState<LeaderStatKey>("ppg");
   const [jugadorasSort, setJugadorasSort] = useState<JugadorasSort>("ppg");
   const [jugadorasSortDir, setJugadorasSortDir] = useState<"asc" | "desc">("desc");
@@ -573,6 +573,21 @@ export default function Stats() {
       panelLabel={isDesktop ? (locale === "zh" ? "详情" : locale === "es" ? "DETALLE" : "DETAIL") : undefined}
     >
       <>
+      <div className="w-full max-w-5xl mx-auto px-4 md:px-8 flex justify-end pt-1 pb-2 shrink-0">
+        <button
+          type="button"
+          onClick={() => setSeasonSheetOpen(true)}
+          className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+        >
+          {seasonsQ.isLoading ? (
+            <span className="w-10 h-2.5 rounded bg-muted-foreground/20 animate-pulse inline-block" />
+          ) : (
+            seasonLabel
+          )}
+          <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-70" />
+        </button>
+      </div>
+
       <div className={`px-4 md:px-8 pb-10 mx-auto w-full ${
         isDesktop && playerSheetId && returnToTeamId ? 'max-w-sm'
         : isDesktop && (playerSheetId || teamSheetId) ? 'max-w-2xl'
@@ -587,20 +602,6 @@ export default function Stats() {
             </div>
           </div>
         )}
-        <div className="flex items-center justify-end pt-2 pb-1">
-          <button
-            type="button"
-            onClick={() => setSeasonSheetOpen(true)}
-            className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
-          >
-            {seasonsQ.isLoading ? (
-              <span className="w-10 h-2.5 rounded bg-muted-foreground/20 animate-pulse inline-block" />
-            ) : (
-              seasonLabel
-            )}
-            <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-70" />
-          </button>
-        </div>
 
         <Sheet open={seasonSheetOpen} onOpenChange={setSeasonSheetOpen}>
           <SheetContent side="bottom" className="rounded-t-2xl">
@@ -1089,16 +1090,16 @@ export default function Stats() {
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[2fr_0.4fr_0.6fr_0.6fr_0.6fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
+                  <div className="grid grid-cols-[2fr_0.5fr_0.7fr_0.7fr_0.7fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
                     <span className="text-left">{L.colPlayer}</span>
-                    <span className="text-right">{L.colG}</span>
+                    <span className="text-right text-[11px]">{L.colG}</span>
                     {(["ppg", "rpg", "apg"] as const).map((k) => (
                       <button
                         key={k}
                         type="button"
                         onClick={() => handleJugadorasSortClick(k)}
                         className={cn(
-                          "text-right font-black uppercase tracking-wider text-xs touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                          "text-right font-black uppercase tracking-wider text-[11px] touch-manipulation flex items-center justify-end gap-0.5 w-full",
                           jugadorasSort === k ? "text-primary" : "text-muted-foreground",
                         )}
                       >
@@ -1124,7 +1125,7 @@ export default function Stats() {
                           });
                         }}
                         onClick={() => setPlayerSheetId(p.externalId)}
-                        className="w-full px-3 py-3 grid grid-cols-[2fr_0.4fr_0.6fr_0.6fr_0.6fr] items-center gap-0 text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors border-b border-border last:border-b-0"
+                        className="w-full px-3 py-3 grid grid-cols-[2fr_0.5fr_0.7fr_0.7fr_0.7fr] items-center gap-0 text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors border-b border-border last:border-b-0"
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           {p.photoUrl ? (
@@ -1147,10 +1148,10 @@ export default function Stats() {
                             </p>
                           </div>
                         </div>
-                        <p className="text-xs font-black text-foreground tabular-nums text-right">{p.games}</p>
-                        <p className="text-xs font-black text-foreground tabular-nums text-right">{num(p.ppg).toFixed(1)}</p>
-                        <p className="text-xs font-black text-foreground tabular-nums text-right">{num(p.rpg).toFixed(1)}</p>
-                        <p className="text-xs font-black text-foreground tabular-nums text-right">{num(p.apg).toFixed(1)}</p>
+                        <p className="text-[11px] font-black text-foreground tabular-nums text-right">{p.games}</p>
+                        <p className="text-[11px] font-black text-foreground tabular-nums text-right">{num(p.ppg).toFixed(1)}</p>
+                        <p className="text-[11px] font-black text-foreground tabular-nums text-right">{num(p.rpg).toFixed(1)}</p>
+                        <p className="text-[11px] font-black text-foreground tabular-nums text-right">{num(p.apg).toFixed(1)}</p>
                       </button>
                     );
                   })}
@@ -2054,7 +2055,12 @@ function StatsDesktopPanel(props: {
   const zh = props.locale === "zh";
 
   const leagueQ = useLeagueAverages(props.seasonId);
+  const standingsQ = useStandings(props.seasonId);
   const lg = leagueQ.data;
+  const topStandings = useMemo(() => {
+    const rows = standingsQ.data?.standings ?? [];
+    return [...rows].sort((a, b) => a.rank - b.rank).slice(0, 5);
+  }, [standingsQ.data?.standings]);
 
   if (!props.playerSheetId && !props.teamSheetId) {
     // 4 Factores de Dean Oliver + ORTG + PPG
@@ -2180,6 +2186,55 @@ function StatsDesktopPanel(props: {
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {topStandings.length > 0 && (
+          <div>
+            <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground/50 mb-1.5">
+              {es ? "Clasificación" : zh ? "排名" : "Standings"}
+            </p>
+            <div className="rounded-xl border border-border/30 overflow-hidden">
+              <div className="grid grid-cols-[0.35fr_1fr_0.55fr_0.45fr] gap-1 px-2.5 py-1.5 border-b border-border/30 bg-muted/15 text-[8px] font-black uppercase tracking-wider text-muted-foreground/55">
+                <span className="text-center">#</span>
+                <span>{es ? "Equipo" : zh ? "球队" : "Team"}</span>
+                <span className="text-right">{es ? "V-D" : zh ? "胜-负" : "W-L"}</span>
+                <span className="text-right">NET</span>
+              </div>
+              {topStandings.map((row) => {
+                const netNum =
+                  row.ppg != null && row.oppg != null && Number.isFinite(num(row.ppg)) && Number.isFinite(num(row.oppg))
+                    ? num(row.ppg) - num(row.oppg)
+                    : null;
+                const netStr = netNum != null ? (netNum > 0 ? `+${netNum.toFixed(1)}` : netNum.toFixed(1)) : "—";
+                return (
+                  <div
+                    key={String(row.teamExternalId)}
+                    className="grid grid-cols-[0.35fr_1fr_0.55fr_0.45fr] gap-1 items-center px-2.5 py-1.5 border-b border-border/20 last:border-b-0 text-[11px]"
+                  >
+                    <span className="text-center font-black tabular-nums text-muted-foreground">{row.rank}</span>
+                    <span className="font-bold text-foreground truncate">
+                      {pickName(row.teamName, row.teamNameEn ?? null, props.locale) || "—"}
+                    </span>
+                    <span className="text-right font-black tabular-nums text-foreground">
+                      {row.wins}-{row.losses}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-right font-black tabular-nums",
+                        netNum != null && netNum > 0
+                          ? "text-green-600 dark:text-green-400"
+                          : netNum != null && netNum < 0
+                            ? "text-destructive"
+                            : "text-muted-foreground",
+                      )}
+                    >
+                      {netStr}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -3925,35 +3980,42 @@ function StatsTeamSheet({
 
               {paceQ.data && !paceQ.data.insufficient_data && (
                 <div className="px-4 py-3 border-t border-border/50">
-                  <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground mb-3">
+                  <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground mb-1">
                     {locale === "zh" ? "进攻节奏" : locale === "es" ? "Ritmo ofensivo" : "Offensive Pace"}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground/50 mb-3 leading-snug">
+                    {locale === "es"
+                      ? "Calculado desde posesiones PBP procesadas."
+                      : locale === "zh"
+                        ? "基于PBP处理后的回合数据计算。"
+                        : "Calculated from processed PBP possessions."}
                   </p>
                   {[
                     {
                       label: locale === "zh" ? "快攻" : locale === "es" ? "Transition" : "Transition",
-                      sublabel: "0 – 8\"",
-                      pct: paceQ.data.transition_pct,
-                      league: paceQ.data.league?.transition_pct,
-                      ppp: paceQ.data.ppp_transition,
-                      leaguePpp: paceQ.data.league?.ppp_transition,
+                      sublabel: "",
+                      pct: paceQ.data.transition?.pct,
+                      league: paceQ.data.lg?.transition.pct,
+                      ppp: paceQ.data.transition?.ppp,
+                      leaguePpp: paceQ.data.lg?.transition.ppp,
                       color: "bg-emerald-500",
                     },
                     {
                       label: locale === "zh" ? "早期进攻" : locale === "es" ? "Early Offense" : "Early Offense",
-                      sublabel: "8 – 14\"",
-                      pct: paceQ.data.demi_pct,
-                      league: paceQ.data.league?.demi_pct,
-                      ppp: paceQ.data.ppp_demi,
-                      leaguePpp: paceQ.data.league?.ppp_demi,
+                      sublabel: "",
+                      pct: paceQ.data.early?.pct,
+                      league: paceQ.data.lg?.early.pct,
+                      ppp: paceQ.data.early?.ppp,
+                      leaguePpp: paceQ.data.lg?.early.ppp,
                       color: "bg-amber-500",
                     },
                     {
                       label: locale === "zh" ? "阵地战" : locale === "es" ? "Halfcourt" : "Halfcourt",
-                      sublabel: "> 14\"",
-                      pct: paceQ.data.halfcourt_pct,
-                      league: paceQ.data.league?.halfcourt_pct,
-                      ppp: paceQ.data.ppp_halfcourt,
-                      leaguePpp: paceQ.data.league?.ppp_halfcourt,
+                      sublabel: "",
+                      pct: paceQ.data.halfcourt?.pct,
+                      league: paceQ.data.lg?.halfcourt.pct,
+                      ppp: paceQ.data.halfcourt?.ppp,
+                      leaguePpp: paceQ.data.lg?.halfcourt.ppp,
                       color: "bg-blue-500",
                     },
                   ].map((row) => (
@@ -4005,8 +4067,8 @@ function StatsTeamSheet({
                       : locale === "es"
                         ? `Media ${paceQ.data.avg_possession_time}s/pos.`
                         : `Avg ${paceQ.data.avg_possession_time}s/poss.`}
-                    {paceQ.data.league && (
-                      <span> · liga {paceQ.data.league.avg_possession_time}s</span>
+                    {paceQ.data.lg && (
+                      <span> · liga {paceQ.data.lg.avg_possession_time}s</span>
                     )}
                   </p>
                 </div>

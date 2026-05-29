@@ -457,26 +457,30 @@ export function useGameBoxscore(gameId: string | number | null | undefined) {
   });
 }
 
+export interface PaceSegmentBucket {
+  poss: number;
+  pts: number;
+  pct: number;
+  ppp: number | null;
+  avgDur: number | null;
+}
+
 export interface PaceSegments {
   insufficient_data: boolean;
   possessions: number;
   min_required?: number;
-  transition_pct?: number;
-  demi_pct?: number;
-  halfcourt_pct?: number;
   avg_possession_time?: number;
-  ppp_transition?: number | null;
-  ppp_demi?: number | null;
-  ppp_halfcourt?: number | null;
-  league?: {
-    transition_pct: number;
-    demi_pct: number;
-    halfcourt_pct: number;
+  transition?: PaceSegmentBucket;
+  early?: PaceSegmentBucket;
+  halfcourt?: PaceSegmentBucket;
+  totalPoss?: number;
+  lg?: {
+    transition: PaceSegmentBucket;
+    early: PaceSegmentBucket;
+    halfcourt: PaceSegmentBucket;
+    totalPoss: number;
     avg_possession_time: number;
-    ppp_transition?: number | null;
-    ppp_demi?: number | null;
-    ppp_halfcourt?: number | null;
-  } | null;
+  };
 }
 
 export function usePaceSegments(externalId: string | null | undefined, seasonId?: number) {

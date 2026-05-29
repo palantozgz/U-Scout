@@ -2436,314 +2436,117 @@ export async function registerRoutes(
   });
 
   // ─── GET /api/stats/team/:externalId/pace-segments ──────────────────────────
-  // % posesiones por tramo (tiros + TOV como fin de posesión) usando stats_pbp.
-  // PPP por tramo = puntos / posesiones (TOV cuenta en denominador con 0 pts).
-  // FIBA: clock descuenta, cuartos 10min. Excluye putbacks. Ajusta -3s tras canasta.
-  const paceSegmentsMetadata = { ppp_includes_tov: true as const };
+  // Tramos de ritmo desde pbp_possessions (is_transition / is_early_offense / is_halfcourt).
   app.get("/api/stats/team/:externalId/pace-segments", requireAuth, async (req, res) => {
     const { externalId } = req.params;
     const seasonId = Number(req.query.seasonId ?? 2092);
     try {
       const teamRow = await db.execute(sql`
-        SELECT id, external_id::text AS ext_id FROM stats_teams
-        WHERE external_id = ${Number(externalId)} LIMIT 1
+        SELECT st.id, st.external_id::text AS ext_id
+        FROM stats_teams st WHERE st.external_id = ${Number(externalId)} LIMIT 1
       `);
       const team = (teamRow as any).rows?.[0];
       if (!team) return res.status(404).json({ error: "Team not found" });
 
-      const pbpRows = await db.execute(sql`
-        WITH team_games AS (
-          SELECT sg.id AS game_id FROM stats_games sg
-          WHERE (sg.home_team_id = ${Number(team.id)} OR sg.away_team_id = ${Number(team.id)})
-            AND sg.status = 4 AND sg.season_id = ${seasonId}
-        ),
-        all_events AS (
-          SELECT
-            p.game_id, p.quarter, p.sequence, p.clock, p.event_type, p.action_code,
-            p.team_id::text AS team_id,
-            (SPLIT_PART(p.clock,':',1)::int*60+SPLIT_PART(p.clock,':',2)::int) AS clock_sec,
-            LAG(p.event_type, 1) OVER w AS lag1_et,
-            LAG(p.team_id::text, 1) OVER w AS lag1_team,
-            LAG(p.clock, 1) OVER w AS lag1_clock,
-            LAG(p.action_code, 1) OVER w AS lag1_code,
-            LAG(p.event_type, 2) OVER w AS lag2_et,
-            LAG(p.team_id::text, 2) OVER w AS lag2_team,
-            LAG(p.clock, 2) OVER w AS lag2_clock,
-            LAG(p.event_type, 3) OVER w AS lag3_et,
-            LAG(p.team_id::text, 3) OVER w AS lag3_team,
-            LAG(p.clock, 3) OVER w AS lag3_clock,
-            LAG(p.event_type, 4) OVER w AS lag4_et,
-            LAG(p.team_id::text, 4) OVER w AS lag4_team,
-            LAG(p.clock, 4) OVER w AS lag4_clock
-          FROM stats_pbp p
-          JOIN team_games tg ON tg.game_id = p.game_id
-          WINDOW w AS (PARTITION BY p.game_id, p.quarter ORDER BY p.sequence)
-        ),
-        team_shots AS (
-          SELECT * FROM all_events
-          WHERE team_id = ${team.ext_id}
-            AND event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3','turnover')
-            AND clock ~ '^[0-9]+:[0-9]{2}$'
-          UNION ALL
-          SELECT * FROM all_events
-          WHERE team_id = ${team.ext_id}
-            AND event_type = 'ft_made'
-            AND clock ~ '^[0-9]+:[0-9]{2}$'
-        ),
-        possession_times AS (
-          SELECT
-            clock_sec,
-            event_type,
-            CASE
-              WHEN lag1_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN 'exact'
-              WHEN lag1_et IN ('shot_made','shot_made_3') AND lag1_team != ${team.ext_id}
-                   AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN 'after_basket'
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag2_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN 'exact'
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('shot_made','shot_made_3') AND lag2_team != ${team.ext_id}
-                   AND lag2_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN 'after_basket'
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag3_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag3_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN 'exact'
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag3_et IN ('shot_made','shot_made_3') AND lag3_team != ${team.ext_id}
-                   AND lag3_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN 'after_basket'
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag3_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag4_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag4_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN 'exact'
-              ELSE 'unknown'
-            END AS poss_type,
-            CASE
-              WHEN lag1_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int)
-              WHEN lag1_et IN ('shot_made','shot_made_3') AND lag1_team != ${team.ext_id}
-                   AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int)
-                     - CASE WHEN quarter < 4 OR clock_sec > 120 THEN 3 ELSE 0 END
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag2_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag2_clock,':',1)::int*60+SPLIT_PART(lag2_clock,':',2)::int)
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('shot_made','shot_made_3') AND lag2_team != ${team.ext_id}
-                   AND lag2_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag2_clock,':',1)::int*60+SPLIT_PART(lag2_clock,':',2)::int)
-                     - CASE WHEN quarter < 4 OR clock_sec > 120 THEN 3 ELSE 0 END
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag3_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag3_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag3_clock,':',1)::int*60+SPLIT_PART(lag3_clock,':',2)::int)
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag3_et IN ('shot_made','shot_made_3') AND lag3_team != ${team.ext_id}
-                   AND lag3_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag3_clock,':',1)::int*60+SPLIT_PART(lag3_clock,':',2)::int)
-                     - CASE WHEN quarter < 4 OR clock_sec > 120 THEN 3 ELSE 0 END
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag3_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag4_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag4_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag4_clock,':',1)::int*60+SPLIT_PART(lag4_clock,':',2)::int)
-              ELSE NULL
-            END AS poss_start_sec
-          FROM team_shots
-          WHERE NOT (
-            lag1_et = 'rebound' AND lag1_team = ${team.ext_id}
-            AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
-            AND ((SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int) - clock_sec) <= 3
-          )
-        )
+      const rows = await db.execute(sql`
         SELECT
-          poss_start_sec - clock_sec AS pos_time,
           CASE
-            WHEN event_type = 'ft_made' THEN 1
-            WHEN event_type IN ('shot_made','shot_made_3') THEN
-              CASE event_type WHEN 'shot_made_3' THEN 3 ELSE 2 END
-            ELSE 0
-          END AS shot_pts,
-          (event_type <> 'ft_made') AS counts_possession
-        FROM possession_times
-        WHERE poss_type != 'unknown'
-          AND poss_start_sec IS NOT NULL
-          AND poss_start_sec - clock_sec > 0
-          AND poss_start_sec - clock_sec <= 24
+            WHEN pp.is_transition    THEN 'transition'
+            WHEN pp.is_early_offense THEN 'early'
+            ELSE                         'halfcourt'
+          END AS seg,
+          COUNT(*)::int AS poss,
+          SUM(pp.points)::int AS pts,
+          ROUND(AVG(pp.duration_sec)::numeric, 1) AS avg_dur
+        FROM pbp_possessions pp
+        JOIN stats_games sg ON sg.id = pp.game_id
+        WHERE pp.team_id = ${Number(team.ext_id)}
+          AND sg.status = 4
+          AND sg.season_id = ${seasonId}
+        GROUP BY seg
       `);
 
-      const rows = (pbpRows as any).rows ?? [];
-      const total = rows.filter((r: { counts_possession?: boolean }) => r.counts_possession !== false).length;
-      if (total < 200) {
+      const lgRows = await db.execute(sql`
+        SELECT
+          CASE
+            WHEN pp.is_transition    THEN 'transition'
+            WHEN pp.is_early_offense THEN 'early'
+            ELSE                         'halfcourt'
+          END AS seg,
+          COUNT(*)::int AS poss,
+          SUM(pp.points)::int AS pts,
+          ROUND(AVG(pp.duration_sec)::numeric, 1) AS avg_dur
+        FROM pbp_possessions pp
+        JOIN stats_games sg ON sg.id = pp.game_id
+        WHERE sg.status = 4 AND sg.season_id = ${seasonId}
+        GROUP BY seg
+      `);
+
+      const teamSegs = (rows as any).rows ?? [];
+      const lgSegs = (lgRows as any).rows ?? [];
+
+      const totalPoss = teamSegs.reduce((s: number, r: any) => s + Number(r.poss), 0);
+      const lgTotalPoss = lgSegs.reduce((s: number, r: any) => s + Number(r.poss), 0);
+
+      if (totalPoss < 200) {
         res.set("Cache-Control", "private, max-age=300");
         return res.json({
           insufficient_data: true,
-          possessions: total,
+          possessions: totalPoss,
           min_required: 200,
-          metadata: paceSegmentsMetadata,
         });
       }
 
-      let transition = 0, demi = 0, halfcourt = 0, sum = 0;
-      let ptsTransition = 0, ptsDemi = 0, ptsHalfcourt = 0;
-      for (const r of rows) {
-        const t = Number(r.pos_time);
-        const pts = Number(r.shot_pts ?? 0);
-        const countsPoss = r.counts_possession !== false;
-        if (countsPoss) {
-          sum += t;
-          if (t <= 8) { transition++; ptsTransition += pts; }
-          else if (t <= 14) { demi++; ptsDemi += pts; }
-          else { halfcourt++; ptsHalfcourt += pts; }
-        } else if (t > 0 && t <= 24) {
-          if (t <= 8) ptsTransition += pts;
-          else if (t <= 14) ptsDemi += pts;
-          else ptsHalfcourt += pts;
-        }
-      }
-      const pppTransition = transition > 0 ? Math.round(ptsTransition / transition * 1000) / 1000 : null;
-      const pppDemi       = demi       > 0 ? Math.round(ptsDemi       / demi       * 1000) / 1000 : null;
-      const pppHalfcourt  = halfcourt  > 0 ? Math.round(ptsHalfcourt  / halfcourt  * 1000) / 1000 : null;
+      const buildSeg = (segs: any[], total: number, name: string) => {
+        const r = segs.find((s: any) => s.seg === name) ?? { poss: 0, pts: 0, avg_dur: null };
+        const poss = Number(r.poss);
+        const pts = Number(r.pts);
+        return {
+          poss,
+          pts,
+          pct: total > 0 ? Math.round((poss / total) * 1000) / 10 : 0,
+          ppp: poss > 0 ? Math.round((pts / poss) * 1000) / 1000 : null,
+          avgDur: r.avg_dur != null ? Number(r.avg_dur) : null,
+        };
+      };
 
-      const lgRows = await db.execute(sql`
-        WITH sg AS (SELECT id AS gid FROM stats_games WHERE status=4 AND season_id=${seasonId}),
-        all_events_lg AS (
-          SELECT
-            p.game_id, p.quarter, p.sequence, p.clock, p.event_type, p.team_id::text AS team_id,
-            (SPLIT_PART(p.clock,':',1)::int*60+SPLIT_PART(p.clock,':',2)::int) AS cs,
-            LAG(p.event_type,1) OVER w AS lag1_et,
-            LAG(p.team_id::text,1) OVER w AS lag1_team,
-            LAG(p.clock,1) OVER w AS lag1_clock,
-            LAG(p.event_type,2) OVER w AS lag2_et,
-            LAG(p.team_id::text,2) OVER w AS lag2_team,
-            LAG(p.clock,2) OVER w AS lag2_clock,
-            LAG(p.event_type,3) OVER w AS lag3_et,
-            LAG(p.team_id::text,3) OVER w AS lag3_team,
-            LAG(p.clock,3) OVER w AS lag3_clock,
-            LAG(p.event_type,4) OVER w AS lag4_et,
-            LAG(p.team_id::text,4) OVER w AS lag4_team,
-            LAG(p.clock,4) OVER w AS lag4_clock
-          FROM stats_pbp p JOIN sg ON sg.gid=p.game_id
-          WINDOW w AS (PARTITION BY p.game_id, p.quarter ORDER BY p.sequence)
-        ),
-        shots_lg AS (
-          SELECT *,
-            CASE
-              WHEN event_type = 'ft_made' THEN 1
-              WHEN event_type IN ('shot_made','shot_made_3') THEN
-                CASE event_type WHEN 'shot_made_3' THEN 3 ELSE 2 END
-              ELSE 0
-            END AS shot_pts
-          FROM all_events_lg
-          WHERE event_type IN ('shot_made','shot_missed','shot_made_3','shot_missed_3','turnover')
-            AND clock ~ '^[0-9]+:[0-9]{2}$'
-          UNION ALL
-          SELECT *,
-            1 AS shot_pts
-          FROM all_events_lg
-          WHERE event_type = 'ft_made'
-            AND clock ~ '^[0-9]+:[0-9]{2}$'
-        ),
-        poss_lg AS (
-          SELECT
-            cs, shot_pts, event_type,
-            CASE
-              WHEN lag1_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int) - cs
-              WHEN lag1_et IN ('shot_made','shot_made_3') AND lag1_team != team_id
-                   AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int) - CASE WHEN quarter < 4 OR cs > 120 THEN 3 ELSE 0 END - cs
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag2_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag2_clock,':',1)::int*60+SPLIT_PART(lag2_clock,':',2)::int) - cs
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('shot_made','shot_made_3') AND lag2_team != team_id
-                   AND lag2_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag2_clock,':',1)::int*60+SPLIT_PART(lag2_clock,':',2)::int) - CASE WHEN quarter < 4 OR cs > 120 THEN 3 ELSE 0 END - cs
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag3_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag3_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag3_clock,':',1)::int*60+SPLIT_PART(lag3_clock,':',2)::int) - cs
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag3_et IN ('shot_made','shot_made_3') AND lag3_team != team_id
-                   AND lag3_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag3_clock,':',1)::int*60+SPLIT_PART(lag3_clock,':',2)::int) - CASE WHEN quarter < 4 OR cs > 120 THEN 3 ELSE 0 END - cs
-              WHEN lag1_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag2_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag3_et IN ('assist','foul_drawn','block','unknown')
-                   AND lag4_et IN ('rebound','steal','turnover','foul','ft_made','ft_missed','jumpball')
-                   AND lag4_clock ~ '^[0-9]+:[0-9]{2}$'
-                THEN (SPLIT_PART(lag4_clock,':',1)::int*60+SPLIT_PART(lag4_clock,':',2)::int) - cs
-              ELSE NULL
-            END AS pos_time
-          FROM shots_lg
-          WHERE NOT (
-            lag1_et = 'rebound' AND lag1_team = team_id
-            AND lag1_clock ~ '^[0-9]+:[0-9]{2}$'
-            AND ((SPLIT_PART(lag1_clock,':',1)::int*60+SPLIT_PART(lag1_clock,':',2)::int) - cs) <= 3
-          )
-        )
-        SELECT
-          COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=24 AND event_type <> 'ft_made') AS total,
-          COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=8 AND event_type <> 'ft_made')  AS tr,
-          COUNT(*) FILTER (WHERE pos_time>8 AND pos_time<=14 AND event_type <> 'ft_made') AS dm,
-          COUNT(*) FILTER (WHERE pos_time>14 AND pos_time<=24 AND event_type <> 'ft_made') AS hc,
-          ROUND(AVG(pos_time) FILTER (WHERE pos_time>0 AND pos_time<=24 AND event_type <> 'ft_made')::numeric,1) AS avg_pt,
-          ROUND(SUM(shot_pts) FILTER (WHERE pos_time>0 AND pos_time<=8)::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE pos_time>0 AND pos_time<=8 AND event_type <> 'ft_made'), 0), 3) AS ppp_tr,
-          ROUND(SUM(shot_pts) FILTER (WHERE pos_time>8 AND pos_time<=14)::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE pos_time>8 AND pos_time<=14 AND event_type <> 'ft_made'), 0), 3) AS ppp_dm,
-          ROUND(SUM(shot_pts) FILTER (WHERE pos_time>14 AND pos_time<=24)::numeric
-            / NULLIF(COUNT(*) FILTER (WHERE pos_time>14 AND pos_time<=24 AND event_type <> 'ft_made'), 0), 3) AS ppp_hc
-        FROM poss_lg
-      `);
-      const lg = (lgRows as any).rows?.[0] ?? {};
-      const lgTotal = Number(lg.total ?? 0);
-      const league = lgTotal > 0 ? {
-        transition_pct: Math.round(Number(lg.tr??0)/lgTotal*1000)/10,
-        demi_pct:       Math.round(Number(lg.dm??0)/lgTotal*1000)/10,
-        halfcourt_pct:  Math.round(Number(lg.hc??0)/lgTotal*1000)/10,
-        avg_possession_time: Number(lg.avg_pt ?? 0),
-        ppp_transition: lg.ppp_tr != null ? Number(lg.ppp_tr) : null,
-        ppp_demi:       lg.ppp_dm != null ? Number(lg.ppp_dm) : null,
-        ppp_halfcourt:  lg.ppp_hc != null ? Number(lg.ppp_hc) : null,
-      } : null;
+      const weightedAvgDur = (segs: any[], total: number) => {
+        if (total <= 0) return 0;
+        const sum = segs.reduce(
+          (s: number, r: any) => s + Number(r.poss) * (r.avg_dur != null ? Number(r.avg_dur) : 0),
+          0,
+        );
+        return Math.round((sum / total) * 10) / 10;
+      };
+
+      const transition = buildSeg(teamSegs, totalPoss, "transition");
+      const early = buildSeg(teamSegs, totalPoss, "early");
+      const halfcourt = buildSeg(teamSegs, totalPoss, "halfcourt");
+
+      const lgTransition = buildSeg(lgSegs, lgTotalPoss, "transition");
+      const lgEarly = buildSeg(lgSegs, lgTotalPoss, "early");
+      const lgHalfcourt = buildSeg(lgSegs, lgTotalPoss, "halfcourt");
 
       res.set("Cache-Control", "private, max-age=1800, stale-while-revalidate=120");
       return res.json({
         insufficient_data: false,
-        possessions: total,
-        transition_pct:  Math.round(transition/total*1000)/10,
-        demi_pct:        Math.round(demi/total*1000)/10,
-        halfcourt_pct:   Math.round(halfcourt/total*1000)/10,
-        avg_possession_time: Math.round(sum/total*10)/10,
-        ppp_transition: pppTransition,
-        ppp_demi:       pppDemi,
-        ppp_halfcourt:  pppHalfcourt,
-        league,
-        metadata: paceSegmentsMetadata,
+        possessions: totalPoss,
+        avg_possession_time: weightedAvgDur(teamSegs, totalPoss),
+        transition,
+        early,
+        halfcourt,
+        totalPoss,
+        lg: {
+          transition: lgTransition,
+          early: lgEarly,
+          halfcourt: lgHalfcourt,
+          totalPoss: lgTotalPoss,
+          avg_possession_time: weightedAvgDur(lgSegs, lgTotalPoss),
+        },
       });
     } catch (err: any) {
       console.error("[stats/pace-segments] Error:", err?.message ?? err);
-      return res.status(500).json({ error: "Failed to compute pace segments", detail: err?.message });
+      return res.status(500).json({ error: "Internal error" });
     }
   });
 
