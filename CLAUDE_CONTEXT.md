@@ -23,13 +23,10 @@ Capacitor 8.x — iOS nativo + Mac Catalyst (Xcode)
 ## Principios de datos — NO NEGOCIABLES
 
 1. **PBP es fuente única de verdad.** Todos los datos de stats provienen de tablas derivadas del PBP.
-2. **`stats_player_boxscores`** — solo para `/api/stats/game/:id/boxscore` (auditoría) y `/api/stats/sync-status` (metadata collector). Nada más.
-3. **`stats_standings`** — solo W/L/racha oficial. No para métricas de rendimiento.
-4. **Ninguna métrica de rendimiento puede salir de boxscores.** Nunca.
-
-**Estado migración: COMPLETO ✅**
-Todos los endpoints de rendimiento leen de `pbp_player_game_stats` o `pbp_possessions`.
-Únicas referencias legítimas a boxscores: `/api/stats/game/:id/boxscore` y `/api/stats/sync-status`.
+2. **NUNCA estimar.** Si un dato no sale limpio de `pbp_possessions` (auditado, diff=0), no existe en la app. Sin LAG sobre reloj, sin splits hardcodeados, sin disclaimers de metodología.
+3. **`stats_player_boxscores`** — solo para `/api/stats/game/:id/boxscore` (auditoría) y `/api/stats/sync-status` (metadata collector).
+4. **`stats_standings`** — solo W/L/racha oficial.
+5. **Estado migración: COMPLETO ✅** — todos los endpoints leen de PBP. pace-segments reescrito desde `pbp_possessions` (commit 9b947f9).
 
 ---
 
