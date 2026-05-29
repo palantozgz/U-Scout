@@ -525,6 +525,24 @@ export async function processPossessions(
     defLu.defPossessions++;
     defLu.defPts += possPts;
 
+    // Plus/minus: +possPts para quinteto atacante, -possPts para quinteto defensor
+    if (possLuOff) {
+      for (const pid of possLuOff.split('-').filter((id) => id.length > 0)) {
+        if (!playerMap.has(pid)) {
+          playerMap.set(pid, emptyPlayer(gameInternalId, pid, possTid, seasonId, false));
+        }
+        playerMap.get(pid)!.plusMinus += possPts;
+      }
+    }
+    if (possLuDef) {
+      for (const pid of possLuDef.split('-').filter((id) => id.length > 0)) {
+        if (!playerMap.has(pid)) {
+          playerMap.set(pid, emptyPlayer(gameInternalId, pid, defTid, seasonId, false));
+        }
+        playerMap.get(pid)!.plusMinus -= possPts;
+      }
+    }
+
     possTid = null;
   }
 
