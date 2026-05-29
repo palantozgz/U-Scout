@@ -1676,39 +1676,37 @@ export async function registerRoutes(
     return res.json({ players });
   });
 
-  // ─── GET /api/stats/games — game log por jugadora ─────────────────────────
+  // ─── GET /api/stats/games — game log por jugadora (pbp_player_game_stats) ─
   app.get("/api/stats/games", requireAuth, async (req, res) => {
     const playerName = String(req.query.playerName ?? "").trim();
     if (!playerName) return res.json({ games: [] });
+    const seasonId = Number(req.query.seasonId ?? 2092);
 
     const rows = await db.execute(sql`
       SELECT
-        pb.id::text                                   AS id,
+        pgs.game_id::text                             AS id,
         sp.name_zh                                    AS "playerName",
         st.name_zh                                    AS "teamName",
         '2025-26'                                     AS season,
         sg.scheduled_at::date                         AS "gameDate",
-        rival.name_zh                                 AS "rivalName",
-        pb.minutes                                    AS minutes,
-        pb.pts                                        AS points,
-        pb.reb                                        AS "reboundsTotal",
-        pb.ast                                        AS assists,
-        pb.stl                                        AS steals,
-        pb.blk                                        AS blocks,
-        pb.tov                                        AS turnovers,
-        pb.plus_minus                                 AS "plusMinus"
-      FROM stats_player_boxscores pb
-      JOIN stats_games sg ON sg.id = pb.game_id
-      JOIN stats_players sp ON sp.external_id = pb.player_external_id
-      LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
-      LEFT JOIN stats_teams rival ON rival.id = (
-        CASE
-          WHEN pb.team_type = 'Home' THEN sg.away_team_id
-          ELSE sg.home_team_id
-        END
-      )
+        CASE WHEN own.id = sg.home_team_id THEN at.name_zh ELSE ht.name_zh END AS "rivalName",
+        (FLOOR(pgs.seconds_played / 60)::int)::text || ':' ||
+          LPAD((pgs.seconds_played % 60)::text, 2, '0') AS minutes,
+        pgs.pts                                       AS points,
+        pgs.reb                                       AS "reboundsTotal",
+        pgs.ast                                       AS assists,
+        pgs.stl                                       AS steals,
+        pgs.blk                                       AS blocks,
+        pgs.tov                                       AS turnovers,
+        pgs.plus_minus                                AS "plusMinus"
+      FROM pbp_player_game_stats pgs
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
+      LEFT JOIN stats_teams st ON st.external_id = pgs.team_id
+      JOIN stats_teams own ON own.external_id = pgs.team_id
+      LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
+      LEFT JOIN stats_teams at ON at.id = sg.away_team_id
       WHERE (sp.name_zh = ${playerName} OR sp.name_en = ${playerName})
-        AND sg.status = 4
       ORDER BY sg.scheduled_at DESC
       LIMIT 50
     `);
@@ -1760,43 +1758,42 @@ export async function registerRoutes(
     }
   });
 
-  // GET /api/stats/leaders
+  // GET /api/stats/leaders — pbp_player_game_stats
   app.get("/api/stats/leaders", requireAuth, async (req, res) => {
     const seasonId = Number(req.query.seasonId ?? 2092);
     const stat = String(req.query.stat ?? "ppg");
     const allowedStats: Record<string, string> = {
-      ppg: "AVG(pb.pts)",
-      rpg: "AVG(pb.reb)",
-      apg: "AVG(pb.ast)",
-      spg: "AVG(pb.stl)",
-      bpg: "AVG(pb.blk)",
-      topg: "AVG(pb.tov)",
+      ppg: "AVG(pgs.pts)",
+      rpg: "AVG(pgs.reb)",
+      apg: "AVG(pgs.ast)",
+      spg: "AVG(pgs.stl)",
+      bpg: "AVG(pgs.blk)",
+      topg: "AVG(pgs.tov)",
       fgPct:
-        "(CASE WHEN SUM(pb.fga) > 0 THEN (SUM(pb.fgm)::float / SUM(pb.fga) * 100) ELSE NULL END)",
+        "(CASE WHEN SUM(pgs.fga) > 0 THEN SUM(pgs.fgm)::float / SUM(pgs.fga) * 100 ELSE NULL END)",
       tsPct:
-        "(CASE WHEN (SUM(pb.fga) + 0.44 * SUM(pb.fta)) > 0 THEN SUM(pb.pts)::float / (2 * (SUM(pb.fga) + 0.44 * SUM(pb.fta))) * 100 ELSE NULL END)",
+        "(CASE WHEN (SUM(pgs.fga) + 0.44 * SUM(pgs.fta)) > 0 THEN SUM(pgs.pts)::float / (2 * (SUM(pgs.fga) + 0.44 * SUM(pgs.fta))) * 100 ELSE NULL END)",
       eFGPct:
-        "(CASE WHEN SUM(pb.fga) > 0 THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::float / SUM(pb.fga) * 100 ELSE NULL END)",
-      astTovRatio: "(CASE WHEN SUM(pb.tov) > 0 THEN SUM(pb.ast)::float / SUM(pb.tov) ELSE NULL END)",
-      orbPerGame: "AVG(pb.off_reb)",
+        "(CASE WHEN SUM(pgs.fga) > 0 THEN (SUM(pgs.fgm) + 0.5 * SUM(pgs.fg3m))::float / SUM(pgs.fga) * 100 ELSE NULL END)",
+      astTovRatio: "(CASE WHEN SUM(pgs.tov) > 0 THEN SUM(pgs.ast)::float / SUM(pgs.tov) ELSE NULL END)",
+      orbPerGame: "AVG(pgs.off_reb)",
     };
     const statExpr = allowedStats[stat] ?? allowedStats["ppg"];
     try {
       const rows = await db.execute(sql`
         SELECT
-          sp.external_id     AS "externalId",
-          sp.name_zh         AS "playerName",
-          sp.name_en         AS "playerNameEn",
-          st.name_zh         AS "teamName",
+          pgs.player_external_id AS "externalId",
+          sp.name_zh             AS "playerName",
+          sp.name_en             AS "playerNameEn",
+          st.name_zh             AS "teamName",
           ROUND(${sql.raw(statExpr)}::numeric, 1) AS value,
-          COUNT(DISTINCT pb.game_id)::int AS games
-        FROM stats_player_boxscores pb
-        JOIN stats_games sg ON sg.id = pb.game_id
-        JOIN stats_players sp ON sp.external_id = pb.player_external_id
-        LEFT JOIN stats_teams st ON st.external_id::text = sp.team_id::text
-        WHERE sg.status = 4 AND sg.season_id = ${seasonId}
-        GROUP BY sp.external_id, sp.name_zh, sp.name_en, st.name_zh
-        HAVING COUNT(DISTINCT pb.game_id) >= 5
+          COUNT(DISTINCT pgs.game_id)::int AS games
+        FROM pbp_player_game_stats pgs
+        JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
+        LEFT JOIN stats_teams st ON st.external_id = pgs.team_id
+        GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.photo_url, st.name_zh, st.name_en, st.external_id
+        HAVING COUNT(DISTINCT pgs.game_id) >= 5
         ORDER BY value DESC NULLS LAST
         LIMIT 15
       `);
@@ -1856,7 +1853,7 @@ export async function registerRoutes(
     }
   });
 
-  // ─── GET /api/stats/player/:externalId ──────────────────────────────────────
+  // ─── GET /api/stats/player/:externalId — pbp_player_game_stats ───────────────
   app.get("/api/stats/player/:externalId", requireAuth, async (req, res) => {
     try {
     const { externalId } = req.params;
@@ -1864,66 +1861,48 @@ export async function registerRoutes(
 
     const playerRows = await db.execute(sql`
       SELECT
-        sp.external_id       AS "externalId",
-        sp.name_zh           AS "nameZh",
-        sp.name_en           AS "nameEn",
-        sp.jersey_number     AS "jerseyNumber",
-        sp.photo_url         AS "photoUrl",
+        pgs.player_external_id AS "externalId",
+        sp.name_zh             AS "nameZh",
+        sp.name_en             AS "nameEn",
+        sp.jersey_number       AS "jerseyNumber",
+        sp.photo_url           AS "photoUrl",
         sp.position,
-        st.name_zh           AS "teamName",
-        st.name_en           AS "teamNameEn",
-        st.logo_url          AS "teamLogo",
-        st.external_id::text AS "teamExternalId",
-        COUNT(pb.id)         AS games,
-        ROUND(AVG(pb.pts)::numeric, 1)                                         AS ppg,
-        ROUND(AVG(pb.reb)::numeric, 1)                                         AS rpg,
-        ROUND(AVG(pb.ast)::numeric, 1)                                         AS apg,
-        ROUND(AVG(pb.stl)::numeric, 1)                                         AS spg,
-        ROUND(AVG(pb.blk)::numeric, 1)                                         AS bpg,
-        ROUND(AVG(pb.tov)::numeric, 1)                                         AS topg,
-        ROUND(AVG(
-          CASE WHEN pb.minutes ~ '^\d+:\d{2}$'
-            THEN (SPLIT_PART(pb.minutes, ':', 1)::numeric * 60 + SPLIT_PART(pb.minutes, ':', 2)::numeric) / 60
-            ELSE NULL END
-        )::numeric, 1) AS mpg,
+        st.name_zh             AS "teamName",
+        st.name_en             AS "teamNameEn",
+        st.logo_url            AS "teamLogo",
+        st.external_id::text   AS "teamExternalId",
+        COUNT(DISTINCT pgs.game_id) AS games,
+        ROUND(AVG(pgs.seconds_played / 60.0)::numeric, 1) AS mpg,
+        ROUND(AVG(pgs.pts)::numeric, 1) AS ppg,
+        ROUND(AVG(pgs.reb)::numeric, 1) AS rpg,
+        ROUND(AVG(pgs.ast)::numeric, 1) AS apg,
+        ROUND(AVG(pgs.stl)::numeric, 1) AS spg,
+        ROUND(AVG(pgs.blk)::numeric, 1) AS bpg,
+        ROUND(AVG(pgs.tov)::numeric, 1) AS topg,
+        ROUND(CASE WHEN SUM(pgs.fga) > 0 THEN SUM(pgs.fgm)::numeric / SUM(pgs.fga) * 100 END, 1) AS "fgPct",
+        ROUND(CASE WHEN SUM(pgs.fg3a) > 0 THEN SUM(pgs.fg3m)::numeric / SUM(pgs.fg3a) * 100 END, 1) AS "fg3Pct",
+        ROUND(CASE WHEN SUM(pgs.fta) > 0 THEN SUM(pgs.ftm)::numeric / SUM(pgs.fta) * 100 END, 1) AS "ftPct",
         ROUND(
-          CASE WHEN SUM(pb.fga) > 0
-            THEN SUM(pb.fgm)::numeric / SUM(pb.fga) * 100 END, 1)             AS "fgPct",
-        ROUND(
-          CASE WHEN SUM(pb.tpa) > 0
-            THEN SUM(pb.tpm)::numeric / SUM(pb.tpa) * 100 END, 1)             AS "fg3Pct",
-        ROUND(
-          CASE WHEN SUM(pb.fta) > 0
-            THEN SUM(pb.ftm)::numeric / SUM(pb.fta) * 100 END, 1)             AS "ftPct",
-        ROUND(
-          CASE WHEN (SUM(pb.fga) + 0.44 * SUM(pb.fta)) > 0
-            THEN SUM(pb.pts)::numeric / (2 * (SUM(pb.fga) + 0.44 * SUM(pb.fta))) * 100
+          CASE WHEN (SUM(pgs.fga) + 0.44 * SUM(pgs.fta)) > 0
+            THEN SUM(pgs.pts)::numeric / (2 * (SUM(pgs.fga) + 0.44 * SUM(pgs.fta))) * 100
           END, 1
         ) AS "tsPct",
         ROUND(
-          CASE WHEN SUM(pb.fga) > 0
-            THEN (SUM(pb.fgm) + 0.5 * SUM(pb.tpm))::numeric / SUM(pb.fga) * 100
+          CASE WHEN SUM(pgs.fga) > 0
+            THEN (SUM(pgs.fgm) + 0.5 * SUM(pgs.fg3m))::numeric / SUM(pgs.fga) * 100
           END, 1
         ) AS "eFGPct",
-        ROUND(
-          CASE WHEN SUM(pb.tov) > 0
-            THEN SUM(pb.ast)::numeric / SUM(pb.tov)
-          END, 2
-        ) AS "astTovRatio",
-        ROUND(
-          CASE WHEN SUM(pb.fga) > 0
-            THEN SUM(pb.fta)::numeric / SUM(pb.fga)
-          END, 3
-        ) AS "ftRate",
-        ROUND(AVG(pb.off_reb)::numeric, 1) AS "orbPerGame",
-        ROUND(AVG(pb.def_reb)::numeric, 1) AS "drbPerGame"
-      FROM stats_players sp
-      LEFT JOIN stats_teams st ON st.id = sp.team_id
-      LEFT JOIN stats_player_boxscores pb ON pb.player_external_id = sp.external_id
-      LEFT JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
-      WHERE sp.external_id::text = ${externalId}
-      GROUP BY sp.external_id, sp.name_zh, sp.name_en,
-               sp.jersey_number, sp.photo_url, sp.position, st.name_zh, st.name_en, st.logo_url, st.external_id
+        ROUND(CASE WHEN SUM(pgs.tov) > 0 THEN SUM(pgs.ast)::numeric / SUM(pgs.tov) END, 2) AS "astTovRatio",
+        ROUND(CASE WHEN SUM(pgs.fga) > 0 THEN SUM(pgs.fta)::numeric / SUM(pgs.fga) END, 3) AS "ftRate",
+        ROUND(AVG(pgs.off_reb)::numeric, 1) AS "orbPerGame",
+        ROUND(AVG(pgs.def_reb)::numeric, 1) AS "drbPerGame"
+      FROM pbp_player_game_stats pgs
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
+      LEFT JOIN stats_teams st ON st.external_id = pgs.team_id
+      WHERE pgs.player_external_id = ${externalId}
+      GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.jersey_number,
+               sp.photo_url, sp.position, st.name_zh, st.name_en, st.logo_url, st.external_id
       LIMIT 1
     `);
     const player = (playerRows as any).rows?.[0];
@@ -1934,26 +1913,29 @@ export async function registerRoutes(
       const pieRows = await db.execute(sql`
         WITH pie_games AS (
           SELECT
-            pb.game_id,
-            (pb.pts + pb.fgm + pb.ftm - pb.fga - pb.fta
-             + pb.def_reb + 0.5 * pb.off_reb
-             + pb.ast + pb.stl + 0.5 * pb.blk - pb.fouls - pb.tov
+            pgs.game_id,
+            (pgs.pts + pgs.fgm + pgs.ftm - pgs.fga - pgs.fta
+             + pgs.def_reb + 0.5 * pgs.off_reb
+             + pgs.ast + pgs.stl + 0.5 * pgs.blk - pgs.fouls - pgs.tov
             ) AS player_num,
             gm_totals.game_den
-          FROM stats_player_boxscores pb
-          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          FROM pbp_player_game_stats pgs
+          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
           JOIN (
             SELECT
-              game_id,
-              SUM(pts + fgm + ftm - fga - fta
-                  + def_reb + 0.5 * off_reb
-                  + ast + stl + 0.5 * blk - fouls - tov
+              pgs_inner.game_id,
+              SUM(
+                pgs_inner.pts + pgs_inner.fgm + pgs_inner.ftm - pgs_inner.fga - pgs_inner.fta
+                + pgs_inner.def_reb + 0.5 * pgs_inner.off_reb
+                + pgs_inner.ast + pgs_inner.stl + 0.5 * pgs_inner.blk - pgs_inner.fouls - pgs_inner.tov
               ) AS game_den
-            FROM stats_player_boxscores
-            GROUP BY game_id
-          ) gm_totals ON gm_totals.game_id = pb.game_id
-          WHERE pb.player_external_id::text = ${externalId}
-          AND gm_totals.game_den > 0
+            FROM pbp_player_game_stats pgs_inner
+            JOIN stats_games sg_inner ON sg_inner.id = pgs_inner.game_id
+              AND sg_inner.status = 4 AND sg_inner.season_id = ${seasonId}
+            GROUP BY pgs_inner.game_id
+          ) gm_totals ON gm_totals.game_id = pgs.game_id
+          WHERE pgs.player_external_id = ${externalId}
+            AND gm_totals.game_den > 0
         )
         SELECT ROUND(AVG(100.0 * player_num / game_den)::numeric, 1) AS pie
         FROM pie_games
@@ -1966,36 +1948,31 @@ export async function registerRoutes(
     let usgPct: number | null = null;
     try {
       const usgRows = await db.execute(sql`
-        WITH player_ref AS (
-          SELECT sp.external_id, sp.team_id
-          FROM stats_players sp
-          WHERE sp.external_id::text = ${externalId}
-          LIMIT 1
-        ),
-        player_games AS (
+        WITH player_games AS (
           SELECT
-            pb.game_id,
-            pb.fga, pb.fta, pb.tov,
-            (SPLIT_PART(pb.minutes,':',1)::int * 60 + SPLIT_PART(pb.minutes,':',2)::int) AS min_sec
-          FROM stats_player_boxscores pb
-          JOIN player_ref pr ON pb.player_external_id = pr.external_id::text
-          JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-          WHERE SPLIT_PART(pb.minutes,':',1) ~ '^[0-9]+$'
+            pgs.game_id,
+            pgs.team_id,
+            pgs.fga,
+            pgs.fta,
+            pgs.tov,
+            pgs.seconds_played AS min_sec
+          FROM pbp_player_game_stats pgs
+          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          WHERE pgs.player_external_id = ${externalId}
+            AND pgs.seconds_played > 0
         ),
         team_games AS (
           SELECT
-            pb2.game_id,
-            SUM(pb2.fga) AS tm_fga,
-            SUM(pb2.fta) AS tm_fta,
-            SUM(pb2.tov) AS tm_tov,
-            SUM(SPLIT_PART(pb2.minutes,':',1)::int * 60 + SPLIT_PART(pb2.minutes,':',2)::int) AS tm_min_sec
-          FROM stats_player_boxscores pb2
-          JOIN player_ref pr ON pb2.team_external_id = (
-            SELECT st.external_id::text FROM stats_teams st WHERE st.id = pr.team_id LIMIT 1
-          )
-          JOIN stats_games sg2 ON sg2.id = pb2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-          WHERE SPLIT_PART(pb2.minutes,':',1) ~ '^[0-9]+$'
-          GROUP BY pb2.game_id
+            pgs2.game_id,
+            pgs2.team_id,
+            SUM(pgs2.fga) AS tm_fga,
+            SUM(pgs2.fta) AS tm_fta,
+            SUM(pgs2.tov) AS tm_tov,
+            SUM(pgs2.seconds_played) AS tm_min_sec
+          FROM pbp_player_game_stats pgs2
+          JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+          WHERE pgs2.team_id IN (SELECT DISTINCT team_id FROM player_games)
+          GROUP BY pgs2.game_id, pgs2.team_id
         ),
         usg_calc AS (
           SELECT
@@ -2004,8 +1981,7 @@ export async function registerRoutes(
               / NULLIF(SUM(pg.min_sec * (tg.tm_fga + 0.44 * tg.tm_fta + tg.tm_tov)), 0)
             , 1) AS usg_pct
           FROM player_games pg
-          JOIN team_games tg ON tg.game_id = pg.game_id
-          WHERE pg.min_sec > 0
+          JOIN team_games tg ON tg.game_id = pg.game_id AND tg.team_id = pg.team_id
         )
         SELECT usg_pct FROM usg_calc
       `);
@@ -2017,15 +1993,16 @@ export async function registerRoutes(
 
     const splitRows = await db.execute(sql`
       SELECT
-        ROUND(AVG(CASE WHEN pb.team_external_id = sg.home_team_id::text THEN pb.pts END)::numeric, 1) AS "ptsHome",
-        ROUND(AVG(CASE WHEN pb.team_external_id != sg.home_team_id::text THEN pb.pts END)::numeric, 1) AS "ptsAway",
-        ROUND(AVG(CASE WHEN pb.team_external_id = sg.home_team_id::text THEN pb.reb END)::numeric, 1) AS "rebHome",
-        ROUND(AVG(CASE WHEN pb.team_external_id != sg.home_team_id::text THEN pb.reb END)::numeric, 1) AS "rebAway",
-        ROUND(AVG(CASE WHEN pb.team_external_id = sg.home_team_id::text THEN pb.ast END)::numeric, 1) AS "astHome",
-        ROUND(AVG(CASE WHEN pb.team_external_id != sg.home_team_id::text THEN pb.ast END)::numeric, 1) AS "astAway"
-      FROM stats_player_boxscores pb
-      JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
-      WHERE pb.player_external_id::text = ${externalId}
+        ROUND(AVG(CASE WHEN own.id = sg.home_team_id THEN pgs.pts END)::numeric, 1) AS "ptsHome",
+        ROUND(AVG(CASE WHEN own.id != sg.home_team_id THEN pgs.pts END)::numeric, 1) AS "ptsAway",
+        ROUND(AVG(CASE WHEN own.id = sg.home_team_id THEN pgs.reb END)::numeric, 1) AS "rebHome",
+        ROUND(AVG(CASE WHEN own.id != sg.home_team_id THEN pgs.reb END)::numeric, 1) AS "rebAway",
+        ROUND(AVG(CASE WHEN own.id = sg.home_team_id THEN pgs.ast END)::numeric, 1) AS "astHome",
+        ROUND(AVG(CASE WHEN own.id != sg.home_team_id THEN pgs.ast END)::numeric, 1) AS "astAway"
+      FROM pbp_player_game_stats pgs
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      JOIN stats_teams own ON own.external_id = pgs.team_id
+      WHERE pgs.player_external_id = ${externalId}
     `);
     const splitRow = (splitRows as any).rows?.[0] ?? {};
 
@@ -2033,21 +2010,25 @@ export async function registerRoutes(
       SELECT
         sg.external_game_id  AS "gameId",
         sg.scheduled_at      AS "gameDate",
-        CASE WHEN sg.home_team_id = sp2.team_id THEN at.name_zh ELSE ht.name_zh END AS "rivalName",
-        CASE WHEN sg.home_team_id = sp2.team_id THEN at.name_en ELSE ht.name_en END AS "rivalNameEn",
-        CASE WHEN sg.home_team_id = sp2.team_id THEN sg.home_score || '-' || sg.away_score ELSE sg.away_score || '-' || sg.home_score END AS "score",
-        pb.minutes,
-        pb.pts, pb.reb, pb.ast, pb.stl, pb.blk, pb.tov,
-        pb.fgm, pb.fga, pb.tpm, pb.tpa, pb.ftm, pb.fta,
-        pb.plus_minus        AS "plusMinus",
-        pb.is_start_lineup   AS "isStart",
-        (sg.home_team_id = sp2.team_id) AS "isHome"
-      FROM stats_player_boxscores pb
-      JOIN stats_games sg ON sg.id = pb.game_id AND sg.status = 4
-      JOIN stats_players sp2 ON sp2.external_id = pb.player_external_id
+        CASE WHEN own.id = sg.home_team_id THEN at.name_zh ELSE ht.name_zh END AS "rivalName",
+        CASE WHEN own.id = sg.home_team_id THEN at.name_en ELSE ht.name_en END AS "rivalNameEn",
+        CASE WHEN own.id = sg.home_team_id
+          THEN sg.home_score || '-' || sg.away_score
+          ELSE sg.away_score || '-' || sg.home_score
+        END AS "score",
+        (FLOOR(pgs.seconds_played / 60)::int)::text || ':' ||
+          LPAD((pgs.seconds_played % 60)::text, 2, '0') AS minutes,
+        pgs.pts, pgs.reb, pgs.ast, pgs.stl, pgs.blk, pgs.tov,
+        pgs.fgm, pgs.fga, pgs.fg3m AS tpm, pgs.fg3a AS tpa, pgs.ftm, pgs.fta,
+        pgs.plus_minus       AS "plusMinus",
+        pgs.is_starter       AS "isStart",
+        (own.id = sg.home_team_id) AS "isHome"
+      FROM pbp_player_game_stats pgs
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
       LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
       LEFT JOIN stats_teams at ON at.id = sg.away_team_id
-      WHERE pb.player_external_id::text = ${externalId}
+      JOIN stats_teams own ON own.external_id = pgs.team_id
+      WHERE pgs.player_external_id = ${externalId}
       ORDER BY sg.scheduled_at DESC
       LIMIT 30
     `);
