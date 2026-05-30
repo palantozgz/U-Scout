@@ -155,8 +155,11 @@ function translatePosition(pos: string | null | undefined, locale: string): stri
 function lineupShortNames(names: string[]): string {
   return names
     .map((n) => {
-      const parts = n.trim().split(/\s+/).filter(Boolean);
-      return parts.length > 1 ? parts[parts.length - 1]! : (parts[0] ?? n);
+      const t = n.trim();
+      // Si es un ID numérico (sin nombre en stats_players), mostrar "#" + últimos 4 dígitos
+      if (/^\d+$/.test(t)) return `#${t.slice(-4)}`;
+      const parts = t.split(/\s+/).filter(Boolean);
+      return parts.length > 1 ? parts[parts.length - 1]! : (parts[0] ?? t);
     })
     .join(" / ");
 }
@@ -3398,6 +3401,14 @@ function StatsPlayerSheet({
                   <p className="text-xs font-black text-primary mb-1 px-2">
                     {pickName(game.home.nameZh, game.home.nameEn, locale)} — {game.homeScore}
                   </p>
+                  {game.homeQ1 != null && (
+                    <p className="text-[10px] text-muted-foreground font-mono px-2 mb-2">
+                      Q1 {game.homeQ1}–{game.awayQ1} · 
+                      Q2 {game.homeQ2}–{game.awayQ2} · 
+                      Q3 {game.homeQ3}–{game.awayQ3} · 
+                      Q4 {game.homeQ4}–{game.awayQ4}
+                    </p>
+                  )}
                   {renderTeam(homePlayers)}
                   <p className="text-xs font-black text-primary mb-1 px-2 mt-2">
                     {pickName(game.away.nameZh, game.away.nameEn, locale)} — {game.awayScore}
@@ -4478,6 +4489,14 @@ function StatsTeamSheet({
                   <p className="text-xs font-black text-primary mb-1 px-2">
                     {pickName(game.home.nameZh, game.home.nameEn, locale)} — {game.homeScore}
                   </p>
+                  {game.homeQ1 != null && (
+                    <p className="text-[10px] text-muted-foreground font-mono px-2 mb-2">
+                      Q1 {game.homeQ1}–{game.awayQ1} · 
+                      Q2 {game.homeQ2}–{game.awayQ2} · 
+                      Q3 {game.homeQ3}–{game.awayQ3} · 
+                      Q4 {game.homeQ4}–{game.awayQ4}
+                    </p>
+                  )}
                   {renderTeam(homePlayers)}
                   <p className="text-xs font-black text-primary mb-1 px-2 mt-2">
                     {pickName(game.away.nameZh, game.away.nameEn, locale)} — {game.awayScore}

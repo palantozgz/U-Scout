@@ -438,6 +438,8 @@ export interface GameBoxscoreData {
     date: string | null;
     homeScore: number;
     awayScore: number;
+    homeQ1: number | null; homeQ2: number | null; homeQ3: number | null; homeQ4: number | null;
+    awayQ1: number | null; awayQ2: number | null; awayQ3: number | null; awayQ4: number | null;
     home: { nameZh: string; nameEn: string | null; logo: string | null; extId: string };
     away: { nameZh: string; nameEn: string | null; logo: string | null; extId: string };
   };

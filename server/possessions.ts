@@ -206,6 +206,9 @@ export async function processPossessions(
     event_type: String(r.event_type ?? 'unknown'),
     action_code: r.action_code ?? null,
     player_external_id: r.player_external_id != null ? Number(r.player_external_id) : null,
+    // Normalizar team_id a internal: el PBP puede tener external_id (de la API)
+    // o internal id. extToInt cubre ambos casos porque lo construimos después.
+    // Guardamos raw aquí y normalizamos después de construir extToInt.
     team_id: r.team_id != null ? Number(r.team_id) : null,
     home_score: Number(r.home_score ?? 0),
     away_score: Number(r.away_score ?? 0),
@@ -238,7 +241,17 @@ export async function processPossessions(
   const extToInt: Record<string, number> = {
     [homeExt]: homeTeamId,
     [awayExt]: awayTeamId,
+    // También mapear internal→internal para cuando team_id ya es internal
+    [String(homeTeamId)]: homeTeamId,
+    [String(awayTeamId)]: awayTeamId,
   };
+
+  // Normalizar team_id de todos los eventos a internal id
+  for (const ev of rawEvents) {
+    if (ev.team_id != null) {
+      ev.team_id = extToInt[String(ev.team_id)] ?? ev.team_id;
+    }
+  }
 
   const startersByTeam = new Map<number, Set<number>>([
     [homeTeamId, new Set<number>()],

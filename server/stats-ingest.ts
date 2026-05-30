@@ -313,6 +313,28 @@ async function handlePBP(rows: any[]): Promise<number> {
   return count;
 }
 
+async function handlePeriodScores(rows: any[]): Promise<number> {
+  let count = 0;
+  for (const r of rows) {
+    const gameId = Number(r.gameId);
+    if (!gameId) continue;
+    const gameRes = await db.execute(sql`SELECT id FROM stats_games WHERE external_game_id = ${gameId} LIMIT 1`);
+    const gid = (gameRes as any).rows?.[0]?.id;
+    if (!gid) continue;
+    await db.execute(sql`
+      UPDATE stats_games SET
+        home_q1 = ${r.homeQ1 ?? null}, home_q2 = ${r.homeQ2 ?? null},
+        home_q3 = ${r.homeQ3 ?? null}, home_q4 = ${r.homeQ4 ?? null},
+        away_q1 = ${r.awayQ1 ?? null}, away_q2 = ${r.awayQ2 ?? null},
+        away_q3 = ${r.awayQ3 ?? null}, away_q4 = ${r.awayQ4 ?? null},
+        updated_at = NOW()
+      WHERE id = ${gid}
+    `);
+    count++;
+  }
+  return count;
+}
+
 // ─── Roster ───────────────────────────────────────────────────────────────────
 async function handleRoster(rosters: any[]): Promise<number> {
   let count = 0;
@@ -405,6 +427,9 @@ export function registerStatsIngest(app: Express): void {
           break;
         case "pbp":
           recordsProcessed = await handlePBP(data);
+          break;
+        case "period_scores":
+          recordsProcessed = await handlePeriodScores(data);
           break;
         case "roster":
           recordsProcessed = await handleRoster(data);

@@ -41,7 +41,7 @@ async function runNightlySync(): Promise<void> {
     await syncRosters();
     await syncNewBoxscores(finished.map(g => g.gameId), matchIdMap);
     await syncNewPlayerBoxscores(finished.map(g => g.gameId));
-    await syncNewPBP(candidatesForPBP.map(g => g.gameId));
+    await syncNewPBP(candidatesForPBP.map(g => ({ gameId: g.gameId, matchId: g.matchId })));
     pbpSynced = candidatesForPBP.length;
 
     if (probablyFinished.length > 0) {
@@ -95,13 +95,13 @@ async function testApi(): Promise<string> {
   return `API OK — ${count} equipos en standings`;
 }
 
-export async function runPartialSync(types: ('player_boxscores' | 'pbp')[], gameIds: number[]): Promise<void> {
+export async function runPartialSync(types: ('player_boxscores' | 'pbp')[], gameIds: number[], matchId: number = 2603): Promise<void> {
   logger.info('=== PARTIAL SYNC START ===', { types, games: gameIds.length });
   if (types.includes('player_boxscores')) {
     await syncNewPlayerBoxscores(gameIds);
   }
   if (types.includes('pbp')) {
-    await syncNewPBP(gameIds);
+    await syncNewPBP(gameIds.map(id => ({ gameId: id, matchId })));
   }
   logger.info('=== PARTIAL SYNC DONE ===');
 }

@@ -8,6 +8,7 @@ export type IngestType =
   | 'player_boxscores'
   | 'player_stats'
   | 'pbp'
+  | 'period_scores'
   | 'shot_chart'
   | 'roster'
   | 'pbp_possessions'

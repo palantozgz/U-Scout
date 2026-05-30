@@ -210,7 +210,7 @@ interface ShotInfo {
 }
 
 // ─── Main PBP sync ────────────────────────────────────────────────────────────
-export async function syncPBP(gameId: number): Promise<void> {
+export async function syncPBP(gameId: number, matchId: number = 2603): Promise<void> {
   const pbpRes = await wcbaClient.get(`/api/v2/game/${gameId}/actions`);
   const actions: any[] = Array.isArray(pbpRes.data) ? pbpRes.data : (pbpRes.data?.data ?? []);
   if (actions.length === 0) {
@@ -366,6 +366,39 @@ export async function syncPBP(gameId: number): Promise<void> {
     data: pbpRows,
   });
 
+  // Period scores (non-fatal) — sync home_q1..q4 / away_q1..q4 in stats_games
+  try {
+    const infoRes = await wcbaClient.get(
+      `/datahub/cbamatch/games/matchinfoscores?matchId=${matchId}&gameId=${gameId}`
+    );
+    const info = infoRes.data?.data;
+    const home = info?.home;
+    const away = info?.away;
+    if (home?.periods && away?.periods) {
+      const hp = home.periods as string[];
+      const ap = away.periods as string[];
+      await ingest({
+        type: 'period_scores',
+        seasonId: config.wcba.seasonId,
+        competitionId: config.wcba.competitionId,
+        data: [{
+          gameId,
+          homeQ1: hp[0] != null ? Number(hp[0]) : null,
+          homeQ2: hp[1] != null ? Number(hp[1]) : null,
+          homeQ3: hp[2] != null ? Number(hp[2]) : null,
+          homeQ4: hp[3] != null ? Number(hp[3]) : null,
+          awayQ1: ap[0] != null ? Number(ap[0]) : null,
+          awayQ2: ap[1] != null ? Number(ap[1]) : null,
+          awayQ3: ap[2] != null ? Number(ap[2]) : null,
+          awayQ4: ap[3] != null ? Number(ap[3]) : null,
+        }],
+      });
+      logger.info('Period scores synced', { gameId, home: hp, away: ap });
+    }
+  } catch (err: any) {
+    logger.warn('Period scores failed (non-fatal)', { gameId, error: err.message });
+  }
+
   logger.info('PBP synced', {
     gameId, events: pbpRows.length, shots: shotLookup.size,
     assists_inferred: pbpRows.filter(r => r.assistedByExternalId).length,
@@ -374,15 +407,15 @@ export async function syncPBP(gameId: number): Promise<void> {
   });
 }
 
-export async function syncNewPBP(gameIds: number[]): Promise<void> {
+export async function syncNewPBP(games: Array<{ gameId: number; matchId: number }>): Promise<void> {
   const { pbpDone } = await fetchSyncStatus();
   const pbpDoneSet = new Set(pbpDone);
-  const pending = gameIds.filter(id => !pbpDoneSet.has(id));
-  logger.info('Syncing PBP', { total: gameIds.length, pending: pending.length, skipped: gameIds.length - pending.length });
+  const pending = games.filter(g => !pbpDoneSet.has(g.gameId));
+  logger.info('Syncing PBP', { total: games.length, pending: pending.length, skipped: games.length - pending.length });
   if (pending.length === 0) { logger.info('PBP: all up to date'); return; }
-  for (const id of pending) {
-    try { await syncPBP(id); }
-    catch (err: any) { logger.error('PBP failed', { gameId: id, error: err.message }); }
+  for (const { gameId, matchId } of pending) {
+    try { await syncPBP(gameId, matchId); }
+    catch (err: any) { logger.error('PBP failed', { gameId, error: err.message }); }
   }
   logger.info('PBP done', { synced: pending.length });
 }
