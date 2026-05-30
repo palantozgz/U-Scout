@@ -78,33 +78,19 @@ stats_pbp → possessions.ts v6.2 (Railway) → pbp_possessions / pbp_player_gam
 **`stats_games`:** columnas `home_q1..q4` / `away_q1..q4` — pobladads vía backfill (224 partidos). Nuevos partidos: `handleBoxscores` + `period_scores` ingest.
 
 ### Audit estado — 2026-05-31
-- Reprocesado en curso tras fix team_id en possessions.ts
-- Marcador por cuartos: 223/224 partidos backfilleados (1 completado hoy por script)
+- Reprocesado en curso: ~224 partidos con PBP real → ok; ~216 sin PBP en stats_pbp → error (pbp_pts=0, esperado)
+- Los errores con pbp_pts=0 son partidos cuyo PBP nunca fue sincronizado por el collector (normal para la temporada completa)
+- Marcador por cuartos: 223/224 partidos backfilleados
 - plus_minus real confirmado (top +55)
+- shot_x/y/zone: pendiente de primer sync nocturno del collector con nuevo código
 
 ---
 
 ## Collector (Pi) — estado
 
-- Código activo en Pi: commit `80a7b88` — DESACTUALIZADO
-- **Pendiente SCP urgente (commit `d51e98f`):**
-  - `collector/src/sync/pbp.ts` — hotspot fix, period_scores, syncNewPBP con matchId
-  - `collector/src/sync/shotZones.ts` — clasificación zonas FIBA calibrada
-  - `collector/src/index.ts` — candidatesForPBP status=3 + matchId en syncNewPBP
-  - `collector/src/ingest.ts` — IngestType añade 'period_scores'
-- **SCP comando:**
-  ```
-  scp -i ~/.ssh/pi_ucore \
-    'collector/src/sync/pbp.ts' \
-    'collector/src/sync/shotZones.ts' \
-    'collector/src/ingest.ts' \
-    pablo@192.168.1.7:/home/pablo/ucore/collector/src/sync/
-  scp -i ~/.ssh/pi_ucore \
-    'collector/src/index.ts' \
-    'collector/src/ingest.ts' \
-    pablo@192.168.1.7:/home/pablo/ucore/collector/src/
-  ```
-  Luego en Pi: `cd /home/pablo/ucore/collector && npm run build && pm2 restart ucore-collector`
+- Código activo en Pi: commit `d51e98f` ✅ (SCP completado 2026-05-31)
+- PM2 guardado (`pm2 save`) — **pendiente `pm2 startup` para autoarranque** (requiere sudo manual en Pi)
+- Primer sync nocturno con hotspot pendiente (~04:00 local)
 
 ---
 
