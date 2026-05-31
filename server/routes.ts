@@ -1731,12 +1731,12 @@ export async function registerRoutes(
           (SELECT ROUND(SUM(pp.points)::numeric / NULLIF(COUNT(DISTINCT pp.game_id), 0), 1)
            FROM pbp_possessions pp
            JOIN stats_games sg2 ON sg2.id = pp.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-           WHERE pp.team_id::text = st.external_id::text
+           WHERE pp.team_id = st.id
           ) AS "ppg",
           (SELECT ROUND(SUM(pp.points)::numeric / NULLIF(COUNT(DISTINCT pp.game_id), 0), 1)
            FROM pbp_possessions pp
            JOIN stats_games sg2 ON sg2.id = pp.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-           WHERE pp.team_id::text != st.external_id::text
+           WHERE pp.team_id != st.id
              AND sg2.id IN (
                SELECT sg3.id FROM stats_games sg3
                WHERE (sg3.home_team_id = st.id OR sg3.away_team_id = st.id)
@@ -2134,10 +2134,10 @@ export async function registerRoutes(
         ss.losses,
         (SELECT ROUND(SUM(pp.points)::numeric / NULLIF(COUNT(DISTINCT pp.game_id), 0), 1)
          FROM pbp_possessions pp JOIN stats_games sg2 ON sg2.id = pp.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-         WHERE pp.team_id::text = st.external_id::text) AS ppg,
+         WHERE pp.team_id = st.id) AS ppg,
         (SELECT ROUND(SUM(pp.points)::numeric / NULLIF(COUNT(DISTINCT pp.game_id), 0), 1)
          FROM pbp_possessions pp JOIN stats_games sg2 ON sg2.id = pp.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-         WHERE pp.team_id::text != st.external_id::text
+         WHERE pp.team_id != st.id
            AND sg2.id IN (SELECT sg3.id FROM stats_games sg3 WHERE (sg3.home_team_id = st.id OR sg3.away_team_id = st.id) AND sg3.status = 4 AND sg3.season_id = ${seasonId})) AS oppg,
         ss.rank,
         ss.win_pct               AS "winPct",
@@ -2151,7 +2151,7 @@ export async function registerRoutes(
         (SELECT ROUND(SUM(pgs_fg.fgm)::numeric / NULLIF(SUM(pgs_fg.fga), 0) * 100, 1)
          FROM pbp_player_game_stats pgs_fg
          JOIN stats_games sg ON sg.id = pgs_fg.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-         WHERE pgs_fg.team_id::text = st.external_id::text) AS "teamFgPct",
+         WHERE pgs_fg.team_id = st.id) AS "teamFgPct",
         adv."eFGPct",
         adv."tovPct",
         adv."ftRate"
@@ -2165,7 +2165,7 @@ export async function registerRoutes(
           ROUND(SUM(pgs2.fta)::numeric / NULLIF(SUM(pgs2.fga), 0), 3) AS "ftRate"
         FROM pbp_player_game_stats pgs2
         JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-        WHERE pgs2.team_id::text = st.external_id::text
+        WHERE pgs2.team_id = st.id
       ) adv ON true
       WHERE st.external_id = ${Number(externalId)}
       LIMIT 1
@@ -2187,7 +2187,7 @@ export async function registerRoutes(
             SUM(pgs.def_reb) AS drb
           FROM pbp_player_game_stats pgs
           JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-          WHERE pgs.team_id::text = (SELECT ext_id FROM team_ref)
+          WHERE pgs.team_id = (SELECT id FROM team_ref)
         ),
         rival_reb AS (
           SELECT
@@ -2195,7 +2195,7 @@ export async function registerRoutes(
             SUM(pgs2.def_reb) AS rival_drb
           FROM pbp_player_game_stats pgs2
           JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-          WHERE pgs2.team_id::text != (SELECT ext_id FROM team_ref)
+          WHERE pgs2.team_id != (SELECT id FROM team_ref)
           AND sg2.id IN (
             SELECT sg3.id FROM stats_games sg3
             WHERE (sg3.home_team_id = (SELECT id FROM team_ref)
@@ -2215,6 +2215,10 @@ export async function registerRoutes(
       console.error("[stats/team] ORB%/DRB% query failed:", rebErr?.message ?? rebErr);
     }
 
+    // internal team id — pbp_possessions.team_id y pbp_player_game_stats.team_id son internos desde v6.2
+    const teamIntRes = await db.execute(sql`SELECT id AS int_id FROM stats_teams WHERE external_id = ${Number(externalId)} LIMIT 1`);
+    const teamIntId = Number((teamIntRes as any).rows?.[0]?.int_id ?? 0);
+
     const playersRow = await db.execute(sql`
       SELECT
         pgs.player_external_id AS "externalId",
@@ -2229,8 +2233,8 @@ export async function registerRoutes(
       FROM pbp_player_game_stats pgs
       JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
       LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
-      LEFT JOIN stats_teams st ON st.external_id = pgs.team_id
-      WHERE pgs.team_id = ${Number(externalId)}
+      LEFT JOIN stats_teams st ON st.id = pgs.team_id
+      WHERE pgs.team_id = ${teamIntId}
       GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.jersey_number, sp.position
       HAVING COUNT(DISTINCT pgs.game_id) >= 1
       ORDER BY AVG(pgs.pts) DESC NULLS LAST
@@ -2266,24 +2270,22 @@ export async function registerRoutes(
             (
               (SELECT COUNT(*) FROM pbp_possessions
                JOIN stats_games sg ON sg.id = pbp_possessions.game_id
-               WHERE pbp_possessions.team_id = ${Number(externalId)}
+               WHERE pbp_possessions.team_id = ${teamIntId}
                  AND sg.status = 4
                  AND sg.season_id = ${seasonId})
               +
               (SELECT COUNT(*) FROM pbp_possessions
                JOIN stats_games sg ON sg.id = pbp_possessions.game_id
-               WHERE pbp_possessions.team_id != ${Number(externalId)}
+               WHERE pbp_possessions.team_id != ${teamIntId}
                  AND pbp_possessions.game_id IN (
                    SELECT sg2.id FROM stats_games sg2
-                   JOIN stats_teams st ON st.external_id = ${Number(externalId)}
-                   WHERE (sg2.home_team_id = st.id OR sg2.away_team_id = st.id)
+                   WHERE (sg2.home_team_id = ${teamIntId} OR sg2.away_team_id = ${teamIntId})
                      AND sg2.status = 4 AND sg2.season_id = ${seasonId}
                  ))
             ) / 2.0
             / NULLIF(
               (SELECT COUNT(DISTINCT sg3.id) FROM stats_games sg3
-               JOIN stats_teams st ON st.external_id = ${Number(externalId)}
-               WHERE (sg3.home_team_id = st.id OR sg3.away_team_id = st.id)
+               WHERE (sg3.home_team_id = ${teamIntId} OR sg3.away_team_id = ${teamIntId})
                  AND sg3.status = 4 AND sg3.season_id = ${seasonId}),
               0),
             1
@@ -2291,7 +2293,7 @@ export async function registerRoutes(
         FROM pbp_possessions p
         JOIN stats_games sg ON sg.id = p.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
         JOIN pbp_possessions op ON op.game_id = p.game_id AND op.team_id != p.team_id
-        WHERE p.team_id = ${Number(externalId)}
+        WHERE p.team_id = ${teamIntId}
       `);
       const rtg = (rtgRow as any).rows?.[0] ?? {};
       ortg   = rtg.ortg   != null ? Number(rtg.ortg)   : null;
@@ -2488,7 +2490,7 @@ export async function registerRoutes(
           ROUND(AVG(pp.duration_sec)::numeric, 1) AS avg_dur
         FROM pbp_possessions pp
         JOIN stats_games sg ON sg.id = pp.game_id
-        WHERE pp.team_id = ${Number(team.ext_id)}
+        WHERE pp.team_id = ${Number(team.id)}
           AND sg.status = 4
           AND sg.season_id = ${seasonId}
         GROUP BY seg
