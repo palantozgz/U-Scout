@@ -387,7 +387,7 @@ export async function processPossessions(
 
   for (const ev of enriched) {
     const tid = ev.team_id;
-    const rival = tid ? (tid === homeTeamExtId ? awayTeamExtId : homeTeamExtId) : null;
+    const rival = tid ? (tid === homeTeamId ? awayTeamId : homeTeamId) : null;
     const code = ev.action_code ?? '';
 
     if (!tid) {
@@ -464,7 +464,7 @@ export async function processPossessions(
   }
 
   function getSnap(teamId: number, idx: number): string {
-    return teamId === homeTeamExtId ? snapHome[idx] : snapAway[idx];
+    return teamId === homeTeamId ? snapHome[idx] : snapAway[idx];
   }
 
   // Detectar and-1: shot_made seguido de FT del mismo equipo en los próximos eventos
@@ -509,7 +509,7 @@ export async function processPossessions(
     const poss: Possession = {
       gameId: gameInternalId, seasonId,
       teamId: possTid,
-      opponentTeamId: possTid === homeTeamExtId ? awayTeamExtId : homeTeamExtId,
+      opponentTeamId: possTid === homeTeamId ? awayTeamId : homeTeamId,
       possessionNumber: possNum, quarter: q,
       startTimeSec: possStartSec, endTimeSec: endSec, durationSec: dur,
       endType, points: possPts,
@@ -533,7 +533,7 @@ export async function processPossessions(
     offLu.offReb += possORB;
     offLu.tov += possTOV;
 
-    const defTid = possTid === homeTeamExtId ? awayTeamExtId : homeTeamExtId;
+    const defTid = possTid === homeTeamId ? awayTeamId : homeTeamId;
     const defLu  = ensureLineup(defTid, possLuDef);
     defLu.defPossessions++;
     defLu.defPts += possPts;
@@ -567,11 +567,11 @@ export async function processPossessions(
     possStartSec = startSec;
     possEndSec   = startSec;
     possQ        = q;
-    possMargin   = offTeam === homeTeamExtId ? scoreDiff : -scoreDiff;
+    possMargin   = offTeam === homeTeamId ? scoreDiff : -scoreDiff;
     possPts = possFGA = possFTA = possTOV = possORB = 0;
     possSecond   = false;
     possLuOff    = getSnap(offTeam, snapIdx);
-    const opp    = offTeam === homeTeamExtId ? awayTeamExtId : homeTeamExtId;
+    const opp    = offTeam === homeTeamId ? awayTeamId : homeTeamId;
     possLuDef    = getSnap(opp, snapIdx);
     possEndType  = 'period_end';
   }
