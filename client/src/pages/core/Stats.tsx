@@ -4207,9 +4207,10 @@ function StatsTeamSheet({
                 </div>
               ) : (
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[1.4fr_0.4fr_0.4fr_0.5fr_0.5fr_0.5fr] gap-0 px-3 py-2 border-b border-border bg-muted/20 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                  <div className="grid grid-cols-[1.6fr_0.35fr_0.4fr_0.4fr_0.45fr_0.45fr_0.45fr] gap-0 px-3 py-2 border-b border-border bg-muted/20 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
                     <span>{L.colLineup}</span>
                     <span className="text-right">{L.colG}</span>
+                    <span className="text-right">MIN</span>
                     <span className="text-right">{L.colPoss}</span>
                     <span className="text-right">ORTG</span>
                     <span className="text-right">DRTG</span>
@@ -4217,12 +4218,14 @@ function StatsTeamSheet({
                   </div>
                   {topLineups.map((row, i) => {
                     const poss = lineupTotalPoss(row);
-                    const netVal = row.netPpp != null ? row.netPpp * 100 : null;
+                    const netVal = row.netRtg ?? (row.netPpp != null ? row.netPpp * 100 : null);
+                    const min = row.minutesPlayed != null ? row.minutesPlayed.toFixed(0) : "—";
+                    const pm = row.plusMinus;
                     return (
                       <div
                         key={row.lineupId}
                         className={cn(
-                          "grid grid-cols-[1.4fr_0.4fr_0.4fr_0.5fr_0.5fr_0.5fr] gap-0 items-center px-3 py-2.5 text-xs",
+                          "grid grid-cols-[1.6fr_0.35fr_0.4fr_0.4fr_0.45fr_0.45fr_0.45fr] gap-0 items-center px-3 py-2.5 text-xs",
                           i < topLineups.length - 1 && "border-b border-border/50",
                         )}
                       >
@@ -4230,12 +4233,13 @@ function StatsTeamSheet({
                           {lineupShortNames(row.playerNames)}
                         </p>
                         <p className="text-right font-black tabular-nums text-foreground">{row.gamesPlayed}</p>
+                        <p className="text-right tabular-nums text-muted-foreground text-[10px]">{min}</p>
                         <p className="text-right font-black tabular-nums text-foreground">{poss}</p>
                         <p className="text-right font-black tabular-nums text-foreground">
-                          {fmtLineupRtg(row.offPpp)}
+                          {row.ortg != null ? row.ortg.toFixed(1) : fmtLineupRtg(row.offPpp)}
                         </p>
                         <p className="text-right font-black tabular-nums text-foreground">
-                          {fmtLineupRtg(row.defPpp)}
+                          {row.drtg != null ? row.drtg.toFixed(1) : fmtLineupRtg(row.defPpp)}
                         </p>
                         <p
                           className={cn(
@@ -4250,9 +4254,7 @@ function StatsTeamSheet({
                           )}
                         >
                           {netVal != null
-                            ? netVal > 0
-                              ? `+${netVal.toFixed(1)}`
-                              : netVal.toFixed(1)
+                            ? (netVal > 0 ? `+${netVal.toFixed(1)}` : netVal.toFixed(1))
                             : "—"}
                         </p>
                       </div>

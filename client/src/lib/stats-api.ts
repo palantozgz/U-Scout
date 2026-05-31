@@ -511,7 +511,15 @@ export interface LineupRow {
   offPpp: number | null;
   defPpp: number | null;
   netPpp: number | null;
-  minutesEstimated: number | null;
+  ortg: number | null;
+  drtg: number | null;
+  netRtg: number | null;
+  plusMinus: number | null;   // off_pts - def_pts (bruto, sin normalizar)
+  minutesPlayed: number | null;
+  tov: number;
+  offReb: number;
+  defReb: number;
+  stl: number;
 }
 
 export interface OnOffRow {
@@ -534,30 +542,44 @@ type LineupApiRow = {
   offPpp?: number | null;
   defPpp?: number | null;
   netPpp?: number | null;
+  ortg?: number | null;
+  drtg?: number | null;
+  netRtg?: number | null;
+  offPts?: number;
+  defPts?: number;
   minutesPlayed?: number | null;
-  minutesEstimated?: number | null;
+  tov?: number;
+  offReb?: number;
+  defReb?: number;
+  stl?: number;
 };
 
 function normalizeLineupRow(row: LineupApiRow): LineupRow {
+  const offPoss = Number(row.offPossessions ?? 0);
+  const defPoss = Number(row.defPossessions ?? 0);
+  const offPts  = Number(row.offPts ?? 0);
+  const defPts  = Number(row.defPts ?? 0);
   return {
-    lineupId: String(row.lineupId ?? ""),
-    playerIds: row.playerIds ?? [],
-    playerNames: row.playerNames ?? [],
-    gamesPlayed: Number(row.gamesPlayed ?? 0),
-    offPossessions: Number(row.offPossessions ?? 0),
-    defPossessions: Number(row.defPossessions ?? 0),
-    offPpp: row.offPpp != null ? Number(row.offPpp) : null,
-    defPpp: row.defPpp != null ? Number(row.defPpp) : null,
-    netPpp: row.netPpp != null ? Number(row.netPpp) : null,
-    minutesEstimated:
-      row.minutesEstimated != null
-        ? Number(row.minutesEstimated)
-        : row.minutesPlayed != null
-          ? Number(row.minutesPlayed)
-          : null,
+    lineupId:       row.lineupId ?? '',
+    playerIds:      row.playerIds ?? [],
+    playerNames:    row.playerNames ?? [],
+    gamesPlayed:    Number(row.gamesPlayed ?? 0),
+    offPossessions: offPoss,
+    defPossessions: defPoss,
+    offPpp:  row.offPpp  != null ? Number(row.offPpp)  : offPoss > 0 ? offPts / offPoss : null,
+    defPpp:  row.defPpp  != null ? Number(row.defPpp)  : defPoss > 0 ? defPts / defPoss : null,
+    netPpp:  row.netPpp  != null ? Number(row.netPpp)  : (offPoss > 0 && defPoss > 0) ? (offPts/offPoss - defPts/defPoss) : null,
+    ortg:    row.ortg    != null ? Number(row.ortg)    : offPoss > 0 ? Math.round(offPts / offPoss * 1000) / 10 : null,
+    drtg:    row.drtg    != null ? Number(row.drtg)    : defPoss > 0 ? Math.round(defPts / defPoss * 1000) / 10 : null,
+    netRtg:  row.netRtg  != null ? Number(row.netRtg)  : null,
+    plusMinus: (offPts || defPts) ? offPts - defPts : null,
+    minutesPlayed: row.minutesPlayed != null ? Number(row.minutesPlayed) : null,
+    tov:     Number(row.tov    ?? 0),
+    offReb:  Number(row.offReb ?? 0),
+    defReb:  Number(row.defReb ?? 0),
+    stl:     Number(row.stl    ?? 0),
   };
 }
-
 function netPppFromSplit(split: {
   netRtg?: number | null;
   offPts?: number;
