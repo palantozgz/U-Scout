@@ -2879,8 +2879,11 @@ export async function registerRoutes(
 
   app.get("/api/stats/team/:id/lineups", async (req, res) => {
     try {
-      const teamId = Number(req.params.id);
+      const externalId = Number(req.params.id);
       const seasonId = Number(req.query.seasonId ?? 2092);
+      // Resolver external_id → internal_id (pbp_lineup_stats usa internal)
+      const teamIntRes = await db.execute(sql`SELECT id FROM stats_teams WHERE external_id = ${externalId} LIMIT 1`);
+      const teamId = Number((teamIntRes as any).rows?.[0]?.id ?? externalId);
       const minPoss = Number(req.query.minPossessions ?? 10);
       const sortBy = String(req.query.sortBy ?? "seconds");
 
@@ -2986,9 +2989,11 @@ export async function registerRoutes(
 
   app.get("/api/stats/team/:id/on-off/:playerId", async (req, res) => {
     try {
-      const teamId = Number(req.params.id);
+      const externalId = Number(req.params.id);
       const playerExternalId = String(req.params.playerId);
       const seasonId = Number(req.query.seasonId ?? 2092);
+      const teamIntRes2 = await db.execute(sql`SELECT id FROM stats_teams WHERE external_id = ${externalId} LIMIT 1`);
+      const teamId = Number((teamIntRes2 as any).rows?.[0]?.id ?? externalId);
 
       const result = await db.execute(sql`
         WITH lineup_agg AS (
