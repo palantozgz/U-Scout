@@ -1633,7 +1633,7 @@ export async function registerRoutes(
       FROM pbp_player_game_stats pgs
       JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
       LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
-      LEFT JOIN stats_teams st ON st.external_id = pgs.team_id
+      LEFT JOIN stats_teams st ON st.id = pgs.team_id
       GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.position, sp.photo_url, st.name_zh, st.name_en, st.external_id
       HAVING COUNT(DISTINCT pgs.game_id) >= 1
       ORDER BY AVG(pgs.pts) DESC NULLS LAST
@@ -1702,8 +1702,8 @@ export async function registerRoutes(
       FROM pbp_player_game_stats pgs
       JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
       JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
-      LEFT JOIN stats_teams st ON st.external_id = pgs.team_id
-      JOIN stats_teams own ON own.external_id = pgs.team_id
+      LEFT JOIN stats_teams st ON st.id = pgs.team_id
+      JOIN stats_teams own ON own.id = pgs.team_id
       LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
       LEFT JOIN stats_teams at ON at.id = sg.away_team_id
       WHERE (sp.name_zh = ${playerName} OR sp.name_en = ${playerName})
@@ -1753,7 +1753,7 @@ export async function registerRoutes(
         FROM stats_standings ss
         JOIN stats_teams st ON st.external_id = ss.team_external_id
         LEFT JOIN pbp_player_game_stats pgs
-          ON pgs.team_id::text = st.external_id::text
+          ON pgs.team_id = st.id
         LEFT JOIN stats_games sg
           ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
         WHERE ss.season_id = ${seasonId}
@@ -1804,7 +1804,7 @@ export async function registerRoutes(
         FROM pbp_player_game_stats pgs
         JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
         LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
-        LEFT JOIN stats_teams st ON st.external_id = pgs.team_id
+        LEFT JOIN stats_teams st ON st.id = pgs.team_id
         GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.photo_url, st.name_zh, st.name_en, st.external_id
         HAVING COUNT(DISTINCT pgs.game_id) >= 5
         ORDER BY value DESC NULLS LAST
@@ -1884,7 +1884,7 @@ export async function registerRoutes(
       FROM pbp_player_game_stats pgs
       JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
       LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
-      LEFT JOIN stats_teams st ON st.external_id = pgs.team_id
+      LEFT JOIN stats_teams st ON st.id = pgs.team_id
       WHERE pgs.player_external_id = ${externalId}
       GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.jersey_number,
                sp.photo_url, sp.position, st.name_zh, st.name_en, st.logo_url, st.external_id
@@ -1986,7 +1986,7 @@ export async function registerRoutes(
         ROUND(AVG(CASE WHEN own.id != sg.home_team_id THEN pgs.ast END)::numeric, 1) AS "astAway"
       FROM pbp_player_game_stats pgs
       JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-      JOIN stats_teams own ON own.external_id = pgs.team_id
+      JOIN stats_teams own ON own.id = pgs.team_id
       WHERE pgs.player_external_id = ${externalId}
     `);
     const splitRow = (splitRows as any).rows?.[0] ?? {};
@@ -2012,7 +2012,7 @@ export async function registerRoutes(
       JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
       LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
       LEFT JOIN stats_teams at ON at.id = sg.away_team_id
-      JOIN stats_teams own ON own.external_id = pgs.team_id
+      JOIN stats_teams own ON own.id = pgs.team_id
       WHERE pgs.player_external_id = ${externalId}
       ORDER BY sg.scheduled_at DESC
       LIMIT 30
