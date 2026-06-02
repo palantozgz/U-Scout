@@ -760,6 +760,7 @@ export async function processPossessions(
   // Lineup stats
   for (const [, ls] of Array.from(lineupMap.entries())) {
     if (ls.offPossessions === 0 && ls.defPossessions === 0) continue;
+    if (!ls.lineupId) { console.warn(`[lineup] skipping empty lineupId game=${ls.gameId}`); continue; }
     const offPpp = ls.offPossessions > 0
       ? Math.round(ls.offPts / ls.offPossessions * 1000) / 1000
       : null;
@@ -769,6 +770,7 @@ export async function processPossessions(
     const netPpp = offPpp !== null && defPpp !== null
       ? Math.round((offPpp - defPpp) * 1000) / 1000
       : null;
+    try {
     await db.execute(sql`
       INSERT INTO pbp_lineup_stats (
         game_id, team_id, season_id, lineup_id,
@@ -796,6 +798,9 @@ export async function processPossessions(
         off_fga  = EXCLUDED.off_fga,
         off_fta  = EXCLUDED.off_fta
     `);
+    } catch (lineupErr: any) {
+      console.error(`[lineup] INSERT failed game=${ls.gameId} lineup=${ls.lineupId}:`, lineupErr.message);
+    }
   }
 
   // Auditoría PBP vs Boxscore
