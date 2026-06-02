@@ -2877,6 +2877,19 @@ export async function registerRoutes(
     return res.json({ ok: true, gameId, seasonId });
   });
 
+  // POST /api/stats/admin/process-game-sync/:gameId — síncrono, devuelve error completo
+  app.post("/api/stats/admin/process-game-sync/:gameId", async (req, res) => {
+    const gameId = Number(req.params.gameId);
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    if (isNaN(gameId)) return res.status(400).json({ error: "invalid gameId" });
+    try {
+      await processPossessions(gameId, seasonId);
+      return res.json({ ok: true, gameId, seasonId });
+    } catch (err: any) {
+      return res.status(500).json({ ok: false, error: err.message, stack: err.stack?.slice(0, 500) });
+    }
+  });
+
   app.get("/api/stats/team/:id/lineups", async (req, res) => {
     try {
       const externalId = Number(req.params.id);
