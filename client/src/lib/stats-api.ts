@@ -522,6 +522,10 @@ export interface LineupRow {
   offReb: number;
   defReb: number;
   stl: number;
+  offFg3m: number;
+  offFga: number;
+  offFta: number;
+  tovPct: number | null;
 }
 
 export interface OnOffRow {
@@ -556,6 +560,10 @@ type LineupApiRow = {
   offReb?: number;
   defReb?: number;
   stl?: number;
+  offFg3m?: number;
+  offFga?: number;
+  offFta?: number;
+  tovPct?: number | null;
 };
 
 function normalizeLineupRow(row: LineupApiRow): LineupRow {
@@ -584,6 +592,10 @@ function normalizeLineupRow(row: LineupApiRow): LineupRow {
     offReb:  Number(row.offReb ?? 0),
     defReb:  Number(row.defReb ?? 0),
     stl:     Number(row.stl    ?? 0),
+    offFg3m: row.offFg3m ?? 0,
+    offFga:  row.offFga ?? 0,
+    offFta:  row.offFta ?? 0,
+    tovPct:  row.tovPct ?? null,
   };
 }
 function netPppFromSplit(split: {

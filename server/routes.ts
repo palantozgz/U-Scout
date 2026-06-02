@@ -2925,6 +2925,9 @@ export async function registerRoutes(
           SUM(def_reb)  AS def_reb,
           SUM(tov)      AS tov,
           SUM(stl)      AS stl,
+          SUM(off_fg3m) AS off_fg3m,
+          SUM(off_fga)  AS off_fga,
+          SUM(off_fta)  AS off_fta,
           COUNT(DISTINCT game_id) AS games_played
         FROM pbp_lineup_stats
         WHERE team_id = ${teamId}
@@ -2982,6 +2985,17 @@ export async function registerRoutes(
         tov: Number(r.tov ?? 0),
         stl: Number(r.stl ?? 0),
         gamesPlayed: Number(r.games_played ?? 0),
+        offFg3m: Number(r.off_fg3m ?? 0),
+        offFga: Number(r.off_fga ?? 0),
+        offFta: Number(r.off_fta ?? 0),
+        tovPct:
+          (Number(r.off_fga ?? 0) + 0.44 * Number(r.off_fta ?? 0) + Number(r.tov ?? 0)) > 0
+            ? Math.round(
+                (Number(r.tov ?? 0) /
+                  (Number(r.off_fga ?? 0) + 0.44 * Number(r.off_fta ?? 0) + Number(r.tov ?? 0))) *
+                  1000,
+              ) / 10
+            : null,
       }));
 
       res.json(enrichedRows);

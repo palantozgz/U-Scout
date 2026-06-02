@@ -4207,7 +4207,7 @@ function StatsTeamSheet({
                 </div>
               ) : (
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[1.6fr_0.35fr_0.4fr_0.4fr_0.45fr_0.45fr_0.45fr] gap-0 px-3 py-2 border-b border-border bg-muted/20 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                  <div className="grid grid-cols-[1.5fr_0.32fr_0.36fr_0.36fr_0.4fr_0.4fr_0.4fr_0.36fr] gap-0 px-3 py-2 border-b border-border bg-muted/20 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
                     <span>{L.colLineup}</span>
                     <span className="text-right">{L.colG}</span>
                     <span className="text-right">MIN</span>
@@ -4215,6 +4215,7 @@ function StatsTeamSheet({
                     <span className="text-right">ORTG</span>
                     <span className="text-right">DRTG</span>
                     <span className="text-right">NET</span>
+                    <span className="text-right">TOV%</span>
                   </div>
                   {topLineups.map((row, i) => {
                     const poss = lineupTotalPoss(row);
@@ -4225,7 +4226,7 @@ function StatsTeamSheet({
                       <div
                         key={row.lineupId}
                         className={cn(
-                          "grid grid-cols-[1.6fr_0.35fr_0.4fr_0.4fr_0.45fr_0.45fr_0.45fr] gap-0 items-center px-3 py-2.5 text-xs",
+                          "grid grid-cols-[1.5fr_0.32fr_0.36fr_0.36fr_0.4fr_0.4fr_0.4fr_0.36fr] gap-0 items-center px-3 py-2.5 text-xs",
                           i < topLineups.length - 1 && "border-b border-border/50",
                         )}
                       >
@@ -4257,6 +4258,11 @@ function StatsTeamSheet({
                         >
                           {netVal != null
                             ? (netVal > 0 ? `+${netVal.toFixed(1)}` : netVal.toFixed(1))
+                            : "—"}
+                        </p>
+                        <p className="text-right font-black tabular-nums text-foreground text-[10px]">
+                          {row.offPossessions >= 40 && row.tovPct != null
+                            ? `${row.tovPct.toFixed(1)}%`
                             : "—"}
                         </p>
                       </div>
