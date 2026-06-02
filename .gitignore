@@ -6,3 +6,13 @@ dist
 
 # Motor batch test output (see npm run motor:test)
 scripts/test-results.json
+
+# Archivos de trabajo temporales
+CURSOR_PROMPT_*.md
+*.json
+!package.json
+!tsconfig*.json
+!drizzle.config.json
+scripts/collect_*.js
+scripts/find_*.cjs
+scripts/wcba_*.cjs

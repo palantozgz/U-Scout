@@ -152,12 +152,12 @@ function translatePosition(pos: string | null | undefined, locale: string): stri
 }
 
 /** Lineup label: last token of each player name (fits mobile). */
-function lineupShortNames(names: string[]): string {
+function lineupShortNames(names: string[], locale: string): string {
   return names
     .map((n) => {
       const t = n.trim();
-      // Si es un ID numérico (sin nombre en stats_players), mostrar "#" + últimos 4 dígitos
       if (/^\d+$/.test(t)) return `#${t.slice(-4)}`;
+      if (locale === "zh") return t.slice(0, 2);
       const parts = t.split(/\s+/).filter(Boolean);
       return parts.length > 1 ? parts[parts.length - 1]! : (parts[0] ?? t);
     })
@@ -4230,7 +4230,9 @@ function StatsTeamSheet({
                         )}
                       >
                         <p className="text-[10px] font-bold text-foreground leading-snug truncate pr-1">
-                          {lineupShortNames(row.playerNames)}
+                          {locale === "zh"
+                            ? lineupShortNames(row.playerNamesZh, locale)
+                            : lineupShortNames(row.playerNamesEn, locale)}
                         </p>
                         <p className="text-right font-black tabular-nums text-foreground">{row.gamesPlayed}</p>
                         <p className="text-right tabular-nums text-muted-foreground text-[10px]">{min}</p>

@@ -13,18 +13,21 @@ import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 
 function hasReportInputs(player: PlayerProfile): boolean {
+  // Archetype real = distinto al default de createDefaultPlayer
+  const hasRealArchetype =
+    !!player.archetype && player.archetype !== "arch_role_player";
+
   const inp = (player as any).inputs ?? (player as any).scoutingInputs;
-  if (!inp || typeof inp !== "object") return false;
+  if (!inp || typeof inp !== "object") return hasRealArchetype;
   const i = inp as Record<string, unknown>;
-  return (
-    (i.isoFrequency === "Primary" || i.isoFrequency === "Secondary") ||
-    (i.pnrFrequency === "Primary" || i.pnrFrequency === "Secondary") ||
-    (i.postFrequency === "Primary" || i.postFrequency === "Secondary") ||
-    (i.transitionFrequency === "Primary" || i.transitionFrequency === "Secondary") ||
-    (i.catchAndShootFrequency === "Primary" || i.catchAndShootFrequency === "Secondary") ||
-    (i.indirectsFrequency === "Primary" || i.indirectsFrequency === "Secondary") ||
-    (i.perimeterThreats === "Primary" || i.perimeterThreats === "Secondary")
-  );
+  const hasPrimarySituation =
+    i.isoFrequency === "Primary" ||
+    i.pnrFrequency === "Primary" ||
+    i.postFrequency === "Primary" ||
+    i.transitionFrequency === "Primary" ||
+    i.indirectsFrequency === "Primary";
+
+  return hasRealArchetype || hasPrimarySituation;
 }
 
 function useStatsLink(playerName: string, enabled: boolean) {

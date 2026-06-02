@@ -2942,7 +2942,8 @@ export async function registerRoutes(
         String(r.lineup_id).split("-").forEach((id: string) => allPlayerIds.add(id));
       }
 
-      const playerNames: Record<string, string> = {};
+      const playerNamesZh: Record<string, string> = {};
+      const playerNamesEn: Record<string, string> = {};
       if (allPlayerIds.size > 0) {
         const ids = Array.from(allPlayerIds).map(Number).filter((n) => !isNaN(n));
         if (ids.length > 0) {
@@ -2952,7 +2953,8 @@ export async function registerRoutes(
             WHERE external_id::text IN (${sql.join(ids.map((id: number) => sql`${String(id)}`), sql`, `)})
           `);
           for (const p of (namesRes as any).rows ?? []) {
-            playerNames[String(p.external_id)] = String(p.name_en?.trim() || p.name_zh || p.external_id);
+            playerNamesZh[String(p.external_id)] = String(p.name_zh?.trim() || p.name_en?.trim() || p.external_id);
+            playerNamesEn[String(p.external_id)] = String(p.name_en?.trim() || p.name_zh?.trim() || p.external_id);
           }
         }
       }
@@ -2960,7 +2962,9 @@ export async function registerRoutes(
       const enrichedRows = rows.map((r: any) => ({
         lineupId: r.lineup_id,
         playerIds: String(r.lineup_id).split("-"),
-        playerNames: String(r.lineup_id).split("-").map((id: string) => playerNames[id] ?? id),
+        playerNamesZh: String(r.lineup_id).split("-").map((id: string) => playerNamesZh[id] ?? id),
+        playerNamesEn: String(r.lineup_id).split("-").map((id: string) => playerNamesEn[id] ?? id),
+        playerNames: String(r.lineup_id).split("-").map((id: string) => playerNamesEn[id] ?? id),
         totalSeconds: Number(r.total_seconds ?? 0),
         minutesPlayed: Math.round(Number(r.total_seconds ?? 0) / 60 * 10) / 10,
         offPossessions: Number(r.off_possessions ?? 0),

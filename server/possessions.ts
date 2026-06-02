@@ -112,6 +112,9 @@ interface LineupStats {
   defReb: number;
   tov: number;
   stl: number;
+  offFg3m: number;
+  offFga:  number;
+  offFta:  number;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -458,6 +461,7 @@ export async function processPossessions(
         gameId: gameInternalId, teamId, seasonId, lineupId: luId,
         secondsPlayed: 0, offPossessions: 0, defPossessions: 0,
         offPts: 0, defPts: 0, offReb: 0, defReb: 0, tov: 0, stl: 0,
+        offFg3m: 0, offFga: 0, offFta: 0,
       });
     }
     return lineupMap.get(k)!;
@@ -491,6 +495,7 @@ export async function processPossessions(
   let possEndType  = 'period_end';
   let possPts      = 0;
   let possFGA      = 0;
+  let possFG3M     = 0;
   let possFTA      = 0;
   let possTOV      = 0;
   let possORB      = 0;
@@ -532,6 +537,9 @@ export async function processPossessions(
     offLu.secondsPlayed += dur;
     offLu.offReb += possORB;
     offLu.tov += possTOV;
+    offLu.offFg3m += possFG3M;
+    offLu.offFga  += possFGA;
+    offLu.offFta  += possFTA;
 
     const defTid = possTid === homeTeamId ? awayTeamId : homeTeamId;
     const defLu  = ensureLineup(defTid, possLuDef);
@@ -568,7 +576,7 @@ export async function processPossessions(
     possEndSec   = startSec;
     possQ        = q;
     possMargin   = offTeam === homeTeamId ? scoreDiff : -scoreDiff;
-    possPts = possFGA = possFTA = possTOV = possORB = 0;
+    possPts = possFGA = possFG3M = possFTA = possTOV = possORB = 0;
     possSecond   = false;
     possLuOff    = getSnap(offTeam, snapIdx);
     const opp    = offTeam === homeTeamId ? awayTeamId : homeTeamId;
@@ -580,7 +588,7 @@ export async function processPossessions(
     if (possTid === null || ev.offense !== possTid) return;
     switch (ev.event_type) {
       case 'shot_made':     possPts += 2; possFGA++; break;
-      case 'shot_made_3':   possPts += 3; possFGA++; break;
+      case 'shot_made_3':   possPts += 3; possFGA++; possFG3M++; break;
       case 'shot_missed':   possFGA++; break;
       case 'shot_missed_3': possFGA++; break;
       case 'ft_made':       possPts++; possFTA++; break;
@@ -766,12 +774,14 @@ export async function processPossessions(
         game_id, team_id, season_id, lineup_id,
         seconds_played, off_possessions, def_possessions,
         off_pts, def_pts, off_ppp, def_ppp, net_ppp,
-        off_reb, def_reb, tov, stl
+        off_reb, def_reb, tov, stl,
+        off_fg3m, off_fga, off_fta
       ) VALUES (
         ${ls.gameId}, ${ls.teamId}, ${ls.seasonId}, ${ls.lineupId},
         ${ls.secondsPlayed}, ${ls.offPossessions}, ${ls.defPossessions},
         ${ls.offPts}, ${ls.defPts}, ${offPpp}, ${defPpp}, ${netPpp},
-        ${ls.offReb}, ${ls.defReb}, ${ls.tov}, ${ls.stl}
+        ${ls.offReb}, ${ls.defReb}, ${ls.tov}, ${ls.stl},
+        ${ls.offFg3m}, ${ls.offFga}, ${ls.offFta}
       )
       ON CONFLICT (game_id, team_id, lineup_id) DO UPDATE SET
         seconds_played  = EXCLUDED.seconds_played,
@@ -781,14 +791,17 @@ export async function processPossessions(
         off_ppp = EXCLUDED.off_ppp, def_ppp = EXCLUDED.def_ppp,
         net_ppp = EXCLUDED.net_ppp,
         off_reb = EXCLUDED.off_reb, def_reb = EXCLUDED.def_reb,
-        tov = EXCLUDED.tov, stl = EXCLUDED.stl
+        tov = EXCLUDED.tov, stl = EXCLUDED.stl,
+        off_fg3m = EXCLUDED.off_fg3m,
+        off_fga  = EXCLUDED.off_fga,
+        off_fta  = EXCLUDED.off_fta
     `);
   }
 
   // Auditoría PBP vs Boxscore
   for (const [tid, ext, extId] of [[homeTeamId, homeExt, homeTeamExtId], [awayTeamId, awayExt, awayTeamExtId]] as [number, string, number][]) {
     const pbpPts = possessions
-      .filter(p => p.teamId === extId)
+      .filter(p => p.teamId === tid)
       .reduce((s, p) => s + p.points, 0);
     const box    = boxRows.filter((b: any) => String(b.team_external_id) === ext);
     const boxPts = box.reduce((s: number, b: any) => s + (Number(b.pts) || 0), 0);

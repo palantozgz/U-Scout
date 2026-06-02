@@ -505,6 +505,8 @@ export interface LineupRow {
   lineupId: string;
   playerIds: string[];
   playerNames: string[];
+  playerNamesZh: string[];
+  playerNamesEn: string[];
   gamesPlayed: number;
   offPossessions: number;
   defPossessions: number;
@@ -536,6 +538,8 @@ type LineupApiRow = {
   lineupId?: string;
   playerIds?: string[];
   playerNames?: string[];
+  playerNamesZh?: string[];
+  playerNamesEn?: string[];
   gamesPlayed?: number;
   offPossessions?: number;
   defPossessions?: number;
@@ -563,6 +567,8 @@ function normalizeLineupRow(row: LineupApiRow): LineupRow {
     lineupId:       row.lineupId ?? '',
     playerIds:      row.playerIds ?? [],
     playerNames:    row.playerNames ?? [],
+    playerNamesZh:  row.playerNamesZh ?? row.playerNames ?? [],
+    playerNamesEn:  row.playerNamesEn ?? row.playerNames ?? [],
     gamesPlayed:    Number(row.gamesPlayed ?? 0),
     offPossessions: offPoss,
     defPossessions: defPoss,
