@@ -731,7 +731,14 @@ export async function processPossessions(
   }
 
   // Player stats
+  let playerInsertOk = 0, playerInsertSkip = 0;
   for (const [, ps] of Array.from(playerMap.entries())) {
+    const extId = Number(ps.playerExternalId);
+    if (!ps.playerExternalId || ps.playerExternalId === 'null' || isNaN(extId) || extId <= 0) {
+      playerInsertSkip++;
+      continue;
+    }
+    playerInsertOk++;
     await db.execute(sql`
       INSERT INTO pbp_player_game_stats (
         game_id, player_external_id, team_id, season_id,
@@ -844,7 +851,7 @@ export async function processPossessions(
 
   console.log(
     `[possessions v6] game ${gameInternalId}: ` +
-    `${possessions.length} poss, ${playerMap.size} players, ${lineupMap.size} lineups`
+    `${possessions.length} poss, ${playerInsertOk} players (${playerInsertSkip} skipped), ${lineupMap.size} lineups`
   );
 }
 
