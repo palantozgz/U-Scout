@@ -1601,6 +1601,8 @@ export async function registerRoutes(
   // ─── GET /api/stats/players — promedios temporada desde pbp_player_game_stats ─
   app.get("/api/stats/players", requireAuth, async (req, res) => {
     const seasonId = Number(req.query.seasonId ?? 2092);
+    const phaseType = String(req.query.phaseType ?? "regular");
+    const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
     let rows;
     try {
       rows = await db.execute(sql`
@@ -1631,7 +1633,7 @@ export async function registerRoutes(
         ROUND(AVG(pgs.off_reb)::numeric, 1) AS "orbPerGame",
         ROUND(AVG(pgs.def_reb)::numeric, 1) AS "drbPerGame"
       FROM pbp_player_game_stats pgs
-      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
       LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
       LEFT JOIN stats_teams st ON st.id = pgs.team_id
       GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.position, sp.photo_url, st.name_zh, st.name_en, st.external_id
@@ -1681,6 +1683,8 @@ export async function registerRoutes(
     const playerName = String(req.query.playerName ?? "").trim();
     if (!playerName) return res.json({ games: [] });
     const seasonId = Number(req.query.seasonId ?? 2092);
+    const phaseType = String(req.query.phaseType ?? "regular");
+    const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
 
     const rows = await db.execute(sql`
       SELECT
@@ -1700,7 +1704,7 @@ export async function registerRoutes(
         pgs.tov                                       AS turnovers,
         pgs.plus_minus                                AS "plusMinus"
       FROM pbp_player_game_stats pgs
-      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
       JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
       LEFT JOIN stats_teams st ON st.id = pgs.team_id
       JOIN stats_teams own ON own.id = pgs.team_id
@@ -1717,6 +1721,9 @@ export async function registerRoutes(
   // GET /api/stats/standings
   app.get("/api/stats/standings", requireAuth, async (req, res) => {
     const seasonId = Number(req.query.seasonId ?? 2092);
+    const phaseType = String(req.query.phaseType ?? "regular");
+    const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
+    const phaseFilterPP = phaseType === "all" ? sql`` : sql`AND pp.phase_type = ${phaseType}`;
     try {
       const rows = await db.execute(sql`
         SELECT
@@ -1731,12 +1738,12 @@ export async function registerRoutes(
           (SELECT ROUND(SUM(pp.points)::numeric / NULLIF(COUNT(DISTINCT pp.game_id), 0), 1)
            FROM pbp_possessions pp
            JOIN stats_games sg2 ON sg2.id = pp.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-           WHERE pp.team_id = st.id
+           WHERE pp.team_id = st.id ${phaseFilterPP}
           ) AS "ppg",
           (SELECT ROUND(SUM(pp.points)::numeric / NULLIF(COUNT(DISTINCT pp.game_id), 0), 1)
            FROM pbp_possessions pp
            JOIN stats_games sg2 ON sg2.id = pp.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-           WHERE pp.team_id != st.id
+           WHERE pp.team_id != st.id ${phaseFilterPP}
              AND sg2.id IN (
                SELECT sg3.id FROM stats_games sg3
                WHERE (sg3.home_team_id = st.id OR sg3.away_team_id = st.id)
@@ -1755,7 +1762,7 @@ export async function registerRoutes(
         LEFT JOIN pbp_player_game_stats pgs
           ON pgs.team_id = st.id
         LEFT JOIN stats_games sg
-          ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
         WHERE ss.season_id = ${seasonId}
         GROUP BY
           st.id, st.external_id, st.name_zh, st.name_en, st.logo_url,
@@ -1774,6 +1781,8 @@ export async function registerRoutes(
   // GET /api/stats/leaders — pbp_player_game_stats
   app.get("/api/stats/leaders", requireAuth, async (req, res) => {
     const seasonId = Number(req.query.seasonId ?? 2092);
+    const phaseType = String(req.query.phaseType ?? "regular");
+    const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
     const stat = String(req.query.stat ?? "ppg");
     const allowedStats: Record<string, string> = {
       ppg: "AVG(pgs.pts)",
@@ -1802,7 +1811,7 @@ export async function registerRoutes(
           ROUND(${sql.raw(statExpr)}::numeric, 1) AS value,
           COUNT(DISTINCT pgs.game_id)::int AS games
         FROM pbp_player_game_stats pgs
-        JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
         LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
         LEFT JOIN stats_teams st ON st.id = pgs.team_id
         GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.photo_url, st.name_zh, st.name_en, st.external_id
@@ -1843,6 +1852,8 @@ export async function registerRoutes(
     try {
     const { externalId } = req.params;
     const seasonId = Number(req.query.seasonId ?? 2092);
+    const phaseType = String(req.query.phaseType ?? "regular");
+    const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
 
     const playerRows = await db.execute(sql`
       SELECT
@@ -1882,7 +1893,7 @@ export async function registerRoutes(
         ROUND(AVG(pgs.off_reb)::numeric, 1) AS "orbPerGame",
         ROUND(AVG(pgs.def_reb)::numeric, 1) AS "drbPerGame"
       FROM pbp_player_game_stats pgs
-      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
       LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
       LEFT JOIN stats_teams st ON st.id = pgs.team_id
       WHERE pgs.player_external_id = ${externalId}
@@ -1905,7 +1916,7 @@ export async function registerRoutes(
             ) AS player_num,
             gm_totals.game_den
           FROM pbp_player_game_stats pgs
-          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
           JOIN (
             SELECT
               pgs_inner.game_id,
@@ -1917,6 +1928,7 @@ export async function registerRoutes(
             FROM pbp_player_game_stats pgs_inner
             JOIN stats_games sg_inner ON sg_inner.id = pgs_inner.game_id
               AND sg_inner.status = 4 AND sg_inner.season_id = ${seasonId}
+              ${phaseType === "all" ? sql`` : sql`AND pgs_inner.phase_type = ${phaseType}`}
             GROUP BY pgs_inner.game_id
           ) gm_totals ON gm_totals.game_id = pgs.game_id
           WHERE pgs.player_external_id = ${externalId}
@@ -1942,7 +1954,7 @@ export async function registerRoutes(
             pgs.tov,
             pgs.seconds_played AS min_sec
           FROM pbp_player_game_stats pgs
-          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
           WHERE pgs.player_external_id = ${externalId}
             AND pgs.seconds_played > 0
         ),
@@ -1956,6 +1968,7 @@ export async function registerRoutes(
             SUM(pgs2.seconds_played) AS tm_min_sec
           FROM pbp_player_game_stats pgs2
           JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+            ${phaseType === "all" ? sql`` : sql`AND pgs2.phase_type = ${phaseType}`}
           WHERE pgs2.team_id IN (SELECT DISTINCT team_id FROM player_games)
           GROUP BY pgs2.game_id, pgs2.team_id
         ),
@@ -1985,7 +1998,7 @@ export async function registerRoutes(
         ROUND(AVG(CASE WHEN own.id = sg.home_team_id THEN pgs.ast END)::numeric, 1) AS "astHome",
         ROUND(AVG(CASE WHEN own.id != sg.home_team_id THEN pgs.ast END)::numeric, 1) AS "astAway"
       FROM pbp_player_game_stats pgs
-      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
       JOIN stats_teams own ON own.id = pgs.team_id
       WHERE pgs.player_external_id = ${externalId}
     `);
@@ -2009,7 +2022,7 @@ export async function registerRoutes(
         pgs.is_starter       AS "isStart",
         (own.id = sg.home_team_id) AS "isHome"
       FROM pbp_player_game_stats pgs
-      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
       LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
       LEFT JOIN stats_teams at ON at.id = sg.away_team_id
       JOIN stats_teams own ON own.id = pgs.team_id
@@ -2123,6 +2136,10 @@ export async function registerRoutes(
   app.get("/api/stats/team/:externalId", requireAuth, async (req, res) => {
     const { externalId } = req.params;
     const seasonId = Number(req.query.seasonId ?? 2092);
+    const phaseType = String(req.query.phaseType ?? "regular");
+    const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
+    const phaseFilterPP = phaseType === "all" ? sql`` : sql`AND pp.phase_type = ${phaseType}`;
+    const phaseFilterP = phaseType === "all" ? sql`` : sql`AND p.phase_type = ${phaseType}`;
 
     const teamRow = await db.execute(sql`
       SELECT
@@ -2134,10 +2151,10 @@ export async function registerRoutes(
         ss.losses,
         (SELECT ROUND(SUM(pp.points)::numeric / NULLIF(COUNT(DISTINCT pp.game_id), 0), 1)
          FROM pbp_possessions pp JOIN stats_games sg2 ON sg2.id = pp.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-         WHERE pp.team_id = st.id) AS ppg,
+         WHERE pp.team_id = st.id ${phaseFilterPP}) AS ppg,
         (SELECT ROUND(SUM(pp.points)::numeric / NULLIF(COUNT(DISTINCT pp.game_id), 0), 1)
          FROM pbp_possessions pp JOIN stats_games sg2 ON sg2.id = pp.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-         WHERE pp.team_id != st.id
+         WHERE pp.team_id != st.id ${phaseFilterPP}
            AND sg2.id IN (SELECT sg3.id FROM stats_games sg3 WHERE (sg3.home_team_id = st.id OR sg3.away_team_id = st.id) AND sg3.status = 4 AND sg3.season_id = ${seasonId})) AS oppg,
         ss.rank,
         ss.win_pct               AS "winPct",
@@ -2151,6 +2168,7 @@ export async function registerRoutes(
         (SELECT ROUND(SUM(pgs_fg.fgm)::numeric / NULLIF(SUM(pgs_fg.fga), 0) * 100, 1)
          FROM pbp_player_game_stats pgs_fg
          JOIN stats_games sg ON sg.id = pgs_fg.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+           ${phaseType === "all" ? sql`` : sql`AND pgs_fg.phase_type = ${phaseType}`}
          WHERE pgs_fg.team_id = st.id) AS "teamFgPct",
         adv."eFGPct",
         adv."tovPct",
@@ -2165,6 +2183,7 @@ export async function registerRoutes(
           ROUND(SUM(pgs2.fta)::numeric / NULLIF(SUM(pgs2.fga), 0), 3) AS "ftRate"
         FROM pbp_player_game_stats pgs2
         JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+          ${phaseType === "all" ? sql`` : sql`AND pgs2.phase_type = ${phaseType}`}
         WHERE pgs2.team_id = st.id
       ) adv ON true
       WHERE st.external_id = ${Number(externalId)}
@@ -2186,7 +2205,7 @@ export async function registerRoutes(
             SUM(pgs.off_reb) AS orb,
             SUM(pgs.def_reb) AS drb
           FROM pbp_player_game_stats pgs
-          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
           WHERE pgs.team_id = (SELECT id FROM team_ref)
         ),
         rival_reb AS (
@@ -2195,6 +2214,7 @@ export async function registerRoutes(
             SUM(pgs2.def_reb) AS rival_drb
           FROM pbp_player_game_stats pgs2
           JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+            ${phaseType === "all" ? sql`` : sql`AND pgs2.phase_type = ${phaseType}`}
           WHERE pgs2.team_id != (SELECT id FROM team_ref)
           AND sg2.id IN (
             SELECT sg3.id FROM stats_games sg3
@@ -2231,7 +2251,7 @@ export async function registerRoutes(
         ROUND(AVG(pgs.reb)::numeric, 1) AS rpg,
         ROUND(AVG(pgs.ast)::numeric, 1) AS apg
       FROM pbp_player_game_stats pgs
-      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+      JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
       LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
       LEFT JOIN stats_teams st ON st.id = pgs.team_id
       WHERE pgs.team_id = ${teamIntId}
@@ -2268,16 +2288,18 @@ export async function registerRoutes(
           ROUND(SUM(op.points)::numeric / NULLIF(COUNT(op.*), 0), 3) AS "pppDef",
           ROUND(
             (
-              (SELECT COUNT(*) FROM pbp_possessions
-               JOIN stats_games sg ON sg.id = pbp_possessions.game_id
-               WHERE pbp_possessions.team_id = ${teamIntId}
+              (SELECT COUNT(*) FROM pbp_possessions pp_cnt
+               JOIN stats_games sg ON sg.id = pp_cnt.game_id
+               WHERE pp_cnt.team_id = ${teamIntId}
                  AND sg.status = 4
-                 AND sg.season_id = ${seasonId})
+                 AND sg.season_id = ${seasonId}
+                 ${phaseType === "all" ? sql`` : sql`AND pp_cnt.phase_type = ${phaseType}`})
               +
-              (SELECT COUNT(*) FROM pbp_possessions
-               JOIN stats_games sg ON sg.id = pbp_possessions.game_id
-               WHERE pbp_possessions.team_id != ${teamIntId}
-                 AND pbp_possessions.game_id IN (
+              (SELECT COUNT(*) FROM pbp_possessions pp_cnt
+               JOIN stats_games sg ON sg.id = pp_cnt.game_id
+               WHERE pp_cnt.team_id != ${teamIntId}
+                 ${phaseType === "all" ? sql`` : sql`AND pp_cnt.phase_type = ${phaseType}`}
+                 AND pp_cnt.game_id IN (
                    SELECT sg2.id FROM stats_games sg2
                    WHERE (sg2.home_team_id = ${teamIntId} OR sg2.away_team_id = ${teamIntId})
                      AND sg2.status = 4 AND sg2.season_id = ${seasonId}
@@ -2293,7 +2315,8 @@ export async function registerRoutes(
         FROM pbp_possessions p
         JOIN stats_games sg ON sg.id = p.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
         JOIN pbp_possessions op ON op.game_id = p.game_id AND op.team_id != p.team_id
-        WHERE p.team_id = ${teamIntId}
+          ${phaseType === "all" ? sql`` : sql`AND op.phase_type = ${phaseType}`}
+        WHERE p.team_id = ${teamIntId} ${phaseFilterP}
       `);
       const rtg = (rtgRow as any).rows?.[0] ?? {};
       ortg   = rtg.ortg   != null ? Number(rtg.ortg)   : null;
@@ -2470,6 +2493,8 @@ export async function registerRoutes(
   app.get("/api/stats/team/:externalId/pace-segments", requireAuth, async (req, res) => {
     const { externalId } = req.params;
     const seasonId = Number(req.query.seasonId ?? 2092);
+    const phaseType = String(req.query.phaseType ?? "regular");
+    const phaseFilterPP = phaseType === "all" ? sql`` : sql`AND pp.phase_type = ${phaseType}`;
     try {
       const teamRow = await db.execute(sql`
         SELECT st.id, st.external_id::text AS ext_id
@@ -2493,6 +2518,7 @@ export async function registerRoutes(
         WHERE pp.team_id = ${Number(team.id)}
           AND sg.status = 4
           AND sg.season_id = ${seasonId}
+          ${phaseFilterPP}
         GROUP BY seg
       `);
 
@@ -2509,6 +2535,7 @@ export async function registerRoutes(
         FROM pbp_possessions pp
         JOIN stats_games sg ON sg.id = pp.game_id
         WHERE sg.status = 4 AND sg.season_id = ${seasonId}
+          ${phaseFilterPP}
         GROUP BY seg
       `);
 
@@ -2582,6 +2609,9 @@ export async function registerRoutes(
 
   app.get("/api/stats/league-averages", requireAuth, async (req, res) => {
     const seasonId = Number(req.query.seasonId ?? 2092);
+    const phaseType = String(req.query.phaseType ?? "regular");
+    const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
+    const phaseFilterPP = phaseType === "all" ? sql`` : sql`AND pp.phase_type = ${phaseType}`;
     const position = typeof req.query.position === "string" && req.query.position.trim()
       ? req.query.position.trim()
       : null;
@@ -2594,7 +2624,7 @@ export async function registerRoutes(
             SUM(pgs.def_reb) AS drb,
             pgs.game_id
           FROM pbp_player_game_stats pgs
-          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
           ${position ? sql`JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id AND sp.position = ${position}` : sql``}
           GROUP BY pgs.team_id, pgs.game_id
         ),
@@ -2610,11 +2640,11 @@ export async function registerRoutes(
           GROUP BY a.team_external_id
         )
         SELECT
-          (SELECT ROUND(AVG(t.v)::numeric, 1) FROM (SELECT SUM(pgs2.pts) AS v FROM pbp_player_game_stats pgs2 JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId} GROUP BY pgs2.team_id, pgs2.game_id) t) AS "avgPpg",
-          (SELECT ROUND(AVG(t.v)::numeric, 1) FROM (SELECT SUM(pgs2.reb) AS v FROM pbp_player_game_stats pgs2 JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId} GROUP BY pgs2.team_id, pgs2.game_id) t) AS "avgRpg",
-          (SELECT ROUND(AVG(t.v)::numeric, 1) FROM (SELECT SUM(pgs2.ast) AS v FROM pbp_player_game_stats pgs2 JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId} GROUP BY pgs2.team_id, pgs2.game_id) t) AS "avgApg",
-          (SELECT ROUND(AVG(t.v)::numeric, 1) FROM (SELECT SUM(pgs2.stl) AS v FROM pbp_player_game_stats pgs2 JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId} GROUP BY pgs2.team_id, pgs2.game_id) t) AS "avgSpg",
-          (SELECT ROUND(AVG(t.v)::numeric, 1) FROM (SELECT SUM(pgs2.blk) AS v FROM pbp_player_game_stats pgs2 JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId} GROUP BY pgs2.team_id, pgs2.game_id) t) AS "avgBpg",
+          (SELECT ROUND(AVG(t.v)::numeric, 1) FROM (SELECT SUM(pgs2.pts) AS v FROM pbp_player_game_stats pgs2 JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId} ${phaseType === "all" ? sql`` : sql`AND pgs2.phase_type = ${phaseType}`} GROUP BY pgs2.team_id, pgs2.game_id) t) AS "avgPpg",
+          (SELECT ROUND(AVG(t.v)::numeric, 1) FROM (SELECT SUM(pgs2.reb) AS v FROM pbp_player_game_stats pgs2 JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId} ${phaseType === "all" ? sql`` : sql`AND pgs2.phase_type = ${phaseType}`} GROUP BY pgs2.team_id, pgs2.game_id) t) AS "avgRpg",
+          (SELECT ROUND(AVG(t.v)::numeric, 1) FROM (SELECT SUM(pgs2.ast) AS v FROM pbp_player_game_stats pgs2 JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId} ${phaseType === "all" ? sql`` : sql`AND pgs2.phase_type = ${phaseType}`} GROUP BY pgs2.team_id, pgs2.game_id) t) AS "avgApg",
+          (SELECT ROUND(AVG(t.v)::numeric, 1) FROM (SELECT SUM(pgs2.stl) AS v FROM pbp_player_game_stats pgs2 JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId} ${phaseType === "all" ? sql`` : sql`AND pgs2.phase_type = ${phaseType}`} GROUP BY pgs2.team_id, pgs2.game_id) t) AS "avgSpg",
+          (SELECT ROUND(AVG(t.v)::numeric, 1) FROM (SELECT SUM(pgs2.blk) AS v FROM pbp_player_game_stats pgs2 JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId} ${phaseType === "all" ? sql`` : sql`AND pgs2.phase_type = ${phaseType}`} GROUP BY pgs2.team_id, pgs2.game_id) t) AS "avgBpg",
           ROUND(
             CASE WHEN SUM(pgs.fga) > 0
               THEN SUM(pgs.fgm)::numeric / SUM(pgs.fga) * 100 END, 1
@@ -2645,7 +2675,7 @@ export async function registerRoutes(
           ROUND(AVG(pgs.off_reb)::numeric, 1) AS "avgOrbPerGame",
           ROUND(AVG(pgs.def_reb)::numeric, 1) AS "avgDrbPerGame"
         FROM pbp_player_game_stats pgs
-        JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
         ${position ? sql`JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id AND sp.position = ${position}` : sql``}
         LEFT JOIN orb_calc oc ON oc.team_external_id = pgs.team_id::text
       `);
@@ -2664,6 +2694,7 @@ export async function registerRoutes(
             AVG(COALESCE(pgs2.ast, 0)) AS apg
           FROM pbp_player_game_stats pgs2
           JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+            ${phaseType === "all" ? sql`` : sql`AND pgs2.phase_type = ${phaseType}`}
           ${position ? sql`JOIN stats_players sp2 ON sp2.external_id::text = pgs2.player_external_id AND sp2.position = ${position}` : sql``}
           GROUP BY pgs2.player_external_id
           HAVING COUNT(DISTINCT pgs2.game_id) >= 3
@@ -2679,11 +2710,12 @@ export async function registerRoutes(
       try {
         const rtgLgRows = await db.execute(sql`
           SELECT
-            ROUND(100.0 * SUM(points) / NULLIF(COUNT(*), 0), 1) AS ortg,
-            ROUND(SUM(points)::numeric / NULLIF(COUNT(*), 0), 3) AS ppp,
-            ROUND(COUNT(*)::numeric / NULLIF(COUNT(DISTINCT game_id) * 2.0, 0), 1) AS pace
-          FROM pbp_possessions
-          WHERE season_id = ${seasonId}
+            ROUND(100.0 * SUM(pp.points) / NULLIF(COUNT(*), 0), 1) AS ortg,
+            ROUND(SUM(pp.points)::numeric / NULLIF(COUNT(*), 0), 3) AS ppp,
+            ROUND(COUNT(*)::numeric / NULLIF(COUNT(DISTINCT pp.game_id) * 2.0, 0), 1) AS pace
+          FROM pbp_possessions pp
+          WHERE pp.season_id = ${seasonId}
+            ${phaseFilterPP}
         `);
         const r2 = (rtgLgRows as any).rows?.[0] ?? {};
         lgOrtg = r2.ortg != null ? Number(r2.ortg) : null;
@@ -2705,7 +2737,7 @@ export async function registerRoutes(
               SUM(pgs.def_reb) AS drb,
               SUM(pgs.off_reb) AS orb
             FROM pbp_player_game_stats pgs
-            JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+            JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
             GROUP BY pgs.game_id, pgs.team_id
           )
           SELECT
@@ -2754,6 +2786,8 @@ export async function registerRoutes(
 
   app.get("/api/stats/player-percentiles", requireAuth, async (req, res) => {
     const seasonId = Number(req.query.seasonId ?? 2092);
+    const phaseType = String(req.query.phaseType ?? "regular");
+    const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
     const positionPct = typeof req.query.position === "string" && req.query.position.trim()
       ? req.query.position.trim()
       : null;
@@ -2775,7 +2809,7 @@ export async function registerRoutes(
             END AS efg_pct,
             SUM(pgs.fg3a)::float / COUNT(DISTINCT pgs.game_id) AS tpa_per_game
           FROM pbp_player_game_stats pgs
-          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
           ${positionPct ? sql`JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id AND sp.position = ${positionPct}` : sql``}
           GROUP BY pgs.player_external_id
           HAVING COUNT(DISTINCT pgs.game_id) >= 5
@@ -2894,6 +2928,8 @@ export async function registerRoutes(
     try {
       const externalId = Number(req.params.id);
       const seasonId = Number(req.query.seasonId ?? 2092);
+      const phaseType = String(req.query.phaseType ?? "regular");
+      const phaseFilterLS = phaseType === "all" ? sql`` : sql`AND ls.phase_type = ${phaseType}`;
       // Resolver external_id → internal_id (pbp_lineup_stats usa internal)
       const teamIntRes = await db.execute(sql`SELECT id FROM stats_teams WHERE external_id = ${externalId} LIMIT 1`);
       const teamId = Number((teamIntRes as any).rows?.[0]?.id ?? externalId);
@@ -2910,42 +2946,43 @@ export async function registerRoutes(
 
       const result = await db.execute(sql`
         SELECT
-          lineup_id,
-          SUM(seconds_played)   AS total_seconds,
-          SUM(off_possessions)  AS off_possessions,
-          SUM(def_possessions)  AS def_possessions,
-          SUM(off_pts)          AS off_pts,
-          SUM(def_pts)          AS def_pts,
-          CASE WHEN SUM(off_possessions) > 0
-            THEN ROUND(SUM(off_pts)::numeric / SUM(off_possessions) * 100, 1)
+          ls.lineup_id,
+          SUM(ls.seconds_played)   AS total_seconds,
+          SUM(ls.off_possessions)  AS off_possessions,
+          SUM(ls.def_possessions)  AS def_possessions,
+          SUM(ls.off_pts)          AS off_pts,
+          SUM(ls.def_pts)          AS def_pts,
+          CASE WHEN SUM(ls.off_possessions) > 0
+            THEN ROUND(SUM(ls.off_pts)::numeric / SUM(ls.off_possessions) * 100, 1)
             ELSE NULL END AS ortg,
-          CASE WHEN SUM(def_possessions) > 0
-            THEN ROUND(SUM(def_pts)::numeric / SUM(def_possessions) * 100, 1)
+          CASE WHEN SUM(ls.def_possessions) > 0
+            THEN ROUND(SUM(ls.def_pts)::numeric / SUM(ls.def_possessions) * 100, 1)
             ELSE NULL END AS drtg,
           CASE
-            WHEN SUM(off_possessions) > 0 AND SUM(def_possessions) > 0
+            WHEN SUM(ls.off_possessions) > 0 AND SUM(ls.def_possessions) > 0
             THEN ROUND(
-              (SUM(off_pts)::numeric / SUM(off_possessions) -
-               SUM(def_pts)::numeric / SUM(def_possessions)) * 100, 1)
+              (SUM(ls.off_pts)::numeric / SUM(ls.off_possessions) -
+               SUM(ls.def_pts)::numeric / SUM(ls.def_possessions)) * 100, 1)
             ELSE NULL END AS net_rtg,
-          ROUND(SUM(off_pts)::numeric / NULLIF(SUM(off_possessions), 0), 3) AS off_ppp,
-          ROUND(SUM(def_pts)::numeric / NULLIF(SUM(def_possessions), 0), 3) AS def_ppp,
+          ROUND(SUM(ls.off_pts)::numeric / NULLIF(SUM(ls.off_possessions), 0), 3) AS off_ppp,
+          ROUND(SUM(ls.def_pts)::numeric / NULLIF(SUM(ls.def_possessions), 0), 3) AS def_ppp,
           ROUND(
-            (SUM(off_pts)::numeric / NULLIF(SUM(off_possessions), 0)) -
-            (SUM(def_pts)::numeric / NULLIF(SUM(def_possessions), 0)), 3
+            (SUM(ls.off_pts)::numeric / NULLIF(SUM(ls.off_possessions), 0)) -
+            (SUM(ls.def_pts)::numeric / NULLIF(SUM(ls.def_possessions), 0)), 3
           ) AS net_ppp,
-          SUM(off_reb)  AS off_reb,
-          SUM(def_reb)  AS def_reb,
-          SUM(tov)      AS tov,
-          SUM(stl)      AS stl,
-          SUM(off_fg3m) AS off_fg3m,
-          SUM(off_fga)  AS off_fga,
-          SUM(off_fta)  AS off_fta,
-          COUNT(DISTINCT game_id) AS games_played
-        FROM pbp_lineup_stats
-        WHERE team_id = ${teamId}
-          AND season_id = ${seasonId}
-        GROUP BY lineup_id
+          SUM(ls.off_reb)  AS off_reb,
+          SUM(ls.def_reb)  AS def_reb,
+          SUM(ls.tov)      AS tov,
+          SUM(ls.stl)      AS stl,
+          SUM(ls.off_fg3m) AS off_fg3m,
+          SUM(ls.off_fga)  AS off_fga,
+          SUM(ls.off_fta)  AS off_fta,
+          COUNT(DISTINCT ls.game_id) AS games_played
+        FROM pbp_lineup_stats ls
+        WHERE ls.team_id = ${teamId}
+          AND ls.season_id = ${seasonId}
+          ${phaseFilterLS}
+        GROUP BY ls.lineup_id
         HAVING SUM(off_possessions) >= ${minPoss}
         ORDER BY ${sql.raw(orderCol)} DESC NULLS LAST
         LIMIT 50

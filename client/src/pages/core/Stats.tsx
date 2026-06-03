@@ -36,6 +36,7 @@ import {
   type TeamDetail,
   type TeamRosterPlayer,
   type TeamGameLogEntry,
+  type StatsPhaseType,
 } from "@/lib/stats-api";
 
 type MainTab = "liga" | "jugadoras";
@@ -298,6 +299,14 @@ export default function Stats() {
     const s = localStorage.getItem("stats_seasonId");
     return s ? Number(s) : null;
   });
+  const [phaseType, setPhaseType] = useState<StatsPhaseType>(() => {
+    const stored = localStorage.getItem("stats-phase-type");
+    return stored === "playoff" ? "playoff" : "regular";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("stats-phase-type", phaseType);
+  }, [phaseType]);
 
   useEffect(() => {
     const raw = search.startsWith("?") ? search.slice(1) : search;
@@ -339,11 +348,11 @@ export default function Stats() {
   const seasonLabel =
     seasons.find((s) => s.seasonId === effectiveSeasonId)?.label ?? String(effectiveSeasonId);
 
-  const playersQ = usePlayerSeasonStats();
+  const playersQ = usePlayerSeasonStats(phaseType);
   const playersRaw = playersQ.data?.players ?? [];
 
-  const standingsQ = useStandings(effectiveSeasonId);
-  const leadersQ = useLeaders(effectiveSeasonId, leaderStat);
+  const standingsQ = useStandings(effectiveSeasonId, phaseType);
+  const leadersQ = useLeaders(effectiveSeasonId, leaderStat, phaseType);
 
   const seasonMetaLabel = seasons.find((s) => s.seasonId === effectiveSeasonId)?.label;
   const playersForSeason = useMemo(() => {
@@ -547,6 +556,7 @@ export default function Stats() {
       playerSheetId={playerSheetId}
       teamSheetId={teamSheetId}
       seasonId={effectiveSeasonId}
+      phaseType={phaseType}
       locale={locale}
       returnToTeamId={returnToTeamId}
       returnToPlayerId={returnToPlayerId}
@@ -576,7 +586,31 @@ export default function Stats() {
       panelLabel={isDesktop ? (locale === "zh" ? "详情" : locale === "es" ? "DETALLE" : "DETAIL") : undefined}
     >
       <>
-      <div className="w-full max-w-5xl mx-auto px-4 md:px-8 flex justify-end pt-1 pb-2 shrink-0">
+      <div className="w-full max-w-5xl mx-auto px-4 md:px-8 flex justify-end items-center gap-2 pt-1 pb-2 shrink-0">
+        <div className="flex rounded-lg overflow-hidden border border-border text-sm">
+          <button
+            type="button"
+            onClick={() => setPhaseType("regular")}
+            className={
+              phaseType === "regular"
+                ? "bg-primary text-primary-foreground px-3 py-1"
+                : "px-3 py-1 text-muted-foreground hover:bg-muted"
+            }
+          >
+            {es ? "Liga Regular" : zh ? "常规赛" : "Regular Season"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPhaseType("playoff")}
+            className={
+              phaseType === "playoff"
+                ? "bg-primary text-primary-foreground px-3 py-1"
+                : "px-3 py-1 text-muted-foreground hover:bg-muted"
+            }
+          >
+            {es ? "Playoff" : zh ? "季后赛" : "Playoffs"}
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => setSeasonSheetOpen(true)}
@@ -867,8 +901,12 @@ export default function Stats() {
                             onMouseEnter={() => {
                               const id = String(row.teamExternalId);
                               queryClient.prefetchQuery({
-                                queryKey: ["stats-team-detail", id, effectiveSeasonId ?? 2092],
-                                queryFn: () => apiRequest("GET", `/api/stats/team/${id}?seasonId=${effectiveSeasonId ?? 2092}`).then(r => r.json()),
+                                queryKey: ["stats-team-detail", id, effectiveSeasonId ?? 2092, phaseType],
+                                queryFn: () =>
+                                  apiRequest(
+                                    "GET",
+                                    `/api/stats/team/${id}?seasonId=${effectiveSeasonId ?? 2092}&phaseType=${phaseType}`,
+                                  ).then((r) => r.json()),
                                 staleTime: 1000 * 60 * 30,
                               });
                             }}
@@ -967,8 +1005,12 @@ export default function Stats() {
                         onMouseEnter={() => {
                           const id = String(row.externalId);
                           queryClient.prefetchQuery({
-                            queryKey: ["stats-player-detail", id],
-                            queryFn: () => apiRequest("GET", `/api/stats/player/${id}`).then(r => r.json()),
+                            queryKey: ["stats-player-detail", id, effectiveSeasonId, phaseType],
+                            queryFn: () =>
+                              apiRequest(
+                                "GET",
+                                `/api/stats/player/${id}?seasonId=${effectiveSeasonId}&phaseType=${phaseType}`,
+                              ).then((r) => r.json()),
                             staleTime: 1000 * 60 * 30,
                           });
                         }}
@@ -1122,8 +1164,12 @@ export default function Stats() {
                         type="button"
                         onMouseEnter={() => {
                           queryClient.prefetchQuery({
-                            queryKey: ["stats-player-detail", p.externalId],
-                            queryFn: () => apiRequest("GET", `/api/stats/player/${p.externalId}`).then(r => r.json()),
+                            queryKey: ["stats-player-detail", p.externalId, effectiveSeasonId, phaseType],
+                            queryFn: () =>
+                              apiRequest(
+                                "GET",
+                                `/api/stats/player/${p.externalId}?seasonId=${effectiveSeasonId}&phaseType=${phaseType}`,
+                              ).then((r) => r.json()),
                             staleTime: 1000 * 60 * 30,
                           });
                         }}
@@ -1197,6 +1243,8 @@ export default function Stats() {
         <SheetContent hideClose side="bottom" className="h-[92svh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full pb-[env(safe-area-inset-bottom)]" style={{ zIndex: 95 }}>
           <StatsPlayerSheet
             externalId={playerSheetId}
+            seasonId={effectiveSeasonId}
+            phaseType={phaseType}
             onClose={closePlayerSheet}
             onTeamTap={(teamId) => {
               setPlayerSheetId(null);
@@ -1220,6 +1268,7 @@ export default function Stats() {
           <StatsTeamSheet
             externalId={teamSheetId}
             seasonId={effectiveSeasonId}
+            phaseType={phaseType}
             onClose={() => setTeamSheetId(null)}
             onPlayerTap={(id) => {
               setReturnToTeamId(teamSheetId);
@@ -2046,6 +2095,7 @@ function StatsDesktopPanel(props: {
   playerSheetId: string | null;
   teamSheetId: string | null;
   seasonId: number;
+  phaseType: StatsPhaseType;
   locale: string;
   returnToTeamId: string | null;
   returnToPlayerId?: string | null;
@@ -2057,8 +2107,8 @@ function StatsDesktopPanel(props: {
   const es = props.locale === "es";
   const zh = props.locale === "zh";
 
-  const leagueQ = useLeagueAverages(props.seasonId);
-  const standingsQ = useStandings(props.seasonId);
+  const leagueQ = useLeagueAverages(props.seasonId, null, props.phaseType);
+  const standingsQ = useStandings(props.seasonId, props.phaseType);
   const lg = leagueQ.data;
   const topStandings = useMemo(() => {
     const rows = standingsQ.data?.standings ?? [];
@@ -2256,6 +2306,8 @@ function StatsDesktopPanel(props: {
       <div className="flex flex-col h-full min-h-0">
         <StatsPlayerSheet
           externalId={props.playerSheetId}
+          seasonId={props.seasonId}
+          phaseType={props.phaseType}
           onClose={props.onClosePlayer}
           onTeamTap={props.onTeamTapFromPlayer}
           returnToTeamId={props.returnToTeamId}
@@ -2271,6 +2323,7 @@ function StatsDesktopPanel(props: {
       <StatsTeamSheet
         externalId={props.teamSheetId}
         seasonId={props.seasonId}
+        phaseType={props.phaseType}
         onClose={props.onCloseTeam}
         onPlayerTap={props.onPlayerTapFromTeam}
         locale={props.locale}
@@ -2282,6 +2335,8 @@ function StatsDesktopPanel(props: {
 
 function StatsPlayerSheet({
   externalId,
+  seasonId,
+  phaseType,
   onClose,
   onTeamTap,
   returnToTeamId: _returnToTeamId,
@@ -2289,6 +2344,8 @@ function StatsPlayerSheet({
   isDesktop = false,
 }: {
   externalId: string | null;
+  seasonId: number;
+  phaseType: StatsPhaseType;
   onClose: () => void;
   onTeamTap?: (teamId: string) => void;
   returnToTeamId?: string | null;
@@ -2298,11 +2355,11 @@ function StatsPlayerSheet({
   const es = locale === "es";
   const zh = locale === "zh";
 
-  const { data, isLoading, isError } = usePlayerDetail(externalId);
+  const { data, isLoading, isError } = usePlayerDetail(externalId, seasonId, phaseType);
   const [byPosition, setByPosition] = useState(false);
   const filterPos = byPosition ? (data?.player?.position ?? null) : null;
-  const leagueAvgQ   = useLeagueAverages(undefined, filterPos);
-  const percentilesQ = usePlayerPercentiles(undefined, filterPos);
+  const leagueAvgQ   = useLeagueAverages(seasonId, filterPos, phaseType);
+  const percentilesQ = usePlayerPercentiles(seasonId, filterPos, phaseType);
 
   const player = data?.player;
   const gameLog = data?.gameLog ?? [];
@@ -3427,6 +3484,7 @@ function StatsPlayerSheet({
 function StatsTeamSheet({
   externalId,
   seasonId,
+  phaseType,
   onClose,
   onPlayerTap,
   locale,
@@ -3434,6 +3492,7 @@ function StatsTeamSheet({
 }: {
   externalId: string | null;
   seasonId: number;
+  phaseType: StatsPhaseType;
   onClose: () => void;
   onPlayerTap: (id: string) => void;
   locale: string;
@@ -3441,13 +3500,13 @@ function StatsTeamSheet({
 }) {
   const es = locale === "es";
   const zh = locale === "zh";
-  const { data, isLoading, isError } = useTeamDetail(externalId, seasonId);
-  const leagueAvgQ = useLeagueAverages(seasonId);
+  const { data, isLoading, isError } = useTeamDetail(externalId, seasonId, phaseType);
+  const leagueAvgQ = useLeagueAverages(seasonId, null, phaseType);
   const leagueAvg = leagueAvgQ.data;
 
   const team = data?.team;
-  const paceQ = usePaceSegments(team?.externalId, seasonId);
-  const lineupsQ = useTeamLineups(team?.externalId, seasonId);
+  const paceQ = usePaceSegments(team?.externalId, seasonId, phaseType);
+  const lineupsQ = useTeamLineups(team?.externalId, seasonId, phaseType);
   const lineups = lineupsQ.data?.lineups ?? [];
   const showLineupsTab = !lineupsQ.isLoading && lineups.length > 0;
   const topLineups = useMemo(
