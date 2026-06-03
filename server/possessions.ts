@@ -178,10 +178,11 @@ export async function processPossessions(
   // ── 1. Datos del partido ───────────────────────────────────────────────────
   const gameRes = await db.execute(sql`
     SELECT id, home_team_id, away_team_id,
-           home_team_ext_id, away_team_ext_id
+           home_team_ext_id, away_team_ext_id, phase_id
     FROM stats_games
     WHERE id = ${gameInternalId} LIMIT 1
   `);
+  const PLAYOFF_PHASES = new Set([27743, 27747, 27753, 27757]);
   const gameRow = (gameRes as any).rows?.[0];
   if (!gameRow) {
     console.error(`[possessions v6] game not found: ${gameInternalId}`);
@@ -191,6 +192,7 @@ export async function processPossessions(
   const awayTeamId = Number(gameRow.away_team_id);
   const homeTeamExtId = Number(gameRow.home_team_ext_id);
   const awayTeamExtId = Number(gameRow.away_team_ext_id);
+  const phaseType = PLAYOFF_PHASES.has(Number(gameRow.phase_id)) ? 'playoff' : 'regular';
 
   // ── 2. Eventos PBP ────────────────────────────────────────────────────────
   const pbpRes = await db.execute(sql`
@@ -716,7 +718,7 @@ export async function processPossessions(
           end_type, points, shot_attempts, ft_attempts,
           turnovers, offensive_rebounds,
           is_transition, is_early_offense, is_halfcourt, is_second_chance,
-          score_margin_start, lineup_id, opponent_lineup_id
+          score_margin_start, lineup_id, opponent_lineup_id, phase_type
         ) VALUES (
           ${p.gameId}, ${p.teamId}, ${p.opponentTeamId}, ${p.seasonId},
           ${p.possessionNumber}, ${p.quarter},
@@ -724,7 +726,7 @@ export async function processPossessions(
           ${p.endType}, ${p.points},
           ${p.shotAttempts}, ${p.ftAttempts}, ${p.turnovers}, ${p.offensiveRebounds},
           ${p.isTransition}, ${p.isEarlyOffense}, ${p.isHalfcourt}, ${p.isSecondChance},
-          ${p.scoreMarginStart}, ${p.lineupId}, ${p.opponentLineupId}
+          ${p.scoreMarginStart}, ${p.lineupId}, ${p.opponentLineupId}, ${phaseType}
         )
       `);
     }
@@ -743,14 +745,15 @@ export async function processPossessions(
       INSERT INTO pbp_player_game_stats (
         game_id, player_external_id, team_id, season_id,
         seconds_played, fgm, fga, fg3m, fg3a, ftm, fta, pts,
-        off_reb, def_reb, reb, ast, stl, blk, tov, fouls, plus_minus, is_starter
+        off_reb, def_reb, reb, ast, stl, blk, tov, fouls, plus_minus, is_starter,
+        phase_type
       ) VALUES (
         ${ps.gameId}, ${ps.playerExternalId}, ${ps.teamId}, ${ps.seasonId},
         ${ps.secondsPlayed}, ${ps.fgm}, ${ps.fga}, ${ps.fg3m}, ${ps.fg3a},
         ${ps.ftm}, ${ps.fta}, ${ps.pts},
         ${ps.offReb}, ${ps.defReb}, ${ps.offReb + ps.defReb},
         ${ps.ast}, ${ps.stl}, ${ps.blk}, ${ps.tov}, ${ps.fouls},
-        ${ps.plusMinus}, ${ps.isStarter}
+        ${ps.plusMinus}, ${ps.isStarter}, ${phaseType}
       )
       ON CONFLICT (game_id, player_external_id) DO UPDATE SET
         seconds_played = EXCLUDED.seconds_played,
@@ -760,7 +763,8 @@ export async function processPossessions(
         off_reb = EXCLUDED.off_reb, def_reb = EXCLUDED.def_reb, reb = EXCLUDED.reb,
         ast = EXCLUDED.ast, stl = EXCLUDED.stl, blk = EXCLUDED.blk,
         tov = EXCLUDED.tov, fouls = EXCLUDED.fouls,
-        plus_minus = EXCLUDED.plus_minus, is_starter = EXCLUDED.is_starter
+        plus_minus = EXCLUDED.plus_minus, is_starter = EXCLUDED.is_starter,
+        phase_type = EXCLUDED.phase_type
     `);
   }
 
@@ -784,13 +788,13 @@ export async function processPossessions(
         seconds_played, off_possessions, def_possessions,
         off_pts, def_pts, off_ppp, def_ppp, net_ppp,
         off_reb, def_reb, tov, stl,
-        off_fg3m, off_fga, off_fta
+        off_fg3m, off_fga, off_fta, phase_type
       ) VALUES (
         ${ls.gameId}, ${ls.teamId}, ${ls.seasonId}, ${ls.lineupId},
         ${ls.secondsPlayed}, ${ls.offPossessions}, ${ls.defPossessions},
         ${ls.offPts}, ${ls.defPts}, ${offPpp}, ${defPpp}, ${netPpp},
         ${ls.offReb}, ${ls.defReb}, ${ls.tov}, ${ls.stl},
-        ${ls.offFg3m}, ${ls.offFga}, ${ls.offFta}
+        ${ls.offFg3m}, ${ls.offFga}, ${ls.offFta}, ${phaseType}
       )
       ON CONFLICT (game_id, team_id, lineup_id) DO UPDATE SET
         seconds_played  = EXCLUDED.seconds_played,
@@ -803,7 +807,8 @@ export async function processPossessions(
         tov = EXCLUDED.tov, stl = EXCLUDED.stl,
         off_fg3m = EXCLUDED.off_fg3m,
         off_fga  = EXCLUDED.off_fga,
-        off_fta  = EXCLUDED.off_fta
+        off_fta  = EXCLUDED.off_fta,
+        phase_type = EXCLUDED.phase_type
     `);
     } catch (lineupErr: any) {
       console.error(`[lineup] INSERT failed game=${ls.gameId} lineup=${ls.lineupId}:`, lineupErr.message);
