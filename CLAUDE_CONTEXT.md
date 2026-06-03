@@ -31,23 +31,23 @@ Claude gestiona todo directamente. Solo usa prompts de Cursor para `routes.ts`.
 | Cualquier cambio en `routes.ts` | **Cursor — prompt completo** |
 | Analizar archivo grande | `Filesystem:copy_file_user_to_claude` + bash_tool grep/sed |
 | Queries a Supabase | `Control your Mac:osascript` + curl |
-| Comandos en Mac (git, npm, python) | `Control your Mac:osascript` + do shell script |
-| Comandos en Pi | osascript + `ssh pablo@192.168.1.7` (password: skapol) |
+| Comandos en Mac (git, npm, python) | `Control your Mac:osascript` + Terminal |
+| Comandos en Pi | `expect` + ssh (password: skapol) — sshpass NO instalado |
 | Copiar archivos al Pi | osascript + scp |
+| Monitorizar Railway sin logs | `scripts/monitor_game.py` |
 
 ### Credenciales
 ```
 SUPA_URL = https://ybpzvkkxcmwwxrrouyhm.supabase.co
-SK       = $(grep SUPABASE_SERVICE_ROLE_KEY /Users/palant/Downloads/U\ scout/.env | cut -d= -f2)
+SK       = grep SUPABASE_SERVICE_ROLE_KEY /Users/palant/Downloads/U\ scout/.env | cut -d= -f2
 Pi IP    = 192.168.1.7  usuario=pablo  password=skapol
 ```
 
-### Patrón osascript para Supabase
-```applescript
-set SK to (do shell script "grep SUPABASE_SERVICE_ROLE_KEY /Users/palant/Downloads/U\\ scout/.env | cut -d= -f2")
-set SUPA to "https://ybpzvkkxcmwwxrrouyhm.supabase.co"
-do shell script "curl -s '" & SUPA & "/rest/v1/TABLA?...' -H 'apikey: " & SK & "' -H 'Authorization: Bearer " & SK & "'"
-```
+### Pi — watchdog instalado (sesión 2026-06-02)
+- `watchdog` daemon activo (systemd enabled+active)
+- `dtparam=watchdog=on` en `/boot/firmware/config.txt` — activa watchdog hardware en próximo reboot
+- Causa del cuelgue anterior: desconocida (no OOM, no temperatura, no I/O). Watchdog cubre reincidencias.
+- SSD externo USB (no SD card) — `/dev/sda2 / ext4`, 117GB, 5.2GB usados
 
 ---
 
@@ -72,37 +72,43 @@ do shell script "curl -s '" & SUPA & "/rest/v1/TABLA?...' -H 'apikey: " & SK & "
 
 ```
 API WCBA → collector (Pi, commit d51e98f) → stats_pbp (team_id = external)
-stats_pbp → possessions.ts v6.4 (Railway) → tablas derivadas (team_id = internal)
+stats_pbp → possessions.ts v6.5 (Railway) → tablas derivadas (team_id = internal)
 ```
 
-### possessions.ts v6.4 — cambios sesión 2026-06-02
-- `offFg3m`, `offFga`, `offFta` añadidos a `LineupStats` interface
-- Acumulados en `accumulate()` y propagados en `closePoss()` a `offLu`
-- Persistidos en `pbp_lineup_stats` (INSERT + ON CONFLICT UPDATE)
-- **Fix audit:** `p.teamId === tid` (internal) en lugar de `=== extId` — era el bug raíz de audit siempre error
-- Commit: `c343b8d`
+### possessions.ts — historial de cambios
+- **v6.3** (ed57280): extToInt bidireccional, comparaciones homeTeamId internal
+- **v6.4** (c343b8d): offFg3m/Fga/Fta en LineupStats; fix audit p.teamId===tid
+- **v6.5** (pending deploy): skip playerExternalId null/'null'/invalid antes del INSERT player_game_stats; log players skipped
 
-### pbp_lineup_stats — columnas añadidas sesión 2026-06-02
+### pbp_lineup_stats — columnas añadidas
 ```sql
+-- Ya ejecutado:
 ALTER TABLE pbp_lineup_stats
   ADD COLUMN IF NOT EXISTS off_fg3m integer NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS off_fga  integer NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS off_fta  integer NOT NULL DEFAULT 0;
 ```
-Ya ejecutado en Supabase. ✅
 
 ---
 
-## Estado DB — 2026-06-02
+## ⚠️ Estado DB — 2026-06-02 — PENDIENTE VERIFICACIÓN
 
-- **Reprocesado lanzado** con `fast_reprocess.py` (script nuevo): 224/224 requests ok en 0.5min
-- Railway procesando posesiones en background (async fire-and-forget)
-- **Verificar al inicio de próxima sesión:**
-  ```
-  SELECT status, COUNT(*) FROM pbp_audit_log WHERE season_id=2092 GROUP BY status;
-  ```
-  Debe dar: ok=448, error=0, max_diff=0
-- `fast_reprocess.py` reemplaza `reset_and_reprocess.py` — es el script canónico de ahora en adelante
+**Bug en investigación:** `pbp_player_game_stats` y `pbp_lineup_stats` no se escriben aunque `pbp_possessions` sí.
+
+**Diagnóstico:**
+- A t+5s del process-game: poss=56 ✅, players=0 ❌, lineup=0 ❌, audit=0 ❌
+- El INSERT falla silenciosamente (fire-and-forget endpoint, sin logs visibles)
+- Hipótesis confirmada: `playerExternalId = 'null'` (String(null)) en playerMap → INSERT falla con `invalid input syntax for type integer`
+- Fix aplicado en v6.5: `if (!ps.playerExternalId || ps.playerExternalId === 'null' || isNaN(extId) || extId <= 0) skip`
+- **Pendiente:** verificar que v6.5 llegó a Railway y que el INSERT ahora funciona
+
+**Al inicio de próxima sesión, verificar:**
+```python
+# python3 scripts/monitor_game.py  (borra partido 2 y lo reprocesa)
+# Debe mostrar: t+Xs: poss=N players=N lineup=N audit=2
+```
+
+Si funciona → lanzar `python3 scripts/fast_reprocess.py --reset`
 
 ---
 
@@ -110,134 +116,51 @@ Ya ejecutado en Supabase. ✅
 
 | Endpoint | Fuente | Estado |
 |---|---|---|
-| `/api/stats/players` | `pbp_player_game_stats` | ✅ |
-| `/api/stats/player/:id` | `pbp_player_game_stats` | ✅ |
+| `/api/stats/players` | `pbp_player_game_stats` | ⚠️ pendiente reprocesado limpio |
+| `/api/stats/player/:id` | `pbp_player_game_stats` | ⚠️ |
 | `/api/stats/standings` | `stats_standings` + `pbp_possessions` | ✅ |
-| `/api/stats/team/:id` | `pbp_possessions` + `pbp_player_game_stats` | ✅ |
-| `/api/stats/team/:id/pace-segments` | `pbp_possessions` | ✅ |
-| `/api/stats/team/:id/lineups` | `pbp_lineup_stats` | ✅ pendiente T1+T3C (Cursor) |
-| `/api/stats/league-averages` | `pbp_player_game_stats` + `pbp_possessions` | ✅ |
+| `/api/stats/team/:id` | `pbp_possessions` + `pbp_player_game_stats` | ⚠️ |
+| `/api/stats/team/:id/pace-segments` | `pbp_possessions` | ✅ poss ok |
+| `/api/stats/team/:id/lineups` | `pbp_lineup_stats` | ⚠️ lineup vacío |
+| `/api/stats/league-averages` | `pbp_player_game_stats` + `pbp_possessions` | ⚠️ |
 | `/api/stats/game/:id/boxscore` | `stats_player_boxscores` | ✅ |
 
 ---
 
 ## Bugs activos
 
+**P0:**
+- `pbp_player_game_stats` y `pbp_lineup_stats` vacíos — fix en v6.5, pendiente verificación en Railway
+
 **P1:**
 - Hero card "Mis estadísticas" jugadoras — depende de `profile.wcba_external_id` no null
 
 **P2:**
 - `pointsByZone` 70/30 hardcodeado — bloqueado hasta shot_x/y/zone disponibles
-- Nombres de lineups ignoran locale — pendiente prompt Cursor T1+T3C
-- TOV% en tabla de quintetos — pendiente mismo prompt Cursor T1+T3C
 
 **Resueltos sesión 2026-06-02:**
-- ✅ T2: `hasReport` en MyScout — ahora usa `archetype !== 'arch_role_player'` OR `frequency === 'Primary'`
-- ✅ T3A: `offFg3m/offFga/offFta` en possessions.ts v6.4
-- ✅ T3B: SQL columnas en `pbp_lineup_stats`
-- ✅ Bug audit `pbp_pts=0` — filtro `tid` (internal) en lugar de `extId`
-- ✅ `fast_reprocess.py`: reprocesado 224 partidos en 0.5min (antes 8-10h)
-- ✅ Commit: `c343b8d`
+- ✅ T1+T3C: locale zh/en en lineups, TOV% en tabla quintetos (Cursor aplicado)
+- ✅ T2: hasReport en MyScout
+- ✅ T3A+B: offFg3m/Fga/Fta en possessions.ts y SQL
+- ✅ Bug audit pbp_pts=0 (tid vs extId)
+- ✅ fast_reprocess.py canónico (0.5min para 224 partidos)
+- ✅ Watchdog Pi instalado
+- ✅ Commits: c343b8d, c00a703, 3fb86c3, última v6.5
 
 ---
 
-## Pendientes próxima sesión
+## Scripts de mantenimiento
 
-1. **Verificar audit** al inicio: `ok=448, max_diff=0`
-2. **Cursor T1+T3C**: locale en lineups + TOV% (prompt listo abajo)
-3. **T4 shot chart**: verificar `SELECT shot_zone, COUNT(*) FROM stats_pbp WHERE shot_zone IS NOT NULL GROUP BY shot_zone` — si devuelve filas, implementar
-4. **T5 bundle**: sesión dedicada — leer `client/src/lib/i18n.ts` primero
-5. **Pi procesador**: arquitectura futura — mover `processAllPendingPossessions` al collector del Pi para eliminar dependencia de Railway en reprocesados masivos
-6. **fast_reprocess.py mejora**: añadir verificación con espera real en Supabase por partido (no solo contar ok de HTTP response)
+| Script | Uso |
+|---|---|
+| `scripts/fast_reprocess.py [--reset]` | Reprocesado completo. Con --reset borra tablas primero. Espera hasta que Supabase confirme. |
+| `scripts/monitor_game.py` | Borra partido 2, lo reprocesa, monitoriza tablas cada 10-60s hasta audit=2. Diagnóstico rápido. |
 
 ---
 
 ## Prompt Cursor pendiente — T1 + T3C (locale lineups + TOV%)
 
-```
-Lee antes de tocar nada:
-- server/routes.ts (endpoint GET /api/stats/team/:id/lineups, línea 2880)
-- client/src/lib/stats-api.ts (interface LineupRow, normalizeLineupRow, ~línea 504)
-- client/src/pages/core/Stats.tsx (función lineupShortNames, ~línea 155)
-
-CAMBIO 1 — routes.ts, endpoint /api/stats/team/:id/lineups
-En el bloque "const playerNames: Record<string, string> = {};" reemplaza TODO ese bloque por:
-
-  const playerNamesZh: Record<string, string> = {};
-  const playerNamesEn: Record<string, string> = {};
-  if (allPlayerIds.size > 0) {
-    const ids = Array.from(allPlayerIds).map(Number).filter((n) => !isNaN(n));
-    if (ids.length > 0) {
-      const namesRes = await db.execute(sql`
-        SELECT external_id, name_zh, name_en
-        FROM stats_players
-        WHERE external_id::text IN (${sql.join(ids.map((id: number) => sql`${String(id)}`), sql`, `)})
-      `);
-      for (const p of (namesRes as any).rows ?? []) {
-        playerNamesZh[String(p.external_id)] = String(p.name_zh?.trim() || p.name_en?.trim() || p.external_id);
-        playerNamesEn[String(p.external_id)] = String(p.name_en?.trim() || p.name_zh?.trim() || p.external_id);
-      }
-    }
-  }
-
-En la query SQL del SELECT, añade al final del bloque SELECT (antes del FROM):
-  SUM(off_fg3m) AS off_fg3m,
-  SUM(off_fga)  AS off_fga,
-  SUM(off_fta)  AS off_fta
-
-En el objeto enrichedRows:
-- Reemplaza la línea "playerNames:" por estas tres:
-  playerNamesZh: String(r.lineup_id).split("-").map((id: string) => playerNamesZh[id] ?? id),
-  playerNamesEn: String(r.lineup_id).split("-").map((id: string) => playerNamesEn[id] ?? id),
-  playerNames:   String(r.lineup_id).split("-").map((id: string) => playerNamesEn[id] ?? id),
-- Añade al final del objeto:
-  offFg3m: Number(r.off_fg3m ?? 0),
-  offFga:  Number(r.off_fga  ?? 0),
-  offFta:  Number(r.off_fta  ?? 0),
-  tovPct: (Number(r.off_fga ?? 0) + 0.44 * Number(r.off_fta ?? 0) + Number(r.tov ?? 0)) > 0
-    ? Math.round(Number(r.tov ?? 0) /
-        (Number(r.off_fga ?? 0) + 0.44 * Number(r.off_fta ?? 0) + Number(r.tov ?? 0)) * 1000) / 10
-    : null,
-
-CAMBIO 2 — stats-api.ts
-En interface LineupRow añade después de "playerNames: string[]":
-  playerNamesZh: string[];
-  playerNamesEn: string[];
-Añade al final de LineupRow:
-  offFg3m: number;
-  offFga:  number;
-  offFta:  number;
-  tovPct:  number | null;
-En type LineupApiRow añade los mismos campos como opcionales.
-En normalizeLineupRow añade:
-  playerNamesZh: row.playerNamesZh ?? row.playerNames ?? [],
-  playerNamesEn: row.playerNamesEn ?? row.playerNames ?? [],
-  offFg3m: row.offFg3m ?? 0,
-  offFga:  row.offFga  ?? 0,
-  offFta:  row.offFta  ?? 0,
-  tovPct:  row.tovPct  ?? null,
-
-CAMBIO 3 — Stats.tsx
-Reemplaza la función lineupShortNames por:
-  function lineupShortNames(names: string[], locale: string): string {
-    return names.map((n) => {
-      const t = n.trim();
-      if (/^\d+$/.test(t)) return `#${t.slice(-4)}`;
-      if (locale === "zh") return t.slice(0, 2);
-      const parts = t.split(/\s+/).filter(Boolean);
-      return parts.length > 1 ? parts[parts.length - 1]! : (parts[0] ?? t);
-    }).join(" / ");
-  }
-En todos los lugares donde se llama lineupShortNames, cámbialo a:
-  locale === "zh"
-    ? lineupShortNames(row.playerNamesZh, locale)
-    : lineupShortNames(row.playerNamesEn, locale)
-En la tabla de quintetos, añade columna "TOV%" después de "NET":
-  row.offPossessions >= 40 && row.tovPct != null ? `${row.tovPct.toFixed(1)}%` : "—"
-
-npm run check exit 0.
-Verificar: grep -n "app.get.*lineups" server/routes.ts → debe aparecer exactamente una vez.
-```
+> ⚠️ YA APLICADO por Cursor. No re-aplicar. Verificar que funciona una vez que pbp_lineup_stats tenga datos.
 
 ---
 
@@ -245,25 +168,23 @@ Verificar: grep -n "app.get.*lineups" server/routes.ts → debe aparecer exactam
 
 1. Leer código real antes de proponer
 2. `npm run check` exit 0 antes de cada commit
-3. Cursor para `routes.ts`
+3. Cursor para `routes.ts` — nunca edit_file directo
 4. SQL destructivo — solo Supabase SQL Editor o scripts auditados
 5. NUNCA tocar `Profile.tsx`, `schema.ts`, `migrations/`
-6. Después de Cursor en routes.ts: `grep -n 'app.get.*api/stats' server/routes.ts` para detectar handlers duplicados
+6. Después de Cursor en routes.ts: `grep -n 'app.get.*api/stats' server/routes.ts` para detectar duplicados
 
 ---
 
 ## Archivos clave
 - `server/routes.ts` — endpoints API
-- `server/possessions.ts` — procesador PBP **v6.4**
+- `server/possessions.ts` — procesador PBP v6.5
 - `server/stats-ingest.ts` — ingest handler
 - `collector/src/sync/pbp.ts` — parser PBP
-- `collector/src/sync/shotZones.ts` — 6 zonas FIBA calibradas
 - `client/src/lib/stats-api.ts` — hooks
 - `client/src/pages/core/Stats.tsx` — UI stats
 - `client/src/pages/scout/MyScout.tsx` — My Scout coach view
-- `client/src/lib/mock-data.ts` — PlayerProfile, PlayerInput, motor
-- `scripts/fast_reprocess.py` — **script canónico de reprocesado** (reemplaza reset_and_reprocess.py)
-- `scripts/reset_and_reprocess.py` — obsoleto, no usar
+- `scripts/fast_reprocess.py` — reprocesado canónico
+- `scripts/monitor_game.py` — diagnóstico partido individual
 
 ## Archivos NUNCA tocar
 - `Profile.tsx` · `schema.ts` · `migrations/`
@@ -273,30 +194,30 @@ Verificar: grep -n "app.get.*lineups" server/routes.ts → debe aparecer exactam
 ## Lecciones aprendidas
 
 1. **No usar reprocess_all.py ni reprocess_sync.py** — obsoletos
-2. **No lanzar múltiples scripts de reprocesado en paralelo**
-3. **El endpoint process-game es fire-and-forget** — HTTP 200 no significa que Supabase tenga los datos. Esperar 30-60s antes de verificar audit
-4. **audit pbp_pts=0 con possessions correctas** = bug de filtro tid vs extId en el audit (ya corregido en v6.4)
-5. **Paginar stats_pbp por offset es lento** (117k filas) — usar stats_games como fuente de game_ids y verificar existencia con limit=1 por partido
-6. **6 workers paralelos en fast_reprocess.py**: 224 partidos en 0.5min de requests; Railway procesa en background ~10-15min
+2. **El endpoint process-game es fire-and-forget** — HTTP 200 ≠ datos en Supabase
+3. **String(null) = 'null'** — siempre filtrar playerExternalId antes de INSERT en columna integer
+4. **Paginar stats_pbp por game_id cursor** (no por offset) — O(N_partidos) queries en vez de O(N_eventos/1000)
+5. **audit pbp_pts=0** = bug de filtro tid vs extId (corregido) o INSERT fallando antes del audit
+6. **Railway tarda en deployar** cuando hay múltiples commits en cola — verificar bundle hash antes de probar
 
 ---
 
 ## Sesiones anteriores
 
-### Sesión 2026-06-02 — Metodología herramientas, reprocesado, possessions v6.4
-- Verificado estado DB: audit 446 error → causa raíz: `p.teamId === extId` en audit
-- Fix audit: `p.teamId === tid` (internal) — una línea, impacto total
-- T3A: offFg3m/offFga/offFta en possessions.ts + pbp_lineup_stats
-- T2: hasReport en MyScout — archetype + primaryFrequency
-- fast_reprocess.py: 224 partidos en 0.5min (paralelo x6, inventario eficiente)
-- Commit: c343b8d
+### Sesión 2026-06-02 — Reprocesado, possessions v6.4/v6.5, T1+T2+T3, watchdog Pi
+- Bug raíz audit: p.teamId===extId → corregido a ===tid
+- Bug player_game_stats/lineup vacíos: String(null)='null' en playerExternalId → fix skip en v6.5
+- T3A+B: offFg3m/Fga/Fta en possessions+SQL
+- T2: hasReport MyScout arreglado
+- T1+T3C: Cursor aplicado (locale + TOV%)
+- fast_reprocess.py: 224 partidos en 0.5min
+- Watchdog Pi: daemon activo, config.txt actualizado
+- Commits: c343b8d, c00a703, 3fb86c3 + commits debug
 
-### Sesión 2026-05-31 — possessions v6.3, extToInt bidireccional
-- Fix team_id interno vs externo en possessions.ts
-- Commit: ed57280
+### Sesión 2026-05-31 — possessions v6.3
+- extToInt bidireccional. Commit: ed57280
 
 ### Sesión 2026-05-30 — Audit fórmulas, migración endpoints
 - Commits: 9b947f9, 3d9824c
 
 ### Sesión 2026-05-27 — shotZones, infraestructura
-- shotZones.ts: 6 zonas FIBA calibradas
