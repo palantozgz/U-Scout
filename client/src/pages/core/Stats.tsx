@@ -175,6 +175,107 @@ function fmtLineupRtg(ppp: number | null): string {
 
 const OWN_TEAM_NAME_FALLBACK = "Inner Mongolia";
 
+function PhaseToggle({
+  phaseType,
+  onChange,
+  locale,
+}: {
+  phaseType: StatsPhaseType;
+  onChange: (p: StatsPhaseType) => void;
+  locale: string;
+}) {
+  const es = locale === "es";
+  const zh = locale === "zh";
+  return (
+    <div className="flex rounded-md overflow-hidden border border-border text-xs">
+      {(["regular", "playoff", "all"] as StatsPhaseType[]).map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          className={
+            phaseType === v
+              ? "bg-primary text-primary-foreground px-2.5 py-1 font-semibold"
+              : "px-2.5 py-1 text-muted-foreground hover:bg-muted transition-colors"
+          }
+        >
+          {v === "regular"
+            ? es
+              ? "Liga"
+              : zh
+                ? "常规"
+                : "Regular"
+            : v === "playoff"
+              ? es
+                ? "Playoff"
+                : zh
+                  ? "季后"
+                  : "Playoff"
+              : es
+                ? "Todo"
+                : zh
+                  ? "全部"
+                  : "All"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CompactRosterList({
+  players,
+  activePlayerId,
+  locale,
+  onTap,
+}: {
+  players: TeamRosterPlayer[];
+  activePlayerId: string | null;
+  locale: string;
+  onTap: (id: string) => void;
+}) {
+  const es = locale === "es";
+  const zh = locale === "zh";
+  const rows = players.filter((p) => p.games > 0 && (p.nameEn?.trim() || p.nameZh?.trim()));
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="grid grid-cols-[0.45fr_1.4fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+        <span className="text-center">#</span>
+        <span>{es ? "Jugadora" : zh ? "球员" : "Player"}</span>
+        <span className="text-right">PPG</span>
+        <span className="text-right">RPG</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="px-3 py-8 text-center text-sm font-bold text-muted-foreground">
+          {es ? "Sin datos" : zh ? "暂无数据" : "No data"}
+        </p>
+      ) : (
+        rows.map((p) => {
+          const name = pickName(p.nameZh, p.nameEn, locale) || "—";
+          const isActive = activePlayerId === p.externalId;
+          return (
+            <button
+              key={p.externalId}
+              type="button"
+              onClick={() => onTap(p.externalId)}
+              className={cn(
+                "w-full grid grid-cols-[0.45fr_1.4fr_0.55fr_0.55fr] gap-0 items-center px-3 py-2 border-b border-border last:border-b-0 text-left text-xs touch-manipulation transition-colors",
+                isActive ? "bg-primary/12 hover:bg-primary/15" : "hover:bg-muted/30",
+              )}
+            >
+              <p className="text-center font-black tabular-nums text-muted-foreground">
+                {p.jerseyNumber != null && p.jerseyNumber !== "" ? String(p.jerseyNumber) : "—"}
+              </p>
+              <p className="font-extrabold text-foreground truncate">{name}</p>
+              <p className="text-right font-black tabular-nums text-foreground">{num(p.ppg).toFixed(1)}</p>
+              <p className="text-right font-black tabular-nums text-foreground">{num(p.rpg).toFixed(1)}</p>
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 export default function Stats() {
   const { t, locale } = useLocale();
   const es = locale === "es";
@@ -301,7 +402,8 @@ export default function Stats() {
   });
   const [phaseType, setPhaseType] = useState<StatsPhaseType>(() => {
     const stored = localStorage.getItem("stats-phase-type");
-    return stored === "playoff" ? "playoff" : "regular";
+    if (stored === "playoff" || stored === "all") return stored;
+    return "regular";
   });
 
   useEffect(() => {
@@ -551,12 +653,33 @@ export default function Stats() {
   // Level 3: player opened from team roster — show minimal standings
   const isLevel3 = isDesktop && Boolean(playerSheetId && returnToTeamId);
 
+  const centerView = useMemo((): "default" | "standings" | "roster" | "playerList" => {
+    if (!isDesktop) return "default";
+    if (playerSheetId && returnToTeamId) return "roster";
+    if (playerSheetId && !returnToTeamId) return "playerList";
+    if (teamSheetId) return "standings";
+    return "default";
+  }, [isDesktop, playerSheetId, returnToTeamId, teamSheetId]);
+
+  const rosterCenterQ = useTeamDetail(
+    centerView === "roster" ? returnToTeamId : null,
+    effectiveSeasonId,
+    phaseType,
+  );
+  const rosterCenterTeam = rosterCenterQ.data?.team;
+  const rosterCenterPlayers = rosterCenterQ.data?.players ?? [];
+
+  useEffect(() => {
+    if (centerView === "standings") setLigaSegment("clasificacion");
+  }, [centerView]);
+
   const desktopPanel = isDesktop ? (
     <StatsDesktopPanel
       playerSheetId={playerSheetId}
       teamSheetId={teamSheetId}
       seasonId={effectiveSeasonId}
       phaseType={phaseType}
+      onPhaseChange={setPhaseType}
       locale={locale}
       returnToTeamId={returnToTeamId}
       returnToPlayerId={returnToPlayerId}
@@ -587,30 +710,6 @@ export default function Stats() {
     >
       <>
       <div className="w-full max-w-5xl mx-auto px-4 md:px-8 flex justify-end items-center gap-2 pt-1 pb-2 shrink-0">
-        <div className="flex rounded-lg overflow-hidden border border-border text-sm">
-          <button
-            type="button"
-            onClick={() => setPhaseType("regular")}
-            className={
-              phaseType === "regular"
-                ? "bg-primary text-primary-foreground px-3 py-1"
-                : "px-3 py-1 text-muted-foreground hover:bg-muted"
-            }
-          >
-            {es ? "Liga Regular" : zh ? "常规赛" : "Regular Season"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setPhaseType("playoff")}
-            className={
-              phaseType === "playoff"
-                ? "bg-primary text-primary-foreground px-3 py-1"
-                : "px-3 py-1 text-muted-foreground hover:bg-muted"
-            }
-          >
-            {es ? "Playoff" : zh ? "季后赛" : "Playoffs"}
-          </button>
-        </div>
         <button
           type="button"
           onClick={() => setSeasonSheetOpen(true)}
@@ -673,7 +772,51 @@ export default function Stats() {
           </SheetContent>
         </Sheet>
 
-        <Tabs value={mainTab} onValueChange={(v) => setTabAndLocation(v as MainTab)} className="w-full">
+        {centerView === "roster" ? (
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPlayerSheetId(null);
+                  setReturnToPlayerId(null);
+                  if (returnToTeamId) setTeamSheetId(returnToTeamId);
+                }}
+                className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                {es ? "Equipo" : zh ? "球队" : "Team"}
+              </button>
+              <p className="text-sm font-black text-foreground truncate flex-1">
+                {pickName(rosterCenterTeam?.nameZh, rosterCenterTeam?.nameEn, locale) || "—"}
+              </p>
+              <PhaseToggle phaseType={phaseType} onChange={setPhaseType} locale={locale} />
+            </div>
+            {rosterCenterQ.isLoading ? (
+              <div className="flex justify-center py-16">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <CompactRosterList
+                players={rosterCenterPlayers}
+                activePlayerId={playerSheetId}
+                locale={locale}
+                onTap={(id) => {
+                  setReturnToPlayerId(id);
+                  setPlayerSheetId(id);
+                }}
+              />
+            )}
+          </div>
+        ) : (
+        <Tabs
+          value={centerView === "playerList" ? "jugadoras" : centerView === "standings" ? "liga" : mainTab}
+          onValueChange={(v) => {
+            if (centerView === "default") setTabAndLocation(v as MainTab);
+          }}
+          className="w-full"
+        >
+          {centerView === "default" && (
           <TabsList className="h-10 w-full grid grid-cols-2 gap-0.5">
             <TabsTrigger value="liga" className="text-xs sm:text-xs font-black px-1 gap-1">
               <Trophy className="w-3.5 h-3.5 shrink-0 opacity-80" />
@@ -684,6 +827,7 @@ export default function Stats() {
               {L.tabJugadoras}
             </TabsTrigger>
           </TabsList>
+          )}
 
           {showGlobalSpinner && (
             <div className="flex justify-center py-16">
@@ -701,7 +845,10 @@ export default function Stats() {
               </div>
             )}
 
-          <TabsContent value="liga" className={cn("mt-4 space-y-3", showGlobalSpinner && "hidden")}>
+          <TabsContent
+            value="liga"
+            className={cn("mt-4 space-y-3", showGlobalSpinner && "hidden", centerView === "playerList" && "hidden")}
+          >
             {!canUsePlayerUX && nextMatch && (
               <button
                 type="button"
@@ -832,6 +979,7 @@ export default function Stats() {
               </div>
             )}
 
+            {centerView === "default" && (
             <div className="flex rounded-xl border border-border bg-muted/20 p-1">
               <button
                 type="button"
@@ -854,8 +1002,9 @@ export default function Stats() {
                 {L.segLideres}
               </button>
             </div>
+            )}
 
-            {!standingsQ.isLoading && !standingsQ.isError && ligaSegment === "clasificacion" && (
+            {!standingsQ.isLoading && !standingsQ.isError && (ligaSegment === "clasificacion" || centerView === "standings") && (
               <>
                 {standingsRows.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center text-sm font-bold text-muted-foreground">
@@ -969,7 +1118,7 @@ export default function Stats() {
               </>
             )}
 
-            {!leadersQ.isLoading && !leadersQ.isError && ligaSegment === "lideres" && (
+            {!leadersQ.isLoading && !leadersQ.isError && ligaSegment === "lideres" && centerView === "default" && (
               <>
                 <div className="flex flex-wrap gap-1.5">
                   {LEADER_STAT_KEYS.map((k) => (
@@ -1078,6 +1227,12 @@ export default function Stats() {
 
             {!playersQ.isLoading && !playersQ.isError && playersWithGamesForSeason.length > 0 && (
               <>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    {es ? "Jugadoras" : zh ? "球员" : "Players"}
+                  </span>
+                  <PhaseToggle phaseType={phaseType} onChange={setPhaseType} locale={locale} />
+                </div>
                 <div className="flex rounded-xl border border-border bg-muted/20 p-0.5 gap-0.5">
                   {(
                     [
@@ -1174,7 +1329,10 @@ export default function Stats() {
                           });
                         }}
                         onClick={() => setPlayerSheetId(p.externalId)}
-                        className="w-full px-3 py-3 grid grid-cols-[2fr_0.5fr_0.7fr_0.7fr_0.7fr] items-center gap-0 text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors border-b border-border last:border-b-0"
+                        className={cn(
+                          "w-full px-3 py-3 grid grid-cols-[2fr_0.5fr_0.7fr_0.7fr_0.7fr] items-center gap-0 text-left touch-manipulation hover:bg-muted/30 active:bg-muted/45 active:opacity-90 transition-colors border-b border-border last:border-b-0",
+                          isDesktop && playerSheetId === p.externalId && "bg-primary/10 ring-1 ring-inset ring-primary/25",
+                        )}
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           {p.photoUrl ? (
@@ -1231,6 +1389,7 @@ export default function Stats() {
           </TabsContent>
 
         </Tabs>
+        )}
       </div>
 
       <Sheet
@@ -1269,6 +1428,7 @@ export default function Stats() {
             externalId={teamSheetId}
             seasonId={effectiveSeasonId}
             phaseType={phaseType}
+            onPhaseChange={setPhaseType}
             onClose={() => setTeamSheetId(null)}
             onPlayerTap={(id) => {
               setReturnToTeamId(teamSheetId);
@@ -2096,6 +2256,7 @@ function StatsDesktopPanel(props: {
   teamSheetId: string | null;
   seasonId: number;
   phaseType: StatsPhaseType;
+  onPhaseChange: (p: StatsPhaseType) => void;
   locale: string;
   returnToTeamId: string | null;
   returnToPlayerId?: string | null;
@@ -2324,6 +2485,7 @@ function StatsDesktopPanel(props: {
         externalId={props.teamSheetId}
         seasonId={props.seasonId}
         phaseType={props.phaseType}
+        onPhaseChange={props.onPhaseChange}
         onClose={props.onCloseTeam}
         onPlayerTap={props.onPlayerTapFromTeam}
         locale={props.locale}
@@ -3485,6 +3647,7 @@ function StatsTeamSheet({
   externalId,
   seasonId,
   phaseType,
+  onPhaseChange,
   onClose,
   onPlayerTap,
   locale,
@@ -3493,6 +3656,7 @@ function StatsTeamSheet({
   externalId: string | null;
   seasonId: number;
   phaseType: StatsPhaseType;
+  onPhaseChange: (p: StatsPhaseType) => void;
   onClose: () => void;
   onPlayerTap: (id: string) => void;
   locale: string;
@@ -3707,6 +3871,10 @@ function StatsTeamSheet({
             </p>
           </div>
         )}
+      </div>
+
+      <div className="flex justify-end px-4 py-2 border-b border-border/50 bg-card shrink-0">
+        <PhaseToggle phaseType={phaseType} onChange={onPhaseChange} locale={locale} />
       </div>
 
       <div className="flex border-b border-border shrink-0 bg-card">
