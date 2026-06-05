@@ -3673,14 +3673,22 @@ function StatsTeamSheet({
   const lineupsQ = useTeamLineups(team?.externalId, seasonId, phaseType);
   const lineups = lineupsQ.data?.lineups ?? [];
   const showLineupsTab = !lineupsQ.isLoading && lineups.length > 0;
-  const topLineups = useMemo(
-    () =>
-      [...lineups]
-        .filter((row) => lineupTotalPoss(row) >= 20)
-        .sort((a, b) => lineupTotalPoss(b) - lineupTotalPoss(a))
-        .slice(0, 10),
-    [lineups],
-  );
+  const topLineups = useMemo(() => {
+    const filtered = [...lineups].filter((row) => lineupTotalPoss(row) >= 20);
+    const getVal = (row: LineupRow): number => {
+      switch (lineupSort) {
+        case "g":    return row.gamesPlayed ?? 0;
+        case "min":  return row.minutesPlayed ?? 0;
+        case "ortg": return row.ortg ?? (row.offPpp != null ? row.offPpp * 100 : 0);
+        case "drtg": return row.drtg ?? (row.defPpp != null ? row.defPpp * 100 : 0);
+        case "net":  return row.netRtg ?? (row.netPpp != null ? row.netPpp * 100 : 0);
+        case "tov":  return row.tovPct ?? 0;
+        default:     return lineupTotalPoss(row);
+      }
+    };
+    filtered.sort((a, b) => lineupSortDir === "desc" ? getVal(b) - getVal(a) : getVal(a) - getVal(b));
+    return filtered.slice(0, 15);
+  }, [lineups, lineupSort, lineupSortDir]);
   const players = data?.players ?? [];
   const teamGameLog: TeamGameLogEntry[] = team?.gameLog ?? [];
   const pointsByZone = team?.pointsByZone ?? null;
@@ -3688,6 +3696,8 @@ function StatsTeamSheet({
   const [activeTab, setActiveTab] = useState<"ficha" | "avanzado" | "partidos" | "roster" | "quintetos">("ficha");
   const [rosterSort, setRosterSort] = useState<"ppg" | "rpg" | "apg" | "pos" | "jersey">("ppg");
   const [rosterSortDir, setRosterSortDir] = useState<"asc" | "desc">("desc");
+  const [lineupSort, setLineupSort] = useState<"poss" | "g" | "min" | "ortg" | "drtg" | "net" | "tov">("poss");
+  const [lineupSortDir, setLineupSortDir] = useState<"asc" | "desc">("desc");
   const [boxscoreGameId, setBoxscoreGameId] = useState<string | null>(null);
   const boxscoreQ = useGameBoxscore(boxscoreGameId);
 
@@ -4436,13 +4446,27 @@ function StatsTeamSheet({
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
                   <div className="grid grid-cols-[1.5fr_0.32fr_0.36fr_0.36fr_0.4fr_0.4fr_0.4fr_0.36fr] gap-0 px-3 py-2 border-b border-border bg-muted/20 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
                     <span>{L.colLineup}</span>
-                    <span className="text-right">{L.colG}</span>
-                    <span className="text-right">MIN</span>
-                    <span className="text-right">{L.colPoss}</span>
-                    <span className="text-right">ORTG</span>
-                    <span className="text-right">DRTG</span>
-                    <span className="text-right">NET</span>
-                    <span className="text-right">TOV%</span>
+                    {(["g","min","poss","ortg","drtg","net","tov"] as const).map((col, idx) => {
+                      const labels: Record<string, string> = { g: L.colG, min: "MIN", poss: L.colPoss, ortg: "ORTG", drtg: "DRTG", net: "NET", tov: "TOV%" };
+                      const active = lineupSort === col;
+                      return (
+                        <button
+                          key={col}
+                          type="button"
+                          onClick={() => {
+                            if (active) setLineupSortDir(d => d === "desc" ? "asc" : "desc");
+                            else { setLineupSort(col); setLineupSortDir("desc"); }
+                          }}
+                          className={cn(
+                            "text-right tabular-nums flex items-center justify-end gap-0.5 hover:text-foreground transition-colors",
+                            active && "text-foreground"
+                          )}
+                        >
+                          {labels[col]}
+                          {active && <span className="text-[8px]">{lineupSortDir === "desc" ? "↓" : "↑"}</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                   {topLineups.map((row, i) => {
                     const poss = lineupTotalPoss(row);
