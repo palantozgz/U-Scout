@@ -662,7 +662,7 @@ export default function Stats() {
   }, [isDesktop, playerSheetId, returnToTeamId, teamSheetId]);
 
   const rosterCenterQ = useTeamDetail(
-    centerView === "roster" ? returnToTeamId : null,
+    isDesktop && centerView === "roster" ? returnToTeamId : null,
     effectiveSeasonId,
     phaseType,
   );
@@ -1423,7 +1423,12 @@ export default function Stats() {
           if (!open) setTeamSheetId(null);
         }}
       >
-        <SheetContent hideClose side="bottom" className="h-[92svh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full pb-[env(safe-area-inset-bottom)]" style={{ zIndex: 95 }}>
+        <SheetContent
+          hideClose
+          side="bottom"
+          className="h-[92svh] min-h-[70%] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full bg-background pb-[env(safe-area-inset-bottom)]"
+          style={{ zIndex: 95 }}
+        >
           <StatsTeamSheet
             externalId={teamSheetId}
             seasonId={effectiveSeasonId}
@@ -3673,6 +3678,8 @@ function StatsTeamSheet({
   const lineupsQ = useTeamLineups(team?.externalId, seasonId, phaseType);
   const lineups = lineupsQ.data?.lineups ?? [];
   const showLineupsTab = !lineupsQ.isLoading && lineups.length > 0;
+  const [lineupSort, setLineupSort] = useState<"poss" | "g" | "min" | "ortg" | "drtg" | "net" | "tov">("poss");
+  const [lineupSortDir, setLineupSortDir] = useState<"asc" | "desc">("desc");
   const topLineups = useMemo(() => {
     const filtered = [...lineups].filter((row) => lineupTotalPoss(row) >= 20);
     const getVal = (row: LineupRow): number => {
@@ -3696,8 +3703,6 @@ function StatsTeamSheet({
   const [activeTab, setActiveTab] = useState<"ficha" | "avanzado" | "partidos" | "roster" | "quintetos">("ficha");
   const [rosterSort, setRosterSort] = useState<"ppg" | "rpg" | "apg" | "pos" | "jersey">("ppg");
   const [rosterSortDir, setRosterSortDir] = useState<"asc" | "desc">("desc");
-  const [lineupSort, setLineupSort] = useState<"poss" | "g" | "min" | "ortg" | "drtg" | "net" | "tov">("poss");
-  const [lineupSortDir, setLineupSortDir] = useState<"asc" | "desc">("desc");
   const [boxscoreGameId, setBoxscoreGameId] = useState<string | null>(null);
   const boxscoreQ = useGameBoxscore(boxscoreGameId);
 
@@ -3830,8 +3835,10 @@ function StatsTeamSheet({
     );
   }
 
+  if (!externalId) return null;
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-background">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
         <button
           type="button"

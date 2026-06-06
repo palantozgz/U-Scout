@@ -26,6 +26,10 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes("node_modules/@supabase")) return "vendor-supabase";
           if (id.includes("node_modules/@tanstack")) return "vendor-query";
+          // recharts + d3 + victory-vendor go WITH react in the same chunk.
+          // Keeping them together ensures react initialises before recharts
+          // in the bundle, preventing the TDZ crash on WebKit/iOS that occurs
+          // when recharts is in a separate chunk and loads before react.
           if (
             id.includes("node_modules/react/") ||
             id.includes("node_modules/react-dom/") ||
@@ -48,8 +52,6 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     allowedHosts: true,
-    // In dev, the client runs on Vite and the API runs on Express (PORT=3000).
-    // Proxy /api/* so fetch("/api/...") never falls back to index.html.
     proxy: {
       "/api": {
         target: "http://localhost:3000",
