@@ -157,7 +157,7 @@ function lineupShortNames(names: string[], locale: string): string {
   return names
     .map((n) => {
       const t = n.trim();
-      if (/^\d+$/.test(t)) return `#${t.slice(-4)}`;
+      if (/^\d+$/.test(t)) return locale === 'zh' ? '球员' : 'Jug.';
       if (locale === "zh") return t.slice(0, 2);
       const parts = t.split(/\s+/).filter(Boolean);
       return parts.length > 1 ? parts[parts.length - 1]! : (parts[0] ?? t);
@@ -4582,7 +4582,7 @@ function StatsTeamSheet({
                     ))}
                   </div>
                   {activePlayers.map((p: TeamRosterPlayer) => {
-                    const name = p.nameEn?.trim() || p.nameZh || "—";
+                    const name = pickName(p.nameZh, p.nameEn, locale) || "—";
                     return (
                       <button
                         key={p.externalId}
