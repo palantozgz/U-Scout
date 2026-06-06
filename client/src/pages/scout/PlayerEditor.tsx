@@ -661,7 +661,7 @@ export default function PlayerEditor() {
   };
 
   if ((isNew ? teamsLoading : playerLoading) || !player || !inputs) {
-    return <div className="flex flex-col min-h-[100dvh] bg-slate-50 dark:bg-slate-950 items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className="flex flex-col h-[100dvh] bg-slate-50 dark:bg-slate-950 items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   const handleSave = async () => {
@@ -724,7 +724,7 @@ export default function PlayerEditor() {
   const showOppositeFinishInPNR = inputs.isoFrequency === "Never" && inputs.pnrFrequency !== "Never" && showHandlerSection;
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-slate-50 dark:bg-slate-950">
+    <div className="flex flex-col h-[100dvh] overflow-hidden bg-slate-50 dark:bg-slate-950">
       {showSaveFlash && (
         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none">
           <div className="flex flex-col items-center gap-1 animate-in fade-in zoom-in-95 duration-200">
@@ -791,7 +791,7 @@ export default function PlayerEditor() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 pb-24">
+      <main className="flex-1 p-4 pb-24 overflow-y-auto">
         <Tabs defaultValue="context" className="w-full">
           <TabsList className="grid w-full grid-cols-6 mb-6 p-1 bg-slate-200/60 dark:bg-slate-800/60 rounded-xl shadow-inner">
             <TabsTrigger value="context" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-foreground">
