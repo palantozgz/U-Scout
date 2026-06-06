@@ -1827,6 +1827,12 @@ export async function registerRoutes(
   });
 
   // ─── GET /api/stats/seasons ──────────────────────────────────────────────────
+  const SEASON_LABELS: Record<number, string> = {
+    2092: "2025-26",
+    2093: "2026-27",
+    2094: "2027-28",
+    2095: "2028-29",
+  };
   app.get("/api/stats/seasons", requireAuth, async (_req, res) => {
     try {
       const rows = await db.execute(sql`
@@ -1837,7 +1843,7 @@ export async function registerRoutes(
       `);
       const seasons = ((rows as any).rows ?? []).map((r: any) => ({
         seasonId: r.seasonId,
-        label: r.seasonId === 2092 ? "2025-26" : String(r.seasonId),
+        label: SEASON_LABELS[r.seasonId as number] ?? `Temp. ${r.seasonId}`,
       }));
       res.set("Cache-Control", "private, max-age=3600, stale-while-revalidate=300");
       return res.json({ seasons });
