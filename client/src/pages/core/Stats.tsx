@@ -5,6 +5,7 @@ import { useSearch, useLocation } from "wouter";
 import { ModulePageShell } from "./ModulePage";
 import { LandscapeHint, useIsLandscape } from "@/components/LandscapeHint";
 import { StatsRadar } from "@/components/StatsRadar";
+import { GameBoxscoreSheet } from "@/components/GameBoxscoreSheet";
 import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -23,7 +24,6 @@ import {
   useTeamDetail,
   useLeagueAverages,
   usePlayerPercentiles,
-  useGameBoxscore,
   usePaceSegments,
   useTeamLineups,
   usePlayerOnOff,
@@ -2556,7 +2556,6 @@ function StatsPlayerSheet({
   };
 
   const [boxscoreGameId, setBoxscoreGameId] = useState<string | null>(null);
-  const boxscoreQ = useGameBoxscore(boxscoreGameId);
 
   const isLandscape = useIsLandscape();
 
@@ -3555,94 +3554,23 @@ function StatsPlayerSheet({
         </div>
       )}
 
-      <Sheet
-        open={Boolean(boxscoreGameId)}
-        onOpenChange={(o) => {
-          if (!o) setBoxscoreGameId(null);
-        }}
-      >
-        <SheetContent hideClose side="bottom" className="h-[80svh] overflow-y-auto pb-[env(safe-area-inset-bottom)] md:ml-12 lg:ml-48">
-          <SheetHeader>
-            <SheetTitle>
-              {boxscoreQ.data ? (
-                <span>
-                  {pickName(boxscoreQ.data.game.home.nameZh, boxscoreQ.data.game.home.nameEn, locale)}{" "}
-                  {boxscoreQ.data.game.homeScore}–{boxscoreQ.data.game.awayScore}{" "}
-                  {pickName(boxscoreQ.data.game.away.nameZh, boxscoreQ.data.game.away.nameEn, locale)}
-                </span>
-              ) : (
-                "..."
-              )}
-            </SheetTitle>
-          </SheetHeader>
-          {boxscoreQ.isLoading && (
-            <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
-          {boxscoreQ.data &&
-            (() => {
-              const { game, players } = boxscoreQ.data;
-              const homeExtId = game.home.extId;
-              const homePlayers = players.filter((p) => p.teamExtId === homeExtId);
-              const awayPlayers = players.filter((p) => p.teamExtId !== homeExtId);
-              const renderTeam = (ps: typeof players) => (
-                <div className="mb-4">
-                  <div className="grid grid-cols-[2fr_0.5fr_0.5fr_0.5fr_0.5fr_0.5fr_0.7fr] text-[9px] font-black uppercase tracking-wide text-muted-foreground px-2 py-1 border-b border-border">
-                    <span>Jugadora</span>
-                    <span className="text-right">PTS</span>
-                    <span className="text-right">REB</span>
-                    <span className="text-right">AST</span>
-                    <span className="text-right">STL</span>
-                    <span className="text-right">BLK</span>
-                    <span className="text-right">FG</span>
-                  </div>
-                  {ps.map((p) => (
-                    <div
-                      key={p.externalId}
-                      className="grid grid-cols-[2fr_0.5fr_0.5fr_0.5fr_0.5fr_0.5fr_0.7fr] items-center px-2 py-2 border-b border-border/40 last:border-0 text-xs"
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {p.isStart && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
-                        <span className="truncate font-bold">
-                          {locale === "zh" ? p.nameZh : (p.nameEn ?? p.nameZh)}
-                        </span>
-                      </div>
-                      <span className="text-right font-black">{p.pts}</span>
-                      <span className="text-right">{p.reb}</span>
-                      <span className="text-right">{p.ast}</span>
-                      <span className="text-right">{p.stl}</span>
-                      <span className="text-right">{p.blk}</span>
-                      <span className="text-right text-muted-foreground">
-                        {p.fgm}/{p.fga}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              );
-              return (
-                <div>
-                  <p className="text-xs font-black text-primary mb-1 px-2">
-                    {pickName(game.home.nameZh, game.home.nameEn, locale)} — {game.homeScore}
-                  </p>
-                  {game.homeQ1 != null && (
-                    <p className="text-[10px] text-muted-foreground font-mono px-2 mb-2">
-                      Q1 {game.homeQ1}–{game.awayQ1} · 
-                      Q2 {game.homeQ2}–{game.awayQ2} · 
-                      Q3 {game.homeQ3}–{game.awayQ3} · 
-                      Q4 {game.homeQ4}–{game.awayQ4}
-                    </p>
-                  )}
-                  {renderTeam(homePlayers)}
-                  <p className="text-xs font-black text-primary mb-1 px-2 mt-2">
-                    {pickName(game.away.nameZh, game.away.nameEn, locale)} — {game.awayScore}
-                  </p>
-                  {renderTeam(awayPlayers)}
-                </div>
-              );
-            })()}
-        </SheetContent>
-      </Sheet>
+      {(() => {
+        const idx = sortedGameLog.findIndex((g) => String(g.gameId) === boxscoreGameId);
+        return (
+          <GameBoxscoreSheet
+            gameId={boxscoreGameId}
+            locale={locale}
+            onClose={() => setBoxscoreGameId(null)}
+            onPrev={idx > 0 ? () => setBoxscoreGameId(String(sortedGameLog[idx - 1].gameId)) : null}
+            onNext={
+              idx < sortedGameLog.length - 1
+                ? () => setBoxscoreGameId(String(sortedGameLog[idx + 1].gameId))
+                : null
+            }
+            gamePosition={idx >= 0 ? { current: idx + 1, total: sortedGameLog.length } : null}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -3704,7 +3632,6 @@ function StatsTeamSheet({
   const [rosterSort, setRosterSort] = useState<"ppg" | "rpg" | "apg" | "pos" | "jersey">("ppg");
   const [rosterSortDir, setRosterSortDir] = useState<"asc" | "desc">("desc");
   const [boxscoreGameId, setBoxscoreGameId] = useState<string | null>(null);
-  const boxscoreQ = useGameBoxscore(boxscoreGameId);
 
   const POS_ORDER: Record<string, number> = {
     "控球后卫": 1, "得分后卫": 2, "后卫": 3,
@@ -4687,94 +4614,23 @@ function StatsTeamSheet({
         </div>
       )}
 
-      <Sheet
-        open={Boolean(boxscoreGameId)}
-        onOpenChange={(o) => {
-          if (!o) setBoxscoreGameId(null);
-        }}
-      >
-        <SheetContent hideClose side="bottom" className="h-[80svh] overflow-y-auto pb-[env(safe-area-inset-bottom)] md:ml-12 lg:ml-48">
-          <SheetHeader>
-            <SheetTitle>
-              {boxscoreQ.data ? (
-                <span>
-                  {pickName(boxscoreQ.data.game.home.nameZh, boxscoreQ.data.game.home.nameEn, locale)}{" "}
-                  {boxscoreQ.data.game.homeScore}–{boxscoreQ.data.game.awayScore}{" "}
-                  {pickName(boxscoreQ.data.game.away.nameZh, boxscoreQ.data.game.away.nameEn, locale)}
-                </span>
-              ) : (
-                "..."
-              )}
-            </SheetTitle>
-          </SheetHeader>
-          {boxscoreQ.isLoading && (
-            <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
-          {boxscoreQ.data &&
-            (() => {
-              const { game, players } = boxscoreQ.data;
-              const homeExtId = game.home.extId;
-              const homePlayers = players.filter((p) => p.teamExtId === homeExtId);
-              const awayPlayers = players.filter((p) => p.teamExtId !== homeExtId);
-              const renderTeam = (ps: typeof players) => (
-                <div className="mb-4">
-                  <div className="grid grid-cols-[2fr_0.5fr_0.5fr_0.5fr_0.5fr_0.5fr_0.7fr] text-[9px] font-black uppercase tracking-wide text-muted-foreground px-2 py-1 border-b border-border">
-                    <span>Jugadora</span>
-                    <span className="text-right">PTS</span>
-                    <span className="text-right">REB</span>
-                    <span className="text-right">AST</span>
-                    <span className="text-right">STL</span>
-                    <span className="text-right">BLK</span>
-                    <span className="text-right">FG</span>
-                  </div>
-                  {ps.map((p) => (
-                    <div
-                      key={p.externalId}
-                      className="grid grid-cols-[2fr_0.5fr_0.5fr_0.5fr_0.5fr_0.5fr_0.7fr] items-center px-2 py-2 border-b border-border/40 last:border-0 text-xs"
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {p.isStart && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
-                        <span className="truncate font-bold">
-                          {locale === "zh" ? p.nameZh : (p.nameEn ?? p.nameZh)}
-                        </span>
-                      </div>
-                      <span className="text-right font-black">{p.pts}</span>
-                      <span className="text-right">{p.reb}</span>
-                      <span className="text-right">{p.ast}</span>
-                      <span className="text-right">{p.stl}</span>
-                      <span className="text-right">{p.blk}</span>
-                      <span className="text-right text-muted-foreground">
-                        {p.fgm}/{p.fga}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              );
-              return (
-                <div>
-                  <p className="text-xs font-black text-primary mb-1 px-2">
-                    {pickName(game.home.nameZh, game.home.nameEn, locale)} — {game.homeScore}
-                  </p>
-                  {game.homeQ1 != null && (
-                    <p className="text-[10px] text-muted-foreground font-mono px-2 mb-2">
-                      Q1 {game.homeQ1}–{game.awayQ1} · 
-                      Q2 {game.homeQ2}–{game.awayQ2} · 
-                      Q3 {game.homeQ3}–{game.awayQ3} · 
-                      Q4 {game.homeQ4}–{game.awayQ4}
-                    </p>
-                  )}
-                  {renderTeam(homePlayers)}
-                  <p className="text-xs font-black text-primary mb-1 px-2 mt-2">
-                    {pickName(game.away.nameZh, game.away.nameEn, locale)} — {game.awayScore}
-                  </p>
-                  {renderTeam(awayPlayers)}
-                </div>
-              );
-            })()}
-        </SheetContent>
-      </Sheet>
+      {(() => {
+        const idx = teamGameLog.findIndex((g) => String(g.gameId) === boxscoreGameId);
+        return (
+          <GameBoxscoreSheet
+            gameId={boxscoreGameId}
+            locale={locale}
+            onClose={() => setBoxscoreGameId(null)}
+            onPrev={idx > 0 ? () => setBoxscoreGameId(String(teamGameLog[idx - 1].gameId)) : null}
+            onNext={
+              idx < teamGameLog.length - 1
+                ? () => setBoxscoreGameId(String(teamGameLog[idx + 1].gameId))
+                : null
+            }
+            gamePosition={idx >= 0 ? { current: idx + 1, total: teamGameLog.length } : null}
+          />
+        );
+      })()}
     </div>
   );
 }

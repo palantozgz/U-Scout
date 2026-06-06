@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useGameBoxscore, type GameBoxscorePlayer } from "@/lib/stats-api";
@@ -75,21 +76,12 @@ const COLS: { key: SortKey; label: string; short: string }[] = [
 
 // ─── sub-components ────────────────────────────────────────────────────────────
 
-function QuarterRow({
-  qs, score, label,
-}: {
-  qs: (number | null)[];
-  score: number;
-  label: string;
-}) {
+function QuarterRow({ qs, score, label }: { qs: (number | null)[]; score: number; label: string }) {
   return (
     <div className="flex items-center gap-0">
       <span className="w-20 text-[10px] text-muted-foreground truncate pr-1">{label}</span>
       {qs.map((q, i) => (
-        <span
-          key={i}
-          className="w-8 text-center text-[11px] font-mono text-foreground/70"
-        >
+        <span key={i} className="w-8 text-center text-[11px] font-mono text-foreground/70">
           {q ?? "—"}
         </span>
       ))}
@@ -98,12 +90,8 @@ function QuarterRow({
   );
 }
 
-function StatColHeader({
-  col, sortKey, onSort,
-}: {
-  col: (typeof COLS)[number];
-  sortKey: SortKey;
-  onSort: (k: SortKey) => void;
+function StatColHeader({ col, sortKey, onSort }: {
+  col: (typeof COLS)[number]; sortKey: SortKey; onSort: (k: SortKey) => void;
 }) {
   const active = sortKey === col.key;
   return (
@@ -111,9 +99,7 @@ function StatColHeader({
       onClick={() => onSort(col.key)}
       className={cn(
         "w-9 shrink-0 text-center text-[9px] font-black uppercase tracking-wide py-1.5 transition-colors",
-        active
-          ? "text-primary"
-          : "text-muted-foreground hover:text-foreground",
+        active ? "text-primary" : "text-muted-foreground hover:text-foreground",
       )}
     >
       {col.short}
@@ -122,18 +108,8 @@ function StatColHeader({
   );
 }
 
-function PlayerRow({
-  p, locale, isLast,
-}: {
-  p: GameBoxscorePlayer;
-  locale: string;
-  isLast: boolean;
-}) {
+function PlayerRow({ p, locale, isLast }: { p: GameBoxscorePlayer; locale: string; isLast: boolean }) {
   const name = pickName(p.nameZh, p.nameEn, locale);
-  const fgStr = p.fga > 0 ? `${p.fgm}/${p.fga}` : "—";
-  const tpStr = p.tpa > 0 ? `${p.tpm}/${p.tpa}` : "—";
-  const ftStr = p.fta > 0 ? `${p.ftm}/${p.fta}` : "—";
-
   const vals: Record<SortKey, string> = {
     pts:       String(p.pts),
     reb:       String(p.reb),
@@ -142,27 +118,23 @@ function PlayerRow({
     blk:       String(p.blk),
     tov:       String(p.tov),
     plusMinus: fmtPM(p.plusMinus),
-    fga:       fgStr,
-    tpa:       tpStr,
-    fta:       ftStr,
+    fga:       p.fga > 0 ? `${p.fgm}/${p.fga}` : "—",
+    tpa:       p.tpa > 0 ? `${p.tpm}/${p.tpa}` : "—",
+    fta:       p.fta > 0 ? `${p.ftm}/${p.fta}` : "—",
     min:       p.minutes ?? "—",
   };
 
   return (
-    <div
-      className={cn(
-        "flex items-center border-border/30 transition-colors active:bg-muted/10",
-        !isLast && "border-b",
-        p.isStart && "bg-muted/5",
-      )}
-    >
-      {/* Name — fixed left */}
+    <div className={cn(
+      "flex items-center border-border/30 transition-colors active:bg-muted/10",
+      !isLast && "border-b",
+      p.isStart && "bg-muted/5",
+    )}>
       <div className="w-28 shrink-0 flex items-center gap-1.5 px-2 py-2">
-        {p.isStart ? (
-          <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-        ) : (
-          <span className="w-1.5 h-1.5 shrink-0" />
-        )}
+        {p.isStart
+          ? <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+          : <span className="w-1.5 h-1.5 shrink-0" />
+        }
         <div className="min-w-0">
           <p className="text-[11px] font-bold truncate leading-tight">{name}</p>
           {p.jerseyNumber && (
@@ -170,13 +142,9 @@ function PlayerRow({
           )}
         </div>
       </div>
-      {/* Stats */}
       {COLS.map((col) => {
-        const v = vals[col.key];
-        const isPts   = col.key === "pts";
-        const isPM    = col.key === "plusMinus";
-        const pmPos   = isPM && p.plusMinus > 0;
-        const pmNeg   = isPM && p.plusMinus < 0;
+        const isPts = col.key === "pts";
+        const isPM  = col.key === "plusMinus";
         return (
           <span
             key={col.key}
@@ -184,13 +152,12 @@ function PlayerRow({
               "w-9 shrink-0 text-center text-[11px] tabular-nums",
               isPts && "font-black text-foreground",
               !isPts && "text-foreground/80",
-              pmPos && "text-emerald-500",
-              pmNeg && "text-red-400",
-              (col.key === "fga" || col.key === "tpa" || col.key === "fta") &&
-                "text-[10px] text-muted-foreground",
+              isPM && p.plusMinus > 0 && "text-emerald-500",
+              isPM && p.plusMinus < 0 && "text-red-400",
+              (col.key === "fga" || col.key === "tpa" || col.key === "fta") && "text-[10px] text-muted-foreground",
             )}
           >
-            {v}
+            {vals[col.key]}
           </span>
         );
       })}
@@ -200,19 +167,21 @@ function PlayerRow({
 
 function TotalsRow({ players, locale }: { players: GameBoxscorePlayer[]; locale: string }) {
   const t = sumPlayers(players);
-  const fgStr = t.fga > 0 ? `${t.fgm}/${t.fga}` : "—";
-  const tpStr = t.tpa > 0 ? `${t.tpm}/${t.tpa}` : "—";
-  const ftStr = t.fta > 0 ? `${t.ftm}/${t.fta}` : "—";
   const vals: Record<SortKey, string> = {
     pts: String(t.pts), reb: String(t.reb), ast: String(t.ast),
     stl: String(t.stl), blk: String(t.blk), tov: String(t.tov),
-    plusMinus: "—", fga: fgStr, tpa: tpStr, fta: ftStr, min: "",
+    plusMinus: "—",
+    fga: t.fga > 0 ? `${t.fgm}/${t.fga}` : "—",
+    tpa: t.tpa > 0 ? `${t.tpm}/${t.tpa}` : "—",
+    fta: t.fta > 0 ? `${t.ftm}/${t.fta}` : "—",
+    min: "",
   };
-  const label = locale === "zh" ? "合计" : "TOTAL";
   return (
     <div className="flex items-center border-t-2 border-border bg-muted/10">
       <div className="w-28 shrink-0 px-2 py-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+          {locale === "zh" ? "合计" : "TOTAL"}
+        </p>
       </div>
       {COLS.map((col) => (
         <span
@@ -229,13 +198,7 @@ function TotalsRow({ players, locale }: { players: GameBoxscorePlayer[]; locale:
   );
 }
 
-function AdvancedCard({
-  homePlayers,
-  awayPlayers,
-  homeName,
-  awayName,
-  locale,
-}: {
+function AdvancedCard({ homePlayers, awayPlayers, homeName, awayName, locale }: {
   homePlayers: GameBoxscorePlayer[];
   awayPlayers: GameBoxscorePlayer[];
   homeName: string;
@@ -257,81 +220,48 @@ function AdvancedCard({
   const a = calc(awayPlayers);
 
   const rows: { label: string; hVal: string; aVal: string; hBetter: boolean | null }[] = [
-    {
-      label:   "eFG%",
-      hVal:    fmtPct(h.efgPct),
-      aVal:    fmtPct(a.efgPct),
-      hBetter: h.efgPct !== null && a.efgPct !== null ? h.efgPct > a.efgPct : null,
-    },
-    {
-      label:   "FG%",
-      hVal:    fmtPct(h.fgPct),
-      aVal:    fmtPct(a.fgPct),
-      hBetter: h.fgPct !== null && a.fgPct !== null ? h.fgPct > a.fgPct : null,
-    },
-    {
-      label:   "3P%",
-      hVal:    fmtPct(h.tpPct),
-      aVal:    fmtPct(a.tpPct),
-      hBetter: h.tpPct !== null && a.tpPct !== null ? h.tpPct > a.tpPct : null,
-    },
-    {
-      label:   "FT%",
-      hVal:    fmtPct(h.ftPct),
-      aVal:    fmtPct(a.ftPct),
-      hBetter: h.ftPct !== null && a.ftPct !== null ? h.ftPct > a.ftPct : null,
-    },
+    { label: "eFG%",  hVal: fmtPct(h.efgPct),  aVal: fmtPct(a.efgPct),  hBetter: h.efgPct  != null && a.efgPct  != null ? h.efgPct  > a.efgPct  : null },
+    { label: "FG%",   hVal: fmtPct(h.fgPct),   aVal: fmtPct(a.fgPct),   hBetter: h.fgPct   != null && a.fgPct   != null ? h.fgPct   > a.fgPct   : null },
+    { label: "3P%",   hVal: fmtPct(h.tpPct),   aVal: fmtPct(a.tpPct),   hBetter: h.tpPct   != null && a.tpPct   != null ? h.tpPct   > a.tpPct   : null },
+    { label: "FT%",   hVal: fmtPct(h.ftPct),   aVal: fmtPct(a.ftPct),   hBetter: h.ftPct   != null && a.ftPct   != null ? h.ftPct   > a.ftPct   : null },
     {
       label:   locale === "zh" ? "失误率" : "TOV%",
       hVal:    fmtPct(h.tovPctV),
       aVal:    fmtPct(a.tovPctV),
-      hBetter: h.tovPctV !== null && a.tovPctV !== null ? h.tovPctV < a.tovPctV : null,
+      hBetter: h.tovPctV != null && a.tovPctV != null ? h.tovPctV < a.tovPctV : null,
     },
     {
       label:   locale === "zh" ? "罚球率" : "FT Rate",
-      hVal:    h.ftRate !== null ? h.ftRate.toFixed(2) : "—",
-      aVal:    a.ftRate !== null ? a.ftRate.toFixed(2) : "—",
-      hBetter: h.ftRate !== null && a.ftRate !== null ? h.ftRate > a.ftRate : null,
+      hVal:    h.ftRate != null ? h.ftRate.toFixed(2) : "—",
+      aVal:    a.ftRate != null ? a.ftRate.toFixed(2) : "—",
+      hBetter: h.ftRate != null && a.ftRate != null ? h.ftRate > a.ftRate : null,
     },
   ];
 
   const sectionLabel = locale === "zh" ? "进攻数据对比" : locale === "es" ? "Comparativa ofensiva" : "Shooting comparison";
 
   return (
-    <div className="mt-4 mb-2 mx-0">
+    <div className="mt-4 mb-2">
       <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-2">
         {sectionLabel}
       </p>
       <div className="border-t border-border">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center px-3 py-1.5 border-b border-border/40">
           <span className="text-[10px] font-bold text-left truncate pr-2">{homeName}</span>
-          <span className="text-[9px] text-muted-foreground text-center w-14" />
+          <span className="w-16" />
           <span className="text-[10px] font-bold text-right truncate pl-2">{awayName}</span>
         </div>
         {rows.map((r) => (
-          <div
-            key={r.label}
-            className="grid grid-cols-[1fr_auto_1fr] items-center px-3 py-1.5 border-b border-border/20 last:border-0"
-          >
-            <span
-              className={cn(
-                "text-[12px] font-black tabular-nums text-left",
-                r.hBetter === true  && "text-emerald-500",
-                r.hBetter === false && "text-foreground/60",
-              )}
-            >
+          <div key={r.label} className="grid grid-cols-[1fr_auto_1fr] items-center px-3 py-1.5 border-b border-border/20 last:border-0">
+            <span className={cn("text-[12px] font-black tabular-nums text-left",
+              r.hBetter === true && "text-emerald-500", r.hBetter === false && "text-foreground/60")}>
               {r.hVal}
             </span>
             <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground text-center w-16">
               {r.label}
             </span>
-            <span
-              className={cn(
-                "text-[12px] font-black tabular-nums text-right",
-                r.hBetter === false && "text-emerald-500",
-                r.hBetter === true  && "text-foreground/60",
-              )}
-            >
+            <span className={cn("text-[12px] font-black tabular-nums text-right",
+              r.hBetter === false && "text-emerald-500", r.hBetter === true && "text-foreground/60")}>
               {r.aVal}
             </span>
           </div>
@@ -347,9 +277,14 @@ interface GameBoxscoreSheetProps {
   gameId: string | null;
   locale: string;
   onClose: () => void;
+  /** Pass these to enable prev/next navigation between games */
+  onPrev?: (() => void) | null;
+  onNext?: (() => void) | null;
+  /** e.g. { current: 3, total: 12 } — shown as "3 / 12" in the handle area */
+  gamePosition?: { current: number; total: number } | null;
 }
 
-export function GameBoxscoreSheet({ gameId, locale, onClose }: GameBoxscoreSheetProps) {
+export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gamePosition }: GameBoxscoreSheetProps) {
   const { data, isLoading } = useGameBoxscore(gameId);
   const [activeTeam, setActiveTeam] = useState<"home" | "away">("home");
   const [sortKey, setSortKey] = useState<SortKey>("pts");
@@ -369,17 +304,13 @@ export function GameBoxscoreSheet({ gameId, locale, onClose }: GameBoxscoreSheet
   function sorted(ps: GameBoxscorePlayer[]): GameBoxscorePlayer[] {
     return [...ps].sort((a, b) => {
       if (sortKey === "min") {
-        const toSec = (m: string) => {
-          const [mm, ss] = (m ?? "0:00").split(":").map(Number);
-          return (mm || 0) * 60 + (ss || 0);
-        };
+        const toSec = (m: string) => { const [mm, ss] = (m ?? "0:00").split(":").map(Number); return (mm||0)*60+(ss||0); };
         return toSec(b.minutes) - toSec(a.minutes);
       }
       if (sortKey === "tov") return b.tov - a.tov;
       const va = a[sortKey as keyof GameBoxscorePlayer] as number;
       const vb = b[sortKey as keyof GameBoxscorePlayer] as number;
-      if (vb !== va) return vb - va;
-      return b.pts - a.pts;
+      return vb !== va ? vb - va : b.pts - a.pts;
     });
   }
 
@@ -388,57 +319,83 @@ export function GameBoxscoreSheet({ gameId, locale, onClose }: GameBoxscoreSheet
 
   const homeName = g ? pickName(g.home.nameZh, g.home.nameEn, locale) : "…";
   const awayName = g ? pickName(g.away.nameZh, g.away.nameEn, locale) : "…";
-
-  const homeQs = g ? [g.homeQ1, g.homeQ2, g.homeQ3, g.homeQ4] : [null, null, null, null];
-  const awayQs = g ? [g.awayQ1, g.awayQ2, g.awayQ3, g.awayQ4] : [null, null, null, null];
-
-  const homeWon = g ? g.homeScore > g.awayScore : false;
+  const homeQs   = g ? [g.homeQ1, g.homeQ2, g.homeQ3, g.homeQ4] : [null, null, null, null];
+  const awayQs   = g ? [g.awayQ1, g.awayQ2, g.awayQ3, g.awayQ4] : [null, null, null, null];
+  const homeWon  = g ? g.homeScore > g.awayScore : false;
+  const hasNav   = Boolean(onPrev || onNext);
 
   return (
     <Sheet open={Boolean(gameId)} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent
         hideClose
         side="bottom"
-        className="h-[92svh] flex flex-col overflow-hidden p-0 pb-[env(safe-area-inset-bottom)] md:ml-12 lg:ml-48"
+        className="h-[92svh] min-h-[70%] flex flex-col overflow-hidden p-0 pb-[env(safe-area-inset-bottom)] bg-background md:ml-12 lg:ml-48"
       >
-        {/* ── Score header ─────────────────────────────────── */}
-        <div className="shrink-0 bg-card border-b border-border px-3 pt-3 pb-2">
-          <div className="flex justify-center mb-2">
+        {/* ── Drag handle + nav ────────────────────────────── */}
+        <div className="shrink-0 flex items-center justify-between px-3 pt-3 pb-1">
+          {/* Prev */}
+          <button
+            onClick={onPrev ?? undefined}
+            disabled={!onPrev}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide transition-colors",
+              onPrev ? "text-muted-foreground hover:text-foreground hover:bg-muted/30" : "invisible",
+            )}
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            {es ? "Ant" : zh ? "上场" : "Prev"}
+          </button>
+
+          {/* Handle + position counter */}
+          <div className="flex flex-col items-center gap-1">
             <button
               onClick={onClose}
               className="w-8 h-1 rounded-full bg-border hover:bg-muted-foreground/40 transition-colors"
             />
+            {gamePosition && (
+              <span className="text-[9px] text-muted-foreground tabular-nums">
+                {gamePosition.current} / {gamePosition.total}
+              </span>
+            )}
           </div>
 
+          {/* Next */}
+          <button
+            onClick={onNext ?? undefined}
+            disabled={!onNext}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide transition-colors",
+              onNext ? "text-muted-foreground hover:text-foreground hover:bg-muted/30" : "invisible",
+            )}
+          >
+            {es ? "Sig" : zh ? "下场" : "Next"}
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* ── Score header ─────────────────────────────────── */}
+        <div className="shrink-0 bg-card border-b border-border px-3 pb-2">
           <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex-1 text-left">
-              <p className={cn(
-                "text-[11px] font-black uppercase tracking-wide truncate",
-                homeWon ? "text-foreground" : "text-muted-foreground",
-              )}>
+              <p className={cn("text-[11px] font-black uppercase tracking-wide truncate",
+                homeWon ? "text-foreground" : "text-muted-foreground")}>
                 {homeName}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span className={cn(
-                "text-3xl font-black tabular-nums leading-none",
-                homeWon ? "text-foreground" : "text-muted-foreground",
-              )}>
+              <span className={cn("text-3xl font-black tabular-nums leading-none",
+                homeWon ? "text-foreground" : "text-muted-foreground")}>
                 {g?.homeScore ?? "—"}
               </span>
               <span className="text-sm text-muted-foreground font-light">–</span>
-              <span className={cn(
-                "text-3xl font-black tabular-nums leading-none",
-                !homeWon ? "text-foreground" : "text-muted-foreground",
-              )}>
+              <span className={cn("text-3xl font-black tabular-nums leading-none",
+                !homeWon ? "text-foreground" : "text-muted-foreground")}>
                 {g?.awayScore ?? "—"}
               </span>
             </div>
             <div className="flex-1 text-right">
-              <p className={cn(
-                "text-[11px] font-black uppercase tracking-wide truncate",
-                !homeWon ? "text-foreground" : "text-muted-foreground",
-              )}>
+              <p className={cn("text-[11px] font-black uppercase tracking-wide truncate",
+                !homeWon ? "text-foreground" : "text-muted-foreground")}>
                 {awayName}
               </p>
             </div>
@@ -447,11 +404,9 @@ export function GameBoxscoreSheet({ gameId, locale, onClose }: GameBoxscoreSheet
           {g?.homeQ1 != null && (
             <div className="space-y-0.5">
               <div className="flex items-center gap-0">
-                <span className="w-20 text-[9px] text-muted-foreground/50 uppercase tracking-wide" />
+                <span className="w-20" />
                 {["Q1","Q2","Q3","Q4"].map((q) => (
-                  <span key={q} className="w-8 text-center text-[9px] font-black text-muted-foreground/50 uppercase">
-                    {q}
-                  </span>
+                  <span key={q} className="w-8 text-center text-[9px] font-black text-muted-foreground/50 uppercase">{q}</span>
                 ))}
                 <span className="w-10 text-center text-[9px] font-black text-muted-foreground/50 uppercase">
                   {es ? "TOT" : zh ? "总" : "TOT"}
@@ -466,7 +421,7 @@ export function GameBoxscoreSheet({ gameId, locale, onClose }: GameBoxscoreSheet
         {/* ── Team tabs ─────────────────────────────────────── */}
         <div className="shrink-0 flex border-b border-border">
           {(["home", "away"] as const).map((t) => {
-            const name = t === "home" ? homeName : awayName;
+            const name  = t === "home" ? homeName : awayName;
             const active = activeTeam === t;
             return (
               <button
@@ -478,9 +433,7 @@ export function GameBoxscoreSheet({ gameId, locale, onClose }: GameBoxscoreSheet
                 )}
               >
                 {name}
-                {active && (
-                  <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary rounded-full" />
-                )}
+                {active && <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary rounded-full" />}
               </button>
             );
           })}
@@ -504,31 +457,18 @@ export function GameBoxscoreSheet({ gameId, locale, onClose }: GameBoxscoreSheet
                 </div>
                 <div className="flex items-center">
                   {COLS.map((col) => (
-                    <StatColHeader
-                      key={col.key}
-                      col={col}
-                      sortKey={sortKey}
-                      onSort={setSortKey}
-                    />
+                    <StatColHeader key={col.key} col={col} sortKey={sortKey} onSort={setSortKey} />
                   ))}
                 </div>
               </div>
 
               <div>
                 {activePlayers.map((p, i) => (
-                  <PlayerRow
-                    key={p.externalId}
-                    p={p}
-                    locale={locale}
-                    isLast={i === activePlayers.length - 1}
-                  />
+                  <PlayerRow key={p.externalId} p={p} locale={locale} isLast={i === activePlayers.length - 1} />
                 ))}
               </div>
 
-              <TotalsRow
-                players={activeTeam === "home" ? homePlayers : awayPlayers}
-                locale={locale}
-              />
+              <TotalsRow players={activeTeam === "home" ? homePlayers : awayPlayers} locale={locale} />
 
               <AdvancedCard
                 homePlayers={homePlayers}
