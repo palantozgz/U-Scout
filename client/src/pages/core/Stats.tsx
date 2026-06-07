@@ -5,6 +5,7 @@ import { useSearch, useLocation } from "wouter";
 import { ModulePageShell } from "./ModulePage";
 import { LandscapeHint, useIsLandscape } from "@/components/LandscapeHint";
 import { StatsRadar } from "@/components/StatsRadar";
+import { StatsBubbleChart } from "@/components/StatsBubbleChart";
 import { GameBoxscoreSheet } from "@/components/GameBoxscoreSheet";
 import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -362,6 +363,7 @@ export default function Stats() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Filtro rápido de posición
+  const [jugadorasDisplayMode, setJugadorasDisplayMode] = useState<"list" | "bubble">("list");
   const [jugadorasPos, setJugadorasPos] = useState<string>("");
 
   // Filtros avanzados
@@ -455,6 +457,7 @@ export default function Stats() {
 
   const standingsQ = useStandings(effectiveSeasonId, phaseType);
   const leadersQ = useLeaders(effectiveSeasonId, leaderStat, phaseType);
+  const leagueAvgQ = useLeagueAverages(effectiveSeasonId, null, phaseType);
 
   const seasonMetaLabel = seasons.find((s) => s.seasonId === effectiveSeasonId)?.label;
   const playersForSeason = useMemo(() => {
@@ -1231,7 +1234,36 @@ export default function Stats() {
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     {es ? "Jugadoras" : zh ? "球员" : "Players"}
                   </span>
-                  <PhaseToggle phaseType={phaseType} onChange={setPhaseType} locale={locale} />
+                  <div className="flex items-center gap-2">
+                    {/* View toggle: list / bubble */}
+                    <div className="flex rounded-lg border border-border bg-muted/20 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setJugadorasDisplayMode("list")}
+                        className={cn(
+                          "px-2 py-1 rounded-md text-[10px] font-black transition-colors",
+                          jugadorasDisplayMode === "list"
+                            ? "bg-card shadow-sm text-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        ☰
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setJugadorasDisplayMode("bubble")}
+                        className={cn(
+                          "px-2 py-1 rounded-md text-[10px] font-black transition-colors",
+                          jugadorasDisplayMode === "bubble"
+                            ? "bg-card shadow-sm text-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        ◉
+                      </button>
+                    </div>
+                    <PhaseToggle phaseType={phaseType} onChange={setPhaseType} locale={locale} />
+                  </div>
                 </div>
                 <div className="flex rounded-xl border border-border bg-muted/20 p-0.5 gap-0.5">
                   {(
@@ -1257,6 +1289,20 @@ export default function Stats() {
                     </button>
                   ))}
                 </div>
+                {/* Bubble chart view */}
+                {jugadorasDisplayMode === "bubble" && (
+                  <div className="rounded-2xl border border-border bg-card p-3 mt-2">
+                    <StatsBubbleChart
+                      players={jugadorasFiltered}
+                      leagueAvg={leagueAvgQ.data}
+                      onPlayerSelect={(id) => setPlayerSheetId(id)}
+                      locale={locale}
+                      minGames={5}
+                    />
+                  </div>
+                )}
+                {jugadorasDisplayMode === "list" && (
+                <>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -1384,11 +1430,13 @@ export default function Stats() {
                     </button>
                   </div>
                 )}
+                </>
+                )}
               </>
             )}
           </TabsContent>
 
-        </Tabs>
+          </Tabs>
         )}
       </div>
 
