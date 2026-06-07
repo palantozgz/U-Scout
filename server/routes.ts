@@ -1675,6 +1675,7 @@ export async function registerRoutes(
       homeSplit: { pts: 0, reb: 0, ast: 0 },
       awaySplit: { pts: 0, reb: 0, ast: 0 },
     }));
+    res.set("Cache-Control", "private, max-age=300, stale-while-revalidate=60");
     return res.json({ players });
   });
 
@@ -1819,6 +1820,7 @@ export async function registerRoutes(
         ORDER BY value DESC NULLS LAST
         LIMIT 15
       `);
+      res.set("Cache-Control", "private, max-age=300, stale-while-revalidate=60");
       return res.json({ leaders: (rows as any).rows ?? [], stat });
     } catch (err) {
       console.error("[stats/leaders] DB error:", (err as any)?.message ?? err);
@@ -1874,6 +1876,7 @@ export async function registerRoutes(
       `);
       const row = (rows as any).rows?.[0];
       if (!row) return res.json({ externalId: null, ppg: 0, rpg: 0, apg: 0 });
+      res.set("Cache-Control", "private, max-age=600, stale-while-revalidate=60");
       return res.json({
         externalId: String(row.externalId),
         ppg: Number(row.ppg ?? 0),

@@ -1066,7 +1066,7 @@ export default function Schedule() {
     window.setTimeout(() => setHighlightDayKey(null), 900);
     window.setTimeout(() => {
       const el = (portraitDayRefs.current[todayKey] ?? landscapeDayRefs.current[todayKey]) as HTMLElement | null;
-      el?.scrollIntoView({ block: "nearest", inline: "nearest" });
+      el?.scrollIntoView({ block: "start", inline: "nearest" });
     }, 50);
   };
 
@@ -1076,7 +1076,7 @@ export default function Schedule() {
     const tryScroll = () => {
       const el = document.querySelector(`[data-today="true"]`) as HTMLElement | null;
       if (el) {
-        el.scrollIntoView({ block: "nearest", inline: "nearest" });
+        el.scrollIntoView({ block: "start", inline: "nearest" });
       } else if (attempts < 20) {
         attempts++;
         window.setTimeout(tryScroll, 150);
