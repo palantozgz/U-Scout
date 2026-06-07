@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { isRealPhoto } from "@/lib/utils";
+import { PlayerEditorStatsChip } from "@/components/scout/PlayerEditorStatsChip";
 
 // ─── Transition roles ─────────────────────────────────────────────────────────
 const TRANS_EDITOR_ROLES = ["rim_runner", "trail", "runner", "pusher"] as const satisfies readonly TransRoleEditor[];
@@ -818,6 +819,8 @@ export default function PlayerEditor() {
 
           {/* ── CONTEXT ── */}
           <TabsContent value="context" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+            {/* Stats WCBA inline — solo si la jugadora tiene datos en U Stats */}
+            <PlayerEditorStatsChip playerName={player.name} locale={locale} />
 
             {/* Identidad */}
             <div className="bg-background rounded-2xl p-5 space-y-4 border border-border shadow-sm">
