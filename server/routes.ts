@@ -3178,6 +3178,153 @@ export async function registerRoutes(
     }
   });
 
+  // ─── GET /api/stats/players/all-detail — bulk player detail para prefetch desktop ─
+  app.get("/api/stats/players/all-detail", requireAuth, async (req, res) => {
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    const phaseType = "regular";
+    const phaseFilter = sql`AND pgs.phase_type = ${phaseType}`;
+    try {
+      // Query 1: player summaries (misma estructura que /api/stats/player/:externalId)
+      const summaryRows = await db.execute(sql`
+        SELECT
+          pgs.player_external_id              AS "externalId",
+          sp.name_zh                          AS "nameZh",
+          sp.name_en                          AS "nameEn",
+          sp.jersey_number                    AS "jerseyNumber",
+          sp.photo_url                        AS "photoUrl",
+          sp.position,
+          st.name_zh                          AS "teamName",
+          st.name_en                          AS "teamNameEn",
+          st.logo_url                         AS "teamLogo",
+          st.external_id::text                AS "teamExternalId",
+          COUNT(DISTINCT pgs.game_id)         AS games,
+          ROUND(AVG(pgs.seconds_played / 60.0)::numeric, 1) AS mpg,
+          ROUND(AVG(pgs.pts)::numeric, 1)     AS ppg,
+          ROUND(AVG(pgs.reb)::numeric, 1)     AS rpg,
+          ROUND(AVG(pgs.ast)::numeric, 1)     AS apg,
+          ROUND(AVG(pgs.stl)::numeric, 1)     AS spg,
+          ROUND(AVG(pgs.blk)::numeric, 1)     AS bpg,
+          ROUND(AVG(pgs.tov)::numeric, 1)     AS topg,
+          ROUND(CASE WHEN SUM(pgs.fga) > 0 THEN SUM(pgs.fgm)::numeric / SUM(pgs.fga) * 100 END, 1) AS "fgPct",
+          ROUND(CASE WHEN SUM(pgs.fg3a) > 0 THEN SUM(pgs.fg3m)::numeric / SUM(pgs.fg3a) * 100 END, 1) AS "fg3Pct",
+          ROUND(CASE WHEN SUM(pgs.fta) > 0 THEN SUM(pgs.ftm)::numeric / SUM(pgs.fta) * 100 END, 1) AS "ftPct",
+          ROUND(CASE WHEN (SUM(pgs.fga) + 0.44 * SUM(pgs.fta)) > 0 THEN SUM(pgs.pts)::numeric / (2 * (SUM(pgs.fga) + 0.44 * SUM(pgs.fta))) * 100 END, 1) AS "tsPct",
+          ROUND(CASE WHEN SUM(pgs.fga) > 0 THEN (SUM(pgs.fgm) + 0.5 * SUM(pgs.fg3m))::numeric / SUM(pgs.fga) * 100 END, 1) AS "eFGPct",
+          ROUND(CASE WHEN SUM(pgs.fga) > 0 THEN SUM(pgs.fta)::numeric / SUM(pgs.fga) END, 3) AS "ftRate",
+          ROUND(CASE WHEN SUM(pgs.tov) + SUM(pgs.fga) + 0.44 * SUM(pgs.fta) > 0 THEN SUM(pgs.tov)::numeric / (SUM(pgs.tov) + SUM(pgs.fga) + 0.44 * SUM(pgs.fta)) END, 3) AS "astTovRatio",
+          ROUND(AVG(pgs.off_reb)::numeric, 1) AS "orbPerGame",
+          ROUND(AVG(pgs.def_reb)::numeric, 1) AS "drbPerGame"
+        FROM pbp_player_game_stats pgs
+        JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
+        JOIN stats_teams st ON st.id = pgs.team_id
+        WHERE 1=1 ${phaseFilter}
+        GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.jersey_number, sp.photo_url, sp.position,
+                 st.name_zh, st.name_en, st.logo_url, st.external_id
+        HAVING COUNT(DISTINCT pgs.game_id) >= 3
+      `);
+
+      // Query 2: game logs (últimos 20 partidos por jugadora)
+      const logRows = await db.execute(sql`
+        SELECT
+          pgs.player_external_id              AS "externalId",
+          pgs.game_id                         AS "gameId",
+          sg.scheduled_at                     AS "gameDate",
+          rival.name_zh                       AS "rivalName",
+          rival.name_en                       AS "rivalNameEn",
+          CASE WHEN sg.home_team_id = pgs.team_id THEN 'home' ELSE 'away' END AS location,
+          pgs.pts, pgs.reb, pgs.ast, pgs.stl, pgs.blk, pgs.tov,
+          pgs.fgm, pgs.fga, pgs.fg3m, pgs.fg3a, pgs.ftm, pgs.fta,
+          pgs.off_reb AS "offReb", pgs.def_reb AS "defReb",
+          pgs.plus_minus AS "plusMinus",
+          pgs.is_starter AS "isStart",
+          CASE WHEN pgs.seconds_played > 0 THEN LPAD((pgs.seconds_played / 60)::text, 1, '0') || ':' || LPAD((pgs.seconds_played % 60)::text, 2, '0') ELSE NULL END AS minutes,
+          sg.home_score AS "homeScore", sg.away_score AS "awayScore",
+          ROW_NUMBER() OVER (PARTITION BY pgs.player_external_id ORDER BY sg.scheduled_at DESC) AS rn
+        FROM pbp_player_game_stats pgs
+        JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        JOIN stats_teams rival ON (
+          CASE WHEN sg.home_team_id = pgs.team_id THEN sg.away_team_id ELSE sg.home_team_id END = rival.id
+        )
+        WHERE pgs.phase_type = ${phaseType}
+      `);
+
+      const summaries = (summaryRows as any).rows ?? [];
+      const logs = (logRows as any).rows ?? [];
+
+      // Group logs by player (only last 20)
+      const logsByPlayer: Record<string, any[]> = {};
+      for (const row of logs) {
+        const id = String(row.externalId);
+        if (Number(row.rn) > 20) continue;
+        if (!logsByPlayer[id]) logsByPlayer[id] = [];
+        logsByPlayer[id].push({
+          gameId: row.gameId,
+          gameDate: row.gameDate ? String(row.gameDate).slice(0, 10) : null,
+          rivalName: row.rivalName ?? null,
+          rivalNameEn: row.rivalNameEn ?? null,
+          score: row.homeScore != null && row.awayScore != null ? `${row.homeScore}-${row.awayScore}` : null,
+          minutes: row.minutes ?? null,
+          pts: Number(row.pts ?? 0),
+          reb: Number(row.reb ?? 0),
+          ast: Number(row.ast ?? 0),
+          stl: Number(row.stl ?? 0),
+          blk: Number(row.blk ?? 0),
+          tov: Number(row.tov ?? 0),
+          fgm: Number(row.fgm ?? 0), fga: Number(row.fga ?? 0),
+          tpm: Number(row.fg3m ?? 0), tpa: Number(row.fg3a ?? 0),
+          ftm: Number(row.ftm ?? 0), fta: Number(row.fta ?? 0),
+          plusMinus: Number(row.plusMinus ?? 0),
+          isStart: Boolean(row.isStart),
+          isHome: String(row.location) === "home",
+        });
+      }
+
+      // Assemble response
+      const players: Record<string, any> = {};
+      for (const r of summaries) {
+        const id = String(r.externalId);
+        players[id] = {
+          player: {
+            externalId: id,
+            nameZh: r.nameZh ?? "",
+            nameEn: r.nameEn ?? null,
+            jerseyNumber: r.jerseyNumber ?? null,
+            photoUrl: r.photoUrl ?? null,
+            position: r.position ?? null,
+            teamName: r.teamName ?? null,
+            teamNameEn: r.teamNameEn ?? null,
+            teamLogo: r.teamLogo ?? null,
+            teamExternalId: r.teamExternalId ?? null,
+            games: Number(r.games ?? 0),
+            mpg: Number(r.mpg ?? 0), ppg: Number(r.ppg ?? 0),
+            rpg: Number(r.rpg ?? 0), apg: Number(r.apg ?? 0),
+            spg: Number(r.spg ?? 0), bpg: Number(r.bpg ?? 0), topg: Number(r.topg ?? 0),
+            fgPct: r.fgPct != null ? Number(r.fgPct) : null,
+            fg3Pct: r.fg3Pct != null ? Number(r.fg3Pct) : null,
+            ftPct: r.ftPct != null ? Number(r.ftPct) : null,
+            tsPct: r.tsPct != null ? Number(r.tsPct) : null,
+            eFGPct: r.eFGPct != null ? Number(r.eFGPct) : null,
+            ftRate: r.ftRate != null ? Number(r.ftRate) : null,
+            astTovRatio: r.astTovRatio != null ? Number(r.astTovRatio) : null,
+            usagePct: null, pie: null,
+            orbPerGame: r.orbPerGame != null ? Number(r.orbPerGame) : null,
+            drbPerGame: r.drbPerGame != null ? Number(r.drbPerGame) : null,
+            homeSplit: { pts: 0, reb: 0, ast: 0 },
+            awaySplit: { pts: 0, reb: 0, ast: 0 },
+          },
+          gameLog: logsByPlayer[id] ?? [],
+        };
+      }
+
+      res.set("Cache-Control", "private, max-age=600, stale-while-revalidate=60");
+      return res.json({ players });
+    } catch (err) {
+      console.error("[stats/players/all-detail] error:", (err as any)?.message ?? err);
+      return res.json({ players: {} });
+    }
+  });
+
   app.get("/api/stats/players/combined", async (req, res) => {
     try {
       const teamId = Number(req.query.teamId);

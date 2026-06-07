@@ -249,7 +249,7 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
           const data = await apiRequest("GET", "/api/stats/players/all-detail?seasonId=2092").then(r => r.json());
           const players = data?.players ?? {};
           for (const [externalId, detail] of Object.entries(players)) {
-            queryClient.setQueryData(["stats-player-detail", externalId], detail);
+            queryClient.setQueryData(["stats-player-detail", externalId, 2092, "regular"], detail);
           }
         } catch {
           // silently ignore — prefetch is best-effort
