@@ -61,18 +61,22 @@ function sumPlayers(ps: GameBoxscorePlayer[]) {
 
 type SortKey = "pts" | "reb" | "ast" | "stl" | "blk" | "tov" | "plusMinus" | "fga" | "tpa" | "fta" | "min";
 
-const COLS: { key: SortKey; label: string; short: string }[] = [
-  { key: "pts",       label: "PTS", short: "PTS" },
-  { key: "reb",       label: "REB", short: "REB" },
-  { key: "ast",       label: "AST", short: "AST" },
-  { key: "stl",       label: "ROB", short: "ROB" },
-  { key: "blk",       label: "TAP", short: "TAP" },
-  { key: "tov",       label: "PER", short: "PER" },
-  { key: "plusMinus", label: "+/−", short: "+/−" },
-  { key: "fga",       label: "FG",  short: "FG"  },
-  { key: "tpa",       label: "3P",  short: "3P"  },
-  { key: "fta",       label: "TL",  short: "TL"  },
-];
+function getCols(locale: string): { key: SortKey; label: string; short: string }[] {
+  const es = locale === "es";
+  const zh = locale === "zh";
+  return [
+    { key: "pts",       label: "PTS",                                           short: "PTS" },
+    { key: "reb",       label: "REB",                                           short: "REB" },
+    { key: "ast",       label: es ? "ASI" : zh ? "助" : "AST",                  short: es ? "ASI" : zh ? "助" : "AST" },
+    { key: "stl",       label: es ? "ROB" : zh ? "抢" : "STL",                  short: es ? "ROB" : zh ? "抢" : "STL" },
+    { key: "blk",       label: es ? "TAP" : zh ? "盖" : "BLK",                  short: es ? "TAP" : zh ? "盖" : "BLK" },
+    { key: "tov",       label: es ? "PER" : zh ? "失" : "TOV",                  short: es ? "PER" : zh ? "失" : "TOV" },
+    { key: "plusMinus", label: "+/−",                                           short: "+/−" },
+    { key: "fga",       label: "FG",                                            short: "FG"  },
+    { key: "tpa",       label: "3P",                                            short: "3P"  },
+    { key: "fta",       label: es ? "TL" : zh ? "罚" : "FT",                    short: es ? "TL" : zh ? "罚" : "FT" },
+  ];
+}
 
 // ─── sub-components ────────────────────────────────────────────────────────────
 
@@ -90,8 +94,10 @@ function QuarterRow({ qs, score, label }: { qs: (number | null)[]; score: number
   );
 }
 
+type ColDef = { key: SortKey; label: string; short: string };
+
 function StatColHeader({ col, sortKey, onSort }: {
-  col: (typeof COLS)[number]; sortKey: SortKey; onSort: (k: SortKey) => void;
+  col: ColDef; sortKey: SortKey; onSort: (k: SortKey) => void;
 }) {
   const active = sortKey === col.key;
   return (
@@ -108,7 +114,12 @@ function StatColHeader({ col, sortKey, onSort }: {
   );
 }
 
-function PlayerRow({ p, locale, isLast }: { p: GameBoxscorePlayer; locale: string; isLast: boolean }) {
+function PlayerRow({ p, locale, cols, isLast }: {
+  p: GameBoxscorePlayer;
+  locale: string;
+  cols: ColDef[];
+  isLast: boolean;
+}) {
   const name = pickName(p.nameZh, p.nameEn, locale);
   const vals: Record<SortKey, string> = {
     pts:       String(p.pts),
@@ -142,7 +153,7 @@ function PlayerRow({ p, locale, isLast }: { p: GameBoxscorePlayer; locale: strin
           )}
         </div>
       </div>
-      {COLS.map((col) => {
+      {cols.map((col) => {
         const isPts = col.key === "pts";
         const isPM  = col.key === "plusMinus";
         return (
@@ -165,7 +176,11 @@ function PlayerRow({ p, locale, isLast }: { p: GameBoxscorePlayer; locale: strin
   );
 }
 
-function TotalsRow({ players, locale }: { players: GameBoxscorePlayer[]; locale: string }) {
+function TotalsRow({ players, locale, cols }: {
+  players: GameBoxscorePlayer[];
+  locale: string;
+  cols: ColDef[];
+}) {
   const t = sumPlayers(players);
   const vals: Record<SortKey, string> = {
     pts: String(t.pts), reb: String(t.reb), ast: String(t.ast),
@@ -183,7 +198,7 @@ function TotalsRow({ players, locale }: { players: GameBoxscorePlayer[]; locale:
           {locale === "zh" ? "合计" : "TOTAL"}
         </p>
       </div>
-      {COLS.map((col) => (
+      {cols.map((col) => (
         <span
           key={col.key}
           className={cn(
@@ -219,26 +234,19 @@ function AdvancedCard({ homePlayers, awayPlayers, homeName, awayName, locale }: 
   const h = calc(homePlayers);
   const a = calc(awayPlayers);
 
+  const es = locale === "es";
+  const zh = locale === "zh";
+
   const rows: { label: string; hVal: string; aVal: string; hBetter: boolean | null }[] = [
-    { label: "eFG%",  hVal: fmtPct(h.efgPct),  aVal: fmtPct(a.efgPct),  hBetter: h.efgPct  != null && a.efgPct  != null ? h.efgPct  > a.efgPct  : null },
-    { label: "FG%",   hVal: fmtPct(h.fgPct),   aVal: fmtPct(a.fgPct),   hBetter: h.fgPct   != null && a.fgPct   != null ? h.fgPct   > a.fgPct   : null },
-    { label: "3P%",   hVal: fmtPct(h.tpPct),   aVal: fmtPct(a.tpPct),   hBetter: h.tpPct   != null && a.tpPct   != null ? h.tpPct   > a.tpPct   : null },
-    { label: "FT%",   hVal: fmtPct(h.ftPct),   aVal: fmtPct(a.ftPct),   hBetter: h.ftPct   != null && a.ftPct   != null ? h.ftPct   > a.ftPct   : null },
-    {
-      label:   locale === "zh" ? "失误率" : "TOV%",
-      hVal:    fmtPct(h.tovPctV),
-      aVal:    fmtPct(a.tovPctV),
-      hBetter: h.tovPctV != null && a.tovPctV != null ? h.tovPctV < a.tovPctV : null,
-    },
-    {
-      label:   locale === "zh" ? "罚球率" : "FT Rate",
-      hVal:    h.ftRate != null ? h.ftRate.toFixed(2) : "—",
-      aVal:    a.ftRate != null ? a.ftRate.toFixed(2) : "—",
-      hBetter: h.ftRate != null && a.ftRate != null ? h.ftRate > a.ftRate : null,
-    },
+    { label: "eFG%",                                        hVal: fmtPct(h.efgPct),  aVal: fmtPct(a.efgPct),  hBetter: h.efgPct  != null && a.efgPct  != null ? h.efgPct  > a.efgPct  : null },
+    { label: "FG%",                                         hVal: fmtPct(h.fgPct),   aVal: fmtPct(a.fgPct),   hBetter: h.fgPct   != null && a.fgPct   != null ? h.fgPct   > a.fgPct   : null },
+    { label: "3P%",                                         hVal: fmtPct(h.tpPct),   aVal: fmtPct(a.tpPct),   hBetter: h.tpPct   != null && a.tpPct   != null ? h.tpPct   > a.tpPct   : null },
+    { label: es ? "TL%" : zh ? "罚球%" : "FT%",             hVal: fmtPct(h.ftPct),   aVal: fmtPct(a.ftPct),   hBetter: h.ftPct   != null && a.ftPct   != null ? h.ftPct   > a.ftPct   : null },
+    { label: es ? "PER%" : zh ? "失误率" : "TOV%",           hVal: fmtPct(h.tovPctV), aVal: fmtPct(a.tovPctV), hBetter: h.tovPctV != null && a.tovPctV != null ? h.tovPctV < a.tovPctV : null },
+    { label: es ? "Tasa TL" : zh ? "罚球率" : "FT Rate",    hVal: h.ftRate != null ? h.ftRate.toFixed(2) : "—", aVal: a.ftRate != null ? a.ftRate.toFixed(2) : "—", hBetter: h.ftRate != null && a.ftRate != null ? h.ftRate > a.ftRate : null },
   ];
 
-  const sectionLabel = locale === "zh" ? "进攻数据对比" : locale === "es" ? "Comparativa ofensiva" : "Shooting comparison";
+  const sectionLabel = zh ? "进攻数据对比" : es ? "Comparativa ofensiva" : "Shooting comparison";
 
   return (
     <div className="mt-4 mb-2">
@@ -277,10 +285,8 @@ interface GameBoxscoreSheetProps {
   gameId: string | null;
   locale: string;
   onClose: () => void;
-  /** Pass these to enable prev/next navigation between games */
   onPrev?: (() => void) | null;
   onNext?: (() => void) | null;
-  /** e.g. { current: 3, total: 12 } — shown as "3 / 12" in the handle area */
   gamePosition?: { current: number; total: number } | null;
 }
 
@@ -291,6 +297,9 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
 
   const es = locale === "es";
   const zh = locale === "zh";
+
+  // Locale-aware columns — computed once per locale change
+  const COLS = useMemo(() => getCols(locale), [locale]);
 
   const homePlayers = useMemo(
     () => (data?.players.filter((p) => p.teamExtId === data.game.home.extId) ?? []),
@@ -322,7 +331,6 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
   const homeQs   = g ? [g.homeQ1, g.homeQ2, g.homeQ3, g.homeQ4] : [null, null, null, null];
   const awayQs   = g ? [g.awayQ1, g.awayQ2, g.awayQ3, g.awayQ4] : [null, null, null, null];
   const homeWon  = g ? g.homeScore > g.awayScore : false;
-  const hasNav   = Boolean(onPrev || onNext);
 
   return (
     <Sheet open={Boolean(gameId)} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -333,7 +341,6 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
       >
         {/* ── Drag handle + nav ────────────────────────────── */}
         <div className="shrink-0 flex items-center justify-between px-3 pt-3 pb-1">
-          {/* Prev */}
           <button
             onClick={onPrev ?? undefined}
             disabled={!onPrev}
@@ -346,7 +353,6 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
             {es ? "Ant" : zh ? "上场" : "Prev"}
           </button>
 
-          {/* Handle + position counter */}
           <div className="flex flex-col items-center gap-1">
             <button
               onClick={onClose}
@@ -359,7 +365,6 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
             )}
           </div>
 
-          {/* Next */}
           <button
             onClick={onNext ?? undefined}
             disabled={!onNext}
@@ -464,11 +469,21 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
 
               <div>
                 {activePlayers.map((p, i) => (
-                  <PlayerRow key={p.externalId} p={p} locale={locale} isLast={i === activePlayers.length - 1} />
+                  <PlayerRow
+                    key={p.externalId}
+                    p={p}
+                    locale={locale}
+                    cols={COLS}
+                    isLast={i === activePlayers.length - 1}
+                  />
                 ))}
               </div>
 
-              <TotalsRow players={activeTeam === "home" ? homePlayers : awayPlayers} locale={locale} />
+              <TotalsRow
+                players={activeTeam === "home" ? homePlayers : awayPlayers}
+                locale={locale}
+                cols={COLS}
+              />
 
               <AdvancedCard
                 homePlayers={homePlayers}
