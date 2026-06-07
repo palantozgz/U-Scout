@@ -23,12 +23,11 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 |---|---|
 | Leer archivo Mac | `Filesystem:read_text_file` |
 | Escribir archivo completo | `filesystem:write_file` |
-| Edición quirúrgica (sin backticks SQL) | `Filesystem:edit_file` |
+| Script Python puntual | `filesystem:write_file` → `Control your Mac:osascript` |
 | Cualquier cambio en `routes.ts` | **Cursor — prompt completo** |
-| Analizar archivo grande | `Filesystem:copy_file_user_to_claude` + bash_tool |
-| Queries Supabase | `Control your Mac:osascript` + curl |
-| Comandos Mac | `Control your Mac:osascript` + Terminal do script |
-| SSH Pi | `expect` + ssh pablo@192.168.1.7 (password: skapol) |
+| Queries Supabase | `Control your Mac:osascript` + Python urllib |
+| Comandos Mac (npm, git) | `Control your Mac:osascript` |
+| SSH Pi | `/usr/bin/ssh -i /Users/palant/.ssh/pi_ucore pablo@192.168.1.7` |
 
 ### Credenciales
 ```
@@ -40,6 +39,7 @@ Pi       = 192.168.1.7  pablo  skapol
 ### Pi
 - Watchdog daemon activo (systemd) + dtparam en config.txt
 - SSD /dev/sda2, 117GB. Collector commit d51e98f.
+- Conectar con: `/usr/bin/ssh -i /Users/palant/.ssh/pi_ucore -o StrictHostKeyChecking=no pablo@192.168.1.7`
 
 ---
 
@@ -65,14 +65,6 @@ API WCBA → collector Pi → stats_pbp → possessions.ts v6.6 (Railway) → ta
 - v6.6: `phase_type` ('regular'|'playoff') en las 3 tablas derivadas
   - `PLAYOFF_PHASES = {27743, 27747, 27753, 27757}`
 
-### Columnas en tablas derivadas (SQL ya ejecutado)
-```sql
-pbp_lineup_stats:      off_fg3m, off_fga, off_fta  integer DEFAULT 0
-pbp_possessions:       phase_type text DEFAULT 'regular'
-pbp_player_game_stats: phase_type text DEFAULT 'regular'
-pbp_lineup_stats:      phase_type text DEFAULT 'regular'
-```
-
 ### Fases WCBA temporada 2092
 ```
 27172 → 132 partidos → Grupo A (liga regular)
@@ -82,53 +74,48 @@ pbp_lineup_stats:      phase_type text DEFAULT 'regular'
 
 ---
 
-## Estado DB — 2026-06-06 ✅
+## Estado DB — 2026-06-07 ✅
 
-- `pbp_audit_log`: ok=444, error=2 (partido 286 — boxscore vacío, no es bug)
+- `pbp_audit_log`: ok=444, error=2 (partido 286 — boxscore vacío, aceptado)
 - `pbp_possessions`: ~43k regular + ~5k playoff ✅
 - `pbp_player_game_stats`: poblado ✅
 - `pbp_lineup_stats`: ~6k filas ✅
-- `stats_players` name_zh IS NULL: 0 filas ✅ (roster sync resuelto)
-- Partido 286: boxscore vacío → resolución automática en próximo sync Pi
+- `stats_players name_zh IS NULL`: 0 filas ✅
+- 19 jugadoras stub insertadas (team#XXXX) — jugadoras de otros equipos sin roster sync. Se sobreescribirán con nombres reales en próximo Pi roster sync (temporada 2026-27).
 
 ---
 
 ## UI Stats — arquitectura actual
 
 ### PhaseToggle
-- Componente reutilizable: Liga | Playoff | Todo (`regular` | `playoff` | `all`)
-- **Sitio A:** encima de la lista en tab Jugadoras
-- **Sitio B:** dentro de StatsTeamSheet, antes de las tabs ficha/avanzado/etc.
-- Estado persistido en `localStorage('stats-phase-type')`, acepta 'all'
-- **NO está en la barra superior global** (solo queda el selector de temporada ahí)
-
-### Columna central dinámica en desktop (centerView)
-| Estado | Columna central |
-|---|---|
-| Jugadora desde equipo (`returnToTeamId`) | Roster compacto + ← + PhaseToggle |
-| Jugadora desde lista | Lista jugadoras con fila activa resaltada |
-| Equipo abierto | Clasificación sola (sin tabs) |
-| Por defecto | Tabs actuales (Clasificación / Jugadoras) |
-
-- `CompactRosterList`: #, nombre, PPG, RPG. Tap → cambia jugadora activa en panel derecho.
-- `useTeamDetail(returnToTeamId, …)` para el roster central (TanStack cachea, no duplica fetch).
+- Componente reutilizable: Liga | Playoff | Todo
+- Sitio A: encima lista Jugadoras · Sitio B: dentro StatsTeamSheet
+- Estado en `localStorage('stats-phase-type')`
 
 ### Multi-temporada
-- `/api/stats/seasons` deriva temporadas desde `stats_games` (status=4)
-- `SEASON_LABELS` en routes.ts cubre 2092-2095; fallback `Temp. {id}`
+- `/api/stats/seasons` deriva temporadas de `stats_games`
+- `SEASON_LABELS` en routes.ts: 2092→"2025-26", 2093→"2026-27", hasta 2095
 - Season picker UI existe con localStorage persistence
 - `effectiveSeasonId` propagado a todos los endpoints
-- Solo temporada 2092 existe actualmente; multi-season testeable cuando llegue 2026-27
+- Solo temporada 2092 existe actualmente
 
 ### GameBoxscoreSheet (`client/src/components/GameBoxscoreSheet.tsx`)
-- Score header con scores grandes y ganador resaltado
+- Score header + scores grandes + ganador resaltado
 - Quarter breakdown (Q1-Q4 + TOT)
-- Tabs Home / Away con jugadoras
-- Tabla sortable por cualquier columna (PTS, REB, AST, ROB, TAP, PER, +/−, FG, 3P, TL)
+- Tabs Home / Away
+- Tabla sortable por cualquier columna (PTS/REB/AST/ROB/TAP/PER/+−/FG/3P/TL)
 - Fila TOTAL al pie
 - Comparativa avanzada: eFG%, FG%, 3P%, FT%, TOV%, FT Rate (verde = ganador)
 - **Prev/Next navigation** entre partidos con contador "N / Total"
 - Wired en StatsPlayerSheet (sobre sortedGameLog) y StatsTeamSheet (sobre teamGameLog)
+
+### Columna central dinámica en desktop (centerView)
+- roster / playerList / standings / default según estado de selección
+
+### Nombres en U Stats
+- Roster tab: `pickName(nameZh, nameEn, locale)` — respeta locale ✅
+- Lineups: locale zh → `playerNamesZh`, es/en → `playerNamesEn` ✅
+- Fallback numeric IDs: muestra `Jug.` (es) / `球员` (zh)
 
 ---
 
@@ -136,42 +123,61 @@ pbp_lineup_stats:      phase_type text DEFAULT 'regular'
 
 Todos aceptan `?phaseType=regular|playoff|all` (default: `regular`).
 W/L en standings siempre de `stats_standings` sin filtro.
-`app.get.*lineups` → 1 resultado (línea 2927).
 
 ---
 
 ## Bugs activos
 
-**P1:**
-- Hero card "Mis estadísticas" jugadoras — `profiles` no expuesto en PostgREST público; `wcba_external_id` solo en `Stats.tsx` via profile cast. Deprioritizado P3.
+**P1 — resueltos esta sesión:**
+- iOS pantalla negra en U Stats al entrar equipo → resuelto (recharts TDZ)
+- Scroll bloqueado en editor fichas U Scout → resuelto (app-shell pattern)
+- Nombres roster no respetaban locale → resuelto
+- Lineups mostraban números → resuelto (19 stubs + fallback mejorado)
 
-**P2:**
-- `pointsByZone` 70/30 hardcodeado — pendiente shot_x/y/zone
-- Partido 286 audit error — boxscore vacío
+**P2 — pendientes:**
+- `pointsByZone` 70/30 hardcodeado — pendiente shot_x/y/zone (Fase 4 Pi)
+- Partido 286 audit error — boxscore vacío (aceptado)
+- Hero card jugadoras (`profiles` no expuesto en PostgREST) — P3 backlog
 
 ---
 
 ## Notas técnicas importantes
 
-### iOS Capacitor — recharts TDZ
+### iOS Capacitor — recharts TDZ (CRÍTICO)
 - `vite.config.ts`: recharts + d3 + victory-vendor van en `vendor-react` (mismo chunk que react).
-- Si se separan en chunk propio, recharts carga antes que react en WebKit → `Cannot access 'T' before initialization` → pantalla negra.
-- NUNCA crear un chunk separado `vendor-charts` para recharts.
+- **NUNCA crear chunk separado `vendor-charts` para recharts** → TDZ crash en iOS WebKit.
+
+### iOS Capacitor — scroll en páginas full-height
+- Patrón correcto: root div `h-[100dvh] overflow-hidden` + main `flex-1 overflow-y-auto`
+- **NUNCA usar `min-h-[100dvh]`** sin `overflow-y-auto` en el contenedor scrollable.
+- Aplicado en: `PlayerEditor.tsx`. Revisar si hay otras páginas con el mismo patrón.
 
 ### unknown end_type en pbp_possessions (~35%)
 - Causa: WCBA PBP no loguea rebote defensivo consistentemente.
-- `unknown` possessions tienen `points=0`, `shot_attempts>0` (tiro fallado sin rebote registrado).
-- No rompe PPP ni pace-segments (están en denominador con pts=0, que es correcto).
-- No hay fix disponible sin inferir rebotes desde el PBP (fuera de scope).
+- `unknown` possessions: `points=0`, `shot_attempts>0`. No rompe PPP ni pace-segments.
+
+### stats_players — jugadoras stub
+- 19 jugadoras con nombre `equipo#XXXX` o `球员#XXXX` — stubs sin nombre real.
+- Se sobreescribirán en próximo roster sync del Pi (inicio temporada 2026-27).
 
 ---
 
 ## Pendientes próxima sesión
 
-1. **T4 shot chart** — `SELECT shot_zone, COUNT(*) FROM stats_pbp WHERE shot_zone IS NOT NULL GROUP BY shot_zone` → sigue en 0 filas; pendiente Pi Fase 4
-2. **T5 bundle iOS** — sesión dedicada; i18n lazy loading + React.lazy code splitting
-3. **Revisar boxscore en prod** — verificar GameBoxscoreSheet tras deploy (prev/next, comparativa)
-4. **Pi como procesador** — arquitectura futura (eliminar dependencia Railway en reprocesados)
+### U Stats
+1. **T4 shot chart** — `shot_zone IS NOT NULL = 0 filas`. Bloqueado hasta Pi Fase 4.
+2. **Verificar boxscore en prod** — GameBoxscoreSheet: prev/next, tabs, comparativa.
+3. **GameBoxscoreSheet → Cursor prompt pendiente** — integrar en Stats.tsx si no se aplicó aún.
+
+### U Scout
+4. **ReportViewV4 → 3-slide redesign** — formato aprobado: Slide 1 = ¿Quién es?, Slide 2 = ¿Qué hará?, Slide 3 = ¿Qué hago yo?
+5. **OverridePanel** — integración frontend con Supabase (componente construido, sin wiring).
+6. **`hasReport` fix en MyScout** — prompt listo, no aplicado.
+7. **Schedule bugs**: scroll no recentra en List↔Planner toggle (P1); kebab tap=detail / long-press=edit (P1).
+
+### iOS / Bundle
+8. **T5 bundle iOS** — sesión dedicada: i18n lazy loading (−120KB) + React.lazy code splitting (−100KB) → ~290KB gzip → TestFlight.
+9. **Revisar patrón scroll iOS** en otras páginas del app (mismo patrón que PlayerEditor).
 
 ---
 
@@ -202,19 +208,20 @@ W/L en standings siempre de `stats_standings` sin filtro.
 1. `String(null) = 'null'` — filtrar playerExternalId antes de INSERT integer
 2. Railway procesa en background — esperar Supabase, no HTTP response
 3. `fast_reprocess.py` paralelo x6 correcto; seq/sync dan timeout
-4. Inventario: 1 query a `stats_games`, no paginar `stats_pbp`
-5. `phase_type` se determina en Railway al procesar
-6. `process-game-sync` timeout en Railway — no usar para diagnóstico
-7. recharts TDZ en iOS: mantener en vendor-react, nunca separar en chunk propio
+4. recharts TDZ en iOS: mantener en vendor-react, nunca separar en chunk propio
+5. iOS scroll: `min-h-[100dvh]` sin `overflow-y-auto` → scroll bloqueado en WKWebView
+6. PostgREST bulk insert: todos los objetos deben tener las mismas keys (usar null para opcionales)
+7. `Prefer: resolution=ignore-duplicates` para upserts seguros via REST
 
 ---
 
 ## Archivos clave
-- `server/routes.ts` — endpoints API
+- `server/routes.ts` — endpoints API (editar solo via Cursor)
 - `server/possessions.ts` — procesador PBP v6.6
-- `client/src/lib/stats-api.ts` — hooks (StatsPhaseType, statsPhaseQs)
-- `client/src/pages/core/Stats.tsx` — PhaseToggle, centerView, CompactRosterList
+- `client/src/lib/stats-api.ts` — hooks TanStack Query
+- `client/src/pages/core/Stats.tsx` — página principal U Stats
 - `client/src/components/GameBoxscoreSheet.tsx` — boxscore con nav prev/next
+- `client/src/pages/scout/PlayerEditor.tsx` — editor fichas U Scout
 - `scripts/fast_reprocess.py` — reprocesado canónico
 
 ## NUNCA tocar
@@ -222,25 +229,21 @@ W/L en standings siempre de `stats_standings` sin filtro.
 
 ---
 
-## Sesiones anteriores
+## Historial de sesiones
 
-### Sesión 2026-06-06 — iOS fix + Boxscore redesign + Multi-season + Nav UX
-- **iOS TDZ fix:** recharts separado en vendor-charts causaba crash WebKit; revertido a vendor-react
-- **GameBoxscoreSheet:** nuevo componente completo (score header, cuartos, tabs equipo, tabla sortable, totals, comparativa avanzada eFG%/TOV%/FTR)
-- **Prev/Next navigation:** wired en StatsPlayerSheet y StatsTeamSheet con gamePosition counter
+### Sesión 2026-06-07 — iOS fixes + Boxscore + Multi-season + Nav UX + U Scout scroll + Nombres
+- **iOS TDZ recharts:** vendor-charts eliminado, recharts absorbido en vendor-react
+- **GameBoxscoreSheet:** score header, cuartos, tabs equipo, tabla sortable, totals, comparativa avanzada, prev/next nav
 - **Multi-season labels:** SEASON_LABELS 2092-2095 en routes.ts
-- **Stats.tsx fixes iOS:** min-h fallback, bg-background explícito, null guard externalId
-- Commits: 07536a4, a10282e, 8a0757c
+- **Stats.tsx iOS:** min-h fallback, bg-background, null guard externalId
+- **PlayerEditor.tsx iOS scroll:** h-[100dvh] overflow-hidden + main overflow-y-auto
+- **Roster locale:** pickName respeta locale en tab plantilla
+- **Lineups nombres:** 19 stubs insertados + fallback Jug./球员
+- Commits: 07536a4, a10282e, 8a0757c, a906cf0, b0e5309, d354b7c
 
-### Sesión 2026-06-03 — phase_type end-to-end + UX Stats desktop
-- possessions v6.5 + v6.6 (phase_type)
-- SQL columnas añadidas
-- Reprocesado: 444 ok, 2 error (partido 286)
-- PhaseToggle contextual (sitio A: jugadoras, sitio B: team sheet)
-- Columna central dinámica: roster/playerList/standings/default según estado
-- Commits: possessions v6.6, phase_type UI, PhaseToggle + centerView
-
-### Sesión 2026-06-02 — possessions v6.3-v6.5, T1+T2+T3, watchdog Pi
+### Sesión 2026-06-06 — phase_type + UX Stats desktop + PhaseToggle + centerView
+### Sesión 2026-06-03 — possessions v6.5/v6.6, reprocesado
+### Sesión 2026-06-02 — possessions v6.3-v6.5, watchdog Pi
 ### Sesión 2026-05-31 — possessions v6.3
 ### Sesión 2026-05-30 — audit fórmulas
 ### Sesión 2026-05-27 — shotZones, infraestructura
