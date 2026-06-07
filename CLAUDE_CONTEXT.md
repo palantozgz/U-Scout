@@ -24,6 +24,7 @@ React + TypeScript + Vite · Express · Drizzle ORM · TanStack Query · shadcn/
 |---|---|
 | Leer archivo Mac | `Filesystem:read_text_file` |
 | Escribir archivo completo | `filesystem:write_file` |
+| Edit quirúrgico (no routes.ts) | `Filesystem:edit_file` |
 | Script Python puntual | `filesystem:write_file` → `Control your Mac:osascript` |
 | Cualquier cambio en `routes.ts` | **Cursor — prompt completo** |
 | Queries Supabase | `Control your Mac:osascript` + Python urllib |
@@ -81,11 +82,16 @@ API WCBA → collector Pi → stats_pbp → possessions.ts v6.6 (Railway) → ta
 - Root: `h-[100dvh] overflow-hidden flex flex-col`
 - Main scrollable: `flex-1 overflow-y-auto`
 - NUNCA `min-h-[100dvh]` sin `overflow-y-auto` en el scrollable.
-- Aplicado en: `PlayerEditor.tsx`. Verificar otras páginas con dvh.
+- Aplicado en: PlayerEditor ✅. ReportSlidesV1 usa `minHeight:"100svh"` — está contenido por App shell h-[100dvh] overflow-hidden, no es bug activo.
 
 ### PostgREST bulk insert
 - Todos los JSON deben tener las mismas keys (usar null para opcionales).
 - `Prefer: resolution=ignore-duplicates` para upserts seguros.
+
+### BackgroundPrefetcher desktop — `/api/stats/players/all-detail` FALTANTE
+- App.tsx prefetcha este endpoint en desktop para warm player detail cache.
+- El endpoint NO existe en routes.ts → falla silenciosamente (try/catch).
+- Pendiente: implementar en routes.ts (query compleja: todas las jugadoras + game log por temporada).
 
 ---
 
@@ -95,17 +101,17 @@ API WCBA → collector Pi → stats_pbp → possessions.ts v6.6 (Railway) → ta
 
 ### Rutas activas
 ```
-/coach               → CoachHome (4 contenedores: MyScout/FilmRoom/GamePlan/Personnel)
-/coach/personnel     → Personnel (canónicas + sandbox + equipos)
-/coach/my-scout      → MyScout (fichas sandbox del coach + StatsMiniChip)
-/coach/quick-scout/:id → QuickScout (wizard adaptativo 7 ramas)
-/coach/player/:id    → PlayerEditor (editor completo, iOS scroll fix ✅)
-/coach/film-room     → FilmRoom (revisión colectiva anti-bias)
-/coach/game-plan     → GamePlan (publicados al roster)
-/coach/scout/:id/review  → ReportViewV4
+/coach               → CoachHome
+/coach/personnel     → Personnel
+/coach/my-scout      → MyScout (fichas sandbox del coach + StatsMiniChip ✅)
+/coach/quick-scout/:id → QuickScout
+/coach/player/:id    → PlayerEditor (iOS scroll fix ✅)
+/coach/film-room     → FilmRoom (publicación única ✅)
+/coach/game-plan     → GamePlan
+/coach/scout/:id/review  → ReportViewV4 (OverridePanel wired ✅)
 /coach/scout/:id/preview → ReportSlidesV1
-/coach/club          → ClubManagement (4 tabs: Club/Liga/Equipo/Stats)
-/settings            → Settings (3 temas: Gamenight/Office/Oldschool)
+/coach/club          → ClubManagement
+/settings            → Settings
 ```
 
 ### Flow correcto U Scout
@@ -114,15 +120,14 @@ head_coach/badge → Personnel → crear ficha CANÓNICA
 cualquier coach  → MyScout  → edita su versión (PlayerEditor)
                  → View report (ReportViewV4) → OverridePanel → "→ Film Room"
 Film Room        → detecta discrepancias → X/Y enviaron
-                 → publica a Game Plan
+                 → ÚNICO lugar de publicación a Game Plan ✅
 Game Plan        → jugadoras ven en /player/report/:id → ReportSlidesV1
-head_coach       → puede RETIRAR ficha (vuelve a Film Room)
+head_coach       → puede RETIRAR ficha
 ```
 
 ### Motor
-- Motor v4 activo (motor-v2.1.ts renombrado). 3 slides: ¿Quién es? / ¿Qué hará? / ¿Qué hago yo?
+- Motor v4 activo. 3 slides: ¿Quién es? / ¿Qué hará? / ¿Qué hago yo?
 - `backup/motor-v2.1-pre-20260405` — rama backup, pendiente confirmar merge o descartar
-- Motor v3 diseñado teóricamente pero no implementado (inputs → outputs alto nivel)
 
 ### Schema Supabase relevante (fuera de schema.ts — no tocar)
 ```
@@ -139,29 +144,22 @@ player_stats                          (club_id, player_name, team_name, season, 
 invite_links                          (universe_id, role, code, expires_at, max_uses, use_count)
 ```
 
-### Estado real de features U Scout
+### Estado real de features U Scout — 2026-06-08
 
 | Feature | Estado |
 |---|---|
 | Motor v4 + ReportSlidesV1 (3 slides) | ✅ |
-| PlayerEditor iOS scroll | ✅ fix 2026-06-07 |
-| hasReport fix MyScout (Primary/Secondary) | ✅ ya aplicado |
-| OverridePanel.tsx (componente) | ✅ construido |
-| OverridePanel wiring con report_overrides Supabase | ❌ sin conectar |
-| ReportViewV4 simplificada (solo OverridePanel + "→ Film Room") | ❌ pendiente |
-| FilmRoom como ÚNICO lugar de publicación | ❌ pendiente |
-| Discrepancias entre coaches (inputs distintos → marcado automático) | ❌ pendiente |
-| StatsMiniChip en MyScout (3 stats → deep link /stats?player=ID) | ⚠️ componente existe, verificar wiring |
+| PlayerEditor iOS scroll | ✅ |
+| OverridePanel wired con report_overrides (GET+POST /api/players/:id/overrides) | ✅ confirmado |
+| ReportViewV4: solo OverridePanel + "→ Film Room" | ✅ confirmado |
+| FilmRoom como ÚNICO lugar de publicación | ✅ confirmado |
+| Discrepancias entre coaches (DiscrepancyPanel) | ✅ confirmado |
+| StatsMiniChip en MyScout + backend player-link | ✅ 2026-06-08 |
 | Integración U Stats → U Scout (stats WCBA en fichas rival) | ❌ sin implementar |
 | player_stats tabla: UI entrada manual stats propias | ❌ pendiente |
-| player_stats tabla: feed desde Pi (fuente WCBA para equipo propio) | ❌ pendiente |
-| QuickScout wizard 7 ramas | ⚠️ existente, estado desconocido — leer antes de tocar |
-| ClubManagement — tab Liga (leagueType, gender, level, ageCategory) | ❌ campos no existen en schema |
-| ClubManagement — tab Stats (uso staff/jugadoras, discrepancias) | ❌ pendiente |
-| Offline mode — write queue | ❌ diseñado, no implementado |
+| QuickScout wizard 7 ramas | ⚠️ existente — leer antes de tocar |
+| ClubManagement — tab Liga (leagueType, gender, level) | ❌ campos no existen en schema |
 | backup/motor-v2.1-pre-20260405 — merge/discard | ❌ pendiente decisión |
-| Favicon U Scout + logo imagen real | ❌ backlog |
-| Simple vs Pro mode (usuarios amateur) | ❌ backlog |
 
 ---
 
@@ -173,20 +171,13 @@ invite_links                          (universe_id, role, code, expires_at, max_
 
 | Feature | Estado |
 |---|---|
-| Hub view (4 cards: Defensiva/Ofensiva/ATOs/Film) | ✅ |
-| Wizard defensivo completo (v5, 12 secciones, ~41 pasos, condicionales) | ✅ |
+| Hub view (4 cards) | ✅ |
+| Wizard defensivo completo (v5, 12 secciones, ~41 pasos) | ✅ |
 | Planes guardados en localStorage | ✅ |
-| Comparador de sistemas portado al app (3 planes, traffic lights) | ❌ solo en HTML standalone |
-| Wizard ofensivo (sets, plays, transiciones) | ❌ sin implementar |
+| Wizard ofensivo | ❌ sin implementar |
 | Wizard ATOs | ❌ sin implementar |
-| Film Room stub (placeholder vídeo táctico) | ❌ sin implementar |
-| Persistencia en Supabase (actualmente localStorage) | ❌ pendiente |
-
-### Wizard defensivo v5 — secciones implementadas
-Identity · Off-Ball · Ball Screens (PnR coverage, ICE, DHO, Hot system) · Early Offense ·
-Off-Ball Screens (pin-down, back screen, flare, stagger, DHO off-ball) · Spain PnR ·
-Switch Management (rescram, X-out model Last/Next/Beaten, Barcelona zone) · Post Defense ·
-Personnel · Transition · KYP (custom opponent rules)
+| Comparador de sistemas portado al app | ❌ solo en HTML standalone |
+| Persistencia en Supabase | ❌ pendiente |
 
 ---
 
@@ -197,16 +188,8 @@ Personnel · Transition · KYP (custom opponent rules)
 ### possessions.ts v6.6
 - Playoff phases: `{27743, 27747, 27753, 27757}`
 - unknown end_type (~35%): tiros fallados sin rebote defensivo en PBP. No rompe PPP.
-- Fases WCBA 2092: 27172+27206 (regular, 192 partidos) · playoff (32)
 
-### UI Stats
-- PhaseToggle: Liga | Playoff | Todo — sitio A: jugadoras · sitio B: team sheet
-- Multi-temporada: SEASON_LABELS 2092-2095. Solo 2092 existe actualmente.
-- GameBoxscoreSheet: score header, cuartos, tabs H/A, sortable, totals, comparativa avanzada, prev/next
-- Roster tab: `pickName(nameZh, nameEn, locale)` ✅
-- Lineups: locale zh → `playerNamesZh`, es/en → `playerNamesEn` ✅
-
-### Estado real de features U Stats
+### UI Stats — estado 2026-06-08
 
 | Feature | Estado |
 |---|---|
@@ -214,12 +197,29 @@ Personnel · Transition · KYP (custom opponent rules)
 | Todas las métricas estándar (ORTG/DRTG/Pace/eFG%/PIE/USG%) | ✅ |
 | PhaseToggle liga/playoff | ✅ |
 | Multi-temporada infrastructure | ✅ |
-| GameBoxscoreSheet prev/next | ✅ 2026-06-07 |
-| StatsMiniChip en MyScout | ⚠️ verificar |
-| Bubble chart (Phase 3) | ❌ pendiente |
-| Radar comparator jugadoras (Phase 3) | ❌ pendiente |
+| GameBoxscoreSheet prev/next | ✅ |
+| GameBoxscoreSheet column labels locale-aware (STL/BLK/TOV/FT) | ✅ 2026-06-08 |
+| StatsMiniChip en MyScout + player-link endpoint | ✅ 2026-06-08 |
+| Bubble chart jugadoras (eFG% vs PPG, tamaño=partidos) | ✅ 2026-06-08 — StatsBubbleChart.tsx |
+| Radar comparator jugadoras (2 jugadoras, 6 ejes + stat table) | ✅ 2026-06-08 — StatsPlayerComparator.tsx |
+| Cache-Control en /players, /leaders, /player-link | ✅ 2026-06-08 |
 | Shot chart (Fase 4 Pi: shot_zone data) | ❌ bloqueado |
 | Hero card jugadoras (profiles tabla) | ❌ P3 backlog |
+| /api/stats/players/all-detail (prefetch bulk desktop) | ❌ endpoint no existe |
+
+### Bubble chart — detalles técnica
+- `client/src/components/StatsBubbleChart.tsx` — SVG puro, sin recharts
+- X=eFG%, Y=PPG, radio=partidos jugados, crosshairs en promedio liga
+- Toggle ☰/◉ en header de jugadoras tab
+- minGames=5 para filtrar jugadoras con poca muestra
+- Tappable: abre player sheet
+
+### Radar comparator — detalles técnica
+- `client/src/components/StatsPlayerComparator.tsx` — SVG puro, sin recharts
+- Botón "≈ Comparar" en header de jugadoras tab → Sheet bottom
+- Selector búsqueda-por-nombre para Player A y Player B
+- 2 mini radars + tabla comparativa 11 stats con indicador de ganadora por fila
+- Normalización: max de toda la liga como referencia (no percentiles)
 
 ---
 
@@ -230,10 +230,8 @@ Personnel · Transition · KYP (custom opponent rules)
 | Feature | Estado |
 |---|---|
 | MVP calendario + sesiones | ✅ |
-| Scroll recentering List↔Planner | ✅ ya aplicado |
-| Kebab landscape simplificado | ✅ ya aplicado |
-| Tap=detail / long-press=edit (grid) | ✅ |
-| Wellness standalone jugadoras (/player/wellness) | ❌ sin ruta propia |
+| Scroll recentering List↔Planner — block:"start" | ✅ 2026-06-08 |
+| Wellness standalone (/player/wellness) | ✅ ruta + componente + enlace desde Home ✅ |
 | league_matches integration | ❌ pendiente |
 | Recurring events | ❌ sin implementar |
 | Attendance modes groups/signup UI completa | ⚠️ parcial |
@@ -246,8 +244,8 @@ Personnel · Transition · KYP (custom opponent rules)
 
 | Feature | Estado |
 |---|---|
-| Player check-ins | ✅ funcional |
-| Acceso standalone (/player/wellness sin pasar por Schedule) | ❌ sin ruta |
+| Player check-ins | ✅ |
+| Standalone en /player/wellness — ruta + link desde HomeMobile + HomeDesktop | ✅ confirmado |
 | Dashboard coach (datos bienestar del equipo) | ❌ sin implementar |
 
 ---
@@ -258,39 +256,30 @@ Personnel · Transition · KYP (custom opponent rules)
 
 | Feature | Estado |
 |---|---|
-| recharts TDZ fix (vendor-react) | ✅ 2026-06-07 |
-| iOS dvh scroll fix (Scout/Home/CoachHome/ReportSlidesV1/PlayerEditor) | ✅ |
-| Bundle TestFlight <300KB (i18n lazy + React.lazy) | ❌ sesión dedicada |
-| Figma/Rive SVG logo morph | ❌ backlog |
-| Offline write queue | ❌ diseñado, no implementado |
+| recharts TDZ fix (vendor-react) | ✅ |
+| iOS dvh scroll fix | ✅ |
+| Bundle TestFlight <300KB (i18n lazy + React.lazy) | ❌ sesión dedicada pendiente |
+| /api/stats/players/all-detail para warm desktop cache | ❌ endpoint faltante |
 
 ---
 
 ## Pendientes ordenados por impacto
 
-### P0 — Bloquea flujo real de uso
-1. **ReportViewV4 + FilmRoom flow completo** — OverridePanel wiring + FilmRoom como único lugar de publicación + discrepancias entre coaches
-2. **StatsMiniChip wiring** — verificar que el chip de stats en MyScout realmente enlaza con U Stats
-
 ### P1 — Funcionalidad importante sin entregar
-3. **U Playbook — wizard ofensivo** + persistencia Supabase
-4. **player_stats UI** — entrada manual de estadísticas propias (puente U Stats ↔ U Scout)
-5. **Integración stats en fichas scout** — al editar jugadora rival, mostrar sus stats WCBA (PPG/RPG/AST/FG%) como contexto informativo
-6. **Wellness standalone** — ruta /player/wellness
-7. **U Playbook — comparador** portado desde HTML v5
+1. **U Playbook — wizard ofensivo** + persistencia Supabase (leer Playbook.tsx antes)
+2. **Integración stats en fichas scout** — al editar rival, mostrar PPG/RPG/AST/FG% como contexto
+3. **player_stats UI** — formulario entrada manual estadísticas propias (/coach/stats-entry)
+4. **/api/stats/players/all-detail** — endpoint bulk para prefetch desktop (warm player cache)
 
 ### P2 — Mejora significativa
-8. **Bundle iOS TestFlight** — sesión dedicada
-9. **U Stats Phase 3** — bubble chart + radar comparator
-10. **ClubManagement Liga tab** — leagueType, gender, level
+5. **Bundle iOS TestFlight** — sesión dedicada, objetivo ~290KB gzip desde ~510KB actual
+6. **ClubManagement Liga tab** — leagueType, gender, level, ageCategory
 
 ### P3 — Backlog
-11. **Shot chart** — bloqueado (Pi Fase 4)
-12. **Motor v3 U Scout** — outputs de alto nivel
-13. **Hero card jugadoras** (profiles PostgREST)
-14. **backup/motor-v2.1-pre-20260405** — merge o discard
-15. **Offline write queue**
-16. **Recurring events** en Schedule
+7. **Shot chart** — bloqueado (Pi Fase 4)
+8. **backup/motor-v2.1-pre-20260405** — merge o discard
+9. **Hero card jugadoras** (profiles tabla wcba_external_id)
+10. **Recurring events** en Schedule
 
 ---
 
@@ -306,14 +295,16 @@ Personnel · Transition · KYP (custom opponent rules)
 ---
 
 ## Archivos clave
-- `server/routes.ts` — API endpoints (Cursor only)
+- `server/routes.ts` — API endpoints (Cursor only, ~3600 líneas)
 - `server/possessions.ts` — PBP processor v6.6
 - `client/src/lib/stats-api.ts` — hooks TanStack Query
-- `client/src/pages/core/Stats.tsx` — U Stats (god file, leer en chunks)
-- `client/src/components/GameBoxscoreSheet.tsx` — boxscore prev/next
+- `client/src/pages/core/Stats.tsx` — U Stats (4636 líneas, leer en chunks)
+- `client/src/components/StatsBubbleChart.tsx` — bubble chart eFG% vs PPG ✅ 2026-06-08
+- `client/src/components/StatsPlayerComparator.tsx` — radar comparator ✅ 2026-06-08
+- `client/src/components/GameBoxscoreSheet.tsx` — boxscore + locale-aware cols ✅ 2026-06-08
 - `client/src/pages/scout/PlayerEditor.tsx` — editor fichas (iOS scroll fix ✅)
-- `client/src/pages/scout/ReportViewV4.tsx` — override flow pendiente
-- `client/src/pages/scout/FilmRoom.tsx` — publicación pendiente
+- `client/src/pages/scout/ReportViewV4.tsx` — override flow ✅
+- `client/src/pages/scout/FilmRoom.tsx` — publicación única ✅
 - `client/src/pages/core/Playbook.tsx` — hub + wizard defensivo
 - `client/src/pages/core/Schedule.tsx` — god file 228KB
 - `scripts/fast_reprocess.py` — reprocesado canónico
@@ -330,20 +321,27 @@ Personnel · Transition · KYP (custom opponent rules)
 4. iOS scroll → h-[100dvh]+overflow-hidden root, flex-1+overflow-y-auto main
 5. PostgREST bulk → todas las keys iguales, usar null para opcionales
 6. `Prefer: count=exact` + `Range: 0-0` → timeout en tablas grandes
-7. toISOString() → UTC, no local. Usar toLocaleDateString("sv") para fechas en China
-8. recharts debe ir en mismo chunk que react; nunca en vendor-charts separado
+7. toISOString() → UTC. Usar toLocaleDateString("sv") para fechas en China (UTC+8)
+8. CLAUDE_CONTEXT.md puede estar desactualizado — siempre leer el código real antes de asumir estado
+9. `scrollIntoView({ block: "nearest" })` no re-centra si ya visible → usar `block: "start"`
 
 ---
 
 ## Historial sesiones
 
+### 2026-06-08 — Stats Phase 3 + UX audit + bugfixes (sesión autónoma)
+- `GET /api/stats/player-link` endpoint (StatsMiniChip backend) — 52cb42d
+- `StatsBubbleChart.tsx` — eFG% vs PPG, SVG puro, toggle en jugadoras — 70d121a
+- `StatsPlayerComparator.tsx` — radar + stat table, botón Comparar — 0c19c17
+- OverridePanel.tsx TODO comment stale eliminado — 0c19c17
+- Cache-Control: /players (300s), /leaders (300s), /player-link (600s) — 0c19c17
+- GameBoxscoreSheet col labels locale-aware (STL/BLK/TOV/FT en EN/ZH) — dd3b92f
+- Schedule scroll re-center: block:"start" (fix List↔Planner) — 040276d
+- Verificaciones: T1 ReportViewV4+FilmRoom ✅ ya estaba completo, Wellness ✅ ya existía
+
 ### 2026-06-07 — iOS fixes + Boxscore + Multi-season + Nav + U Scout scroll + Nombres
-- iOS TDZ recharts resuelto (vendor-react)
-- GameBoxscoreSheet completo con prev/next nav
-- SEASON_LABELS 2092-2095
-- PlayerEditor iOS scroll (app-shell pattern)
-- Roster locale fix + lineups nombres (19 stubs insertados)
-- Commits: 07536a4, a10282e, 8a0757c, a906cf0, b0e5309, d354b7c, 1703b20
+- iOS TDZ recharts, GameBoxscoreSheet prev/next, SEASON_LABELS, PlayerEditor scroll
+- Commits: 07536a4, a10282e, 8a0757c, a906cf0, b0e5309, d354b7c, 1703b20, 1f431b6
 
 ### 2026-06-06 — phase_type + UX Stats desktop + PhaseToggle + centerView
 ### 2026-06-03 — possessions v6.5/v6.6, reprocesado 444 ok
@@ -358,8 +356,3 @@ Personnel · Transition · KYP (custom opponent rules)
 ### 2026-05-20 — StatsPlayerSheet radar + 3P volume chip
 ### 2026-05-19 — sprint D ReportSlidesV1, StatsRadar SVG puro
 ### 2026-05-12 — U Stats Fase 1-2 backend + iOS white bar ThemePlugin
-### 2026-05-08 — StatsRadar recharts + boxscore field mapping fix
-### 2026-05-05 — U Playbook defensive wizard v5, UX audit U Stats
-### 2026-05-04 — U Stats datos + sync architecture
-### 2026-05-03 — sync WCBA, Pi collector, Stats Fase 1
-### 2026-05-01 — hasReport fix, Schedule scroll+kebab, OverridePanel build
