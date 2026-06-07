@@ -1853,6 +1853,39 @@ export async function registerRoutes(
     }
   });
 
+  // ─── GET /api/stats/player-link — lookup por nombre → externalId + 3 stats ──
+  app.get("/api/stats/player-link", requireAuth, async (req, res) => {
+    const name = String(req.query.name ?? "").trim();
+    if (!name) return res.json({ externalId: null, ppg: 0, rpg: 0, apg: 0 });
+    const seasonId = Number(req.query.seasonId ?? 2092);
+    try {
+      const rows = await db.execute(sql`
+        SELECT
+          sp.external_id::text AS "externalId",
+          ROUND(AVG(pgs.pts)::numeric, 1)  AS ppg,
+          ROUND(AVG(pgs.reb)::numeric, 1)  AS rpg,
+          ROUND(AVG(pgs.ast)::numeric, 1)  AS apg
+        FROM stats_players sp
+        JOIN pbp_player_game_stats pgs ON pgs.player_external_id = sp.external_id::text
+        JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} AND pgs.phase_type = 'regular'
+        WHERE sp.name_zh = ${name} OR sp.name_en = ${name}
+        GROUP BY sp.external_id
+        LIMIT 1
+      `);
+      const row = (rows as any).rows?.[0];
+      if (!row) return res.json({ externalId: null, ppg: 0, rpg: 0, apg: 0 });
+      return res.json({
+        externalId: String(row.externalId),
+        ppg: Number(row.ppg ?? 0),
+        rpg: Number(row.rpg ?? 0),
+        apg: Number(row.apg ?? 0),
+      });
+    } catch (err) {
+      console.error("[stats/player-link] error:", (err as any)?.message ?? err);
+      return res.json({ externalId: null, ppg: 0, rpg: 0, apg: 0 });
+    }
+  });
+
   // ─── GET /api/stats/player/:externalId — pbp_player_game_stats ───────────────
   app.get("/api/stats/player/:externalId", requireAuth, async (req, res) => {
     try {
