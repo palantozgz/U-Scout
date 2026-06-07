@@ -6,6 +6,7 @@ import { ModulePageShell } from "./ModulePage";
 import { LandscapeHint, useIsLandscape } from "@/components/LandscapeHint";
 import { StatsRadar } from "@/components/StatsRadar";
 import { StatsBubbleChart } from "@/components/StatsBubbleChart";
+import { StatsPlayerComparator } from "@/components/StatsPlayerComparator";
 import { GameBoxscoreSheet } from "@/components/GameBoxscoreSheet";
 import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -364,6 +365,8 @@ export default function Stats() {
 
   // Filtro rápido de posición
   const [jugadorasDisplayMode, setJugadorasDisplayMode] = useState<"list" | "bubble">("list");
+  const [comparatorOpen, setComparatorOpen] = useState(false);
+  const [comparatorInitialA, setComparatorInitialA] = useState<import("@/lib/stats-api").PlayerSeasonStats | null>(null);
   const [jugadorasPos, setJugadorasPos] = useState<string>("");
 
   // Filtros avanzados
@@ -1263,6 +1266,13 @@ export default function Stats() {
                       </button>
                     </div>
                     <PhaseToggle phaseType={phaseType} onChange={setPhaseType} locale={locale} />
+                    <button
+                      type="button"
+                      onClick={() => { setComparatorInitialA(null); setComparatorOpen(true); }}
+                      className="h-7 px-2.5 rounded-lg border border-border bg-card text-[10px] font-black text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors shrink-0"
+                    >
+                      {es ? "≈ Comparar" : zh ? "≈ 对比" : "≈ Compare"}
+                    </button>
                   </div>
                 </div>
                 <div className="flex rounded-xl border border-border bg-muted/20 p-0.5 gap-0.5">
@@ -1439,6 +1449,18 @@ export default function Stats() {
           </Tabs>
         )}
       </div>
+
+      {/* ── Comparador sheet ── */}
+      <Sheet modal open={comparatorOpen} onOpenChange={(o) => { if (!o) setComparatorOpen(false); }}>
+        <SheetContent hideClose side="bottom" className="h-[92svh] rounded-t-2xl p-0 flex flex-col max-w-lg mx-auto w-full pb-[env(safe-area-inset-bottom)]" style={{ zIndex: 96 }}>
+          <StatsPlayerComparator
+            allPlayers={playersRaw}
+            initialA={comparatorInitialA}
+            locale={locale}
+            onClose={() => setComparatorOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
 
       <Sheet
         modal

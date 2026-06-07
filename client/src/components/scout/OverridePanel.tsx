@@ -130,7 +130,7 @@ export function OverridePanel({ playerId, coachId, locale, onOverrideChange }: O
         },
       });
       if (!res.ok) {
-        // TODO: add GET /api/players/:id/overrides on server — until then approval-status supplies rows.
+        // GET /api/players/:id/overrides exists — on error fall back to approval-status data
         return null;
       }
       return (await res.json()) as Array<{ coachId?: string; slide: string; itemKey: string; action: string }>;
