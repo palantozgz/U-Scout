@@ -898,13 +898,7 @@ export default function PlayerEditor() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <FieldLabel label={t("team")} />
-                <Select value={player.teamId} onValueChange={v => setPlayer(prev => prev ? { ...prev, teamId: v } : prev)} disabled={teams.length < 2}>
-                  <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950/50"><SelectValue /></SelectTrigger>
-                  <SelectContent>{teams.map(tm => <SelectItem key={tm.id} value={tm.id}>{tm.logo} {tm.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
+
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
