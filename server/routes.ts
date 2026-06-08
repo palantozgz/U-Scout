@@ -1703,7 +1703,7 @@ export async function registerRoutes(
         pgs.stl                                       AS steals,
         pgs.blk                                       AS blocks,
         pgs.tov                                       AS turnovers,
-        pgs.plus_minus                                AS "plusMinus"
+        COALESCE(spb.plus_minus, pgs.plus_minus)      AS "plusMinus"
       FROM pbp_player_game_stats pgs
       JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
       JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
@@ -1711,6 +1711,7 @@ export async function registerRoutes(
       JOIN stats_teams own ON own.id = pgs.team_id
       LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
       LEFT JOIN stats_teams at ON at.id = sg.away_team_id
+      LEFT JOIN stats_player_boxscores spb ON spb.game_id = pgs.game_id AND spb.player_external_id::text = pgs.player_external_id
       WHERE (sp.name_zh = ${playerName} OR sp.name_en = ${playerName})
       ORDER BY sg.scheduled_at DESC
       LIMIT 50
@@ -2060,7 +2061,7 @@ export async function registerRoutes(
           LPAD((pgs.seconds_played % 60)::text, 2, '0') AS minutes,
         pgs.pts, pgs.reb, pgs.ast, pgs.stl, pgs.blk, pgs.tov,
         pgs.fgm, pgs.fga, pgs.fg3m AS tpm, pgs.fg3a AS tpa, pgs.ftm, pgs.fta,
-        pgs.plus_minus       AS "plusMinus",
+        COALESCE(spb2.plus_minus, pgs.plus_minus) AS "plusMinus",
         pgs.is_starter       AS "isStart",
         (own.id = sg.home_team_id) AS "isHome"
       FROM pbp_player_game_stats pgs
@@ -2068,6 +2069,7 @@ export async function registerRoutes(
       LEFT JOIN stats_teams ht ON ht.id = sg.home_team_id
       LEFT JOIN stats_teams at ON at.id = sg.away_team_id
       JOIN stats_teams own ON own.id = pgs.team_id
+      LEFT JOIN stats_player_boxscores spb2 ON spb2.game_id = pgs.game_id AND spb2.player_external_id::text = pgs.player_external_id
       WHERE pgs.player_external_id = ${externalId}
       ORDER BY sg.scheduled_at DESC
       LIMIT 30
@@ -3122,7 +3124,7 @@ export async function registerRoutes(
         )
         SELECT
           CASE
-            WHEN lineup_id LIKE ${`%${playerExternalId}%`} THEN 'on'
+            WHEN lineup_id ~ ${`(^|-)${playerExternalId}(-|$)`} THEN 'on'
             ELSE 'off'
           END AS split,
           SUM(off_poss)  AS off_poss,
@@ -3212,7 +3214,7 @@ export async function registerRoutes(
           ROUND(CASE WHEN (SUM(pgs.fga) + 0.44 * SUM(pgs.fta)) > 0 THEN SUM(pgs.pts)::numeric / (2 * (SUM(pgs.fga) + 0.44 * SUM(pgs.fta))) * 100 END, 1) AS "tsPct",
           ROUND(CASE WHEN SUM(pgs.fga) > 0 THEN (SUM(pgs.fgm) + 0.5 * SUM(pgs.fg3m))::numeric / SUM(pgs.fga) * 100 END, 1) AS "eFGPct",
           ROUND(CASE WHEN SUM(pgs.fga) > 0 THEN SUM(pgs.fta)::numeric / SUM(pgs.fga) END, 3) AS "ftRate",
-          ROUND(CASE WHEN SUM(pgs.tov) + SUM(pgs.fga) + 0.44 * SUM(pgs.fta) > 0 THEN SUM(pgs.tov)::numeric / (SUM(pgs.tov) + SUM(pgs.fga) + 0.44 * SUM(pgs.fta)) END, 3) AS "astTovRatio",
+          ROUND(CASE WHEN SUM(pgs.tov) > 0 THEN SUM(pgs.ast)::numeric / SUM(pgs.tov) END, 2) AS "astTovRatio",
           ROUND(AVG(pgs.off_reb)::numeric, 1) AS "orbPerGame",
           ROUND(AVG(pgs.def_reb)::numeric, 1) AS "drbPerGame"
         FROM pbp_player_game_stats pgs
@@ -3237,7 +3239,7 @@ export async function registerRoutes(
           pgs.pts, pgs.reb, pgs.ast, pgs.stl, pgs.blk, pgs.tov,
           pgs.fgm, pgs.fga, pgs.fg3m, pgs.fg3a, pgs.ftm, pgs.fta,
           pgs.off_reb AS "offReb", pgs.def_reb AS "defReb",
-          pgs.plus_minus AS "plusMinus",
+          COALESCE(spb3.plus_minus, pgs.plus_minus) AS "plusMinus",
           pgs.is_starter AS "isStart",
           CASE WHEN pgs.seconds_played > 0 THEN LPAD((pgs.seconds_played / 60)::text, 1, '0') || ':' || LPAD((pgs.seconds_played % 60)::text, 2, '0') ELSE NULL END AS minutes,
           sg.home_score AS "homeScore", sg.away_score AS "awayScore",
@@ -3247,6 +3249,7 @@ export async function registerRoutes(
         JOIN stats_teams rival ON (
           CASE WHEN sg.home_team_id = pgs.team_id THEN sg.away_team_id ELSE sg.home_team_id END = rival.id
         )
+        LEFT JOIN stats_player_boxscores spb3 ON spb3.game_id = pgs.game_id AND spb3.player_external_id::text = pgs.player_external_id
         WHERE pgs.phase_type = ${phaseType}
       `);
 
