@@ -37,8 +37,9 @@ Claude tiene acceso completo a la máquina y debe trabajar de forma completament
 ```python
 # 1. Escribir script: filesystem:write_file → /Users/palant/Downloads/U scout/ucore/tmp_script.py
 # 2. Ejecutar: Control your Mac:osascript
-#    do shell script "cd '/Users/palant/Downloads/U scout/ucore' && python3 tmp_script.py && rm tmp_script.py"
-# IMPORTANTE: timeout 4 min en osascript — scripts con mucha red usar timeout interno o batches pequeños
+#    set r to do shell script "python3 '/path/tmp_script.py' 2>&1"; return r
+# IMPORTANTE: usar "set r to do shell script ... ; return r" — NO "do shell script ... 2>&1"
+# Scripts con mucha red: considerar dividir en chunks pequeños (timeout ~30s)
 ```
 
 ### Git — siempre vía osascript
@@ -76,6 +77,7 @@ Pi user  = pablo  Pi host = 192.168.1.7
 4. `stats_pbp.team_id` = external_id WCBA
 5. `pp.points` en `pbp_possessions` es exacto — auditado 2026-06-08: 0 discrepancia por partido
 6. La diferencia total entre `SUM(pp.points regular)` y `SUM(game scores)` = puntos de playoff excluidos del filtro `phase_type='regular'`. No es un bug.
+7. **`plus_minus` en `pbp_player_game_stats` es calculado (PBP tracking), NO oficial** — 69.5% mismatch vs boxscore. SIEMPRE usar `stats_player_boxscores.plus_minus` para PM en game logs.
 
 ---
 
@@ -172,7 +174,25 @@ player_stats, invite_links
 - Commit: `ededf5b`
 - Fórmula: ORTG = 100 × SUM(pp.points propias) / COUNT(posesiones propias). Sin boxscores.
 
-### UI Stats — estado 2026-06-08
+### Audit fórmulas — 2026-06-09 (audit completo end-to-end)
+
+**Verificado correcto ✅:**
+- pace-segments PPP incluye TOV possessions (19.6% de poss son TOV → denominador correcto)
+- fgm en pgs incluye fg3m (FG% estándar)
+- fouls poblados (77.2%) → PIE correcto
+- Solo season_id=2092 en DB → standings LEFT JOIN bug latente pero no activo
+- eFGPct, tsPct, ftRate, ORB%/DRB%, tsPct — fórmulas correctas
+- pace liga — fórmula COUNT(*) / (COUNT(DISTINCT game_id) × 2) correcto
+
+**Bugs corregidos en commit `f809a6c`:**
+1. `astTovRatio` en `/api/stats/players/all-detail` era TOV% (SUM(tov)/denominador_poss) → ahora SUM(ast)/SUM(tov) correcto
+2. `on-off` endpoint usaba `LIKE '%id%'` → 20 false positives confirmados → ahora regex `(^|-)id(-|$)`
+3. `plus_minus` en game logs de 3 endpoints usaba pgs calculado (69.5% mismatch vs boxscore) → ahora COALESCE(spb.plus_minus, pgs.plus_minus) desde stats_player_boxscores
+
+**Bug latente (no activo, una sola season):**
+- standings eFGPct usa LEFT JOIN sin filtro efectivo de season — no afecta hasta que haya datos de season 2093+
+
+### UI Stats — estado 2026-06-09
 
 | Feature | Estado |
 |---|---|
@@ -186,6 +206,9 @@ player_stats, invite_links
 | Radar comparator — StatsPlayerComparator.tsx SVG | ✅ 0c19c17 |
 | /api/stats/players/all-detail + prefetcher key fix | ✅ 2903160 |
 | Cache-Control en /players, /leaders, /player-link | ✅ |
+| astTovRatio all-detail corregido | ✅ f809a6c |
+| on-off regex (no LIKE) | ✅ f809a6c |
+| plus_minus desde boxscore (3 game log endpoints) | ✅ f809a6c |
 | Shot chart (Pi Fase 4) | ❌ bloqueado |
 
 ---
@@ -262,10 +285,27 @@ player_stats, invite_links
 10. osascript con mucha red (>30s) → timeout. Usar batches pequeños o escribir a archivo primero
 11. NUNCA mezclar fuentes de datos — pp.points para puntos, no stats_games.score
 12. La diferencia total pp.points(regular) vs game_pts incluye puntos de playoff — no es bug
+13. `plus_minus` en `pbp_player_game_stats` es calculado desde PBP tracking, NO oficial. Tasa de mismatch vs boxscore: 69.5%. SIEMPRE usar `stats_player_boxscores.plus_minus` vía COALESCE en game logs.
+14. REST cap PostgREST = 1000 rows por defecto. Paginar con `offset=` para datasets grandes. Para counts, usar `Prefer: count=exact + Range: 0-0` (puede timeout en tablas grandes → usar HEAD request).
+15. `set r to do shell script "..." ; return r` es la forma correcta de osascript con output largo. `do shell script "... 2>&1"` puede fallar con pipes o comandos complejos.
+16. LIKE '%id%' en SQL para matching de IDs numéricos → false positives si un ID es substring de otro. Usar regex `~` con `(^|-)id(-|$)`.
 
 ---
 
 ## Historial sesiones
+
+### 2026-06-09 — Audit completo end-to-end de U Stats + 3 bugfixes
+Commits pusheados:
+- `f809a6c` fix: audit stats — astTovRatio all-detail (era TOV%), on-off regex, plus_minus desde boxscore
+- `ccd635b` chore: remove audit temp scripts
+
+Audits realizados (17 endpoints leídos completos + verificación con Supabase):
+- **astTovRatio en all-detail** era TOV% en lugar de AST/TOV — CORREGIDO
+- **on-off LIKE matching** tenía 20 false positives en 326 jugadoras — CORREGIDO con regex
+- **plus_minus en pgs** es calculado desde PBP, 69.5% mismatch vs boxscore oficial — CORREGIDO con COALESCE desde stats_player_boxscores en los 3 endpoints de game log
+- **pace-segments PPP** incluye TOV possessions — CORRECTO (no era bug)
+- **fgm, eFGPct, tsPct, fouls, ORB%, DRB%** — todos correctos
+- **ORTG/DRTG, pace, PPP de liga** — correctos (verificado metodología ededf5b)
 
 ### 2026-06-08 — Sesión autónoma larga (stats audit + Phase 3 + bugfixes)
 Commits pusheados:
@@ -279,12 +319,6 @@ Commits pusheados:
 - `2903160` /api/stats/players/all-detail + prefetcher query key fix
 - `c611523` remove team selector de PlayerEditor
 - `ededf5b` ORTG/DRTG sin cross-join — metodología idéntica a league-averages ✅
-
-Audits realizados:
-- pp.points exacto: 0 discrepancia per-game (Supabase SQL Editor)
-- FT_LAST_MADE correcto — FTH11M/22M/33M son los last FTs de cada serie
-- League averages: todas correctas
-- CLAUDE_CONTEXT.md estaba mayoritariamente desactualizado — correcciones en b3bcf3b
 
 ### 2026-06-07 — iOS fixes + Boxscore + Multi-season + Nav + U Scout scroll
 ### 2026-06-06 — phase_type + UX Stats desktop + PhaseToggle + centerView
