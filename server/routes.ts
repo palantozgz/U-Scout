@@ -2322,51 +2322,52 @@ export async function registerRoutes(
     let paceEst: number | null = team.paceEst != null ? Number(team.paceEst) : null;
     let pointsByZone: { paint: number; mid: number; fg3: number; ft: number } | null = null;
     try {
-      const rtgRow = await db.execute(sql`
+      // Own possessions: puntos y conteo directos, sin cross-join
+      const ownRow = await db.execute(sql`
         SELECT
-          ROUND(100.0 * SUM(p.points) / NULLIF(COUNT(*), 0), 1) AS ortg,
-          ROUND(100.0 * SUM(op.points) / NULLIF(COUNT(op.*), 0), 1) AS drtg,
-          ROUND(SUM(p.points)::numeric / NULLIF(COUNT(*), 0), 3) AS "pppOf",
-          ROUND(SUM(op.points)::numeric / NULLIF(COUNT(op.*), 0), 3) AS "pppDef",
-          ROUND(
-            (
-              (SELECT COUNT(*) FROM pbp_possessions pp_cnt
-               JOIN stats_games sg ON sg.id = pp_cnt.game_id
-               WHERE pp_cnt.team_id = ${teamIntId}
-                 AND sg.status = 4
-                 AND sg.season_id = ${seasonId}
-                 ${phaseType === "all" ? sql`` : sql`AND pp_cnt.phase_type = ${phaseType}`})
-              +
-              (SELECT COUNT(*) FROM pbp_possessions pp_cnt
-               JOIN stats_games sg ON sg.id = pp_cnt.game_id
-               WHERE pp_cnt.team_id != ${teamIntId}
-                 ${phaseType === "all" ? sql`` : sql`AND pp_cnt.phase_type = ${phaseType}`}
-                 AND pp_cnt.game_id IN (
-                   SELECT sg2.id FROM stats_games sg2
-                   WHERE (sg2.home_team_id = ${teamIntId} OR sg2.away_team_id = ${teamIntId})
-                     AND sg2.status = 4 AND sg2.season_id = ${seasonId}
-                 ))
-            ) / 2.0
-            / NULLIF(
-              (SELECT COUNT(DISTINCT sg3.id) FROM stats_games sg3
-               WHERE (sg3.home_team_id = ${teamIntId} OR sg3.away_team_id = ${teamIntId})
-                 AND sg3.status = 4 AND sg3.season_id = ${seasonId}),
-              0),
-            1
-          ) AS "paceEst"
-        FROM pbp_possessions p
-        JOIN stats_games sg ON sg.id = p.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
-        JOIN pbp_possessions op ON op.game_id = p.game_id AND op.team_id != p.team_id
-          ${phaseType === "all" ? sql`` : sql`AND op.phase_type = ${phaseType}`}
-        WHERE p.team_id = ${teamIntId} ${phaseFilterP}
+          COUNT(*)::int               AS cnt,
+          SUM(pp.points)::int         AS pts
+        FROM pbp_possessions pp
+        JOIN stats_games sg ON sg.id = pp.game_id
+          AND sg.status = 4 AND sg.season_id = ${seasonId}
+        WHERE pp.team_id = ${teamIntId} ${phaseFilterPP}
       `);
-      const rtg = (rtgRow as any).rows?.[0] ?? {};
-      ortg   = rtg.ortg   != null ? Number(rtg.ortg)   : null;
-      drtg   = rtg.drtg   != null ? Number(rtg.drtg)   : null;
-      netRtg = ortg != null && drtg != null ? Number((ortg - drtg).toFixed(1)) : null;
-      pppOf  = rtg.pppOf  != null ? Number(rtg.pppOf)  : null;
-      pppDef = rtg.pppDef != null ? Number(rtg.pppDef) : null;
-      paceEst = rtg.paceEst != null ? Number(rtg.paceEst) : null;
+      // Opponent possessions in our games
+      const oppRow = await db.execute(sql`
+        SELECT
+          COUNT(*)::int               AS cnt,
+          SUM(pp.points)::int         AS pts
+        FROM pbp_possessions pp
+        WHERE pp.team_id != ${teamIntId}
+          ${phaseFilterPP}
+          AND pp.game_id IN (
+            SELECT sg2.id FROM stats_games sg2
+            WHERE (sg2.home_team_id = ${teamIntId} OR sg2.away_team_id = ${teamIntId})
+              AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+          )
+      `);
+      // Games played
+      const gamesRow = await db.execute(sql`
+        SELECT COUNT(DISTINCT id)::int AS cnt
+        FROM stats_games
+        WHERE (home_team_id = ${teamIntId} OR away_team_id = ${teamIntId})
+          AND status = 4 AND season_id = ${seasonId}
+      `);
+      const own  = (ownRow  as any).rows?.[0] ?? {};
+      const opp  = (oppRow  as any).rows?.[0] ?? {};
+      const gCnt = Number((gamesRow as any).rows?.[0]?.cnt ?? 0);
+      const ownCnt = Number(own.cnt ?? 0);
+      const oppCnt = Number(opp.cnt ?? 0);
+      const ownPts = Number(own.pts ?? 0);
+      const oppPts = Number(opp.pts ?? 0);
+      ortg    = ownCnt > 0 ? Math.round((100 * ownPts / ownCnt) * 10) / 10 : null;
+      drtg    = oppCnt > 0 ? Math.round((100 * oppPts / oppCnt) * 10) / 10 : null;
+      netRtg  = ortg != null && drtg != null ? Number((ortg - drtg).toFixed(1)) : null;
+      pppOf   = ownCnt > 0 ? Math.round((ownPts / ownCnt) * 1000) / 1000 : null;
+      pppDef  = oppCnt > 0 ? Math.round((oppPts / oppCnt) * 1000) / 1000 : null;
+      paceEst = (ownCnt + oppCnt) > 0 && gCnt > 0
+        ? Math.round(((ownCnt + oppCnt) / 2 / gCnt) * 10) / 10
+        : null;
     } catch (rtgErr: any) {
       console.error("[stats/team] ORTG/DRTG query failed:", rtgErr?.message ?? rtgErr);
     }
