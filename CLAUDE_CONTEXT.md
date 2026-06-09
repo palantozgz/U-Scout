@@ -294,6 +294,51 @@ player_stats, invite_links
 
 ## Historial sesiones
 
+### 2026-06-09 — Audit completo + 5 bugfixes + data corruption corregida
+
+**Commits:**
+- `f809a6c` fix: astTovRatio all-detail (TOV%→AST/TOV), on-off regex, plus_minus boxscore
+- `cf9f286` fix: game log W/L indicator usa score real (no plusMinus)
+- `26693ee` fix: pace por equipo — gCnt desde pbp_possessions con phaseFilter
+
+**Auditoría end-to-end (WCBA fuente real):**
+1. Leí 17 endpoints de routes.ts completos
+2. Llamé WCBA API `cba.net.cn` y comparé campo a campo
+3. Verifiqué consistencia interna entre todos los endpoints
+
+**Verificado correcto contra WCBA API ✅:**
+- Standings 18 equipos: W/L, PPG, OPPG exactos al decimal
+- Player boxscore: 10 partidos × 24 jugadoras = 0 mismatches en todos los campos
+- Game scores: exactos
+- stats_pbp y stats_player_boxscores: correctos
+
+**Bugs corregidos:**
+1. `astTovRatio` all-detail era TOV% → ahora AST/TOV ✅
+2. on-off LIKE → regex (20 false positives eliminados) ✅
+3. plus_minus game logs → COALESCE(boxscore, pgs) ✅
+4. W/L indicator game log → usa score real (no plusMinus) ✅
+5. pace por equipo → gCnt desde pbp_possessions con phaseFilter (no stats_games sin filtro) ✅
+
+**BUG CRÍTICO DE DATOS CORREGIDO — Possessions duplicadas phase 27206:**
+- **16 games (IDs 325-340)** tenían 2-3x posesiones duplicadas en pbp_possessions
+- Causa: el Pi collector procesó esos games múltiples veces sin DELETE previo efectivo
+- Fix: DELETE de pbp_possessions + pbp_player_game_stats + pbp_lineup_stats para esos 16 games
+- Reprocesado: `processAllPendingPossessions` se ejecuta en startup → Railway deploy triggea reprocesado
+- Phase 27172 (132 games): verificada, limpia ✅
+- Phase 27206 games 283-324 y 341-342: correctos ✅
+
+**Gap operativo (no bug de código):**
+- `stats_player_boxscores` tiene solo 21/224 partidos sincronizados
+  - Season averages NO afectadas (usan pgs, completo)
+  - GameBoxscoreSheet solo funciona para esos 21 partidos
+  - Solución pendiente: correr `syncNewPlayerBoxscores` para ~200 partidos
+
+**Lecciones de este audit:**
+- Auditar fórmulas SQL ≠ auditar valores reales en pantalla
+- Paginación REST sin ORDER BY produce duplicados → SIEMPRE usar `order=id.asc` en supa_all
+- Comparar siempre métricas relacionadas entre endpoints (pace equipo vs pace liga)
+- Llamar la fuente real (WCBA API) para verificar datos de ingest
+
 ### 2026-06-09 — Audit end-to-end contra WCBA fuente real + 4 bugfixes
 Commits:
 - `f809a6c` fix: astTovRatio all-detail (era TOV%), on-off regex, plus_minus boxscore
