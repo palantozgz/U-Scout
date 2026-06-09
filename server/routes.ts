@@ -2348,12 +2348,13 @@ export async function registerRoutes(
               AND sg2.status = 4 AND sg2.season_id = ${seasonId}
           )
       `);
-      // Games played
+      // Games played — contar DISTINCT game_ids desde pbp_possessions con el mismo phaseFilter
+      // IMPORTANTE: no usar stats_games sin filtro de fase — inflaria el denominador con partidos de playoff
       const gamesRow = await db.execute(sql`
-        SELECT COUNT(DISTINCT id)::int AS cnt
-        FROM stats_games
-        WHERE (home_team_id = ${teamIntId} OR away_team_id = ${teamIntId})
-          AND status = 4 AND season_id = ${seasonId}
+        SELECT COUNT(DISTINCT pp.game_id)::int AS cnt
+        FROM pbp_possessions pp
+        JOIN stats_games sg ON sg.id = pp.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        WHERE pp.team_id = ${teamIntId} ${phaseFilterPP}
       `);
       const own  = (ownRow  as any).rows?.[0] ?? {};
       const opp  = (oppRow  as any).rows?.[0] ?? {};
