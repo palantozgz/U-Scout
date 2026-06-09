@@ -294,18 +294,35 @@ player_stats, invite_links
 
 ## Historial sesiones
 
-### 2026-06-09 — Audit completo end-to-end de U Stats + 3 bugfixes
-Commits pusheados:
-- `f809a6c` fix: audit stats — astTovRatio all-detail (era TOV%), on-off regex, plus_minus desde boxscore
-- `ccd635b` chore: remove audit temp scripts
+### 2026-06-09 — Audit end-to-end contra WCBA fuente real + 4 bugfixes
+Commits:
+- `f809a6c` fix: astTovRatio all-detail (era TOV%), on-off regex, plus_minus boxscore
+- `ccd635b` chore: remove temp scripts
+- `88fb838` docs: CLAUDE_CONTEXT.md
+- `cf9f286` fix: game log W/L indicator usa score real en lugar de plusMinus
 
-Audits realizados (17 endpoints leídos completos + verificación con Supabase):
-- **astTovRatio en all-detail** era TOV% en lugar de AST/TOV — CORREGIDO
-- **on-off LIKE matching** tenía 20 false positives en 326 jugadoras — CORREGIDO con regex
-- **plus_minus en pgs** es calculado desde PBP, 69.5% mismatch vs boxscore oficial — CORREGIDO con COALESCE desde stats_player_boxscores en los 3 endpoints de game log
-- **pace-segments PPP** incluye TOV possessions — CORRECTO (no era bug)
-- **fgm, eFGPct, tsPct, fouls, ORB%, DRB%** — todos correctos
-- **ORTG/DRTG, pace, PPP de liga** — correctos (verificado metodología ededf5b)
+**Metodología del audit (end-to-end real):**
+1. Leí 17 endpoints de routes.ts completos
+2. Verifiqué fórmulas contra Supabase via scripts Python
+3. Llamé directamente a WCBA API `cba.net.cn` y comparé campo a campo
+
+**Verificado correcto contra fuente WCBA ✅:**
+- Standings 18 equipos: W/L, PPG, OPPG exactos al decimal
+- Player boxscore: 10 partidos × 24 jugadoras = **0 mismatches** en todos los campos (pts, fgm, fga, fg3m, fg3a, ftm, fta, reb, off_reb, def_reb, ast, stl, blk, tov, fouls, plus_minus)
+- stats_games scores: exactos
+- Season averages (PPG, RPG…) desde pbp_player_game_stats: fuente correcta
+
+**Bugs corregidos:**
+1. `astTovRatio` all-detail era TOV% → ahora AST/TOV ✅
+2. on-off LIKE → regex (20 false positives eliminados) ✅
+3. PM game logs → COALESCE(boxscore, pgs) ✅
+4. W/L indicator game log usaba plusMinus → ahora usa score real ✅
+
+**Gap operativo (no bug de código):**
+- `stats_player_boxscores` tiene solo 21/224 partidos sincronizados
+  - Season averages NO afectadas (usan pgs, completo)
+  - GameBoxscoreSheet solo funciona para esos 21 partidos
+  - Solución: correr `syncNewPlayerBoxscores` para ~200 partidos pendientes (tarea Pi)
 
 ### 2026-06-08 — Sesión autónoma larga (stats audit + Phase 3 + bugfixes)
 Commits pusheados:
