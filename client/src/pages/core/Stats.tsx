@@ -3534,6 +3534,10 @@ function StatsPlayerSheet({
                       <span className="text-right">{L.minCol}</span>
                     </div>
                     {(showAllGames ? sortedGameLog : sortedGameLog.slice(0, 10)).map((g: GameLogEntry) => {
+                      // W/L desde score real ("ownPts-oppPts" orientado); fallback a plusMinus
+                      const _sp = g.score ? g.score.split("-").map(Number) : null;
+                      const isWin  = _sp && _sp.length === 2 && !isNaN(_sp[0]) && !isNaN(_sp[1]) ? _sp[0] > _sp[1] : g.plusMinus > 0;
+                      const isLoss = _sp && _sp.length === 2 && !isNaN(_sp[0]) && !isNaN(_sp[1]) ? _sp[0] < _sp[1] : g.plusMinus < 0;
                       const date = g.gameDate
                         ? new Date(g.gameDate).toLocaleDateString(
                             locale === "zh" ? "zh-CN" : locale === "es" ? "es-ES" : "en-GB",
@@ -3547,9 +3551,9 @@ function StatsPlayerSheet({
                           onClick={() => setBoxscoreGameId(String(g.gameId))}
                           className={cn(
                             "w-full grid grid-cols-[0.5fr_1.15fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 items-center pl-2 pr-3 py-2.5 border-b border-border last:border-b-0 text-xs border-l-[3px] text-left cursor-pointer hover:bg-muted/30 transition-colors",
-                            g.plusMinus > 0
+                            isWin
                               ? "border-l-emerald-500/50"
-                              : g.plusMinus < 0
+                              : isLoss
                                 ? "border-l-red-500/40"
                                 : "border-l-transparent",
                           )}
@@ -3559,14 +3563,14 @@ function StatsPlayerSheet({
                             <span
                               className={cn(
                                 "text-[9px] font-black w-5 h-5 rounded flex items-center justify-center shrink-0",
-                                g.plusMinus > 0
+                                isWin
                                   ? "bg-emerald-500/20 text-emerald-400"
-                                  : g.plusMinus < 0
+                                  : isLoss
                                     ? "bg-red-500/15 text-red-400"
                                     : "bg-muted/30 text-muted-foreground",
                               )}
                             >
-                              {g.plusMinus > 0 ? "W" : g.plusMinus < 0 ? "L" : "—"}
+                              {isWin ? "W" : isLoss ? "L" : "—"}
                             </span>
                             <p className="font-bold text-muted-foreground/60 tabular-nums text-[9px]">{date}</p>
                           </div>
