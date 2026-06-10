@@ -339,34 +339,6 @@ player_stats, invite_links
 - Comparar siempre métricas relacionadas entre endpoints (pace equipo vs pace liga)
 - Llamar la fuente real (WCBA API) para verificar datos de ingest
 
-### 2026-06-10 — Audit end-to-end WCBA completo + 6 bugfixes + data corruption
-
-**Commits:**
-- `f809a6c` fix: astTovRatio all-detail, on-off regex, plus_minus desde boxscore
-- `cf9f286` fix: game log W/L indicator usa score real
-- `26693ee` fix: pace por equipo — gCnt desde pbp_possessions con phaseFilter
-
-**Bugs de código corregidos (6):**
-1. `astTovRatio` en all-detail era TOV% → AST/TOV ✅
-2. on-off LIKE → regex (20 false positives) ✅
-3. PM game logs → COALESCE(boxscore PM, pgs PM) ✅
-4. W/L indicator en game log → score real (no plusMinus) ✅
-5. pace por equipo: gCnt inflado con playoff → ahora usa pbp_possessions con phaseFilter ✅
-6. [operativo] 24 games con possessions 2-3x duplicadas en Supabase → borradas + re-procesadas
-
-**Data corruption — hallazgo y fix:**
-- 16 games en phase 27206 (IDs 325-340) y 8 en playoff (IDs 359, 361-364, 366-368) tenían 2-3x possessions duplicadas
-- Síntoma visible: pace por equipo variaba de 77-117 vs liga 81.6; PPG inflado 10-40 pts
-- Fix: DELETE directo vía Python → Railway deploy triggeó `processAllPendingPossessions` ✅
-- Post-fix: pace rango 77.2-86.8 vs liga 81.6 ✅; PPG todos equipos diff<1.0 ✅
-
-**Lecciones de este audit:**
-- Auditar fórmulas SQL ≠ auditar valores reales en UI
-- Paginación REST sin ORDER BY produce duplicados → SIEMPRE usar `order=id.asc` + `page=999`
-- Comparar siempre métricas relacionadas entre endpoints antes de declarar correcto
-- Supabase PostgREST cap = 1000 rows/req — `page=2000` rompe la paginación (para en 1ª página)
-- WCBA season tiene múltiples phases regulares (27172, 27206); teams distintos juegan en distintos grupos
-
 ### 2026-06-09 — Audit end-to-end contra WCBA fuente real + 4 bugfixes
 Commits:
 - `f809a6c` fix: astTovRatio all-detail (era TOV%), on-off regex, plus_minus boxscore
