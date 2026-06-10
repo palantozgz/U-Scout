@@ -376,6 +376,46 @@ Commits:
   - GameBoxscoreSheet solo funciona para esos 21 partidos
   - Solución: correr `syncNewPlayerBoxscores` para ~200 partidos pendientes (tarea Pi)
 
+### 2026-06-10 — Audit consistencia interna + corrección datos duplicados phase 27206
+Commits: `26693ee` fix: pace por equipo gCnt (anterior), más hallazgos de esta sesión.
+
+**Bug crítico encontrado por Pablo (no detectado en 2 audits previos):**
+- Pace por equipo siempre más bajo que pace de liga → bug de denominador `gCnt`
+- `gCnt` venía de `stats_games` SIN phaseFilter → incluía juegos de playoff en denominador
+- Numerador (`ownCnt`+`oppCnt`) filtrado por `phase_type='regular'` → mismatch
+- Fix: `gCnt` ahora desde `pbp_possessions` con phaseFilterPP → commit `26693ee`
+
+**Causa raíz del pace anómalo descubierta: datos duplicados en pbp_possessions**
+- 16 games de phase 27206 (IDs 325-340) tenían 2-3x filas duplicadas
+- Ejemplos: game 326 tenía 495 rows (ratio 3.28x), game 327 tenía 441 (2.86x)
+- Phase 27172 (132 games): todos correctos
+- Playoffs: datos incompletos (gap de colección Pi, no corrupción)
+- Fix: DELETE de pbp_possessions/pbp_player_game_stats/pbp_lineup_stats para 16 games
+- El server Railway los reprocessó automáticamente (processAllPendingPossessions)
+- Verificación post-fix: 16/16 games ✅, PPG poss = standings exacto en todos los equipos
+
+**Causa probable de la duplicación:** el Pi collector procesó los games 325-340 dos veces
+sin que el DELETE previo funcionara correctamente (probable restart/crash entre batches)
+
+**Estado post-fix verificado con datos reales (paginación page=900 correcta):**
+- Liga pace = 81.6 poss/game
+- Rango equipos: 77.2-86.8 (±5.2 del promedio) ✅
+- PPG poss vs standings: ≤0.2 diferencia en todos los equipos ✅
+
+**Lección de auditoría:** Los bugs de consistencia (team pace vs liga pace) solo se detectan
+comparando visualmente métricas relacionadas en la misma pantalla. SQL correcto + datos
+incorrectos en tablas derivadas = audit por código no los detecta.
+
+**Lección de paginación Python:**
+- PostgREST cap = 1000 rows siempre. `limit=2000` devuelve 1000 → loop rompe tras 1 page
+- Solución: `page=900` en supa_all → 1000 rows > 900 → loop continúa correctamente
+- Nunca usar page > 1000 en supa_all si se quieren todos los rows
+
+**Gap conocido pendiente:** playoff games (IDs 343-374) tienen poco o ningún PBP en stats_pbp
+→ La mayoría de playoff games no tienen possessions calculadas
+→ `phaseType=playoff` en U Stats mostrará datos muy incompletos
+→ Requiere verificar si el Pi collector recogió PBP durante playoffs
+
 ### 2026-06-08 — Sesión autónoma larga (stats audit + Phase 3 + bugfixes)
 Commits pusheados:
 - `52cb42d` GET /api/stats/player-link (StatsMiniChip backend)
