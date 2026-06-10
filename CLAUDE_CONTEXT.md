@@ -90,14 +90,19 @@ API WCBA → collector Pi → stats_pbp → possessions.ts v6.6 (Railway) → ta
 
 ---
 
-## Estado DB — 2026-06-08
+## Estado DB — 2026-06-10
 
 - `pbp_audit_log`: ok=444, error=2 (partido 286 aceptado)
-- `pbp_possessions`: ~34K regular + ~5K playoff ✅ pp.points auditado y correcto
+- `pbp_possessions`: ~31K regular + ~5K playoff ✅ pp.points auditado y correcto
+  - Phase 27172 (132 games): todos correctos ✅
+  - Phase 27206 (60 games): games 325-340 tenían 2-3x duplicados → borrados y reprocesados ✅
+  - Phase 27206 games 283-324 y 341-342: correctos ✅
 - `pbp_player_game_stats` + `pbp_lineup_stats`: poblados ✅
+- `stats_player_boxscores`: SOLO 21/224 partidos — season averages usan pgs (completo) ✅
 - `stats_players name_zh IS NULL`: 0 filas ✅
-- 19 jugadoras stub (team#XXXX) — sobreescribirán en próximo roster sync
 - Playoff phase IDs en season 2092: `{27743, 27747, 27753, 27757}`
+- Liga pace = 81.6 poss/game, ORTG = 99.5 (verificado post-fix)
+- Pace por equipo: 77-87 poss/game (todos dentro de ±10 del promedio liga) ✅
 
 ---
 
@@ -287,6 +292,8 @@ player_stats, invite_links
 12. La diferencia total pp.points(regular) vs game_pts incluye puntos de playoff — no es bug
 13. `plus_minus` en `pbp_player_game_stats` es calculado desde PBP tracking, NO oficial. Tasa de mismatch vs boxscore: 69.5%. SIEMPRE usar `stats_player_boxscores.plus_minus` vía COALESCE en game logs.
 14. REST cap PostgREST = 1000 rows por defecto. Paginar con `offset=` para datasets grandes. Para counts, usar `Prefer: count=exact + Range: 0-0` (puede timeout en tablas grandes → usar HEAD request).
+17. **Paginación Python via REST: SIEMPRE usar `order=id.asc` y `limit=999`, break cuando `len(chunk) < 999`**. Sin ORDER BY, páginas sucesivas pueden devolver filas duplicadas → datos inflados. Patrón correcto: `qpage(t, p, off, 999)`, incrementar offset=+999, break si chunk<999.
+18. **Duplicados en pbp_possessions**: causa = Pi collector procesando el mismo game_id múltiples veces sin DELETE efectivo. Detección: `poss_rows / (home_score + away_score) > 1.5`. Fix: DELETE todos los registros del game en las 3 tablas derivadas → `processAllPendingPossessions` los reinserta en startup.
 15. `set r to do shell script "..." ; return r` es la forma correcta de osascript con output largo. `do shell script "... 2>&1"` puede fallar con pipes o comandos complejos.
 16. LIKE '%id%' en SQL para matching de IDs numéricos → false positives si un ID es substring de otro. Usar regex `~` con `(^|-)id(-|$)`.
 
@@ -294,7 +301,7 @@ player_stats, invite_links
 
 ## Historial sesiones
 
-### 2026-06-09 — Audit completo + 5 bugfixes + data corruption corregida
+### 2026-06-10 — Audit end-to-end completo + 5 bugfixes + data corruption corregida
 
 **Commits:**
 - `f809a6c` fix: astTovRatio all-detail (TOV%→AST/TOV), on-off regex, plus_minus boxscore
