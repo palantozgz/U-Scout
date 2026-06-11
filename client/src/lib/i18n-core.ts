@@ -2,31 +2,41 @@ import { useState, useCallback, useEffect } from "react";
 import { useClubGenderValue } from "./clubGenderContext";
 import { candidateSpanishKeysForGender } from "./spanishClubGenderI18n";
 import type { ClubGender } from "@shared/club-context";
-import enBundle from "./locales/en";
+// ─── i18n-core ────────────────────────────────────────────────────────────────
+// en.ts is loaded dynamically (not statically imported) to keep it out of the
+// main bundle. On Capacitor it's a local disk read (<10ms).
+// import type gives us the key names for TypeScript without bundling the value.
+import type enBundleType from "./locales/en";
 
 export type Locale = "en" | "es" | "zh";
-export type I18nKey = keyof typeof enBundle;
+export type I18nKey = keyof typeof enBundleType;
 
-let activeBundle: Record<string, string> = { ...enBundle };
+// Runtime value — starts empty, populated by initLocale() before first render.
+let enBundle: Record<string, string> = {};
+let activeBundle: Record<string, string> = {};
 let globalLocale: Locale = "en";
 const listeners = new Set<() => void>();
 
 async function loadLocale(locale: Locale): Promise<void> {
   if (locale === "en") {
+    if (Object.keys(enBundle).length === 0) {
+      const mod = await import("./locales/en");
+      enBundle = mod.default as Record<string, string>;
+    }
     activeBundle = { ...enBundle };
   } else if (locale === "es") {
     const mod = await import("./locales/es");
-    activeBundle = mod.default;
+    activeBundle = mod.default as Record<string, string>;
   } else if (locale === "zh") {
     const mod = await import("./locales/zh");
-    activeBundle = mod.default;
+    activeBundle = mod.default as Record<string, string>;
   }
   globalLocale = locale;
   try { localStorage.setItem("uscout_locale", locale); } catch {}
   listeners.forEach(fn => fn());
 }
 
-function loadSavedLocale(): Locale {
+function readSavedLocale(): Locale {
   try {
     const saved = localStorage.getItem("uscout_locale") as Locale | null;
     if (saved && ["en", "es", "zh"].includes(saved)) return saved;
@@ -34,12 +44,23 @@ function loadSavedLocale(): Locale {
   return "en";
 }
 
-// Bootstrap: EN is sync (already imported), ES/ZH load async if needed
-const savedLocale = loadSavedLocale();
-if (savedLocale !== "en") {
-  loadLocale(savedLocale);
-} else {
-  globalLocale = "en";
+/**
+ * initLocale — must be called in main.tsx BEFORE ReactDOM.render().
+ * Loads en.ts (always needed as fallback) + the user's saved locale.
+ * On Capacitor this completes in <10ms (local disk reads).
+ */
+export async function initLocale(): Promise<void> {
+  const saved = readSavedLocale();
+  // Always load en first — it's the fallback for missing keys in other locales.
+  const enMod = await import("./locales/en");
+  enBundle = enMod.default as Record<string, string>;
+  if (saved === "en") {
+    activeBundle = { ...enBundle };
+    globalLocale = "en";
+  } else {
+    // Load saved locale on top of en
+    await loadLocale(saved);
+  }
 }
 
 function translateWithClubGender(key: string, clubGender: ClubGender | null): string {
@@ -50,8 +71,8 @@ function translateWithClubGender(key: string, clubGender: ClubGender | null): st
       : key;
   return (
     activeBundle[resolvedKey] ??
-    (enBundle as Record<string, string>)[resolvedKey] ??
-    (enBundle as Record<string, string>)[key] ??
+    enBundle[resolvedKey] ??
+    enBundle[key] ??
     key
   );
 }
@@ -59,7 +80,7 @@ function translateWithClubGender(key: string, clubGender: ClubGender | null): st
 export function setLocale(locale: Locale) { loadLocale(locale); }
 export function getLocale(): Locale { return globalLocale; }
 
-// Static t() — outside React; returns EN as fallback if locale not loaded yet
+// Static t() — outside React; returns key name as fallback if locale not loaded.
 export function t(key: I18nKey): string {
   return translateWithClubGender(key as string, null);
 }
