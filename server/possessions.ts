@@ -54,6 +54,7 @@ interface EnrichedEvent extends PbpRow {
   idx: number;
   clockSec: number;
   offense: number | null; // equipo atacante en este evento
+  isTechFT: boolean;
 }
 
 interface Possession {
@@ -386,9 +387,12 @@ export async function processPossessions(
     idx,
     clockSec: clockToSec(ev.clock),
     offense: null as number | null,
+    isTechFT: false,
   }));
 
   let lastOffense: number | null = null;
+  let inTechFT = false;
+  let techFTOffense: number | null = null;
 
   for (const ev of enriched) {
     const tid = ev.team_id;
@@ -421,18 +425,35 @@ export async function processPossessions(
         break;
 
       case 'foul':
-        if (DEFENSIVE_FOUL_CODES.has(code)) {
-          ev.offense = rival; // fouler es defensor, rival es atacante
+        if (code === 'FOLTEC') {
+          ev.offense = lastOffense;
+          inTechFT = true;
+          techFTOffense = lastOffense;
+        } else if (DEFENSIVE_FOUL_CODES.has(code)) {
+          ev.offense = rival;
+          inTechFT = false;
         } else if (OFFENSIVE_FOUL_CODES.has(code)) {
-          ev.offense = tid;   // fouler es atacante
+          ev.offense = tid;
+          inTechFT = false;
         } else {
-          ev.offense = lastOffense; // técnicas, etc.
+          ev.offense = lastOffense;
         }
         break;
 
       case 'ft_made':
       case 'ft_missed':
-        ev.offense = tid; // tirador siempre es el atacante
+        if (inTechFT && tid !== null && tid !== techFTOffense) {
+          ev.offense = techFTOffense;
+          ev.isTechFT = true;
+        } else {
+          ev.offense = tid;
+          inTechFT = false;
+          techFTOffense = null;
+        }
+        if (FT_LAST_MADE.has(code) || FT_LAST_MISS.has(code)) {
+          inTechFT = false;
+          techFTOffense = null;
+        }
         break;
 
       case 'jumpball':
@@ -593,8 +614,8 @@ export async function processPossessions(
       case 'shot_made_3':   possPts += 3; possFGA++; possFG3M++; break;
       case 'shot_missed':   possFGA++; break;
       case 'shot_missed_3': possFGA++; break;
-      case 'ft_made':       possPts++; possFTA++; break;
-      case 'ft_missed':     possFTA++; break;
+      case 'ft_made':   if (!ev.isTechFT) { possPts++; possFTA++; } break;
+      case 'ft_missed': if (!ev.isTechFT) { possFTA++; } break;
       case 'turnover':      possTOV++; break;
       case 'rebound':
         if (ev.rebound_type === 'offensive') {
@@ -644,6 +665,7 @@ export async function processPossessions(
         else if (prev.event_type === 'rebound' && prev.rebound_type === 'defensive') endType = 'shot_missed';
         else if (prev.event_type === 'steal') endType = 'turnover';
         else if (prev.event_type === 'turnover') endType = 'turnover';
+        else if (prev.event_type === 'foul' && OFFENSIVE_FOUL_CODES.has(prev.action_code ?? '')) endType = 'turnover';
         else if (prev.event_type === 'ft_missed') endType = 'ft_missed_rebound';
       }
       // startSec de la nueva posesión = clockSec del evento que cerró la anterior
