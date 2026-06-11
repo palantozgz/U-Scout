@@ -10,6 +10,7 @@ import { StatsPlayerComparator } from "@/components/StatsPlayerComparator";
 import { GameBoxscoreSheet } from "@/components/GameBoxscoreSheet";
 import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { SkeletonStats } from "@/components/SkeletonLoaders";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { useAuth } from "@/lib/useAuth";
@@ -835,11 +836,7 @@ export default function Stats() {
           </TabsList>
           )}
 
-          {showGlobalSpinner && (
-            <div className="flex justify-center py-16">
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
+          {showGlobalSpinner && <SkeletonStats />}
 
           {!showGlobalSpinner &&
             (playersQ.isError || standingsQ.isError || leadersQ.isError || seasonsQ.isError) && (

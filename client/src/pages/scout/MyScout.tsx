@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { SkeletonMyScout } from "@/components/SkeletonLoaders";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { ArrowLeft, Star, ChevronRight, Pencil } from "lucide-react";
@@ -223,9 +224,7 @@ export default function MyScout() {
   if (isLoading) {
     return (
       <div className="flex flex-col h-[100dvh] bg-background pb-16 md:pb-0">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
+        <SkeletonMyScout />
       </div>
     );
   }
