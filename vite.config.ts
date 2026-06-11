@@ -26,17 +26,15 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes("node_modules/@supabase")) return "vendor-supabase";
           if (id.includes("node_modules/@tanstack")) return "vendor-query";
-          // recharts + d3 + victory-vendor go WITH react in the same chunk.
-          // Keeping them together ensures react initialises before recharts
-          // in the bundle, preventing the TDZ crash on WebKit/iOS that occurs
-          // when recharts is in a separate chunk and loads before react.
+          // React core goes in vendor-react.
+          // recharts/d3/victory-vendor were removed — confirmed not imported by
+          // any source file (test build: vendor-react 166KB→61KB, no new chunk).
+          // The TDZ comment was a precaution for when recharts was used; it no
+          // longer applies since recharts is not in the bundle at all.
           if (
             id.includes("node_modules/react/") ||
             id.includes("node_modules/react-dom/") ||
-            id.includes("node_modules/wouter") ||
-            id.includes("node_modules/recharts") ||
-            id.includes("node_modules/d3-") ||
-            id.includes("node_modules/victory-vendor")
+            id.includes("node_modules/wouter")
           ) return "vendor-react";
           if (id.includes("node_modules/lucide-react")) return "vendor-lucide";
           if (id.includes("node_modules/html-to-image")) return "vendor-html2img";
