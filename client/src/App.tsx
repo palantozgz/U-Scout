@@ -209,16 +209,27 @@ function AuthGate() {
   );
 }
 
-/** Prefetches data for other modules in the background after auth, in priority order. */
+/**
+ * BackgroundPrefetcher — calienta el caché tras auth para que las pantallas
+ * aparezcan instantáneas la primera vez que el coach las visita.
+ *
+ * Reglas clave:
+ * 1. Los queryKey aquí deben coincidir EXACTAMENTE con los de los hooks.
+ *    Un mismatch = caché ignorado = spinner de todos modos.
+ * 2. En Capacitor, los chunks son locales — no prefetchamos JS, solo datos.
+ * 3. staleTime en prefetch debe ser ≥ al del hook para que el caché sea válido.
+ * 4. Todos los errores son silenciosos — prefetch es best-effort.
+ */
 function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: string }) {
   useEffect(() => {
     const isDesktop = window.innerWidth >= 768;
-    const phase1Delay = isDesktop ? 100 : 500;
-    const phase2Delay = isDesktop ? 400 : 2_000;
-    const phase3Delay = isDesktop ? 1_800 : 4_000;
 
-    // Phase 1: Schedule today + week — most time-sensitive
+    // ── Phase 1 (inmediato): Schedule + Players + Teams ──────────────────────
+    // En mobile era 500ms (schedule) y 2000ms (players). Ahora todo a 100ms.
+    // Razón: el coach navega a /scout en los primeros 1-2s. Necesitamos el
+    // listado de jugadores antes de que llegue ahí, no 2s después.
     const t1 = window.setTimeout(() => {
+      // Schedule: para el widget de Home
       queryClient.prefetchQuery({
         queryKey: ["schedule", "events", "today", clubId],
         queryFn: () => apiRequest("GET", `/api/schedule/events?clubId=${clubId}&range=today`).then(r => r.json()).catch(() => null),
@@ -229,11 +240,7 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
         queryFn: () => apiRequest("GET", `/api/schedule/events?clubId=${clubId}&range=week`).then(r => r.json()).catch(() => null),
         staleTime: 60_000,
       });
-      // Note: dynamic chunk prefetch skipped — unnecessary in Capacitor (local bundle)
-    }, phase1Delay);
-
-    // Phase 2: Players + teams — U Scout data
-    const t2 = window.setTimeout(async () => {
+      // Scouts y equipos propios — U Scout
       queryClient.prefetchQuery({
         queryKey: ["/api/teams", userId],
         queryFn: () => apiRequest("GET", "/api/teams").then(r => r.json()).catch(() => []),
@@ -244,51 +251,55 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
         queryFn: () => apiRequest("GET", "/api/players").then(r => r.json()).catch(() => []),
         staleTime: 600_000,
       });
-      // Bulk prefetch all player details — warms per-player cache so sheets open instantly
-      if (isDesktop) {
-        try {
-          const data = await apiRequest("GET", "/api/stats/players/all-detail?seasonId=2092").then(r => r.json());
-          const players = data?.players ?? {};
-          for (const [externalId, detail] of Object.entries(players)) {
-            queryClient.setQueryData(["stats-player-detail", externalId, 2092, "regular"], detail);
-          }
-        } catch {
-          // silently ignore — prefetch is best-effort
-        }
-      }
-    }, phase2Delay);
+    }, isDesktop ? 100 : 100); // mismo en desktop y mobile
 
-    // Phase 3: Stats chunk + seasons + player stats
-    const t3 = window.setTimeout(() => {
-      // Note: Stats chunk prefetch skipped — unnecessary in Capacitor (local bundle)
+    // ── Phase 2 (800ms): Stats básicos + seasons ─────────────────────────────
+    // IMPORTANTE: queryKey debe coincidir EXACTAMENTE con los hooks de stats-api.ts
+    // usePlayerSeasonStats  → ["/api/stats/players", phase]
+    // useStandings          → ["stats-standings", seasonId, phase]
+    // useLeagueAverages     → ["stats-league-averages-v3", seasonId, position, phase]
+    const t2 = window.setTimeout(() => {
       queryClient.prefetchQuery({
         queryKey: ["stats-seasons"],
         queryFn: () => apiRequest("GET", "/api/stats/seasons").then(r => r.json()).catch(() => ({ seasons: [] })),
         staleTime: 3_600_000,
       });
+      // Player season stats — key correcto con phaseType
       queryClient.prefetchQuery({
-        queryKey: ["/api/stats/players"],
-        queryFn: () => apiRequest("GET", "/api/stats/players").then(r => r.json()).catch(() => ({ players: [] })),
-        staleTime: 5 * 60_000,
+        queryKey: ["/api/stats/players", "regular"],
+        queryFn: () => apiRequest("GET", "/api/stats/players?phaseType=regular").then(r => r.json()).catch(() => ({ players: [] })),
+        staleTime: 7_200_000,
       });
-      // Prefetch standings — used immediately in Stats desktop panel
+      // Standings — key correcto: [name, seasonId, phaseType]
       queryClient.prefetchQuery({
-        queryKey: ["stats-standings", 2092],
-        queryFn: () => apiRequest("GET", "/api/stats/standings?seasonId=2092").then(r => r.json()).catch(() => ({ standings: [] })),
-        staleTime: 1000 * 60 * 5,
+        queryKey: ["stats-standings", 2092, "regular"],
+        queryFn: () => apiRequest("GET", "/api/stats/standings?seasonId=2092&phaseType=regular").then(r => r.json()).catch(() => ({ standings: [] })),
+        staleTime: 1_800_000,
       });
-      // Prefetch league averages — v2 key matches useLeagueAverages hook
+      // League averages — key correcto: [name, seasonId, position, phaseType]
       queryClient.prefetchQuery({
-        queryKey: ["stats-league-averages-v3", 2092, "all"],
-        queryFn: () => apiRequest("GET", "/api/stats/league-averages?seasonId=2092").then(r => r.json()).catch(() => null),
-        staleTime: 1000 * 60 * 5,
+        queryKey: ["stats-league-averages-v3", 2092, "all", "regular"],
+        queryFn: () => apiRequest("GET", "/api/stats/league-averages?seasonId=2092&phaseType=regular").then(r => r.json()).catch(() => null),
+        staleTime: 7_200_000,
       });
-    }, phase3Delay);
+    }, isDesktop ? 400 : 800);
+
+    // ── Phase 3 (desktop only): bulk player details ───────────────────────────
+    // Solo desktop — en mobile 200+ jugadoras es demasiado para calentar en background
+    const t3 = isDesktop ? window.setTimeout(async () => {
+      try {
+        const data = await apiRequest("GET", "/api/stats/players/all-detail?seasonId=2092").then(r => r.json());
+        const players = data?.players ?? {};
+        for (const [externalId, detail] of Object.entries(players)) {
+          queryClient.setQueryData(["stats-player-detail", externalId, 2092, "regular"], detail);
+        }
+      } catch { /* silently ignore */ }
+    }, 1_800) : undefined;
 
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
-      window.clearTimeout(t3);
+      if (t3) window.clearTimeout(t3);
     };
   }, [clubId, userId]);
 

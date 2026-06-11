@@ -12,7 +12,8 @@
  *
  * Nota: para eliminar el cold start por completo, configurar UptimeRobot
  * (gratis) para hacer ping a /api/ping cada 5 minutos:
- * https://uptimerobot.com → New monitor → HTTP → URL: https://u-scout-production.up.railway.app/api/ping
+ * https://uptimerobot.com → New monitor → HTTP →
+ * URL: https://u-scout-production.up.railway.app/api/ping
  */
 import { useEffect } from "react";
 
@@ -25,10 +26,15 @@ function doPing() {
   const now = Date.now();
   if (now - lastPingAt < MIN_INTERVAL_MS) return;
   lastPingAt = now;
-  // fire-and-forget — ignorar errores (si Railway está dormido, la petición
-  // misma lo despierta aunque tarde; si está activo, responde en <100ms)
+  // fire-and-forget — ignorar errores
   fetch(PING_URL, { method: "GET", credentials: "include" }).catch(() => {});
 }
+
+// Acceso a Capacitor sin imports — en builds nativos, window.Capacitor y
+// window.Capacitor.Plugins están disponibles globalmente sin necesidad de
+// importar @capacitor/app (evita error de Rollup al resolver módulo nativo).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CapApp = () => (window as any)?.Capacitor?.Plugins?.App;
 
 export function useRailwayWarmup() {
   useEffect(() => {
@@ -40,21 +46,20 @@ export function useRailwayWarmup() {
     window.addEventListener("focus", handleFocus);
 
     // Ping al reanudar en Capacitor iOS/Android
+    // Capacitor inyecta window.Capacitor.Plugins.App en native builds.
+    // No usamos import() para evitar que Rollup intente resolver el módulo.
     let removeCapacitorListener: (() => void) | undefined;
-    (async () => {
-      try {
-        // Importación dinámica — solo existe en builds Capacitor
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cap = await import("@capacitor/app" as any);
-        const handle = await cap.App.addListener(
-          "appStateChange",
-          (state: { isActive: boolean }) => { if (state.isActive) doPing(); },
-        );
-        removeCapacitorListener = () => { try { handle.remove(); } catch {} };
-      } catch {
-        // No es Capacitor — ignorar
-      }
-    })();
+    const appPlugin = CapApp();
+    if (appPlugin?.addListener) {
+      appPlugin
+        .addListener("appStateChange", (state: { isActive: boolean }) => {
+          if (state.isActive) doPing();
+        })
+        .then((handle: { remove: () => void }) => {
+          removeCapacitorListener = () => { try { handle.remove(); } catch {} };
+        })
+        .catch(() => {});
+    }
 
     return () => {
       window.removeEventListener("focus", handleFocus);
