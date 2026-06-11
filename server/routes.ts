@@ -111,6 +111,11 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   // ── Public: club invitation preview ──────────────────────────────────────
+  // ─── Keepalive ping — Railway warm-up ───────────────────────────────────────
+  app.get("/api/ping", (_req, res) => {
+    res.json({ ok: true, ts: Date.now() });
+  });
+
   app.get("/api/club/invitations/:token", async (req, res) => {
     try {
       const token = req.params.token as string;

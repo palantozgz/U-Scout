@@ -14,6 +14,7 @@ import { useClub } from "@/lib/club-api";
 import { apiRequest } from "@/lib/queryClient";
 import { type ReportOverride } from "@/lib/overrideEngine";
 import { UCoreBootSplash } from "@/components/branding/UScoutBrand";
+import { useRailwayWarmup } from "@/hooks/useRailwayWarmup";
 
 const OnboardingFlow = lazy(() => import("@/pages/OnboardingFlow"));
 const Login = lazy(() => import("@/pages/Login"));
@@ -295,6 +296,7 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
 }
 
 function ClubSecurityGate(props: { children: ReactNode }) {
+  useRailwayWarmup(); // pre-warm Railway on app focus / resume
   const { user, profile, signOut } = useAuth();
   const clubQ = useClub({ enabled: Boolean(user && profile) });
 
