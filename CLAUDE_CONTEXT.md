@@ -90,7 +90,7 @@ API WCBA → collector Pi → stats_pbp → possessions.ts v6.6 (Railway) → ta
 
 ---
 
-## Estado DB — 2026-06-10
+## Estado DB — 2026-06-12
 
 - `pbp_audit_log`: ok=444, error=2 (partido 286 aceptado)
 - `pbp_possessions`: ~31K regular + ~5K playoff ✅ pp.points auditado y correcto
@@ -108,8 +108,12 @@ API WCBA → collector Pi → stats_pbp → possessions.ts v6.6 (Railway) → ta
 
 ## Notas técnicas críticas (iOS)
 
-### recharts TDZ — NUNCA separar en chunk propio
-- `vite.config.ts`: recharts + d3 EN `vendor-react`. Chunk separado → TDZ crash WebKit.
+### recharts TDZ — RESUELTO 2026-06-12
+- recharts estaba en vendor-react por precaución TDZ pero nadie lo importaba → 104KB gzip de peso muerto
+- Eliminado de manualChunks. Ahora va automáticamente al chunk de Schedule (único importador)
+- Schedule.tsx es lazy (solo se parsea cuando el user navega ahí) → React ya inicializado → sin TDZ
+- vendor-react: 166KB → 61KB gzip. El TDZ solo ocurre si recharts carga ANTES de React.
+- Si en el futuro se importa recharts en el shell de la app → volver a añadir a vendor-react.
 
 ### Scroll en Capacitor iOS — app-shell pattern
 - Root: `h-[100dvh] overflow-hidden flex flex-col`
@@ -236,7 +240,7 @@ player_stats, invite_links
 ### P1
 1. **U Playbook wizard ofensivo** — estructura a definir con Pablo
 2. **player_stats UI** — `/coach/stats-entry`, tabla existe en Supabase, falta backend + frontend
-3. **Bundle iOS TestFlight** — objetivo ~290KB gzip (sesión dedicada)
+3. ~~**Bundle iOS TestFlight**~~ — ✅ COMPLETADO 2026-06-12 (ver sesión de performance)
 
 ### P2
 4. **ClubManagement Liga tab** — campos leagueType/gender/level no existen en schema
@@ -261,6 +265,7 @@ player_stats, invite_links
 
 ## Archivos clave
 - `server/routes.ts` — API (~3700 líneas, editar via Python)
+- `scripts/audit-precision.ts` — audit end-to-end L1/L2/L3. Correr antes de cerrar U Stats.
 - `server/possessions.ts` — PBP processor v6.6
 - `client/src/lib/stats-api.ts` — hooks TanStack Query
 - `client/src/pages/core/Stats.tsx` — U Stats (4636+ líneas, leer en chunks)
@@ -300,6 +305,55 @@ player_stats, invite_links
 ---
 
 ## Historial sesiones
+
+### 2026-06-12 — U Stats cierre definitivo + perf bundle + UX
+
+**U Stats — cierre definitivo:**
+- FOLTEC (109 eventos, 77 partidos): phantom possessions corregidas en possessions.ts
+  - `isTechFT` flag: FTs técnicos del equipo no-atacante no cambian la posesión ni acumulan possFTA/possPts
+  - FOLOFN: `endType` corregido de 'unknown' a 'turnover' (348 eventos)
+- Possessions duplicadas games 319/360/365 (race condition Pi) → borradas + reprocesadas
+  - game=365: 62 duplicados (+33 pts inflados), game=360: 10 dups, game=319: 4 dups
+- `scripts/audit-precision.ts`: script permanente de audit end-to-end
+  - L1: SUM(poss.points) == stats_games.score para TODOS los partidos (223/223 ✅)
+  - L2: FTA/TOV/REB vs pbp_audit_log
+  - L3: integridad secuencias PBP y orden de reloj
+  - Detección de possession_numbers duplicados
+  - Resultado final: 223/223 L1 OK, 446/446 L2 OK, 0 FAIL 0 WARN ✅
+- **U Stats queda cerrado** — datos verificados, audit permanente disponible
+
+**Performance bundle — commits a main:**
+- A: `/api/ping` keepalive endpoint + `useRailwayWarmup` hook (warm-on-focus/resume)
+- B: staleTime correcto por tipo de dato (30s/1min → 2h para stats) + networkMode offlineFirst
+- C: BackgroundPrefetcher timing 2000ms → 100ms + query keys corregidos (prefetch se ignoraba)
+- D: recharts/d3/victory fuera de vendor-react → vendor-react 166→61 KB gzip
+- E: i18n chain lazy (`initLocale()` en main.tsx antes de render) → index bundle 98→42 KB gzip
+- server self-ping cada 4 min (Railway no duerme en prod)
+- Skeleton screens: SkeletonMyScout + SkeletonStats (Schedule pendiente — god file 249KB)
+
+**Métricas finales:**
+- Parse eager antes del primer render: 326 KB → 224 KB gzip (-31%)
+- vendor-react: 166 → 61 KB gzip
+- index main bundle: 98 → 42 KB gzip
+- Total bundle: 710 → 709 KB (redistribuido correctamente)
+- `staleTime` correcto: stats abre instantáneo con caché, funciona sin wifi
+- Cold start: self-ping servidor + warm-on-resume en cliente + UptimeRobot (manual, ver instrucciones)
+
+**Notas técnicas nuevas:**
+- `i18n-core.ts`: `import type` para tipado, `initLocale()` async pre-carga locales antes de React
+- `main.tsx`: `await localeReady` antes de `createRoot()`, timeout 3s de seguridad
+- `BackgroundPrefetcher`: query keys DEBEN coincidir exactamente con los hooks → siempre verificar
+- Schedule skeleton: pendiente — sin loading entry point único, necesita sesión dedicada
+
+**Commits de esta sesión:**
+`5631725` U Stats audit-precision script + FOLTEC + FOLOFN + data fix games 319/360/365
+`19190f5` perf(A): Railway keepalive
+`d31de9b` perf(B): staleTime correcto + networkMode offlineFirst
+`1029dec` perf(C): BackgroundPrefetcher timing + query keys
+`7b4dc1c` perf(D): recharts/d3/victory fuera de vendor-react
+`eeec22c` perf(E): i18n locale chain lazy — index bundle 98→42 KB
+`ebd0e1d` perf(keepalive): server self-ping cada 4min
+`cdb4a77` ux: skeleton screens MyScout + Stats
 
 ### 2026-06-10 — Audit end-to-end completo + 5 bugfixes + data corruption corregida
 
