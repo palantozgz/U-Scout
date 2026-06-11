@@ -73,7 +73,7 @@ export function useClub(options?: { enabled?: boolean }) {
       };
     },
     networkMode: "offlineFirst",
-    staleTime: 5 * 60 * 1000,
+    staleTime: 24 * 60 * 60 * 1000, // 24h — club config doesn't change mid-session
     enabled: options?.enabled !== false,
   });
 }

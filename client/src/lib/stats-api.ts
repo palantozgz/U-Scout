@@ -71,8 +71,8 @@ export function usePlayerSeasonStats(phaseType?: StatsPhaseType) {
     queryKey: ["/api/stats/players", phase],
     queryFn: async (): Promise<{ players: PlayerSeasonStats[] }> =>
       (await apiRequest("GET", `/api/stats/players?${statsPhaseQs(phase)}`)).json(),
-    networkMode: "online",
-    staleTime: 60_000,
+    networkMode: "offlineFirst",
+    staleTime: 7_200_000, // 2h — season stats don't change mid-session
     retry: 0,
   });
 }
@@ -94,7 +94,7 @@ export function useGameLog(
     },
     enabled: Boolean(playerName && String(playerName).trim().length > 0),
     networkMode: "offlineFirst",
-    staleTime: 30_000,
+    staleTime: 7_200_000, // 2h — completed game logs don't change
   });
 }
 
@@ -146,8 +146,8 @@ export function useStandings(seasonId: number, phaseType?: StatsPhaseType) {
       );
       return r.json() as Promise<{ standings: StandingsRow[] }>;
     },
-    networkMode: "online",
-    staleTime: 300_000,
+    networkMode: "offlineFirst",
+    staleTime: 1_800_000, // 30min — standings update slowly
     retry: 0,
   });
 }
@@ -163,8 +163,8 @@ export function useLeaders(seasonId: number, stat: string, phaseType?: StatsPhas
       );
       return r.json() as Promise<{ leaders: LeaderRow[]; stat: string }>;
     },
-    networkMode: "online",
-    staleTime: 300_000,
+    networkMode: "offlineFirst",
+    staleTime: 1_800_000, // 30min
     retry: 0,
   });
 }
@@ -313,7 +313,7 @@ export function useTeamDetail(
       return r.json() as Promise<{ team: TeamDetail; players: TeamRosterPlayer[] }>;
     },
     enabled: Boolean(externalId),
-    staleTime: 1000 * 60 * 30,
+    staleTime: 7_200_000, // 2h — season team stats are stable
     retry: 0,
   });
 }
@@ -333,7 +333,7 @@ export function usePlayerDetail(
       return r.json() as Promise<{ player: PlayerDetail; gameLog: GameLogEntry[] }>;
     },
     enabled: Boolean(externalId),
-    staleTime: 1000 * 60 * 30,
+    staleTime: 7_200_000, // 2h — player season stats are stable
     retry: 0,
   });
 }
@@ -416,7 +416,7 @@ export function useLeagueAverages(
       const raw = (await r.json()) as Record<string, unknown>;
       return normalizeLeagueAverages(raw);
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 7_200_000, // 2h — league averages computed once per day
     retry: 0,
   });
 }
@@ -552,7 +552,7 @@ export function usePaceSegments(
       return r.json() as Promise<PaceSegments>;
     },
     enabled: Boolean(externalId),
-    staleTime: 1000 * 60 * 30,
+    staleTime: 7_200_000, // 2h
     retry: 0,
   });
 }
@@ -692,7 +692,7 @@ export function useTeamLineups(
       return { lineups: arr.map(normalizeLineupRow) };
     },
     enabled: Boolean(teamExternalId),
-    staleTime: 1000 * 60 * 30,
+    staleTime: 7_200_000, // 2h
     retry: 0,
   });
 }
@@ -750,7 +750,7 @@ export function usePlayerOnOff(
       return { onOff };
     },
     enabled: Boolean(teamExternalId && playerId),
-    staleTime: 1000 * 60 * 30,
+    staleTime: 7_200_000, // 2h
     retry: 0,
   });
 }
@@ -786,7 +786,7 @@ export function usePlayersCombinedLineups(
       return r.json() as Promise<CombinedLineupsResult>;
     },
     enabled: Boolean(teamExternalId && playerIds && playerIds.length >= 2),
-    staleTime: 1000 * 60 * 30,
+    staleTime: 7_200_000, // 2h
     retry: 0,
   });
 }
