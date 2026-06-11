@@ -67,5 +67,22 @@ export function log(message: string, source = "express") {
         );
       });
     }, 5000); // 5s delay to let DB connections stabilize
+
+    // Self-ping keepalive — prevents Railway from sleeping the instance.
+    // Railway Hobby tier sleeps after ~30min of inactivity. A self-ping every
+    // 4min keeps the instance warm without requiring an external service.
+    // Only runs in production to avoid noise in development.
+    if (process.env.NODE_ENV === 'production') {
+      const selfUrl = process.env.RAILWAY_STATIC_URL
+        ?? process.env.RAILWAY_PUBLIC_DOMAIN
+        ?? null;
+      if (selfUrl) {
+        const pingUrl = `https://${selfUrl}/api/ping`;
+        setInterval(() => {
+          fetch(pingUrl).catch(() => {}); // fire-and-forget, errors silenced
+        }, 4 * 60 * 1000); // every 4 minutes
+        log(`[keepalive] self-ping active → ${pingUrl}`);
+      }
+    }
   });
 })();
