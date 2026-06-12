@@ -2383,7 +2383,7 @@ export async function registerRoutes(
     // ── TEAM GAME LOG ────────────────────────────────────────────────────────
     const gameLogRow = await db.execute(sql`
       SELECT
-        sg.id::text AS "gameId",
+        sg.external_game_id::text AS "gameId",
         sg.scheduled_at::text AS "date",
         (sg.home_team_id = tr.id) AS "isHome",
         CASE WHEN sg.home_team_id = tr.id THEN opp.external_id::text ELSE hm.external_id::text END AS "opponentId",

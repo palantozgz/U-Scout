@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGameBoxscore, type GameBoxscorePlayer } from "@/lib/stats-api";
 
@@ -427,16 +427,19 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
               {es ? "Ant" : zh ? "上场" : "Prev"}
             </button>
 
-            <div className="flex flex-col items-center gap-1">
-              <button
-                onClick={onClose}
-                className="w-8 h-1 rounded-full bg-border hover:bg-muted-foreground/40 transition-colors"
-              />
+            <div className="flex items-center gap-3">
               {gamePosition && (
                 <span className="text-[9px] text-muted-foreground tabular-nums">
                   {gamePosition.current} / {gamePosition.total}
                 </span>
               )}
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center w-7 h-7 rounded-full bg-muted/40 hover:bg-muted/70 transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
             </div>
 
             <button
