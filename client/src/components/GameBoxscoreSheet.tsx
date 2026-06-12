@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Drawer } from "vaul";
 import { useGameBoxscore, type GameBoxscorePlayer } from "@/lib/stats-api";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -290,15 +290,47 @@ interface GameBoxscoreSheetProps {
   gamePosition?: { current: number; total: number } | null;
 }
 
+/**
+ * Custom drawer implementation — NO Radix Dialog, NO Vaul, NO aria-hidden manipulation.
+ *
+ * Uses React.createPortal to render into document.body with explicit
+ * touch-action:auto + pointer-events:auto, avoiding the WKWebView iOS freeze
+ * caused by Radix Dialog's aria-hidden="#root" when a portal opens.
+ *
+ * The drawer slides up from the bottom with a CSS transition on the transform
+ * property. No external scroll-lock libraries: the backdrop onClick handles close,
+ * and the app shell already prevents body scroll.
+ */
 export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gamePosition }: GameBoxscoreSheetProps) {
   const { data, isLoading } = useGameBoxscore(gameId);
   const [activeTeam, setActiveTeam] = useState<"home" | "away">("home");
   const [sortKey, setSortKey] = useState<SortKey>("pts");
+  const [visible, setVisible] = useState(false);
+  const prevGameId = useRef<string | null>(null);
+
+  // Drive CSS slide-up transition
+  useEffect(() => {
+    if (gameId) {
+      // Small rAF delay so the element is mounted before we set visible=true
+      const id = requestAnimationFrame(() => setVisible(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVisible(false);
+    }
+  }, [gameId]);
+
+  // Reset team tab when a different game is opened
+  useEffect(() => {
+    if (gameId && gameId !== prevGameId.current) {
+      setActiveTeam("home");
+      setSortKey("pts");
+      prevGameId.current = gameId;
+    }
+  }, [gameId]);
 
   const es = locale === "es";
   const zh = locale === "zh";
 
-  // Locale-aware columns — computed once per locale change
   const COLS = useMemo(() => getCols(locale), [locale]);
 
   const homePlayers = useMemo(
@@ -332,177 +364,215 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
   const awayQs   = g ? [g.awayQ1, g.awayQ2, g.awayQ3, g.awayQ4] : [null, null, null, null];
   const homeWon  = g ? g.homeScore > g.awayScore : false;
 
-  return (
-    <Drawer.Root
-      open={Boolean(gameId)}
-      onOpenChange={(o) => { if (!o) onClose(); }}
-      dismissible
+  // Don't mount the portal at all when closed
+  if (!gameId) return null;
+
+  const drawer = (
+    <div
+      // Outer wrapper: covers the full viewport, captures no touches itself
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100,
+        touchAction: "auto",
+        pointerEvents: "auto",
+      }}
     >
-      <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/80" />
-        <Drawer.Content
-          className="fixed inset-x-0 bottom-0 z-50 h-[92dvh] min-h-[70%] flex flex-col p-0 pb-[env(safe-area-inset-bottom)] bg-background border-t border-border outline-none md:ml-12 lg:ml-48"
-        >
-          <div className="flex flex-col flex-1 overflow-hidden min-h-0">
-            {/* ── Drag handle + nav ────────────────────────────── */}
-            <div className="shrink-0 flex items-center justify-between px-3 pt-3 pb-1">
-              <button
-                onClick={onPrev ?? undefined}
-                disabled={!onPrev}
-                className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide transition-colors",
-                  onPrev ? "text-muted-foreground hover:text-foreground hover:bg-muted/30" : "invisible",
-                )}
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                {es ? "Ant" : zh ? "上场" : "Prev"}
-              </button>
+      {/* Backdrop — tap to close */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0,0,0,0.8)",
+          transition: "opacity 300ms ease",
+          opacity: visible ? 1 : 0,
+        }}
+        onClick={onClose}
+      />
 
-              <div className="flex flex-col items-center gap-1">
-                <button
-                  onClick={onClose}
-                  className="w-8 h-1 rounded-full bg-border hover:bg-muted-foreground/40 transition-colors"
-                />
-                {gamePosition && (
-                  <span className="text-[9px] text-muted-foreground tabular-nums">
-                    {gamePosition.current} / {gamePosition.total}
-                  </span>
-                )}
-              </div>
+      {/* Sheet content — slides up */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: "92dvh",
+          minHeight: "70%",
+          display: "flex",
+          flexDirection: "column",
+          background: "var(--color-background)",
+          borderTop: "1px solid var(--color-border)",
+          transition: "transform 300ms cubic-bezier(0.32,0.72,0,1)",
+          transform: visible ? "translateY(0)" : "translateY(100%)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+          touchAction: "auto",
+          pointerEvents: "auto",
+        }}
+        // Prevent backdrop click from firing when tapping on sheet content
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex flex-col flex-1 overflow-hidden min-h-0 md:ml-12 lg:ml-48">
+          {/* ── Drag handle + nav ────────────────────────────── */}
+          <div className="shrink-0 flex items-center justify-between px-3 pt-3 pb-1">
+            <button
+              onClick={onPrev ?? undefined}
+              disabled={!onPrev}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide transition-colors",
+                onPrev ? "text-muted-foreground hover:text-foreground hover:bg-muted/30" : "invisible",
+              )}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              {es ? "Ant" : zh ? "上场" : "Prev"}
+            </button>
 
+            <div className="flex flex-col items-center gap-1">
               <button
-                onClick={onNext ?? undefined}
-                disabled={!onNext}
-                className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide transition-colors",
-                  onNext ? "text-muted-foreground hover:text-foreground hover:bg-muted/30" : "invisible",
-                )}
-              >
-                {es ? "Sig" : zh ? "下场" : "Next"}
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+                onClick={onClose}
+                className="w-8 h-1 rounded-full bg-border hover:bg-muted-foreground/40 transition-colors"
+              />
+              {gamePosition && (
+                <span className="text-[9px] text-muted-foreground tabular-nums">
+                  {gamePosition.current} / {gamePosition.total}
+                </span>
+              )}
             </div>
 
-            {/* ── Score header ─────────────────────────────────── */}
-            <div className="shrink-0 bg-card border-b border-border px-3 pb-2">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex-1 text-left">
-                  <p className={cn("text-[11px] font-black uppercase tracking-wide truncate",
-                    homeWon ? "text-foreground" : "text-muted-foreground")}>
-                    {homeName}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={cn("text-3xl font-black tabular-nums leading-none",
-                    homeWon ? "text-foreground" : "text-muted-foreground")}>
-                    {g?.homeScore ?? "—"}
-                  </span>
-                  <span className="text-sm text-muted-foreground font-light">–</span>
-                  <span className={cn("text-3xl font-black tabular-nums leading-none",
-                    !homeWon ? "text-foreground" : "text-muted-foreground")}>
-                    {g?.awayScore ?? "—"}
-                  </span>
-                </div>
-                <div className="flex-1 text-right">
-                  <p className={cn("text-[11px] font-black uppercase tracking-wide truncate",
-                    !homeWon ? "text-foreground" : "text-muted-foreground")}>
-                    {awayName}
-                  </p>
-                </div>
-              </div>
+            <button
+              onClick={onNext ?? undefined}
+              disabled={!onNext}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide transition-colors",
+                onNext ? "text-muted-foreground hover:text-foreground hover:bg-muted/30" : "invisible",
+              )}
+            >
+              {es ? "Sig" : zh ? "下场" : "Next"}
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-              {g?.homeQ1 != null && (
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-0">
-                    <span className="w-20" />
-                    {["Q1","Q2","Q3","Q4"].map((q) => (
-                      <span key={q} className="w-8 text-center text-[9px] font-black text-muted-foreground/50 uppercase">{q}</span>
-                    ))}
-                    <span className="w-10 text-center text-[9px] font-black text-muted-foreground/50 uppercase">
-                      {es ? "TOT" : zh ? "总" : "TOT"}
+          {/* ── Score header ─────────────────────────────────── */}
+          <div className="shrink-0 bg-card border-b border-border px-3 pb-2">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex-1 text-left">
+                <p className={cn("text-[11px] font-black uppercase tracking-wide truncate",
+                  homeWon ? "text-foreground" : "text-muted-foreground")}>
+                  {homeName}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={cn("text-3xl font-black tabular-nums leading-none",
+                  homeWon ? "text-foreground" : "text-muted-foreground")}>
+                  {g?.homeScore ?? "—"}
+                </span>
+                <span className="text-sm text-muted-foreground font-light">–</span>
+                <span className={cn("text-3xl font-black tabular-nums leading-none",
+                  !homeWon ? "text-foreground" : "text-muted-foreground")}>
+                  {g?.awayScore ?? "—"}
+                </span>
+              </div>
+              <div className="flex-1 text-right">
+                <p className={cn("text-[11px] font-black uppercase tracking-wide truncate",
+                  !homeWon ? "text-foreground" : "text-muted-foreground")}>
+                  {awayName}
+                </p>
+              </div>
+            </div>
+
+            {g?.homeQ1 != null && (
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-0">
+                  <span className="w-20" />
+                  {["Q1","Q2","Q3","Q4"].map((q) => (
+                    <span key={q} className="w-8 text-center text-[9px] font-black text-muted-foreground/50 uppercase">{q}</span>
+                  ))}
+                  <span className="w-10 text-center text-[9px] font-black text-muted-foreground/50 uppercase">
+                    {es ? "TOT" : zh ? "总" : "TOT"}
+                  </span>
+                </div>
+                <QuarterRow qs={homeQs} score={g.homeScore} label={homeName} />
+                <QuarterRow qs={awayQs} score={g.awayScore} label={awayName} />
+              </div>
+            )}
+          </div>
+
+          {/* ── Team tabs ─────────────────────────────────────── */}
+          <div className="shrink-0 flex border-b border-border">
+            {(["home", "away"] as const).map((t) => {
+              const name  = t === "home" ? homeName : awayName;
+              const active = activeTeam === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => setActiveTeam(t)}
+                  className={cn(
+                    "flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors relative",
+                    active ? "text-foreground" : "text-muted-foreground hover:text-foreground/70",
+                  )}
+                >
+                  {name}
+                  {active && <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary rounded-full" />}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* ── Table area ────────────────────────────────────── */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            {isLoading && (
+              <div className="flex justify-center py-12">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+
+            {data && (
+              <>
+                <div className="sticky top-0 z-10 bg-card border-b border-border flex items-center">
+                  <div className="w-28 shrink-0 px-2 py-1.5">
+                    <span className="text-[9px] font-black uppercase tracking-wide text-muted-foreground">
+                      {es ? "Jugadora" : zh ? "球员" : "Player"}
                     </span>
                   </div>
-                  <QuarterRow qs={homeQs} score={g.homeScore} label={homeName} />
-                  <QuarterRow qs={awayQs} score={g.awayScore} label={awayName} />
-                </div>
-              )}
-            </div>
-
-            {/* ── Team tabs ─────────────────────────────────────── */}
-            <div className="shrink-0 flex border-b border-border">
-              {(["home", "away"] as const).map((t) => {
-                const name  = t === "home" ? homeName : awayName;
-                const active = activeTeam === t;
-                return (
-                  <button
-                    key={t}
-                    onClick={() => setActiveTeam(t)}
-                    className={cn(
-                      "flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors relative",
-                      active ? "text-foreground" : "text-muted-foreground hover:text-foreground/70",
-                    )}
-                  >
-                    {name}
-                    {active && <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary rounded-full" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* ── Table area ────────────────────────────────────── */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
-              {isLoading && (
-                <div className="flex justify-center py-12">
-                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-
-              {data && (
-                <>
-                  <div className="sticky top-0 z-10 bg-card border-b border-border flex items-center">
-                    <div className="w-28 shrink-0 px-2 py-1.5">
-                      <span className="text-[9px] font-black uppercase tracking-wide text-muted-foreground">
-                        {es ? "Jugadora" : zh ? "球员" : "Player"}
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      {COLS.map((col) => (
-                        <StatColHeader key={col.key} col={col} sortKey={sortKey} onSort={setSortKey} />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    {activePlayers.map((p, i) => (
-                      <PlayerRow
-                        key={p.externalId}
-                        p={p}
-                        locale={locale}
-                        cols={COLS}
-                        isLast={i === activePlayers.length - 1}
-                      />
+                  <div className="flex items-center">
+                    {COLS.map((col) => (
+                      <StatColHeader key={col.key} col={col} sortKey={sortKey} onSort={setSortKey} />
                     ))}
                   </div>
+                </div>
 
-                  <TotalsRow
-                    players={activeTeam === "home" ? homePlayers : awayPlayers}
-                    locale={locale}
-                    cols={COLS}
-                  />
+                <div>
+                  {activePlayers.map((p, i) => (
+                    <PlayerRow
+                      key={p.externalId}
+                      p={p}
+                      locale={locale}
+                      cols={COLS}
+                      isLast={i === activePlayers.length - 1}
+                    />
+                  ))}
+                </div>
 
-                  <AdvancedCard
-                    homePlayers={homePlayers}
-                    awayPlayers={awayPlayers}
-                    homeName={homeName}
-                    awayName={awayName}
-                    locale={locale}
-                  />
-                </>
-              )}
-            </div>
+                <TotalsRow
+                  players={activeTeam === "home" ? homePlayers : awayPlayers}
+                  locale={locale}
+                  cols={COLS}
+                />
+
+                <AdvancedCard
+                  homePlayers={homePlayers}
+                  awayPlayers={awayPlayers}
+                  homeName={homeName}
+                  awayName={awayName}
+                  locale={locale}
+                />
+              </>
+            )}
           </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+        </div>
+      </div>
+    </div>
   );
+
+  return createPortal(drawer, document.body);
 }
