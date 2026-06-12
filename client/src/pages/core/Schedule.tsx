@@ -1,6 +1,7 @@
 import { ModulePageShell } from "./ModulePage";
 import { useLocale, type I18nKey } from "@/lib/i18n";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
+import { SkeletonSchedule } from "@/components/SkeletonLoaders";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -204,6 +205,10 @@ export default function Schedule() {
   const todayEventsQ = useTodayScheduleEvents({ clubId });
   const tomorrowEventsQ = useTomorrowScheduleEvents({ clubId });
   const weekEventsQ = useThisWeekScheduleEvents({ clubId });
+  // True solo en la primera carga sin datos cacheados — muestra skeleton
+  const isInitialLoad =
+    !todayEventsQ.data && !tomorrowEventsQ.data && !weekEventsQ.data &&
+    (todayEventsQ.isPending || tomorrowEventsQ.isPending || weekEventsQ.isPending);
   const createEventMut = useCreateScheduleEvent();
   const updateEventMut = useUpdateScheduleEvent();
   const deleteEventMut = useDeleteScheduleEvent();
@@ -1604,7 +1609,9 @@ export default function Schedule() {
             {/* No external create entry points. Session creation starts from empty planner slots only. */}
           </div>
 
-          <TabsContent value="schedule" className="mt-4 space-y-4 md:mt-6 md:space-y-5">
+          {/* Skeleton inicial — solo cuando no hay datos cacheados */}
+          {activeTab === "schedule" && isInitialLoad && <SkeletonSchedule />}
+          <TabsContent value="schedule" className={cn("mt-4 space-y-4 md:mt-6 md:space-y-5", isInitialLoad && "hidden")}>
 
             {/* ── Desktop week calendar grid ── */}
             {isDesktop && (
