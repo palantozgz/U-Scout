@@ -274,3 +274,24 @@ html.theme-oldschool a, html.theme-oldschool label {
     border-color: hsl(var(--border));
   }
 }
+
+/* ── Capacitor iOS / WKWebView fixes ─────────────────────────────────────────
+ *
+ * Fix: Radix UI (@radix-ui/react-remove-scroll) añade overflow:hidden al body
+ * cuando abre un Dialog/Sheet. En Capacitor WKWebView + iOS esto hace que el
+ * motor UIKit deje de entregar touch events → la app parece "congelada".
+ *
+ * Como el root de la app ya usa overflow:hidden, no necesitamos que Radix
+ * lo repita. Este override es seguro: el scroll de fondo ya está bloqueado
+ * por la arquitectura del app shell.
+ *
+ * El overflow-hidden en el SheetContent fue movido a un wrapper interno para
+ * evitar la combinación position:fixed + overflow:hidden que causa el freeze.
+ * ──────────────────────────────────────────────────────────────────────────── */
+body[data-scroll-locked] {
+  /* Radix lo setea via JS — lo mantenemos hidden para no romper el overlay,
+     pero nos aseguramos de que touch-action y pointer-events estén activos. */
+  overflow: hidden !important;
+  touch-action: auto !important;
+  pointer-events: auto !important;
+}

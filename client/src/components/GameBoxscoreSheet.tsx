@@ -337,8 +337,10 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
       <SheetContent
         hideClose
         side="bottom"
-        className="h-[92svh] min-h-[70%] flex flex-col overflow-hidden p-0 pb-[env(safe-area-inset-bottom)] bg-background md:ml-12 lg:ml-48"
+        className="h-[92dvh] min-h-[70%] flex flex-col p-0 pb-[env(safe-area-inset-bottom)] bg-background md:ml-12 lg:ml-48"
       >
+        {/* overflow-hidden movido aquí — iOS WKWebView freezes con overflow-hidden en position:fixed */}
+        <div className="flex flex-col flex-1 overflow-hidden min-h-0">
         {/* ── Drag handle + nav ────────────────────────────── */}
         <div className="shrink-0 flex items-center justify-between px-3 pt-3 pb-1">
           <button
@@ -495,6 +497,7 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
             </>
           )}
         </div>
+        </div>{/* end overflow wrapper */}
       </SheetContent>
     </Sheet>
   );
