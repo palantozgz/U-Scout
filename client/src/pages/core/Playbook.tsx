@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Zap, BookOpen, Film, ChevronRight, RotateCcw, Plus, ArrowLeft, Save, Pencil, Loader2 } from 'lucide-react';
+import { Shield, Zap, Trophy, Flag, ChevronRight, RotateCcw, Plus, ArrowLeft, Save, Pencil, Loader2 } from 'lucide-react';
 import { useCapabilities } from '@/lib/capabilities';
 import {
   usePlans,
@@ -20,7 +20,7 @@ import {
   type Answers, type KypRule, type Report, type StepDef, type StepOption,
 } from '@/lib/defensive-system';
 
-type PlaybookView = 'hub' | 'wizard-defensive' | 'wizard-offensive' | 'wizard-atos' | 'review-defensive';
+type PlaybookView = 'hub' | 'defensa' | 'wizard-defensive' | 'review-defensive' | 'transicion' | 'ataque';
 
 type PlanSavePayload = { name: string; answers: Answers; report: Report };
 
@@ -718,254 +718,613 @@ function DefensiveSystemBuilder({
   );
 }
 
-function ComingSoonWizard({ icon: Icon, title, desc }: { icon: typeof Shield; title: string; desc: string }) {
-  const { t } = useLocale();
+// ── Hub ─────────────────────────────────────────────────────────────────────
+
+const COLOR_MAP: Record<string, { text: string; border: string; bg: string; dot: string }> = {
+  blue:   { text: 'text-blue-400',   border: 'border-blue-400/20',   bg: 'bg-blue-400/4',   dot: 'bg-blue-400' },
+  green:  { text: 'text-green-400',  border: 'border-green-400/20',  bg: 'bg-green-400/4',  dot: 'bg-green-400' },
+  amber:  { text: 'text-amber-400',  border: 'border-amber-400/20',  bg: 'bg-amber-400/4',  dot: 'bg-amber-400' },
+  purple: { text: 'text-purple-400', border: 'border-purple-400/20', bg: 'bg-purple-400/4', dot: 'bg-purple-400' },
+};
+
+type HubSectionDef = {
+  id: 'defensa' | 'transicion' | 'ataque' | 'saques';
+  view: PlaybookView | null;
+  icon: typeof Shield;
+  color: keyof typeof COLOR_MAP;
+  getLabel: (locale: string) => string;
+  getDesc: (locale: string) => string;
+};
+
+const HUB_SECTIONS: HubSectionDef[] = [
+  {
+    id: 'defensa', view: 'defensa', icon: Shield, color: 'blue',
+    getLabel: (l) => l === 'zh' ? '防守' : 'Defensa',
+    getDesc: (l) => l === 'zh' ? '防守战术体系和覆盖方案' : l === 'es' ? 'Sistema defensivo y coberturas' : 'Defensive system and coverages',
+  },
+  {
+    id: 'transicion', view: 'transicion', icon: Zap, color: 'green',
+    getLabel: (l) => l === 'zh' ? '转换' : 'Transición',
+    getDesc: (l) => l === 'zh' ? '攻防转换原则' : l === 'es' ? 'Reglas de transición ofensiva y defensiva' : 'Offensive and defensive transition rules',
+  },
+  {
+    id: 'ataque', view: 'ataque', icon: Trophy, color: 'amber',
+    getLabel: (l) => l === 'zh' ? '进攻' : 'Ataque',
+    getDesc: (l) => l === 'zh' ? '进攻战术体系和配合' : l === 'es' ? 'Sistemas ofensivos y conjuntos de jugadas' : 'Offensive systems and play sets',
+  },
+  {
+    id: 'saques', view: null, icon: Flag, color: 'purple',
+    getLabel: (l) => l === 'zh' ? '界外球' : 'Saques',
+    getDesc: (l) => l === 'zh' ? '底线和边线界外球' : l === 'es' ? 'Jugadas de saque de fondo y banda' : 'Baseline and sideline inbound plays',
+  },
+];
+
+// ── RuleCard ──────────────────────────────────────────────────────────────────
+
+function RuleCard({ label, text, chips }: { label: string; text: string; chips?: string[] }) {
+  if (!text || text === '—') return null;
   return (
-    <div className="flex flex-col items-center justify-center flex-1 gap-4 pb-16 text-center px-6">
-      <div className="w-14 h-14 rounded-2xl border border-border bg-card flex items-center justify-center">
-        <Icon className="w-7 h-7 text-muted-foreground/50" strokeWidth={1.5} />
+    <div className="rounded-xl border border-border bg-card/50 p-3.5 space-y-2">
+      <div className="flex items-start gap-2">
+        <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground/50 mt-0.5 shrink-0 leading-tight pt-px">
+          {label}
+        </span>
+        <p className="text-sm font-semibold text-foreground leading-snug flex-1">{text}</p>
       </div>
-      <div>
-        <span className="inline-block text-[9px] font-black tracking-[3px] uppercase text-muted-foreground/50 mb-2 border border-border rounded-full px-3 py-0.5">{t('playbook_hub_coming_soon')}</span>
-        <h2 className="text-lg font-black text-foreground mb-1.5">{title}</h2>
-        <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">{desc}</p>
+      {chips && chips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map(chip => (
+            <span key={chip} className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground/60 bg-muted/20">
+              {chip}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PlaybookPlanReader ────────────────────────────────────────────────────────
+
+function PlaybookPlanReader({ plan, onBack }: { plan: PlaybookPlan; onBack: () => void }) {
+  const { locale } = useLocale();
+  const report = planReport(plan);
+  const tac = report.tac;
+  const answers = report.answers;
+
+  const es = locale === 'es'; const zh = locale === 'zh';
+  const L = (e: string, en: string, z: string) => zh ? z : es ? e : en;
+
+  const phaseRules: Array<{ phase: string; color: string; rules: Array<{ label: string; text: string; chips: string[] }> }> = [
+    {
+      phase: L('Transición defensiva', 'Defensive transition', '防守转换'),
+      color: '#34d399',
+      rules: [
+        tac.transitionDesc && tac.transitionDesc !== '—' ? {
+          label: L('PRINCIPIO', 'PRINCIPLE', '原则'),
+          text: tac.transitionDesc,
+          chips: [L('Transición', 'Transition', '转换')],
+        } : null,
+        answers.reboundBalance ? {
+          label: L('REBOTE', 'REBOUND', '篮板'),
+          text: stepLabel('reboundBalance', answers.reboundBalance as string, answers),
+          chips: [L('Rebote', 'Rebound', '篮板')],
+        } : null,
+        answers.transitionPriority ? {
+          label: L('PRIORIDAD', 'PRIORITY', '优先'),
+          text: stepLabel('transitionPriority', answers.transitionPriority as string, answers),
+          chips: [L('Transición', 'Transition', '转换')],
+        } : null,
+      ].filter(Boolean) as Array<{ label: string; text: string; chips: string[] }>,
+    },
+    {
+      phase: L('Media cancha', 'Half-court defense', '半场防守'),
+      color: '#60a5fa',
+      rules: [
+        answers.onBall ? {
+          label: L('ON-BALL', 'ON-BALL', '持球防守'),
+          text: [
+            stepLabel('onBall', answers.onBall as string, answers),
+            answers.driveDirection ? stepLabel('driveDirection', answers.driveDirection as string, answers) : null,
+            answers.pickupPoint ? stepLabel('pickupPoint', answers.pickupPoint as string, answers) : null,
+          ].filter(Boolean).join(' — '),
+          chips: ['On-ball', L('Identidad', 'Identity', '体系')],
+        } : null,
+        (tac.offBallStance && tac.offBallStance !== '—') ? {
+          label: L('SIN BALÓN', 'OFF-BALL', '无球防守'),
+          text: tac.offBallStance + (tac.helpSideAnchor && tac.helpSideAnchor !== '—' ? ' — ' + tac.helpSideAnchor : ''),
+          chips: ['Off-ball'],
+        } : null,
+        answers.pnrCoverage ? {
+          label: 'PNR',
+          text: [
+            stepLabel('pnrCoverage', answers.pnrCoverage as string, answers),
+            answers.coverageSubtype ? stepLabel('coverageSubtype', answers.coverageSubtype as string, answers) : null,
+            tac.nextCoverageSummary && tac.nextCoverageSummary !== '—' ? tac.nextCoverageSummary : null,
+          ].filter(Boolean).join(' — '),
+          chips: ['PnR', L('Bloqueo', 'Screen', '挡拆')],
+        } : null,
+        answers.dhoRule ? {
+          label: 'DHO',
+          text: stepLabel('dhoRule', answers.dhoRule as string, answers),
+          chips: ['DHO'],
+        } : null,
+        (tac.helpStructure && tac.helpStructure !== '—') ? {
+          label: L('HELP', 'HELP', '协防'),
+          text: [
+            tac.helpStructure,
+            tac.helpTiming && tac.helpTiming !== '—' ? tac.helpTiming : null,
+            tac.lowManTag && tac.lowManTag !== '—' ? 'Tag: ' + tac.lowManTag : null,
+          ].filter(Boolean).join(' — '),
+          chips: [L('Help', 'Help', '协防'), L('Rotaciones', 'Rotation', '轮转')],
+        } : null,
+        (tac.rotationModel && tac.rotationModel !== '—') ? {
+          label: L('ROTACIÓN', 'ROTATION', '轮转'),
+          text: tac.rotationModel + (tac.penetration && tac.penetration !== '—' ? ' — ' + tac.penetration : ''),
+          chips: [L('Rotaciones', 'Rotation', '轮转')],
+        } : null,
+        (tac.closeoutStyle && tac.closeoutStyle !== '—') ? {
+          label: L('CIERRE', 'CLOSEOUT', '补防'),
+          text: tac.closeoutStyle,
+          chips: [L('Cierre', 'Closeout', '补防')],
+        } : null,
+        [answers.pinDownRule, answers.backScreenRule, answers.flareRule, answers.stagRule].some(Boolean) ? {
+          label: L('PANTALLAS', 'SCREENS', '掩护'),
+          text: [
+            answers.pinDownRule ? 'Pin-down: ' + stepLabel('pinDownRule', answers.pinDownRule as string, answers) : null,
+            answers.backScreenRule ? 'Back: ' + stepLabel('backScreenRule', answers.backScreenRule as string, answers) : null,
+            answers.flareRule ? 'Flare: ' + stepLabel('flareRule', answers.flareRule as string, answers) : null,
+            answers.stagRule ? 'Stagger: ' + stepLabel('stagRule', answers.stagRule as string, answers) : null,
+          ].filter(Boolean).join(' · '),
+          chips: [L('Pantallas', 'Screens', '掩护')],
+        } : null,
+        (tac.spainSummary && tac.spainSummary !== '—') ? {
+          label: 'SPAIN PNR',
+          text: tac.spainSummary,
+          chips: ['Spain PnR'],
+        } : null,
+        (tac.earlyPnrSummary && tac.earlyPnrSummary !== '—') ? {
+          label: 'EARLY PNR',
+          text: tac.earlyPnrSummary,
+          chips: ['Early PnR'],
+        } : null,
+      ].filter(Boolean) as Array<{ label: string; text: string; chips: string[] }>,
+    },
+    {
+      phase: L('Situaciones especiales', 'Special situations', '特殊情况'),
+      color: '#c084fc',
+      rules: [
+        (tac.postAnswer && tac.postAnswer !== '—') ? {
+          label: 'POST',
+          text: tac.postAnswer,
+          chips: ['Post'],
+        } : null,
+        (tac.mismatchSummary && tac.mismatchSummary !== '—') ? {
+          label: 'MISMATCH',
+          text: tac.mismatchSummary,
+          chips: ['Mismatch'],
+        } : null,
+        ...((answers.kypRules as KypRule[])?.map(rule => ({
+          label: 'KYP',
+          text: `${rule.role}: ${rule.action}`,
+          chips: ['KYP', rule.role],
+        })) ?? []),
+      ].filter(Boolean) as Array<{ label: string; text: string; chips: string[] }>,
+    },
+  ];
+
+  const dateStr = new Date(plan.createdAt).toLocaleDateString(
+    locale === 'zh' ? 'zh-CN' : locale === 'es' ? 'es-ES' : 'en-US',
+    { day: '2-digit', month: 'short', year: 'numeric' },
+  );
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 pb-4 space-y-5">
+        {/* Header */}
+        <div>
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-blue-400/60 mb-0.5">
+            {L('Plan defensivo', 'Defensive plan', '防守计划')}
+          </p>
+          <h2 className="text-xl font-black text-foreground leading-tight">{plan.name}</h2>
+          <p className="text-[11px] text-muted-foreground mt-1">{dateStr}</p>
+        </div>
+
+        {/* Cognitive rating */}
+        <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5">
+          <p className="text-[9px] font-black tracking-[2px] uppercase text-primary/70 mb-1">
+            {L('Sistema', 'System', '体系')}
+          </p>
+          <p className="text-sm font-bold text-foreground leading-snug">{tac.cognitiveRating}</p>
+        </div>
+
+        {/* Phases */}
+        {phaseRules.map(({ phase, color, rules }) => {
+          if (rules.length === 0) return null;
+          return (
+            <div key={phase} className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-border/40" />
+                <span className="text-[9px] font-black uppercase tracking-[3px] shrink-0" style={{ color }}>
+                  {phase}
+                </span>
+                <div className="h-px flex-1 bg-border/40" />
+              </div>
+              <div className="space-y-2.5">
+                {rules.map((r, i) => (
+                  <RuleCard key={i} label={r.label} text={r.text} chips={r.chips} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="pb-4 pt-3 border-t border-border/40">
+        <button type="button" onClick={onBack}
+          className="flex items-center gap-1.5 h-10 px-5 rounded-lg border border-border text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          {L('Volver', 'Back', '返回')}
+        </button>
       </div>
     </div>
   );
 }
 
-// ── Hub ───────────────────────────────────────────────────────────────────────
+// ── DefensaHub ────────────────────────────────────────────────────────────────
 
-type HubSection = {
-  id: PlaybookView | null;
-  icon: typeof Shield;
-  label: string;
-  color: keyof typeof COLOR_MAP;
-  descKey: I18nKey;
-  unitKey: I18nKey;
-  unitKeyOne?: I18nKey;
-};
-
-const HUB_SECTIONS: HubSection[] = [
-  { id: 'wizard-defensive', icon: Shield,   label: 'Defensiva', color: 'blue',   descKey: 'playbook_hub_desc_defensive', unitKey: 'playbook_unit_planes', unitKeyOne: 'playbook_unit_plan' },
-  { id: 'wizard-offensive', icon: Zap,      label: 'Ofensiva',  color: 'amber',  descKey: 'playbook_hub_desc_offensive', unitKey: 'playbook_unit_sets' },
-  { id: 'wizard-atos',      icon: BookOpen, label: 'ATOs',      color: 'emerald', descKey: 'playbook_hub_desc_atos', unitKey: 'playbook_unit_atos' },
-  { id: null,               icon: Film,     label: 'Film',      color: 'purple', descKey: 'playbook_hub_desc_film', unitKey: 'playbook_unit_videos' },
-];
-
-function hubUnitLabel(t: (k: I18nKey) => string, s: HubSection, count: number): string {
-  const key = s.unitKeyOne && count === 1 ? s.unitKeyOne : s.unitKey;
-  return fmt(t, key, { count: String(count) });
-}
-
-const COLOR_MAP: Record<string, { text: string; border: string; bg: string; badge: string; dot: string }> = {
-  blue:    { text: 'text-blue-400',    border: 'border-blue-400/20',    bg: 'bg-blue-400/4',    badge: 'bg-blue-400/10 text-blue-400 border-blue-400/25',    dot: 'bg-blue-400' },
-  amber:   { text: 'text-amber-400',   border: 'border-amber-400/20',   bg: 'bg-amber-400/4',   badge: 'bg-amber-400/10 text-amber-400 border-amber-400/25',   dot: 'bg-amber-400' },
-  emerald: { text: 'text-emerald-400', border: 'border-emerald-400/20', bg: 'bg-emerald-400/4', badge: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/25', dot: 'bg-emerald-400' },
-  purple:  { text: 'text-purple-400',  border: 'border-purple-400/20',  bg: 'bg-purple-400/4',  badge: 'bg-purple-400/10 text-purple-400 border-purple-400/25',  dot: 'bg-purple-400' },
-};
-
-function PlaybookPlayerView({ plans }: { plans: PlaybookPlan[] }) {
+function DefensaHub({
+  plans, onBack, onNewPlan, onSelectPlan, isPlayerUX,
+}: {
+  plans: PlaybookPlan[];
+  onBack: () => void;
+  onNewPlan: () => void;
+  onSelectPlan: (plan: PlaybookPlan) => void;
+  isPlayerUX: boolean;
+}) {
   const { locale } = useLocale();
-  const [selected, setSelected] = useState<PlaybookPlan | null>(null);
-
-  if (selected) {
-    return (
-      <DefensivePlanReview
-        plan={selected}
-        onBack={() => setSelected(null)}
-        readOnly
-      />
-    );
-  }
+  const es = locale === 'es'; const zh = locale === 'zh';
+  const L = (e: string, en: string, z: string) => zh ? z : es ? e : en;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 overflow-y-auto min-h-0 pb-4 space-y-4">
-        <div>
-          <h2 className="text-xl font-black text-foreground leading-tight">
-            {reviewSectionTitle(locale, 'Libro de jugadas del equipo', 'Team Playbook', '球队战术手册')}
-          </h2>
-        </div>
-
-        {plans.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card/30 flex flex-col items-center justify-center min-h-[200px] px-6 text-center">
-            <Shield className="w-10 h-10 text-muted-foreground/30 mb-3" strokeWidth={1.5} />
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              {reviewSectionTitle(
-                locale,
-                'Tu cuerpo técnico aún no ha publicado planes',
-                'Your coaching staff has not published plans yet',
-                '教练组尚未发布战术计划',
-              )}
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-blue-400/20 bg-card/20 overflow-hidden">
-            <div className="px-5 py-3 border-b border-border/20 bg-blue-400/4">
-              <p className="text-sm font-black text-foreground">
-                {reviewSectionTitle(locale, 'Planes defensivos', 'Defensive plans', '防守计划')}
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={onBack}
+              className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </button>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-400/8 border border-blue-400/20 shrink-0">
+              <Shield className="w-4.5 h-4.5 text-blue-400" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-black text-foreground">{L('Defensa', 'Defense', '防守')}</h2>
+              <p className="text-[11px] text-muted-foreground">
+                {plans.length} {plans.length === 1 ? L('plan', 'plan', '计划') : L('planes', 'plans', '计划')}
               </p>
             </div>
-            <div className="divide-y divide-border/15">
-              {plans.map((plan) => (
-                <button
-                  key={plan.id}
-                  type="button"
-                  onClick={() => setSelected(plan)}
-                  className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-card/60 transition-colors"
-                >
-                  <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-blue-400" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-foreground truncate">{plan.name}</p>
-                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                      {stepLabel('pnrCoverage', planReport(plan).answers.pnrCoverage as string, planReport(plan).answers)}
-                    </p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
-                </button>
-              ))}
+          </div>
+          {!isPlayerUX && (
+            <button type="button" onClick={onNewPlan}
+              className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-blue-400/30 bg-blue-400/8 text-blue-400 text-xs font-bold hover:bg-blue-400/15 transition-colors shrink-0">
+              <Plus className="w-3.5 h-3.5" />
+              {L('Nuevo', 'New', '新建')}
+            </button>
+          )}
+        </div>
+
+        {/* Plan list or empty state */}
+        {plans.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card/30 flex flex-col items-center justify-center min-h-[220px] px-6 text-center">
+            <Shield className="w-10 h-10 text-muted-foreground/30 mb-3" strokeWidth={1.5} />
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mb-4">
+              {isPlayerUX
+                ? L('Tu cuerpo técnico aún no ha publicado planes defensivos', "Your coaching staff hasn't published defensive plans yet", '教练组尚未发布防守计划')
+                : L('Crea el primer plan defensivo del equipo', 'Create the first defensive plan', '创建第一个防守计划')}
+            </p>
+            {!isPlayerUX && (
+              <button type="button" onClick={onNewPlan}
+                className="flex items-center gap-2 h-10 px-5 rounded-xl border border-blue-400/30 bg-blue-400/8 text-blue-400 text-sm font-bold hover:bg-blue-400/15 transition-colors">
+                <Plus className="w-4 h-4" />
+                {L('Nuevo plan', 'New plan', '新建计划')}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-border overflow-hidden">
+            <div className="divide-y divide-border/30">
+              {plans.map((plan) => {
+                const pnr = stepLabel('pnrCoverage', planReport(plan).answers.pnrCoverage as string, planReport(plan).answers);
+                const vis = plan.visibility;
+                const badgeColor = vis === 'players'
+                  ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/30'
+                  : vis === 'staff'
+                  ? 'bg-blue-400/10 text-blue-400 border-blue-400/30'
+                  : 'bg-muted/30 text-muted-foreground border-border';
+                const badgeText = vis === 'players'
+                  ? L('Publicado', 'Published', '已发布')
+                  : vis === 'staff'
+                  ? 'Staff'
+                  : L('Borrador', 'Draft', '草稿');
+                return (
+                  <button key={plan.id} type="button" onClick={() => onSelectPlan(plan)}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-card/60 transition-colors">
+                    <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-blue-400" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-foreground truncate">{plan.name}</p>
+                      <p className="text-[11px] text-muted-foreground truncate mt-0.5">{pnr}</p>
+                    </div>
+                    <span className={cn('text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0', badgeColor)}>
+                      {badgeText}
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0 tabular-nums">
+                      {new Date(plan.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0" />
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
       </div>
+    </div>
+  );
+}
 
-      <div className="pb-4 pt-3 border-t border-border/40">
-        <p className="text-[11px] text-muted-foreground text-center leading-relaxed px-2">
-          {reviewSectionTitle(
-            locale,
-            'Los planes se sincronizan cuando el coach los comparte',
-            'Plans sync when your coach shares them',
-            '计划将在教练分享后同步',
-          )}
-        </p>
+// ── TransicionShell ───────────────────────────────────────────────────────────
+
+function TransicionShell({ onBack, locale }: { onBack: () => void; locale: string }) {
+  const [activeTab, setActiveTab] = useState<'defensiva' | 'ofensiva'>('defensiva');
+  const es = locale === 'es'; const zh = locale === 'zh';
+  const L = (e: string, en: string, z: string) => zh ? z : es ? e : en;
+  const tabs = [
+    { id: 'defensiva' as const, label: L('Defensiva', 'Defensive', '防守转换') },
+    { id: 'ofensiva'  as const, label: L('Ofensiva',  'Offensive', '进攻转换') },
+  ];
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Header */}
+      <div className="flex items-center gap-3 pb-4">
+        <button type="button" onClick={onBack}
+          className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" />
+        </button>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-green-400/8 border border-green-400/20 shrink-0">
+          <Zap className="w-4 h-4 text-green-400" />
+        </div>
+        <h2 className="text-lg font-black text-foreground">{L('Transición', 'Transition', '转换')}</h2>
+      </div>
+      {/* Tabs */}
+      <div className="flex border-b border-border mb-4 shrink-0">
+        {tabs.map(tab => (
+          <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
+            className={cn('flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors relative',
+              activeTab === tab.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/70')}>
+            {tab.label}
+            {activeTab === tab.id && <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-green-400 rounded-full" />}
+          </button>
+        ))}
+      </div>
+      {/* Placeholder */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex flex-col items-center justify-center min-h-[260px] gap-4 text-center px-6">
+          <div className="w-14 h-14 rounded-2xl border border-green-400/20 bg-green-400/5 flex items-center justify-center">
+            <Zap className="w-7 h-7 text-green-400/40" strokeWidth={1.5} />
+          </div>
+          <div>
+            <span className="inline-block text-[9px] font-black tracking-[3px] uppercase text-muted-foreground/50 mb-2 border border-border rounded-full px-3 py-0.5">
+              {L('Próximamente', 'Coming soon', '即将推出')}
+            </span>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mt-2">
+              {activeTab === 'defensiva'
+                ? L('El cuerpo técnico está preparando las reglas de transición defensiva', 'Coaching staff is preparing defensive transition rules', '教练组正在准备防守转换规则')
+                : L('El cuerpo técnico está preparando las reglas de transición ofensiva', 'Coaching staff is preparing offensive transition rules', '教练组正在准备进攻转换规则')}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
+// ── AtaqueShell ───────────────────────────────────────────────────────────────
+
+function AtaqueShell({ onBack, locale }: { onBack: () => void; locale: string }) {
+  const [activeTab, setActiveTab] = useState<'sistemas' | 'fondo' | 'banda'>('sistemas');
+  const es = locale === 'es'; const zh = locale === 'zh';
+  const L = (e: string, en: string, z: string) => zh ? z : es ? e : en;
+  const tabs: { id: typeof activeTab; label: string }[] = [
+    { id: 'sistemas', label: L('Sistemas', 'Sets', '战术') },
+    { id: 'fondo',    label: L('Saque fondo', 'Baseline', '底线') },
+    { id: 'banda',    label: L('Saque banda', 'Sideline', '边线') },
+  ];
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Header */}
+      <div className="flex items-center gap-3 pb-4">
+        <button type="button" onClick={onBack}
+          className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" />
+        </button>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-amber-400/8 border border-amber-400/20 shrink-0">
+          <Trophy className="w-4 h-4 text-amber-400" />
+        </div>
+        <h2 className="text-lg font-black text-foreground">{L('Ataque', 'Offense', '进攻')}</h2>
+      </div>
+      {/* Tabs */}
+      <div className="flex border-b border-border mb-4 shrink-0">
+        {tabs.map(tab => (
+          <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
+            className={cn('flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors relative',
+              activeTab === tab.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/70')}>
+            {tab.label}
+            {activeTab === tab.id && <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-amber-400 rounded-full" />}
+          </button>
+        ))}
+      </div>
+      {/* Placeholder */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex flex-col items-center justify-center min-h-[260px] gap-4 text-center px-6">
+          <div className="w-14 h-14 rounded-2xl border border-amber-400/20 bg-amber-400/5 flex items-center justify-center">
+            <Trophy className="w-7 h-7 text-amber-400/40" strokeWidth={1.5} />
+          </div>
+          <div>
+            <span className="inline-block text-[9px] font-black tracking-[3px] uppercase text-muted-foreground/50 mb-2 border border-border rounded-full px-3 py-0.5">
+              {L('Próximamente', 'Coming soon', '即将推出')}
+            </span>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mt-2">
+              {activeTab === 'sistemas'
+                ? L('El cuerpo técnico está preparando los sistemas ofensivos del equipo', 'Coaching staff is preparing team offensive systems', '教练组正在准备进攻战术体系')
+                : activeTab === 'fondo'
+                ? L('Jugadas de saque de fondo', 'Baseline inbound plays', '底线界外球配合')
+                : L('Jugadas de saque de banda', 'Sideline inbound plays', '边线界外球配合')}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── PlaybookHub ───────────────────────────────────────────────────────────────
+
 function PlaybookHub({
-  onNavigate,
-  onSelectPlan,
-  plans,
+  plans, locale, onNavigate, isPlayerUX,
 }: {
-  onNavigate: (v: PlaybookView) => void;
-  onSelectPlan: (plan: PlaybookPlan) => void;
   plans: PlaybookPlan[];
+  locale: string;
+  onNavigate: (v: PlaybookView) => void;
+  isPlayerUX: boolean;
 }) {
-  const { t } = useLocale();
-  const counts: Record<string, number> = { 'wizard-defensive': plans.length, 'wizard-offensive': 0, 'wizard-atos': 0 };
+  const es = locale === 'es'; const zh = locale === 'zh';
+  const L = (e: string, en: string, z: string) => zh ? z : es ? e : en;
+
+  function defMeta() {
+    if (plans.length === 0) return { badge: null, lastUpdate: null, count: 0 };
+    const published = plans.filter(p => p.visibility === 'players');
+    const latest = plans[0];
+    return {
+      badge: published.length > 0
+        ? { text: L('Publicado', 'Published', '已发布'), color: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/30' }
+        : { text: L('Borrador', 'Draft', '草稿'), color: 'bg-muted/30 text-muted-foreground border-border' },
+      lastUpdate: new Date(latest.createdAt).toLocaleDateString(
+        zh ? 'zh-CN' : es ? 'es-ES' : 'en-US',
+        { day: '2-digit', month: 'short', year: 'numeric' },
+      ),
+      count: plans.length,
+    };
+  }
+
+  const defMeta_ = defMeta();
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0">
-      <div className="pb-6 space-y-6">
+      <div className="pb-6 space-y-3">
+        {HUB_SECTIONS.map(section => {
+          const Icon = section.icon;
+          const c = COLOR_MAP[section.color];
+          const isDisabled = !section.view;
+          const label = section.getLabel(locale);
+          const desc = section.getDesc(locale);
+          const meta = section.id === 'defensa' ? defMeta_ : { badge: null, lastUpdate: null, count: 0 };
 
-        {/* KPI bar */}
-        <div className="grid grid-cols-4 gap-px bg-border/30 rounded-xl overflow-hidden border border-border/30">
-          {HUB_SECTIONS.map(s => {
-            const c = COLOR_MAP[s.color];
-            const count = s.id ? (counts[s.id] ?? 0) : 0;
-            const Icon = s.icon;
-            return (
-              <button
-                key={s.label}
-                type="button"
-                disabled={!s.id}
-                className={cn(
-                  'flex flex-col items-center justify-center gap-1 py-5 bg-background transition-colors',
-                  s.id ? 'cursor-pointer hover:bg-card/60' : 'cursor-default opacity-80',
-                )}
-                onClick={() => s.id && onNavigate(s.id)}
-              >
-                <Icon className={cn('w-3.5 h-3.5 mb-0.5', c.text)} />
-                <span className={cn('text-3xl font-black tabular-nums leading-none', c.text)}>{count}</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60 mt-1">{s.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Cards grid — 2 cols on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {HUB_SECTIONS.map(s => {
-            const c = COLOR_MAP[s.color];
-            const Icon = s.icon;
-            const count = s.id ? (counts[s.id] ?? 0) : 0;
-            const defensivePlans = s.id === 'wizard-defensive' ? plans.slice(0, 4) : [];
-
-            return (
-              <div key={s.label} className={cn('rounded-2xl border flex flex-col overflow-hidden bg-card/20', c.border)}>
-                {/* Card header */}
-                <div className={cn('flex items-center justify-between px-5 py-4 border-b border-border/20', c.bg)}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center border shrink-0', c.border, 'bg-background/50')}>
-                      <Icon className={cn('w-4 h-4', c.text)} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-black text-foreground leading-tight">{s.label}</p>
-                      <p className={cn('text-[11px] font-semibold tabular-nums', c.text)}>{hubUnitLabel(t, s, count)}</p>
-                    </div>
-                  </div>
-                  {s.id && (
-                    <button type="button" onClick={() => onNavigate(s.id!)}
-                      className={cn(
-                        'flex items-center gap-1.5 h-9 px-3.5 rounded-lg border text-[11px] font-bold shrink-0 ml-3 transition-all',
-                        c.border, c.text, 'bg-background/40',
-                        'hover:brightness-125 active:scale-95',
-                      )}>
-                      <Plus className="w-3.5 h-3.5" />
-                      {t('playbook_hub_new')}
-                    </button>
-                  )}
-                </div>
-
-                {/* Card body */}
-                <div className="flex-1 px-5 py-3 min-h-[88px]">
-                  {defensivePlans.length > 0 ? (
-                    <div className="space-y-0">
-                      {defensivePlans.map((plan) => (
-                        <button
-                          key={plan.id}
-                          type="button"
-                          onClick={() => onSelectPlan(plan)}
-                          className="w-full flex items-center gap-3 py-2.5 border-b border-border/15 last:border-0 text-left hover:bg-card/50 transition-colors rounded-lg -mx-1 px-1"
-                        >
-                          <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', c.dot)} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-foreground truncate">{plan.name}</p>
-                            <p className="text-[10px] text-muted-foreground truncate mt-0.5">{stepLabel('pnrCoverage', planReport(plan).answers.pnrCoverage as string, planReport(plan).answers)}</p>
-                          </div>
-                          <span className="text-[10px] font-mono text-muted-foreground/45 shrink-0 tabular-nums">
-                            {new Date(plan.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
-                          </span>
-                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0" />
-                        </button>
-                      ))}
-                      {plans.length > 4 && (
-                        <p className="text-[10px] text-muted-foreground/50 py-2 pl-4">+{plans.length - 4} planes más</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center min-h-[72px]">
-                      <p className="text-xs text-muted-foreground/55 text-center leading-relaxed px-2">{t(s.descKey)}</p>
-                    </div>
-                  )}
-                </div>
+          return (
+            <button
+              key={section.id}
+              type="button"
+              disabled={isDisabled}
+              onClick={() => section.view && onNavigate(section.view)}
+              className={cn(
+                'w-full flex items-center gap-4 p-4 rounded-2xl border bg-card/20 transition-all text-left',
+                isDisabled
+                  ? 'border-border/40 opacity-50 cursor-not-allowed'
+                  : 'border-border hover:bg-card/50 hover:border-border/80 active:scale-[0.99] cursor-pointer',
+              )}
+            >
+              {/* Icon */}
+              <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border', c.border, c.bg)}>
+                <Icon className={cn('w-5 h-5', c.text)} />
               </div>
-            );
-          })}
-        </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-black text-foreground">{label}</p>
+                  {meta.badge && (
+                    <span className={cn('text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0', meta.badge.color)}>
+                      {meta.badge.text}
+                    </span>
+                  )}
+                  {isDisabled && (
+                    <span className="text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-border text-muted-foreground/50">
+                      {L('Próximamente', 'Soon', '即将')}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{desc}</p>
+                {meta.lastUpdate && (
+                  <p className="text-[10px] text-muted-foreground/50 mt-1 tabular-nums">
+                    {L('Actualizado', 'Updated', '更新')}: {meta.lastUpdate}
+                    {' · '}
+                    {meta.count} {meta.count === 1 ? L('plan', 'plan', '计划') : L('planes', 'plans', '计划')}
+                  </p>
+                )}
+              </div>
+
+              {/* Chevron */}
+              {!isDisabled && <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-// ── Wizard labels ─────────────────────────────────────────────────────────────
+// ── PlaybookPlayerView ────────────────────────────────────────────────────────
+
+function PlaybookPlayerView({ plans, locale }: { plans: PlaybookPlan[]; locale: string }) {
+  const [innerView, setInnerView] = useState<'hub' | 'defensa' | 'transicion' | 'ataque'>('hub');
+  const [selected, setSelected] = useState<PlaybookPlan | null>(null);
+
+  if (selected) {
+    return <PlaybookPlanReader plan={selected} onBack={() => setSelected(null)} />;
+  }
+  if (innerView === 'defensa') {
+    return (
+      <DefensaHub
+        plans={plans}
+        onBack={() => setInnerView('hub')}
+        onNewPlan={() => {}}
+        onSelectPlan={(plan) => setSelected(plan)}
+        isPlayerUX
+      />
+    );
+  }
+  if (innerView === 'transicion') return <TransicionShell onBack={() => setInnerView('hub')} locale={locale} />;
+  if (innerView === 'ataque')    return <AtaqueShell    onBack={() => setInnerView('hub')} locale={locale} />;
+
+  return (
+    <PlaybookHub
+      plans={plans}
+      locale={locale}
+      isPlayerUX
+      onNavigate={(v) => {
+        if (v === 'defensa') setInnerView('defensa');
+        else if (v === 'transicion') setInnerView('transicion');
+        else if (v === 'ataque') setInnerView('ataque');
+      }}
+    />
+  );
+}
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function Playbook() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const caps = useCapabilities();
   const isPlayerUX = caps.canUsePlayerUX;
   const [view, setView] = useState<PlaybookView>('hub');
@@ -1002,16 +1361,8 @@ export default function Playbook() {
         });
       }
       setEditPlan(null);
-      setView('hub');
-    } catch {
-      /* mutation error surfaced by query client */
-    }
-  }
-
-  function navigateHub(v: PlaybookView) {
-    setEditPlan(null);
-    setSelectedPlan(null);
-    setView(v);
+      setView('defensa');
+    } catch { /* surfaced by query client */ }
   }
 
   function handleSelectPlan(plan: PlaybookPlan) {
@@ -1027,13 +1378,31 @@ export default function Playbook() {
   }
 
   const tagline = t('playbook_tagline');
+  const es = locale === 'es'; const zh = locale === 'zh';
+  const L = (e: string, en: string, z: string) => zh ? z : es ? e : en;
 
-  const isWizard = view === 'wizard-defensive' || view === 'wizard-offensive' || view === 'wizard-atos';
-  const wizardMeta = isWizard ? {
-    'wizard-defensive': { label: t('playbook_wizard_defensive'), icon: Shield, color: 'text-blue-400' },
-    'wizard-offensive': { label: t('playbook_wizard_offensive'), icon: Zap, color: 'text-amber-400' },
-    'wizard-atos':      { label: t('playbook_wizard_atos'), icon: BookOpen, color: 'text-emerald-400' },
-  }[view] : null;
+  const backLabel: Partial<Record<PlaybookView, string>> = {
+    defensa: L('Inicio', 'Home', '主页'),
+    transicion: L('Inicio', 'Home', '主页'),
+    ataque: L('Inicio', 'Home', '主页'),
+    'wizard-defensive': L('Defensa', 'Defense', '防守'),
+    'review-defensive': L('Defensa', 'Defense', '防守'),
+  };
+  const pageTitle: Partial<Record<PlaybookView, string>> = {
+    defensa: L('Defensa', 'Defense', '防守'),
+    transicion: L('Transición', 'Transition', '转换'),
+    ataque: L('Ataque', 'Offense', '进攻'),
+    'wizard-defensive': L('Wizard Defensivo', 'Defensive wizard', '防守向导'),
+    'review-defensive': L('Revisión', 'Review', '查看'),
+  };
+
+  function goBack() {
+    if (view === 'wizard-defensive' || view === 'review-defensive') {
+      setEditPlan(null); setSelectedPlan(null); setView('defensa');
+    } else {
+      setEditPlan(null); setSelectedPlan(null); setView('hub');
+    }
+  }
 
   if (isPlayerUX) {
     return (
@@ -1041,13 +1410,9 @@ export default function Playbook() {
         <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 pb-6 max-w-5xl mx-auto w-full gap-3 overflow-y-auto min-h-0">
           <ModuleHeader module="playbook" tagline={tagline} />
           <div className="flex flex-col flex-1 min-h-0">
-            {plansQ.isLoading ? (
-              <div className="flex justify-center py-16">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <PlaybookPlayerView plans={plans} />
-            )}
+            {plansQ.isLoading
+              ? <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+              : <PlaybookPlayerView plans={plans} locale={locale} />}
           </div>
         </main>
         <ModuleNav />
@@ -1060,57 +1425,66 @@ export default function Playbook() {
       <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 pb-6 max-w-5xl mx-auto w-full gap-3 overflow-y-auto min-h-0">
         <ModuleHeader module="playbook" tagline={tagline} />
 
-        {isWizard && wizardMeta && (
+        {view !== 'hub' && (
           <div className="pb-3 flex items-center gap-3 flex-wrap">
-            <button type="button" onClick={() => { setEditPlan(null); setView('hub'); }}
+            <button type="button" onClick={goBack}
               className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-3.5 h-3.5" />
-              {t('playbook_back')}
+              {backLabel[view] ?? L('Inicio', 'Home', '主页')}
             </button>
             <span className="text-muted-foreground/30 hidden sm:inline">/</span>
-            <div className="flex items-center gap-1.5">
-              <wizardMeta.icon className={cn('w-3.5 h-3.5', wizardMeta.color)} />
-              <span className="text-xs font-black text-foreground">{wizardMeta.label}</span>
-            </div>
+            <span className="text-xs font-black text-foreground">{pageTitle[view] ?? ''}</span>
           </div>
         )}
 
         <div className="flex flex-col flex-1 min-h-0">
-          {plansQ.isLoading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <>
-          {view === 'hub' && (
-            <PlaybookHub
-              onNavigate={navigateHub}
-              onSelectPlan={handleSelectPlan}
-              plans={plans}
-            />
-          )}
-          {view === 'review-defensive' && selectedPlan && (
-            <DefensivePlanReview
-              plan={selectedPlan}
-              onBack={() => { setSelectedPlan(null); setView('hub'); }}
-              onEdit={handleEditPlan}
-              onVisibilityChange={(visibility) =>
-                updatePlan.mutate({ id: selectedPlan.id, visibility })
-              }
-              visibilityUpdating={updatePlan.isPending}
-            />
-          )}
-          {view === 'wizard-defensive' && (
-            <DefensiveSystemBuilder
-              onSaved={handleSaved}
-              initialPlan={editPlan}
-              savePending={savePending}
-            />
-          )}
-            </>
-          )}
-          {view === 'wizard-offensive' && <ComingSoonWizard icon={Zap} title={t('playbook_offensive_title')} desc={t('playbook_offensive_desc')} />}
-          {view === 'wizard-atos' && <ComingSoonWizard icon={BookOpen} title={t('playbook_atos_title')} desc={t('playbook_atos_desc')} />}
+          {plansQ.isLoading
+            ? <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+            : (
+              <>
+                {view === 'hub' && (
+                  <PlaybookHub
+                    plans={plans}
+                    locale={locale}
+                    isPlayerUX={false}
+                    onNavigate={(v) => setView(v)}
+                  />
+                )}
+                {view === 'defensa' && (
+                  <DefensaHub
+                    plans={plans}
+                    onBack={() => setView('hub')}
+                    onNewPlan={() => { setEditPlan(null); setView('wizard-defensive'); }}
+                    onSelectPlan={handleSelectPlan}
+                    isPlayerUX={false}
+                  />
+                )}
+                {view === 'review-defensive' && selectedPlan && (
+                  <DefensivePlanReview
+                    plan={selectedPlan}
+                    onBack={() => { setSelectedPlan(null); setView('defensa'); }}
+                    onEdit={handleEditPlan}
+                    onVisibilityChange={(visibility) =>
+                      updatePlan.mutate({ id: selectedPlan.id, visibility })
+                    }
+                    visibilityUpdating={updatePlan.isPending}
+                  />
+                )}
+                {view === 'wizard-defensive' && (
+                  <DefensiveSystemBuilder
+                    onSaved={handleSaved}
+                    initialPlan={editPlan}
+                    savePending={savePending}
+                  />
+                )}
+                {view === 'transicion' && (
+                  <TransicionShell onBack={() => setView('hub')} locale={locale} />
+                )}
+                {view === 'ataque' && (
+                  <AtaqueShell onBack={() => setView('hub')} locale={locale} />
+                )}
+              </>
+            )}
         </div>
       </main>
       <ModuleNav />
