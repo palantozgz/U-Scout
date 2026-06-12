@@ -3443,22 +3443,12 @@ export async function registerRoutes(
   }
 
   async function playbookClubId(req: Request, res: import("express").Response): Promise<string | null> {
-    const supabase = getSupabaseAdmin();
-    if (!supabase) {
-      res.status(500).json({ error: "Supabase not configured" });
-      return null;
-    }
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("club_id")
-      .eq("id", req.user!.id)
-      .single();
-    const clubId = profile?.club_id;
-    if (!clubId) {
+    const club = await storage.getClubForUser(req.user!.id);
+    if (!club) {
       res.status(400).json({ error: "No club" });
       return null;
     }
-    return String(clubId);
+    return club.id;
   }
 
   app.get("/api/playbook/plans", requireAuth, async (req, res) => {
