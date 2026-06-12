@@ -1,0 +1,29 @@
+╔══════════════════════════════════════════╗
+║  AUDIT PRECISIÓN U STATS                 ║
+║  2026-06-11T04:29:04                  ║
+╚══════════════════════════════════════════╝
+
+══════════════════════════════════════════
+L1 — Integridad de puntos (PBP vs marcador oficial)
+══════════════════════════════════════════
+  Partidos con marcador: 223
+  Verificados: 223  ✅ OK: 223  ❌ Fallos: 0
+
+══════════════════════════════════════════
+L2 — Stats PBP vs Boxscore oficial (FTA, TOV, REB)
+══════════════════════════════════════════
+  Verificados: 446  ✅ OK: 446  discrepancias: 0
+  (Cobertura: 446 team-games de 223 partidos con boxscore)
+
+╔══════════════════════════════════════════╗
+║        REPORTE AUDIT PRECISION           ║
+╚══════════════════════════════════════════╝
+  ✅  L1 Integridad puntos     : 0 FAIL  0 WARN
+  ✅  L2 Stats vs boxscore     : 0 FAIL  0 WARN
+  ✅  L3 Colección PBP         : 0 FAIL  0 WARN
+
+  Total FAIL: 0  Total WARN: 0
+
+  🟢 AUDIT COMPLETO — PRECISIÓN 100% en todos los niveles verificados
+
+  Reporte completo: scripts/audit-precision-output.json
