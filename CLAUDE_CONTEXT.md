@@ -106,7 +106,87 @@ API WCBA → collector Pi → stats_pbp → possessions.ts v6.6 (Railway) → ta
 
 ---
 
+## U Playbook — estado y plan
+
+### Estado actual (2026-06-12)
+- Existe `Playbook.tsx` (1119 líneas) con hub de 4 módulos: Defensiva/Ofensiva/ATOs/Film
+- Wizard defensivo funcional genera un `Report` desde `defensive-system.ts`
+- Ofensiva, ATOs, Film son shells vacíos
+- NO existe vista de lectura para jugadoras — el output del wizard no llega a ellas
+- NO existe sección de Transición
+
+### Visión acordada con Pablo
+U Playbook es el **manual táctico del equipo**, visible para las jugadoras.
+Propósito: una jugadora que llega al equipo sabe exactamente qué se va a encontrar.
+NO es para ajustes ni defensas especiales — es el esqueleto táctico permanente.
+
+**4 secciones:**
+1. **Defensa** — planes defensivos estándar construidos por el staff via wizard
+   (man-to-man, zona, etc.). El wizard guía coherencia entre reglas.
+2. **Transición** — reglas de transición ofensiva y defensiva (wizard similar al defensivo)
+3. **Ataque** — sistemas ofensivos con diagramas clásicos + vídeo/animación 2D
+4. **Saques** — jugadas de fondo y banda con diagramas + vídeo
+
+### Principios de diseño
+- **Todo multilingüe**: el contenido se crea en los idiomas del equipo (es/zh/en).
+  Cada jugadora ve SOLO su idioma (setting global de la app, igual que el resto de U Core).
+  NO bilingüe en pantalla — adaptado por usuario.
+- **Dos modos**: vista jugadora (read-only, limpia) y vista staff (edit + wizard)
+- **Publicado / Borrador**: el staff controla qué ve la jugadora
+- **Reglas por fase**: transición → media cancha → situaciones especiales
+- **Diagrama como gancho visual** en Ataque/Saques (diagrama pequeño en la tarjeta,
+  diagrama grande + vídeo dentro)
+
+### Mockup aprobado (pantallas discutidas)
+1. **Hub** — 4 módulos con estado Publicado/Borrador + fecha última actualización
+2. **Defensa hub** — lista de todos los planes disponibles
+3. **Plan reader** — reglas organizadas por fase (transición/media cancha/rebote),
+   idioma único del usuario, chips de categoría a probar
+4. **Transición** — tabs Ofensiva/Defensiva, mismo formato de reglas
+5. **Ataque** — lista de sets con diagrama-preview pequeño + info, tabs Sistemas/S.fondo/S.banda
+
+### Decisión pendiente (necesita respuesta de Pablo)
+¿El contenido lo escriben a través del wizard (opciones guiadas) o es texto libre
+que el staff trae preparado y pega? Esto define si el wizard es un flow de opciones
+o un editor de texto enriquecido.
+
+### Plan de implementación — próxima sesión
+FASE 1 (sin backend nuevo):
+- Rediseñar el Hub actual (reemplazar los 4 tiles genéricos por las cards con estado)
+- Crear la vista player-facing del Plan reader defensivo
+  (conectar con los Reports que el wizard ya genera)
+- Añadir sección Transición como shell navegable con tabs
+
+FASE 2 (con backend):
+- Schema para reglas de transición y contenido multilingual
+- Editor de planes en el wizard
+- Publicación controlada por staff
+
+FASE 3 (más adelante):
+- Ataque: diagramas + vídeo/animación
+- Saques: biblioteca de jugadas
+
+### Archivos clave Playbook
+- `client/src/pages/core/Playbook.tsx` — componente principal (1119 líneas)
+- `client/src/lib/playbook-api.ts` — API hooks
+- `client/src/lib/defensive-system.ts` — lógica del wizard defensivo + buildReport()
+
+---
+
 ## Notas técnicas críticas (iOS)
+
+### GameBoxscoreSheet freeze iOS — PENDIENTE DE RESOLVER
+- Se aplicó fix `2ff3484`: overflow-hidden movido a wrapper interno, svh→dvh, CSS body[data-scroll-locked]
+- Pablo confirma que el bug PERSISTE en dispositivo físico
+- Causa adicional posible: aria-hidden en el root app cuando el Sheet abre (Radix behavior)
+  → Radix Dialog pone aria-hidden="true" en el root #root, lo que en algunos builds de iOS
+  hace que WKWebView deje de procesar touch events en el modal
+- Fix a intentar: en sheet.tsx, pasar modal={false}... pero Radix Sheet no tiene esa prop
+- Fix alternativo: usar Vaul (drawer library) en lugar de Radix Sheet para bottom sheets
+  Vaul es específicamente para mobile drawers y no tiene el aria-hidden issue
+- Fix alternativo 2: portal container personalizado — Sheet abre en un div dentro del app
+  root en lugar de en document.body
+- PRIORIDAD ALTA — afecta directamente al flujo de uso en partidos
 
 ### recharts TDZ — RESUELTO 2026-06-12
 - recharts estaba en vendor-react por precaución TDZ pero nadie lo importaba → 104KB gzip de peso muerto
@@ -241,6 +321,8 @@ player_stats, invite_links
 1. **U Playbook wizard ofensivo** — estructura a definir con Pablo
 2. **player_stats UI** — `/coach/stats-entry`, tabla existe en Supabase, falta backend + frontend
 3. ~~**Bundle iOS TestFlight**~~ — ✅ COMPLETADO 2026-06-12 (ver sesión de performance)
+4. ~~**player_stats UI**~~ — ELIMINADO de P1. Era confusión: player_stats es sync automático
+   de boxscores desde WCBA API (ya funciona). No hay entrada manual pendiente.
 
 ### P2
 4. **ClubManagement Liga tab** — campos leagueType/gender/level no existen en schema
@@ -347,6 +429,13 @@ player_stats, invite_links
 
 **Commits de esta sesión:**
 `5631725` U Stats audit-precision script + FOLTEC + FOLOFN + data fix games 319/360/365
+`2ff3484` fix(ios): GameBoxscoreSheet freeze en Capacitor WKWebView
+  - overflow-hidden eliminado del SheetContent (position:fixed + overflow-hidden = iOS freeze)
+  - Movido a wrapper div interno. h-[92svh] → h-[92dvh]
+  - index.css: body[data-scroll-locked] touch-action:auto + pointer-events:auto
+  - NOTA: Pablo reporta que el bug PERSISTE en dispositivo. Posible causa adicional
+    pendiente de investigar en próxima sesión.
+`efbf9c0` ux: skeleton Schedule — isInitialLoad + SkeletonSchedule
 `19190f5` perf(A): Railway keepalive
 `d31de9b` perf(B): staleTime correcto + networkMode offlineFirst
 `1029dec` perf(C): BackgroundPrefetcher timing + query keys
