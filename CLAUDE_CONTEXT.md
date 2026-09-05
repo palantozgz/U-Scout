@@ -322,25 +322,23 @@ player_stats, invite_links
 
 ### P1
 1. **Stats Phase 4** — popup/detail views de jugadora (card expand)
-2. **ReportViewV4 — formato 3 slides** — Slide 1: ¿Quién es? · Slide 2: ¿Qué hará? · Slide 3: ¿Qué hago yo? Mismo componente para player view y REPORTS zone coach
-3. **U Playbook FASE 2** — Transición wizard (staff puede crear reglas publicables) · backend persistencia Supabase (actualmente wizard usa state solo)
-4. **U Playbook wizard ofensivo** — estructura a definir con Pablo
+2. **ReportViewV4 — formato 3 slides** — Slide 1: ¿Quién es? · Slide 2: ¿Qué hará? · Slide 3: ¿Qué hago yo?
+3. **U Playbook FASE 2** — Transición wizard + backend persistencia
+4. **Bundle optimization + Capacitor build** — target <300 KB inicial para App Store. Schedule.tsx es el chunk más grande (131.8 KB gzip). División del god file requiere Cursor sesion dedicada.
 
 ### P2
-5. **player_stats UI** — `/coach/stats-entry`, tabla existe en Supabase, falta backend + frontend
-6. **hasReport fix en MyScout** — usa `createDefaultPlayer` inputs → siempre true. Prompt listo.
-7. **Schedule scroll re-centering** (List ↔ Planner toggle) + kebab → tap=detail, long-press=edit
-8. **ClubManagement Liga tab** — campos leagueType/gender/level no existen en schema
+5. **Schedule.tsx refactor** — 5138 líneas, 50+ estados. Dividir el dialog de creación en subcomponente. Necesita Cursor con archivo completo en contexto.
+6. **player_stats UI** — `/coach/stats-entry`, tabla existe en Supabase, falta backend + frontend
+7. **hasReport fix en MyScout** — usa `createDefaultPlayer` inputs → siempre true
+8. **Schedule scroll re-centering** (List ↔ Planner toggle)
 9. **backup/motor-v2.1-pre-20260405** — merge o discard
 
 ### P3
-10. **Bundle optimization iOS TestFlight** — i18n lazy loading por locale (−120KB) + React.lazy code splitting (−100KB). Target <300KB gzip total. Estimado 3-4 días Cursor.
-11. **Shot chart** — bloqueado Pi Fase 4
-12. **Hero card jugadoras** — requiere wcba_external_id en profiles
-13. **Recurring events** en Schedule
-14. **Favicon U Scout** + logo real del club (reemplazar emoji picker)
-15. **PlayerEditorStatsChip** en production — verificar que aparezca
-16. **OverridePanel** frontend integration con Supabase
+10. **Shot chart** — bloqueado Pi Fase 4
+11. **Hero card jugadoras** — requiere wcba_external_id en profiles
+12. **Recurring events** — ✅ implementado (crea N eventos en loop secuencial)
+13. **Favicon U Core** + logo real del club
+14. **OverridePanel** frontend integration
 
 ---
 
@@ -397,7 +395,57 @@ player_stats, invite_links
 
 ## Historial sesiones
 
-### 2026-06-12 — U Stats cierre definitivo + perf bundle + UX
+### 2026-09-06 — Pulido UI/UX + bundle analysis + i18n audit
+
+**Contexto:** Pablo aterriza en Jiangxi para temporada WCBA. Primer uso real con el equipo.
+
+**Auditoría completa** de todos los módulos (HomeMobile, Schedule, Wellness, ClubManagement, Onboarding, Settings, ModuleNav, PlayerHome, WellnessStandalone, useHomeData, ModuleHeader, locales).
+
+**Bugs corregidos:**
+- `playbookClubId` usaba `profiles.club_id` (tabla inexistente) → `storage.getClubForUser()` — ✅ d4694a0
+- Boxscore vacío: team gameLog usaba `sg.id` en lugar de `sg.external_game_id` — ✅ 016b573
+- Botón X de cierre explícito en GameBoxscoreSheet — ✅ 016b573
+- Wellness chip jugadora → `/schedule` → correcto `/player/wellness` — ✅ d24404c
+- `ModuleNav` Playbook hardcoded → `t("ucore_nav_playbook")` — ✅ d24404c
+- Settings: "U Scout v0.1 / Motor v3" → "U Core v1.0 / Motor v4" — ✅ d24404c
+- `Math.random()` en SVG clipPath de ModuleHeader (re-render en cada mount) → `useMemo` — ✅ a9e19ac
+- mock-data y motor-v4 se cargaban en background para jugadoras → solo para staff — ✅ a9e19ac
+- i18n: `ucore_card_schedule_title`, `home_kpi_wellness`, `playbook_back` sin traducir en ES/ZH — ✅ aff4446
+- Typo `relati` → `relative` en PlayerHome avatar div — ✅ ac63f66
+- Key `schedule_games_count` faltante en los 3 locales — ✅ ac63f66
+- ZH nav: `ucore_nav_playbook: "Playbook"` → `"战术手册"` — ✅ d24404c
+
+**Feature implementada:**
+- **Recurring events** en Schedule: el UI ya existía (repeatEnabled/repeatWeeks/repeatWeekdays) pero no persistía. Ahora `runCreateOrUpdate` acepta `dateOverride` y el submit handler genera N fechas y crea cada evento secuencialmente — ✅ d24404c
+
+**Playbook:**
+- FASE 1 redesign: hub 4-cards, DefensaHub, TransicionShell, AtaqueShell, PlaybookPlanReader, PlaybookPlayerView — ✅ 50107aa
+- Fix bug persistencia: `playbookClubId` → `storage.getClubForUser()` — ✅ d4694a0
+
+**Bundle analysis (2026-09-06):**
+- Total JS: 730.9 KB gzip (67 chunks)
+- Schedule.tsx: 131.8 KB gzip (chunk lazy, solo al navegar)
+- vendor-react: 62.9 KB, vendor-supabase: 50.8 KB
+- Carga inicial real: ~191 KB gzip (index + vendors + locale)
+- generatedHintGenderI18n va embebido en los locales (lazy con ellos)
+- Schedule god file (5138 líneas, 50+ estados) es el mayor candidato de optimización
+
+**i18n audit:**
+- 1400 keys en los 3 locales, 0 vacías
+- 1 key faltante corregida: `schedule_games_count`
+- 178 keys con `as any` (cast forzado), todas presentes en en.ts tras el fix
+
+**ClubManagement:** leagueType/gender/level/ageCategory SÍ existen en schema.ts (líneas 132-135). El bug del CLAUDE_CONTEXT anterior era incorrecto.
+
+**Commits de esta sesión:**
+`50107aa` feat(playbook): FASE 1 redesign
+`016b573` fix(stats): boxscore vacío + botón X GameBoxscoreSheet
+`d4694a0` fix(playbook): playbookClubId → storage.getClubForUser()
+`d24404c` polish: recurring events, wellness chip, ModuleNav i18n, Settings v1.0, ZH nav
+`a9e19ac` perf: Math.random() SVG clipPath, prefetch solo staff
+`aff4446` i18n: locales ES/ZH sin traducir
+`ac63f66` fix: typo relati, schedule_games_count
+`8bcfb97` chore: remove tmp file
 
 **U Stats — cierre definitivo:**
 - FOLTEC (109 eventos, 77 partidos): phantom possessions corregidas en possessions.ts
