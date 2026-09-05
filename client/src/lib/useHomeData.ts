@@ -36,26 +36,28 @@ export function useHomeData() {
   const { profile, effectiveRole, previewRole } = useAuth();
   const queryClient = useQueryClient();
 
-  // Background prefetch on mount
+  // Background prefetch on mount — scope heavy imports to staff only
   useEffect(() => {
     void queryClient.prefetchQuery({
       queryKey: clubQueryKey,
       queryFn: async () => { const r = await apiRequest("GET", "/api/club"); return r.json(); },
       staleTime: 5 * 60 * 1000,
     });
-    void import("@/lib/mock-data");
-    void import("@/lib/motor-v4");
-    void queryClient.prefetchQuery({
-      queryKey: ["/api/players"],
-      queryFn: async () => (await apiRequest("GET", "/api/players")).json(),
-      staleTime: 10 * 60 * 1000,
-    });
-    void queryClient.prefetchQuery({
-      queryKey: ["/api/teams"],
-      queryFn: async () => (await apiRequest("GET", "/api/teams")).json(),
-      staleTime: 10 * 60 * 1000,
-    });
-  }, [queryClient]);
+    if (mode === "staff") {
+      void import("@/lib/mock-data");
+      void import("@/lib/motor-v4");
+      void queryClient.prefetchQuery({
+        queryKey: ["/api/players"],
+        queryFn: async () => (await apiRequest("GET", "/api/players")).json(),
+        staleTime: 10 * 60 * 1000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: ["/api/teams"],
+        queryFn: async () => (await apiRequest("GET", "/api/teams")).json(),
+        staleTime: 10 * 60 * 1000,
+      });
+    }
+  }, [queryClient, mode]);
 
   const realCaps = useMemo(
     () => computeCapabilities({
