@@ -242,6 +242,7 @@ player_stats, invite_links
 | Feature | Estado |
 |---|---|
 | Hub + wizard defensivo (v5, 41 pasos) | ✅ |
+| **Playbook FASE 1 redesign** — hub 4-cards, DefensaHub, TransicionShell, AtaqueShell, PlaybookPlanReader, PlaybookPlayerView | ✅ 50107aa |
 | Wizard ofensivo | ❌ — requiere input de Pablo sobre estructura |
 | Persistencia en Supabase (actualmente localStorage) | ❌ pendiente |
 | Comparador portado al app | ❌ solo HTML standalone |
@@ -290,6 +291,8 @@ player_stats, invite_links
 | League averages — auditadas y correctas | ✅ 2026-06-08 |
 | PhaseToggle + multi-temporada | ✅ |
 | GameBoxscoreSheet — col labels locale-aware | ✅ dd3b92f |
+| GameBoxscoreSheet — datos vacíos fix (team gameLog sg.id → external_game_id) | ✅ 016b573 |
+| GameBoxscoreSheet — botón X de cierre explícito | ✅ 016b573 |
 | StatsMiniChip en MyScout | ✅ 52cb42d |
 | Bubble chart (eFG% vs PPG) — StatsBubbleChart.tsx SVG | ✅ 70d121a |
 | Radar comparator — StatsPlayerComparator.tsx SVG | ✅ 0c19c17 |
@@ -318,20 +321,26 @@ player_stats, invite_links
 ## Pendientes ordenados por impacto
 
 ### P1
-1. **U Playbook wizard ofensivo** — estructura a definir con Pablo
-2. **player_stats UI** — `/coach/stats-entry`, tabla existe en Supabase, falta backend + frontend
-3. ~~**Bundle iOS TestFlight**~~ — ✅ COMPLETADO 2026-06-12 (ver sesión de performance)
-4. ~~**player_stats UI**~~ — ELIMINADO de P1. Era confusión: player_stats es sync automático
-   de boxscores desde WCBA API (ya funciona). No hay entrada manual pendiente.
+1. **Stats Phase 4** — popup/detail views de jugadora (card expand)
+2. **ReportViewV4 — formato 3 slides** — Slide 1: ¿Quién es? · Slide 2: ¿Qué hará? · Slide 3: ¿Qué hago yo? Mismo componente para player view y REPORTS zone coach
+3. **U Playbook FASE 2** — Transición wizard (staff puede crear reglas publicables) · backend persistencia Supabase (actualmente wizard usa state solo)
+4. **U Playbook wizard ofensivo** — estructura a definir con Pablo
 
 ### P2
-4. **ClubManagement Liga tab** — campos leagueType/gender/level no existen en schema
-5. **backup/motor-v2.1-pre-20260405** — merge o discard
+5. **player_stats UI** — `/coach/stats-entry`, tabla existe en Supabase, falta backend + frontend
+6. **hasReport fix en MyScout** — usa `createDefaultPlayer` inputs → siempre true. Prompt listo.
+7. **Schedule scroll re-centering** (List ↔ Planner toggle) + kebab → tap=detail, long-press=edit
+8. **ClubManagement Liga tab** — campos leagueType/gender/level no existen en schema
+9. **backup/motor-v2.1-pre-20260405** — merge o discard
 
 ### P3
-6. **Shot chart** — bloqueado Pi Fase 4
-7. **Hero card jugadoras** — requiere wcba_external_id en profiles
-8. **Recurring events** en Schedule
+10. **Bundle optimization iOS TestFlight** — i18n lazy loading por locale (−120KB) + React.lazy code splitting (−100KB). Target <300KB gzip total. Estimado 3-4 días Cursor.
+11. **Shot chart** — bloqueado Pi Fase 4
+12. **Hero card jugadoras** — requiere wcba_external_id en profiles
+13. **Recurring events** en Schedule
+14. **Favicon U Scout** + logo real del club (reemplazar emoji picker)
+15. **PlayerEditorStatsChip** en production — verificar que aparezca
+16. **OverridePanel** frontend integration con Supabase
 
 ---
 

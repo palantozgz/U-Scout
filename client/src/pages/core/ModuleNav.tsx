@@ -21,7 +21,7 @@ function useModuleNavItems() {
     const schedule = { key: "schedule", label: t("ucore_nav_schedule"), href: "/schedule",   icon: <CalendarDays className="w-5 h-5" /> };
     const scout    = { key: "scout",    label: t("ucore_nav_scout"),    href: "/scout",      icon: <Target       className="w-5 h-5" /> };
     const stats    = { key: "stats",    label: t("ucore_nav_stats"),    href: "/stats",     icon: <BarChart3 className="w-5 h-5" /> };
-    const playbook = { key: "playbook", label: "Playbook",              href: "/playbook",  icon: <BookOpen  className="w-5 h-5" /> };
+    const playbook = { key: "playbook", label: t("ucore_nav_playbook"), href: "/playbook",  icon: <BookOpen  className="w-5 h-5" /> };
 
     return [home, schedule, scout, stats, playbook];
   }, [t]);

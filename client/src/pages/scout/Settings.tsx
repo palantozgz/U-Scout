@@ -159,12 +159,12 @@ export default function Settings() {
           <p className="font-bold text-foreground text-sm">{t("settings_about")}</p>
           <div className="space-y-2 text-xs text-muted-foreground">
             <div className="flex justify-between">
-              <span>U Scout</span>
-              <span className="font-semibold text-foreground">v0.1</span>
+              <span>U Core</span>
+              <span className="font-semibold text-foreground">v1.0</span>
             </div>
             <div className="flex justify-between">
               <span>{t("settings_motor")}</span>
-              <span className="font-semibold text-foreground">v3 — Archetypal</span>
+              <span className="font-semibold text-foreground">v4 — Motor</span>
             </div>
             <div className="flex justify-between">
               <span>{t("settings_archetypes")}</span>

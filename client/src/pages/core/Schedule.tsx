@@ -514,18 +514,19 @@ export default function Schedule() {
     setGroupName(String(tpl.constraints?.group_name ?? ""));
   };
 
-  const runCreateOrUpdate = async (opts?: { overrideTemplate?: SessionTemplate | null }) => {
+  const runCreateOrUpdate = async (opts?: { overrideTemplate?: SessionTemplate | null; dateOverride?: string }) => {
     if (!clubId || !userId) return;
     if (!createDate || createStartMins == null) return;
     if (attendanceMode === "selected_players" && selectedPlayerIds.size < 1) return;
     if (!signupMaxSpotsOk) return;
     const baseTitle = (opts?.overrideTemplate ? opts.overrideTemplate.title : createTitle).trim();
     const title = baseTitle || t(ACTIVITY_TYPE_CONFIG[createSessionType].labelKey);
-    const startsIso = new Date(`${createDate}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`).toISOString();
+    const dateStr = opts?.dateOverride ?? createDate;
+    const startsIso = new Date(`${dateStr}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`).toISOString();
     const endsIso = createEndTime
-      ? new Date(`${createDate}T${createEndTime}`).toISOString()
+      ? new Date(`${dateStr}T${createEndTime}`).toISOString()
       : durationMins && durationMins > 0
-        ? new Date(new Date(`${createDate}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`).getTime() + durationMins * 60000).toISOString()
+        ? new Date(new Date(`${dateStr}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`).getTime() + durationMins * 60000).toISOString()
         : null;
     const constraints = {
       target_attendance: targetAttendance.trim() ? Number(targetAttendance) : undefined,
@@ -4041,7 +4042,23 @@ export default function Schedule() {
                       setCustomDurationMins("");
                     };
                     void runCreateOrUpdate()
-                      .then(() => {
+                      .then(async () => {
+                        // Recurring: create copies on additional weeks/days
+                        if (repeatEnabled && !editingSessionId && repeatWeekdays.size > 0) {
+                          const base = new Date(`${createDate}T00:00:00`);
+                          const mon = mondayOf(base);
+                          const extraDates: string[] = [];
+                          for (let w = 1; w <= repeatWeeks; w++) {
+                            for (const jsDow of Array.from(repeatWeekdays).sort((a, b) => a - b)) {
+                              const d = new Date(mon.getTime() + (w * 7 + (jsDow + 6) % 7) * 86400000);
+                              const dk = localDateKey(d);
+                              if (dk !== createDate) extraDates.push(dk);
+                            }
+                          }
+                          for (const dateOverride of extraDates) {
+                            await runCreateOrUpdate({ dateOverride });
+                          }
+                        }
                         toast({ description: editingSessionId ? t("schedule_edit_saved") : t("schedule_create_session_saved") });
                         doReset();
                       })

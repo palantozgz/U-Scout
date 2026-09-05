@@ -35,7 +35,7 @@ const zh = {
   ucore_nav_scout: "球探",
   ucore_nav_schedule: "日程",
   ucore_nav_stats: "统计",
-  ucore_nav_playbook: "Playbook",
+  ucore_nav_playbook: "战术手册",
   ucore_nav_club: "我的俱乐部",
   ucore_card_scout_title: "U Scout",
   ucore_card_scout_sub_staff: "创建球探报告",

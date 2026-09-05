@@ -213,7 +213,7 @@ export default function HomeMobile() {
         ? "Pendiente: envía tu wellness de hoy"
         : "Don't forget to log your wellness today";
       chips.push(
-        <AlertChip key="wellness-pending" icon="🫀" label={label} tone="amber" onClick={() => setLocation("/schedule")} />,
+        <AlertChip key="wellness-pending" icon="🫀" label={label} tone="amber" onClick={() => setLocation("/player/wellness")} />,
       );
     } else if (entry) {
       const sleep     = entry.sleep_quality;
