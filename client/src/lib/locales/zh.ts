@@ -207,6 +207,7 @@ const zh = {
   schedule_phase_playoff: "季后",
   schedule_phase_off: "休赛",
   schedule_games_any: "比赛：不限",
+  schedule_games_count: "本周比赛数",
   schedule_games_0: "0 场比赛",
   schedule_games_1: "1 场比赛",
   schedule_games_2: "2+ 场比赛",

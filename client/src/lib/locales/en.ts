@@ -215,6 +215,7 @@ const en = {
   schedule_phase_playoff: "Playoff",
   schedule_phase_off: "Off",
   schedule_games_any: "Games: Any",
+  schedule_games_count: "Games in week",
   schedule_games_0: "0 games",
   schedule_games_1: "1 game",
   schedule_games_2: "2+ games",

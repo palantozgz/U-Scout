@@ -71,7 +71,7 @@ export default function PlayerHome() {
           }
         />
         <div className="bg-card rounded-2xl border border-border p-4 flex items-center gap-4 shadow-sm">
-          <div className="relati shrink-0">
+          <div className="relative shrink-0">
             {real ? (
               <img src={avatarUrl} alt="" className="w-16 h-16 rounded-full object-cover border-2 border-border" />
             ) : (

@@ -208,6 +208,7 @@ const es = {
   schedule_phase_playoff: "Playoff",
   schedule_phase_off: "Off",
   schedule_games_any: "Partidos: Cualquiera",
+  schedule_games_count: "Partidos en semana",
   schedule_games_0: "0 partidos",
   schedule_games_1: "1 partido",
   schedule_games_2: "2+ partidos",
