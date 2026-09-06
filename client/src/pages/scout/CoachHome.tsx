@@ -243,7 +243,7 @@ export default function CoachHome() {
     ? (() => {
         try {
           const time = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(nextGame.starts_at));
-          return `${nextGame.title ?? (locale === "es" ? "Partido" : "Game")} · ${time}`;
+          return `${nextGame.title ?? (locale === "es" ? "Partido" : locale === "zh" ? "比赛" : "Game")} · ${time}`;
         } catch {
           return nextGame.title ?? L.alertNext;
         }

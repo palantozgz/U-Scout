@@ -314,6 +314,8 @@ export default function Personnel() {
             setCanonicalError(
               locale === "es"
                 ? "Error al hacer la ficha oficial. Inténtalo de nuevo."
+                : locale === "zh"
+                ? "设为官方档案时出错，请重试。"
                 : "Failed to make profile official. Please retry.",
             );
           }
@@ -774,6 +776,8 @@ export default function Personnel() {
                   <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] font-semibold text-primary">
                     {locale === "es"
                       ? `✓ ${importResult.created} jugadoras importadas, ${importResult.skipped} ya existían`
+                      : locale === "zh"
+                      ? `✓ 已导入 ${importResult.created} 名球员，${importResult.skipped} 名已存在`
                       : `✓ ${importResult.created} players imported, ${importResult.skipped} already existed`}
                   </div>
                 )}

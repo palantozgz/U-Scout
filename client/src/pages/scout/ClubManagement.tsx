@@ -283,7 +283,7 @@ export default function ClubManagement() {
       setShowAddMatch(false); setMatchRival(""); setMatchDate(""); setMatchTime("12:00"); setMatchLocation("");
     },
     onError: () => {
-      toast({ variant: "destructive", description: locale === "es" ? "Error al guardar el partido" : "Failed to save match" });
+      toast({ variant: "destructive", description: locale === "es" ? "Error al guardar el partido" : locale === "zh" ? "保存比赛失败" : "Failed to save match" });
     },
   });
   const deleteMatchMut = useMutation({
