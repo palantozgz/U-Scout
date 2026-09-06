@@ -672,3 +672,44 @@ Commits pusheados:
 ### 2026-05-27 — shotZones, infraestructura
 ### 2026-05-25 — possessions v6.2, Playbook redesign, ThemePlugin iOS
 ### 2026-05-24 — action codes, PBP pipeline, audit formulas
+
+### 2026-09-06 — QA autónomo completo (3 roles: Head Coach / Coach asistente / Jugadora)
+
+**Cuentas de test usadas:**
+- Head coach: cuenta real de Pablo (pablomgz@hotmail.com, password reseteada a 8888 a peticion suya -- CAMBIAR).
+- Coach asistente: ucore.qa.coach@gmail.com / QaCoach2026! -- creada por SQL directo en auth.users+auth.identities (copiando fila completa de Pablo como plantilla) porque Supabase rechazo el dominio uscout.app en signup y luego se agoto el rate-limit de emails de confirmacion (free tier). Rol: coach, sin operationsAccess.
+- Jugadora: ucore.qa.player@gmail.com / QaPlayer2026! -- mismo metodo. Unida al club via invite link real.
+- Se borraron las 7 cuentas de amigos testers antiguas (confirmado por Pablo, ejecutado por el en Supabase SQL Editor).
+
+**Bugs reales encontrados y CORREGIDOS (commiteados + desplegados + verificados en produccion):**
+1. SessionCreateDialog.tsx -- off-by-one en preview/boton de Crear sesion con repeticion: restaba 1 de mas siempre que el dia de la semana de la sesion base coincidia con los dias de repeticion seleccionados (el caso mas comun). El bucle de generacion empieza en semana+1, asi que la fecha base nunca coincide con las generadas -- la resta baseIncluded era codigo muerto que restaba mal. Bug nacido el mismo dia en el commit f645bba (feature nueva de Pablo/Cursor). Commit fix: 895222a.
+2. JoinClub.tsx -- el escudo del club se renderizaba como texto crudo (data:image/jpeg;base64,...) en vez de <img> cuando el club tiene logo personalizado subido (en vez de emoji). Commit fix: 2542461.
+3. Inversion de dolor muscular en todo el sistema de Wellness -- bug de mayor impacto real de la sesion. El input/tooltip dice 1 = muy dolorida, 5 = sin dolor (igual que las otras 3 metricas: alto = mejor), pero 6 puntos de codigo asumian lo contrario (goodUp: false, muscle_soreness >= 4 como alto riesgo). Afectaba: color en vista jugadora, alertas de riesgo al staff (highSorenessUserIds, priority score), orden mayor dolor primero (invertido), correlaciones con calendario, dos graficos de tendencia, y las dos copias del formulario de entrada en Schedule.tsx. El sistema de alertas al staff literalmente avisaba de las jugadoras mas sanas y no avisaba de las que reportaban dolor real. Sin datos historicos reales afectados (solo mi entrada de test existia). Commit fix: 4d361c0.
+4. Playbook.tsx -- titulos de seccion del hub (Defensa/Transicion/Ataque/Saques) no traducian a ingles porque HUB_SECTIONS[].getLabel solo comprobaba l === zh sin rama para en, cayendo siempre a espanol. El resto del archivo ya usaba correctamente el patron zh ? z : es ? e : en. De paso corregida una fecha con locale es-ES hardcodeado en la lista de planes de DefensaHub. Commit fix: ab6b388.
+
+**Bug real IDENTIFICADO pero NO corregido -- necesita tu revision:**
+- useUpsertWellnessEntry (wellness.ts) al enviar un check-in solo invalida la query key ["wellness-entry"] (singular, usada por la vista propia de la jugadora). La vista de staff (WellnessStaffTab) usa useWellnessEntriesForDate con key ["wellness-entries"] (plural) -- nunca se invalida cuando alguien envia su wellness. Consecuencia: el coach puede seguir viendo no enviado en el tab de staff despues de que la jugadora ya envio, hasta que algo fuerce un refetch (reload completo, cambio de pestana, expirar staleTime 2h). No lo he tocado -- toca la estrategia de invalidacion de queries y quiero confirmar el alcance completo antes de arreglarlo.
+
+**Bug pendiente de tu decision (no tecnico, de producto):**
+- defensive-system.ts (wizard defensivo Playbook, ~41 pasos) esta enteramente en ingles a nivel de contenido (preguntas, opciones, ayudas, mensajes de validacion) sin usar el sistema i18n en absoluto -- es contenido puro, probablemente portado de defensive-system-builder-v6.html y nunca traducido. Es una decision de producto (se traduce terminologia tactica real -- ICE, drop, Spain PnR -- o se deja en ingles a proposito como jerga de scouting internacional?), no algo que deba decidir yo solo.
+
+**Hallazgos menores anotados, no bugs / no urgentes:**
+- ClubManagement -> Equipo tab: boton Invitar staff aparece duplicado en la misma pantalla (uno suelto arriba, otro en la seccion Invitaciones). Funciona bien en ambos sitios, es solo redundancia de UI. Pendiente tu decision de cual quitar.
+- Stats -> Lideres: Player #6656 sin nombre mapeado -- gap de datos de sincronizacion WCBA upstream, no bug de la app.
+- Boxscore de jugadora: boton de cierre es flecha <- en vez de X como decia el guion de QA original -- funcionalmente correcto, solo diferencia de icono, no lo toque.
+- Settings de jugadora: no hay selector de tema (solo idioma) -- puede ser intencional (simplicidad para jugadoras) o un gap; no confirmado.
+- Home de coach (ES y ZH): aparecen simultaneamente 307 informes... pendientes y todos los informes completados -- parecen contradictorios pero podrian referirse a metricas distintas (roster global vs verificacion). No investigado a fondo, ya estaba presente antes de esta sesion.
+- Aprendizaje de tooling para proximas sesiones de QA con Puppeteer: los componentes Radix UI (Tabs, etc.) necesitan un click real via CDP (puppeteer_click con selector) -- los eventos JS sinteticos (dispatchEvent) no siempre disparan su logica interna. Ademas, tras cualquier borrado/edicion directa por SQL (saltandose las mutaciones de la app), el cache persistido en localStorage[uscout-cache-v1] (TanStack Query con staleTime: 2h + offlineFirst) puede mostrar datos fantasma incluso tras recargar la pagina completa -- hay que limpiar esa key manualmente para confirmar el estado real tras cambios hechos por fuera de la app.
+
+**QA completado por rol:**
+- Rol 1 (Head Coach): completo -- Schedule (Lista/Planificador/Wellness staff), ClubManagement (Club/Liga/Equipo/Estadisticas), Scout (Plantilla/Mi Scout/Sala de analisis/Plan de juego, incl. ReportSlidesV1 3 slides via swipe), Stats (Clasificacion/Lideres/Jugadoras/boxscore). Pendiente: crear ficha de practica nueva end-to-end, Settings->ZH.
+- Rol 3 (Jugadora): completo -- onboarding EN, Home, Wellness check-in completo, Schedule (vacio, sin sesion real para probar countdown), Scout/Stats/Playbook (empty states correctos), Settings (idioma ES<->EN, sign out).
+- Rol 2 (Coach asistente): parcial -- onboarding ZH, Home, Schedule (permisos sin operationsAccess verificados correctamente: no puede crear sesiones, si ve tab Wellness). Pendiente: Scout, Playbook, ClubManagement (que tabs ve).
+
+**Pendiente para la proxima sesion:**
+1. Terminar Rol 2 (Scout, Playbook, ClubManagement).
+2. Decidir y corregir el bug de invalidacion de cache Wellness staff.
+3. Decidir traduccion del wizard defensivo.
+4. Decidir que boton Invitar staff quitar.
+5. Ficha de practica nueva + Settings->ZH del Rol 1.
+6. Pablo debe cambiar su password 8888 por algo real.
