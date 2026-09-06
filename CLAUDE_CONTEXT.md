@@ -735,3 +735,26 @@ Se completaron los flujos que quedaban pendientes de la entrada anterior (Rol 2 
 **QA de los 3 roles: COMPLETO.** Ver seccion 6 del report para detalle exacto de cobertura por rol.
 
 **Estado de cuentas de test:** ucore.qa.coach@gmail.com / QaCoach2026! y ucore.qa.player@gmail.com / QaPlayer2026! siguen activas en el club real INNER MONGOLIA. Decidir si se mantienen para la proxima sesion de QA o se eliminan.
+
+### 2026-09-06 -- Decisiones post-QA tomadas con Pablo
+
+**Wizard defensivo en ingles (defensive-system.ts):** DECISION -- se deja en ingles por ahora, sin traducir. Motivo de Pablo: de momento solo el mismo lo usa, no hay necesidad inmediata de traducirlo. Revisar si esto cambia cuando haya mas coaches de staff usando el wizard regularmente -- en ese momento reconsiderar entre traducir todo, dejarlo en ingles a proposito (jerga tactica internacional), o un hibrido (interfaz traducida, terminologia tactica en ingles).
+
+**Cache Wellness staff (wellness-entries no se invalidaba al enviar check-in):** RESUELTO. Fix aplicado: invalidacion por prefijo de la key plural wellness-entries ademas de la singular wellness-entry en el onSuccess de useUpsertWellnessEntry. Commit: 998f2ef. Desplegado y confirmado.
+
+### 2026-09-06 -- Analisis de codigo dedicado + cierre de huecos i18n
+
+Se genero un segundo documento (U-Core-Code-Files-Report-2026-09-06.md) con analisis independiente del codigo: tamano de archivos, bundle real medido (confirmado ~180KB gzip de carga inicial, objetivo <300KB YA CUMPLIDO), deuda tecnica (solo 1 archivo con ts-nocheck: defensive-system.ts), y auditoria exhaustiva del patron de i18n de 2 vias en todo el repo.
+
+Auditoria completa del patron locale es vs en/zh sin rama zh: se encontraron 5 huecos candidatos en 4 archivos. 4 eran reales y se corrigieron; 1 (translateMotorOutput.ts) resulto ser falso positivo -- es logica de genero gramatical exclusiva del espanol (jugador/jugadora via candidateSpanishKeysForGender), el chino no tiene genero gramatical y no necesita rama equivalente, no se toco.
+
+4 fixes aplicados, npm run check limpio, desplegados y verificados (commit 5ca1372):
+- Personnel.tsx: mensaje de error al hacer ficha oficial + mensaje de resultado de importacion de jugadoras.
+- CoachHome.tsx: fallback de titulo de partido.
+- ClubManagement.tsx: toast de error al guardar partido de liga.
+
+Hallazgo nuevo sin investigar: Stats.tsx tiene un patron inverso (mas comprobaciones de zh que de es, gap -4) -- no es el mismo tipo de bug, no investigado. Queda para revision dedicada si se audita Stats.tsx (el archivo mas grande del repo, 4707 lineas).
+
+Bundle de produccion confirmado: ~180KB gzip de carga inicial (entry + vendor chunks), medido sobre build local. El objetivo de <300KB para TestFlight de la sesion de rendimiento anterior ya esta cumplido. Nota: no confirmado que corresponda exactamente al ultimo commit desplegado en Railway -- recomendado remedir con build limpio antes de anunciar el objetivo cerrado formalmente.
+
+Ambos reports (QA + Codigo) entregados a Pablo, cubren la sesion completa del 2026-09-06.
