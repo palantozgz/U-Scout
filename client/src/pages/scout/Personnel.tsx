@@ -311,7 +311,6 @@ export default function Personnel() {
           try {
             await apiRequest("POST", `/api/players/${created.id}/canonical`);
           } catch (e) {
-            console.error("canonical promotion error", e);
             setCanonicalError(
               locale === "es"
                 ? "Error al hacer la ficha oficial. Inténtalo de nuevo."
@@ -401,7 +400,6 @@ export default function Personnel() {
     try {
       await apiRequest("DELETE", `/api/teams/${teamId}?action=${action}`);
     } catch (err) {
-      console.error("delete team failed", err);
     } finally {
       qc.invalidateQueries({ queryKey: ["/api/teams"] });
       qc.invalidateQueries({ queryKey: ["/api/players"] });
@@ -432,7 +430,6 @@ export default function Personnel() {
       const data = await res.json();
       setStatsTeams(data.teams ?? []);
     } catch (err) {
-      console.error("Failed to fetch stats teams", err);
     }
   };
 
@@ -471,7 +468,6 @@ export default function Personnel() {
       setImportResult({ created: data.created, skipped: data.skipped });
       await qc.invalidateQueries({ queryKey: ["/api/players"] });
     } catch (err) {
-      console.error("Import failed", err);
     } finally {
       setImportLoading(false);
     }
@@ -489,7 +485,6 @@ export default function Personnel() {
       await qc.invalidateQueries({ queryKey: ["/api/teams"] });
       await qc.invalidateQueries({ queryKey: ["/api/players"] });
     } catch (err) {
-      console.error("Import league failed", err);
       setImportLeagueError("Import failed. Check console.");
     } finally {
       setImportLeagueLoading(false);
@@ -506,7 +501,6 @@ export default function Personnel() {
       setShowResetModal(false);
       setResetConfirmText("");
     } catch (err) {
-      console.error("Reset failed", err);
     } finally {
       setResetLoading(false);
     }
@@ -979,7 +973,6 @@ export default function Personnel() {
                                       await apiRequest("PATCH", `/api/players/${player.id}`, { teamId: newTeamId });
                                       await qc.invalidateQueries({ queryKey: ["/api/players"] });
                                     } catch (err) {
-                                      console.error("assign team failed", err);
                                     }
                                   }}
                                 >

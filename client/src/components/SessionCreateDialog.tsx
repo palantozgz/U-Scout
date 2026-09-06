@@ -856,6 +856,21 @@ export function SessionCreateDialog(props: SessionCreateDialogProps) {
                                     ))}
                                   </ToggleGroup>
                                 </div>
+                                {repeatWeekdays.size > 0 && createDate ? (
+                                  (() => {
+                                    // Count: 1 base + (weeks × days) - 1 if base date is in selected days
+                                    const baseDow = new Date(`${createDate}T00:00:00`).getDay();
+                                    const baseIncluded = repeatWeekdays.has(baseDow) ? 1 : 0;
+                                    const extra = repeatWeeks * repeatWeekdays.size - baseIncluded;
+                                    const total = 1 + extra;
+                                    const es = locale === "es"; const zh = locale === "zh";
+                                    return (
+                                      <p className="text-[11px] font-bold text-primary rounded-lg bg-primary/8 border border-primary/20 px-3 py-2 text-center">
+                                        {zh ? `将创建 ${total} 个训练课` : es ? `Se crearán ${total} sesiones` : `${total} sessions will be created`}
+                                      </p>
+                                    );
+                                  })()
+                                ) : null}
                               </div>
                             ) : null}
                           </div>
@@ -922,7 +937,16 @@ export function SessionCreateDialog(props: SessionCreateDialogProps) {
                     ? t("saving")
                     : editingSessionId
                       ? t("schedule_edit_save")
-                      : t("schedule_create_session_save")}
+                      : (() => {
+                          if (repeatEnabled && !editingSessionId && repeatWeekdays.size > 0 && createDate) {
+                            const baseDow = new Date(`${createDate}T00:00:00`).getDay();
+                            const baseIncluded = repeatWeekdays.has(baseDow) ? 1 : 0;
+                            const total = 1 + repeatWeeks * repeatWeekdays.size - baseIncluded;
+                            const es = locale === "es"; const zh = locale === "zh";
+                            return zh ? `创建 ${total} 个训练课` : es ? `Crear ${total} sesiones` : `Create ${total} sessions`;
+                          }
+                          return t("schedule_create_session_save");
+                        })()}
                 </Button>
             </div>
             {!canSubmitCreate ? (

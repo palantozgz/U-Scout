@@ -70,7 +70,11 @@ export function useHomeData() {
   );
 
   const displayName = profile?.username?.trim() || profile?.email || t("coach_home_name_fallback");
-  const firstName = (profile?.username?.trim() || profile?.email || "").split(" ")[0] || t("coach_home_name_fallback");
+  const rawName = profile?.username?.trim() || profile?.email || "";
+  const firstName = (rawName.includes("@")
+    ? rawName.split("@")[0]
+    : rawName.split(" ")[0]
+  ) || t("coach_home_name_fallback");
   const roleLabel = effectiveRole ? t(ROLE_LABEL_KEY[effectiveRole]) : "";
 
   // Club data — staff head_coach only

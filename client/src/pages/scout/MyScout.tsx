@@ -14,9 +14,10 @@ import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 
 function hasReportInputs(player: PlayerProfile): boolean {
-  // Archetype real = distinto al default de createDefaultPlayer
-  const hasRealArchetype =
-    !!player.archetype && player.archetype !== "arch_role_player";
+  // "arch_role_player" = internal ID (createDefaultPlayer)
+  // "Role Player"      = text stored in DB when importing WCBA players via Personnel
+  const DEFAULT_ARCHS = new Set(["arch_role_player", "Role Player", ""]);
+  const hasRealArchetype = !!player.archetype && !DEFAULT_ARCHS.has(player.archetype);
 
   const inp = (player as any).inputs ?? (player as any).scoutingInputs;
   if (!inp || typeof inp !== "object") return hasRealArchetype;
