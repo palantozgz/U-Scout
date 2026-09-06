@@ -713,3 +713,25 @@ Commits pusheados:
 4. Decidir que boton Invitar staff quitar.
 5. Ficha de practica nueva + Settings->ZH del Rol 1.
 6. Pablo debe cambiar su password 8888 por algo real.
+
+### 2026-09-06 (continuacion) -- QA completo cerrado + report generado
+
+Se completaron los flujos que quedaban pendientes de la entrada anterior (Rol 2 completo, ficha de practica nueva). Ver report completo entregado a Pablo: U-Core-QA-Report-2026-09-06.md (contiene analisis de codigo + QA combinados, es la fuente mas detallada -- este bloque es solo resumen para contexto rapido).
+
+**2 bugs nuevos corregidos, desplegados y verificados:**
+5. MyScout.tsx -- select de equipo al crear ficha de practica mostraba la URL cruda del logo (https://cbanetcdn.cba.net.cn/...) en vez de un fallback visual. Faltaba el mismo check que ya existe en Personnel.tsx (t.logo?.startsWith("http") ? emoji : t.logo). Commit: 4cd4db7.
+6. PlayerEditor.tsx -- mismo patron de i18n que Playbook.tsx (ternario de 2 vias sin rama zh) en 6 puntos: "Recent form" + tooltip, 3 opciones de racha, "Not observed", "Shooting zones" + tooltip, "Long range", y el texto del diagrama de poste (HalfCourtDiagram, que ni tenia rama ES -- hubo que propagar locale como prop en 2 niveles). Commit: aaf8e12.
+
+**Bug nuevo identificado, NO corregido:**
+- PowerBar en PlayerEditor.tsx muestra literalmente "undefined/5" para jugadoras importadas de WCBA sin datos de atletismo/fuerza fisica cargados (encontrado en la ficha real de Chennedy Carter, no se guardo ningun cambio ahi). Causa probable: value ?? undefined en vez de value ?? 0 en algun punto de hidratacion. No investigado a fondo.
+
+**Verificaciones de permisos Rol 2 (coach sin operationsAccess) confirmadas correctas, sin bugs:**
+- Schedule: no puede crear sesiones (0 botones en el DOM), pero SI ve el tab Wellness staff.
+- Playbook: SI puede crear planes -- el permiso de creacion de Playbook no depende de operationsAccess, solo de no ser jugador (isPlayerUX).
+- ClubManagement: sin permisos de gestion (canManageClub=false), redireccion automatica a /coach -- no ve ningun tab. Comportamiento esperado, no bug.
+
+**Patron sistemico identificado, pendiente de barrido completo:** el ternario locale === "es" ? X : Y (sin rama zh) parecio en Playbook.tsx y PlayerEditor.tsx esta sesion. Recomendado ejecutar en el repo completo: grep -rn 'locale === "es" ? "[^"]*" : "[A-Za-z]' client/src -- no se hizo busqueda exhaustiva esta sesion por priorizar completar los flujos de QA primero.
+
+**QA de los 3 roles: COMPLETO.** Ver seccion 6 del report para detalle exacto de cobertura por rol.
+
+**Estado de cuentas de test:** ucore.qa.coach@gmail.com / QaCoach2026! y ucore.qa.player@gmail.com / QaPlayer2026! siguen activas en el club real INNER MONGOLIA. Decidir si se mantienen para la proxima sesion de QA o se eliminan.
