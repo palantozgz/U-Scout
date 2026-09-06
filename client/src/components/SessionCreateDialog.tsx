@@ -858,11 +858,11 @@ export function SessionCreateDialog(props: SessionCreateDialogProps) {
                                 </div>
                                 {repeatWeekdays.size > 0 && createDate ? (
                                   (() => {
-                                    // Count: 1 base + (weeks × days) - 1 if base date is in selected days
-                                    const baseDow = new Date(`${createDate}T00:00:00`).getDay();
-                                    const baseIncluded = repeatWeekdays.has(baseDow) ? 1 : 0;
-                                    const extra = repeatWeeks * repeatWeekdays.size - baseIncluded;
-                                    const total = 1 + extra;
+                                    // Count: 1 base session + (weeks × days) extra sessions.
+                                    // The extra-dates loop below always starts at week offset 1
+                                    // (it never regenerates the base week), so the base date can
+                                    // never coincide with a generated extra date — no subtraction needed.
+                                    const total = 1 + repeatWeeks * repeatWeekdays.size;
                                     const es = locale === "es"; const zh = locale === "zh";
                                     return (
                                       <p className="text-[11px] font-bold text-primary rounded-lg bg-primary/8 border border-primary/20 px-3 py-2 text-center">
@@ -939,9 +939,8 @@ export function SessionCreateDialog(props: SessionCreateDialogProps) {
                       ? t("schedule_edit_save")
                       : (() => {
                           if (repeatEnabled && !editingSessionId && repeatWeekdays.size > 0 && createDate) {
-                            const baseDow = new Date(`${createDate}T00:00:00`).getDay();
-                            const baseIncluded = repeatWeekdays.has(baseDow) ? 1 : 0;
-                            const total = 1 + repeatWeeks * repeatWeekdays.size - baseIncluded;
+                            // Same formula as the preview above — must stay in sync.
+                            const total = 1 + repeatWeeks * repeatWeekdays.size;
                             const es = locale === "es"; const zh = locale === "zh";
                             return zh ? `创建 ${total} 个训练课` : es ? `Crear ${total} sesiones` : `Create ${total} sessions`;
                           }
