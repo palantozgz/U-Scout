@@ -406,10 +406,14 @@ function IsoCloseoutReactionSection({ inputs, ui }: { inputs: PlayerInput; ui: (
 }
 
 // ─── Half-court diagram ───────────────────────────────────────────────────────
-function HalfCourtDiagram({ dominant }: { dominant?: "Right" | "Left" }) {
+function HalfCourtDiagram({ dominant, locale }: { dominant?: "Right" | "Left"; locale?: string }) {
+  const topViewLabel =
+    locale === "es" ? "Vista cenital — espalda al fondo de la pista"
+    : locale === "zh" ? "俯视图 — 球员背对底线"
+    : "Top view — player's back to the baseline";
   return (
     <div className="rounded-xl border border-border bg-slate-50 p-3 space-y-2">
-      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground text-center">Top view — player's back to the baseline</p>
+      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground text-center">{topViewLabel}</p>
       <svg viewBox="0 0 240 175" className="w-full max-w-xs mx-auto block" xmlns="http://www.w3.org/2000/svg">
         <rect x="10" y="18" width="220" height="140" fill="none" stroke="#94a3b8" strokeWidth="1.5" rx="3"/>
         <rect x="70" y="60" width="100" height="88" fill="none" stroke="#94a3b8" strokeWidth="1.2"/>
@@ -469,8 +473,8 @@ const MOVE_DESC: Record<string, string> = {
   "Kick out to perimeter": t("move_desc_kick_out"), "High-low pass": t("move_desc_high_low"),
 };
 
-function PostQuadrantSelector({ value, onChange, dominantHand }: {
-  value: PostQuadrants; onChange: (v: PostQuadrants) => void; dominantHand?: "Right" | "Left";
+function PostQuadrantSelector({ value, onChange, dominantHand, locale }: {
+  value: PostQuadrants; onChange: (v: PostQuadrants) => void; dominantHand?: "Right" | "Left"; locale?: string;
 }) {
   const quadrants: { key: keyof PostQuadrants; label: string; side: "right" | "left" }[] = [
     { key: "rightBaseline", label: t("block_right_baseline"), side: "right" },
@@ -482,7 +486,7 @@ function PostQuadrantSelector({ value, onChange, dominantHand }: {
   return (
     <div className="space-y-3">
       <FieldLabel label={t("post_moves_quadrant")} tooltip={`${t("hint_post_quadrant")} ${t("hint_motor_post_moves_quadrant")}`} />
-      <HalfCourtDiagram dominant={dominantHand} />
+      <HalfCourtDiagram dominant={dominantHand} locale={locale} />
       <div className="grid grid-cols-2 gap-2">
         {quadrants.map(q => {
           const current = value[q.key];
@@ -854,16 +858,18 @@ export default function PlayerEditor() {
               {/* Recent form */}
               <div className="space-y-2">
                 <FieldLabel
-                  label={locale === "es" ? "Forma reciente (últimos 3-5 partidos)" : "Recent form (last 3–5 games)"}
+                  label={locale === "es" ? "Forma reciente (últimos 3-5 partidos)" : locale === "zh" ? "近期状态（最近 3–5 场）" : "Recent form (last 3–5 games)"}
                   tooltip={locale === "es"
                     ? "Observación del scout: ¿el jugador está por encima, en línea o por debajo de su perfil habitual?"
+                    : locale === "zh"
+                    ? "教练观察：运动员目前表现优于、符合还是低于其常规水平？"
                     : "Scout observation: is the player performing above, in line with, or below their usual profile?"}
                 />
                 <div className="flex flex-wrap gap-3">
                   {([
-                    { v: "hot" as const, label: locale === "es" ? "🔥 Racha caliente" : "🔥 Hot streak" },
-                    { v: "stable" as const, label: locale === "es" ? "〰️ Estable" : "〰️ Stable" },
-                    { v: "cold" as const, label: locale === "es" ? "🧊 Racha fría" : "🧊 Cold streak" },
+                    { v: "hot" as const, label: locale === "es" ? "🔥 Racha caliente" : locale === "zh" ? "🔥 连胜状态" : "🔥 Hot streak" },
+                    { v: "stable" as const, label: locale === "es" ? "〰️ Estable" : locale === "zh" ? "〰️ 稳定" : "〰️ Stable" },
+                    { v: "cold" as const, label: locale === "es" ? "🧊 Racha fría" : locale === "zh" ? "🧊 连败状态" : "🧊 Cold streak" },
                   ] as const).map(({ v, label }) => (
                     <Button
                       key={v}
@@ -893,7 +899,7 @@ export default function PlayerEditor() {
                     className="h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold"
                     onClick={() => ui("recentForm" as any, null)}
                   >
-                    {locale === "es" ? "No observado" : "Not observed"}
+                    {locale === "es" ? "No observado" : locale === "zh" ? "未观察到" : "Not observed"}
                   </Button>
                 </div>
               </div>
@@ -1120,7 +1126,7 @@ export default function PlayerEditor() {
                   </div>
 
                   {/* Movimientos por cuadrante */}
-                  <PostQuadrantSelector value={inputs.postQuadrants ?? {}} onChange={v => ui("postQuadrants", v)} dominantHand={inputs.postDominantHand} />
+                  <PostQuadrantSelector value={inputs.postQuadrants ?? {}} onChange={v => ui("postQuadrants", v)} dominantHand={inputs.postDominantHand} locale={locale} />
 
                   {/* High post zones */}
                   <div className="space-y-3 pt-2 border-t border-slate-100">
@@ -1869,9 +1875,11 @@ export default function PlayerEditor() {
                   {/* Zonas de tiro — diagrama media pista */}
                   <div className="space-y-2">
                     <FieldLabel
-                      label={locale === "es" ? "Zonas de tiro" : "Shooting zones"}
+                      label={locale === "es" ? "Zonas de tiro" : locale === "zh" ? "投篮区域" : "Shooting zones"}
                       tooltip={locale === "es"
                         ? "Marca las zonas donde es más peligrosa. Toca para activar/desactivar."
+                        : locale === "zh"
+                        ? "标出她最具威胁性的区域。点击以启用/取消。"
                         : "Tap zones to mark where she is most dangerous."}
                     />
                     <HalfCourtZoneSelector
@@ -1916,6 +1924,8 @@ export default function PlayerEditor() {
                       label={
                         locale === "es"
                           ? "Rango extra-largo (más allá del arco estándar)"
+                          : locale === "zh"
+                          ? "超远距离（超出标准三分线弧线）"
                           : "Long range (beyond standard arc)"
                       }
                     />
