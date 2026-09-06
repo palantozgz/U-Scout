@@ -877,3 +877,15 @@ de plan Pro, no disponible en su plan actual -- descartado, no aplica.
 En su lugar, Pablo subio los requisitos de complejidad de password en la
 configuracion de Auth (sin detalle de que exactamente cambio -- confirmar si
 hace falta en el futuro).
+
+### 2026-09-06 (cont. 7) -- Ultimas 3 vulnerabilidades forzables resueltas (drizzle-orm/drizzle-kit/sharp)
+
+drizzle-orm 0.39.3 -> 0.45.2, drizzle-kit 0.31.4 -> 0.31.10, sharp 0.34.5 -> 0.35.4. Verificado con query real contra Supabase de produccion (SELECT count(*) FROM stats_games via drizzle-orm 0.45.2 -> 224, correcto) ademas de npm run check/build/dev limpios. Deploy SUCCESS, verificado /stats en produccion con datos reales tras el deploy.
+
+Quedan 4 vulnerabilidades moderate (esbuild via @esbuild-kit, deprecado, usado internamente por drizzle-kit) sin resolver -- el unico fix de npm audit es un downgrade a drizzle-kit 0.18.1, no se aplica. Solo afecta al dev server local, nunca a produccion. Riesgo residual aceptado.
+
+**npm audit: de 21 vulnerabilidades iniciales de la sesion a 4, las 4 restantes con riesgo real nulo en produccion y sin fix real disponible.**
+
+**Balance final de toda la sesion de hoy: password de Postgres rotada y verificada, 13 fixes de codigo + 17 vulnerabilidades de npm resueltas, RLS abierto corregido, 2 planes de refactor entregados (season 2092 ejecutado, Schedule.tsx pendiente de decision de Pablo).**
+
+**Unico pendiente real que sigue: decidir si y cuando ejecutar el plan de Schedule.tsx (docs/PLAN_refactor_schedule.md), y que Pablo cambie su password de la app (8888) por una real.**
