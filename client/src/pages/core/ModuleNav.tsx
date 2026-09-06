@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import { Home, Target, CalendarDays, BarChart3, BookOpen } from "lucide-react";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
-import { useCapabilities } from "@/lib/capabilities";
 
 type NavItem = {
   key: string;
@@ -30,7 +29,6 @@ function useModuleNavItems() {
 export function ModuleNav() {
   const [loc, setLocation] = useLocation();
   const { profile, effectiveRole } = useAuth();
-  const caps = useCapabilities();
   const items = useModuleNavItems();
   const isFive = items.length === 5;
 
