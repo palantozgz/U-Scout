@@ -6,15 +6,15 @@
   "_buildVersion": "2",
   "scripts": {
     "dev:client": "vite dev --port 5000",
-    "dev": "PORT=3000 NODE_ENV=development VITE_SUPABASE_URL=https://ybpzvkkxcmwwxrrouyhm.supabase.co VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlicHp2a2t4Y213d3hycm91eWhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1ODYwOTksImV4cCI6MjA5MDE2MjA5OX0.6C_zsnqgORbxmvO_5yZKP4aHNyln_aVSvJrc2LTARTE DATABASE_URL=postgresql://postgres.ybpzvkkxcmwwxrrouyhm:Miercoles_13@aws-1-eu-west-1.pooler.supabase.com:5432/postgres tsx server/index.ts",
+    "dev": "PORT=3000 dotenv -e .env -- tsx server/index.ts",
     "build": "tsx scripts/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "test": "vitest run",
     "i18n:regen-gender-bundles": "node scripts/regenerate-spanish-gender-bundles.mjs",
     "motor:test": "tsx scripts/test-motor.ts",
-    "db:push": "DATABASE_URL=postgresql://postgres.ybpzvkkxcmwwxrrouyhm:Miercoles_13@aws-1-eu-west-1.pooler.supabase.com:5432/postgres drizzle-kit push",
-    "db:migrate": "DATABASE_URL=postgresql://postgres.ybpzvkkxcmwwxrrouyhm:Miercoles_13@aws-1-eu-west-1.pooler.supabase.com:5432/postgres drizzle-kit migrate"
+    "db:push": "dotenv -e .env -- drizzle-kit push",
+    "db:migrate": "dotenv -e .env -- drizzle-kit migrate"
   },
   "dependencies": {
     "@capacitor/cli": "^8.3.2",
@@ -107,6 +107,7 @@
     "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.21",
+    "dotenv-cli": "^11.0.0",
     "drizzle-kit": "^0.31.4",
     "postcss": "^8.5.6",
     "sharp": "^0.34.5",
