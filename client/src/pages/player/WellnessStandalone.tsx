@@ -130,7 +130,7 @@ export default function WellnessStandalone() {
                 const metrics = [
                   { label: t("wellness_metric_sleep" as any), value: e.sleep_quality, goodUp: true },
                   { label: t("wellness_metric_energy" as any), value: e.energy_level, goodUp: true },
-                  { label: t("wellness_metric_soreness" as any), value: e.muscle_soreness, goodUp: false },
+                  { label: t("wellness_metric_soreness" as any), value: e.muscle_soreness, goodUp: true },
                   { label: t("wellness_metric_readiness" as any), value: e.mental_readiness, goodUp: true },
                 ];
                 return metrics.map(({ label, value, goodUp }) => {

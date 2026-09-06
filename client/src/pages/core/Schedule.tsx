@@ -2316,7 +2316,7 @@ export default function Schedule() {
                       label={t("wellness_metric_soreness" as any)}
                       tooltip={t("wellness_tooltip_soreness" as any)}
                       value={muscleSoreness}
-                      goodUp={false}
+                      goodUp
                       onValueChange={(v) => {
                         setLocalSaved(false);
                         setMuscleSoreness(v);
@@ -2400,7 +2400,7 @@ export default function Schedule() {
                         {[
                           { key: "sleep", label: t("wellness_metric_sleep" as any), today: entryQ.data.sleep_quality, base: playerBaseline.sleep, goodUp: true },
                           { key: "energy", label: t("wellness_metric_energy" as any), today: entryQ.data.energy_level, base: playerBaseline.energy, goodUp: true },
-                          { key: "soreness", label: t("wellness_metric_soreness" as any), today: entryQ.data.muscle_soreness, base: playerBaseline.soreness, goodUp: false },
+                          { key: "soreness", label: t("wellness_metric_soreness" as any), today: entryQ.data.muscle_soreness, base: playerBaseline.soreness, goodUp: true },
                           { key: "readiness", label: t("wellness_metric_readiness" as any), today: entryQ.data.mental_readiness, base: playerBaseline.readiness, goodUp: true },
                         ].map((x) => {
                           const delta = x.today - x.base;
@@ -2480,7 +2480,7 @@ export default function Schedule() {
                             <div>
                               <p className="text-xs font-bold text-foreground">{t("wellness_metric_soreness" as any)}</p>
                               <div className="mt-1">
-                                <WellnessTrendChart points={series("muscle_soreness")} goodUp={false} color="#ef4444" />
+                                <WellnessTrendChart points={series("muscle_soreness")} goodUp color="#A78BFA" />
                               </div>
                             </div>
                             <div>
@@ -2534,7 +2534,7 @@ export default function Schedule() {
                       label={t("wellness_metric_soreness" as any)}
                       tooltip={t("wellness_tooltip_soreness" as any)}
                       value={muscleSoreness}
-                      goodUp={false}
+                      goodUp
                       onValueChange={setMuscleSoreness}
                       disabled={upsert.isPending}
                     />

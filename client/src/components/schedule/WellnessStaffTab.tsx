@@ -68,7 +68,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
     const submitted = entries.length;
     const missing = Math.max(0, total - submitted);
     const lowReadinessUserIds = new Set(entries.filter((e) => e.mental_readiness <= 2).map((e) => e.user_id));
-    const highSorenessUserIds = new Set(entries.filter((e) => e.muscle_soreness >= 4).map((e) => e.user_id));
+    const highSorenessUserIds = new Set(entries.filter((e) => e.muscle_soreness <= 2).map((e) => e.user_id));
     const belowNormalUserIds = new Set<string>([...Array.from(lowReadinessUserIds), ...Array.from(highSorenessUserIds)]);
 
     const priority = rosterPlayerUserIds
@@ -76,7 +76,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
         const e = byUser[uid];
         const missingSubmission = !e;
         const lowReadiness = Boolean(e && e.mental_readiness <= 2);
-        const highSoreness = Boolean(e && e.muscle_soreness >= 4);
+        const highSoreness = Boolean(e && e.muscle_soreness <= 2);
         const lowSleep = Boolean(e && e.sleep_quality <= 2);
         const score = missingSubmission ? 100 : (lowReadiness ? 40 : e!.mental_readiness === 3 ? 15 : 0) + (highSoreness ? 25 : 0) + (lowSleep ? 20 : 0);
         return {
@@ -174,7 +174,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
       const e = byUser[uid];
       const missingSubmission = !e;
       const lowReadiness = Boolean(e && e.mental_readiness <= 2);
-      const highSoreness = Boolean(e && e.muscle_soreness >= 4);
+      const highSoreness = Boolean(e && e.muscle_soreness <= 2);
       const lowSleep = Boolean(e && e.sleep_quality <= 2);
       const score = missingSubmission
         ? 100
@@ -200,7 +200,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
       if (staffRiskSort === "missing") return Number(b.missingSubmission) - Number(a.missingSubmission) || b.score - a.score;
       if (staffRiskSort === "sleep") return (v(a, "sleep_quality") ?? 999) - (v(b, "sleep_quality") ?? 999) || b.score - a.score;
       if (staffRiskSort === "readiness") return (v(a, "mental_readiness") ?? 999) - (v(b, "mental_readiness") ?? 999) || b.score - a.score;
-      if (staffRiskSort === "soreness") return (v(b, "muscle_soreness") ?? -1) - (v(a, "muscle_soreness") ?? -1) || b.score - a.score;
+      if (staffRiskSort === "soreness") return (v(a, "muscle_soreness") ?? 999) - (v(b, "muscle_soreness") ?? 999) || b.score - a.score;
       return b.score - a.score;
     });
     return rows;
@@ -284,7 +284,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
           }, 0);
         const heavyWeek = loadScore >= 10;
         const entries = staffTodayEntriesQ.data ?? [];
-        const highSoreness = entries.some((e) => e.muscle_soreness >= 4);
+        const highSoreness = entries.some((e) => e.muscle_soreness <= 2);
         const lowSleep = entries.some((e) => e.sleep_quality <= 2);
         const lowReadiness = entries.some((e) => e.mental_readiness <= 2);
         const lines: string[] = [];
@@ -374,7 +374,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
               <div>
                 <p className="text-xs font-bold text-foreground">{t("wellness_metric_soreness" as any)}</p>
                 <div className="mt-1">
-                  <WellnessTrendChart points={series("avgSoreness")} goodUp={false} color="#ef4444" />
+                  <WellnessTrendChart points={series("avgSoreness")} goodUp color="#A78BFA" />
                 </div>
               </div>
               <div>
