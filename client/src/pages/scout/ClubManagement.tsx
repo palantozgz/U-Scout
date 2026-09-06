@@ -1011,11 +1011,6 @@ export default function ClubManagement() {
                 })()}
 
                 <div className="space-y-3">
-                  {canInviteMembers && (
-                    <Button size="sm" variant="secondary" className="font-bold" onClick={() => openInvite("coach")}>
-                      {t("club_invite_staff")}
-                    </Button>
-                  )}
                   {(() => {
                     const staff = (q.data.members ?? []).filter((m) => m.role === "coach" || m.role === "head_coach");
                     if (staff.length === 0) {
