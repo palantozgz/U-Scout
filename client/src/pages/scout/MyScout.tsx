@@ -313,7 +313,7 @@ export default function MyScout() {
                 className="w-full h-10 rounded-lg border border-border bg-background text-sm px-3"
               >
                 {teams.map((t) => (
-                  <option key={t.id} value={t.id}>{t.logo} {t.name}</option>
+                  <option key={t.id} value={t.id}>{t.logo?.startsWith("http") ? "\u26f9\ufe0f" : (t.logo || "\ud83c\udfc0")} {t.name}</option>
                 ))}
               </select>
             )}
