@@ -183,7 +183,15 @@ export default function JoinClub() {
     <div className="min-h-[100dvh] bg-background flex flex-col">
       <main className="flex-1 p-6 flex flex-col justify-center max-w-md mx-auto w-full space-y-6">
         <div className="text-center space-y-2">
-          <p className="text-4xl">{data.club.logo}</p>
+          {data.club.logo && (data.club.logo.startsWith("data:image/") || /^https:\/\//i.test(data.club.logo)) ? (
+            <img
+              src={data.club.logo}
+              alt=""
+              className="mx-auto h-16 w-16 rounded-xl object-contain"
+            />
+          ) : (
+            <p className="text-4xl">{data.club.logo || "\ud83c\udfc0"}</p>
+          )}
           <h1 className="text-2xl font-black text-foreground">{t("join_club_title")}</h1>
         </div>
 
