@@ -395,7 +395,38 @@ player_stats, invite_links
 
 ## Historial sesiones
 
-### 2026-09-06 — Pulido UI/UX + bundle analysis + i18n audit
+### 2026-09-06 (cont.) — Revisión módulo por módulo + QA fixes
+
+**Bugs corregidos:**
+- `hasReportInputs` bug crítico: 307 jugadoras WCBA importadas tenían `archetype = "Role Player"` (DB) pero la función comparó contra `"arch_role_player"` (ID interno) → siempre `true` → todas mostraban "Ver informe" sin haber completado ficha. Fix: `DEFAULT_ARCHS = new Set(["arch_role_player", "Role Player", ""])` — ✅ f645bba
+- `firstName` en HomeMobile: si profile solo tenía email, mostraba "pablo@gmail.com 👋". Ahora trunca en `@` — ✅ f645bba
+- Personnel: 7 `console.log` activos en producción eliminados — ✅ f645bba
+
+**UX mejorado:**
+- Recurring events preview: chip azul "Se crearán X sesiones" + botón de submit con count — ✅ f645bba
+- Wellness: barras de color por métrica (verde/amarillo/rojo), tooltips siempre visibles, toast al guardar — ✅ 26784d4
+- Onboarding: slide `player_wellness` tenía labels hardcodeados en chino — ✅ 26784d4
+
+**Audit completo de calidad:**
+| Módulo | Líneas | as any | console | hardcode locale |
+|---|---|---|---|---|
+| Personnel | 1200 | 36 | 0 (limpiados) | 43 |
+| Stats | 4707 | 0 | 0 | 24 |
+| Schedule | 3621 | 140 | 0 | 3 |
+| ClubManagement | 1493 | 15 | 0 | 19 |
+| MyScout | 584 | 26 | 0 | 6 |
+| Playbook | 1493 | 0 | 0 | 9 |
+
+**Estado por módulo tras revisión:**
+- Wellness ✅, Schedule ✅, CoachHome ✅, Stats ✅, Playbook ✅, ClubManagement ✅
+- MyScout: `hasReportInputs` corregido. Textos en L-object local (funcional, patrón intencional)
+- Personnel: funcional, muchos `as any` necesarios para tipos legacy
+- PlayerTeamList: bien, single-team shortcut funciona
+- Hero card jugadoras en Stats: requiere `wcba_external_id` en profiles — es dato, no código
+
+**Commits de esta ronda:**
+`26784d4` ux: Wellness + Onboarding
+`f645bba` fix: hasReportInputs, firstName, repeat preview, console.log
 
 **Contexto:** Pablo aterriza en Jiangxi para temporada WCBA. Primer uso real con el equipo.
 
