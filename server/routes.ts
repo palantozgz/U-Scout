@@ -12,6 +12,22 @@ import { lookupAuthBasicsByUserIds, mergeAuthWithSession } from "./authUserLooku
 import { registerStatsIngest } from "./stats-ingest";
 import { processAllPendingPossessions, processPossessions } from "./possessions";
 
+// Etiquetas de temporada (para el selector de /api/stats/seasons). Incluye
+// temporadas futuras sin datos todavia -- por eso NO se puede derivar
+// CURRENT_SEASON_ID de la clave maxima de este mapa (2093-2095 estan vacias
+// hoy en stats_games; solo 2092 tiene partidos reales). CURRENT_SEASON_ID es
+// la temporada usada cuando el cliente no especifica seasonId en la query --
+// actualizar este UNICO valor cuando la temporada 2026-27 (2093) empiece a
+// tener partidos reales. Antes este literal estaba repetido suelto en ~19
+// sitios de este archivo.
+const SEASON_LABELS: Record<number, string> = {
+  2092: "2025-26",
+  2093: "2026-27",
+  2094: "2027-28",
+  2095: "2028-29",
+};
+const CURRENT_SEASON_ID = 2092;
+
 function publicAppOrigin(req: Request): string {
   const env = process.env.APP_PUBLIC_URL ?? process.env.VITE_APP_URL;
   if (env) return env.replace(/\/$/, "");
@@ -1605,7 +1621,7 @@ export async function registerRoutes(
 
   // ─── GET /api/stats/players — promedios temporada desde pbp_player_game_stats ─
   app.get("/api/stats/players", requireAuth, async (req, res) => {
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     const phaseType = String(req.query.phaseType ?? "regular");
     const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
     let rows;
@@ -1688,7 +1704,7 @@ export async function registerRoutes(
   app.get("/api/stats/games", requireAuth, async (req, res) => {
     const playerName = String(req.query.playerName ?? "").trim();
     if (!playerName) return res.json({ games: [] });
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     const phaseType = String(req.query.phaseType ?? "regular");
     const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
 
@@ -1727,7 +1743,7 @@ export async function registerRoutes(
 
   // GET /api/stats/standings
   app.get("/api/stats/standings", requireAuth, async (req, res) => {
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     const phaseType = String(req.query.phaseType ?? "regular");
     const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
     const phaseFilterPP = phaseType === "all" ? sql`` : sql`AND pp.phase_type = ${phaseType}`;
@@ -1787,7 +1803,7 @@ export async function registerRoutes(
 
   // GET /api/stats/leaders — pbp_player_game_stats
   app.get("/api/stats/leaders", requireAuth, async (req, res) => {
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     const phaseType = String(req.query.phaseType ?? "regular");
     const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
     const stat = String(req.query.stat ?? "ppg");
@@ -1835,12 +1851,6 @@ export async function registerRoutes(
   });
 
   // ─── GET /api/stats/seasons ──────────────────────────────────────────────────
-  const SEASON_LABELS: Record<number, string> = {
-    2092: "2025-26",
-    2093: "2026-27",
-    2094: "2027-28",
-    2095: "2028-29",
-  };
   app.get("/api/stats/seasons", requireAuth, async (_req, res) => {
     try {
       const rows = await db.execute(sql`
@@ -1865,7 +1875,7 @@ export async function registerRoutes(
   app.get("/api/stats/player-link", requireAuth, async (req, res) => {
     const name = String(req.query.name ?? "").trim();
     if (!name) return res.json({ externalId: null, ppg: 0, rpg: 0, apg: 0 });
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     try {
       const rows = await db.execute(sql`
         SELECT
@@ -1899,7 +1909,7 @@ export async function registerRoutes(
   app.get("/api/stats/player/:externalId", requireAuth, async (req, res) => {
     try {
     const { externalId } = req.params;
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     const phaseType = String(req.query.phaseType ?? "regular");
     const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
 
@@ -2183,7 +2193,7 @@ export async function registerRoutes(
   // ─── GET /api/stats/team/:externalId ─────────────────────────────────────────
   app.get("/api/stats/team/:externalId", requireAuth, async (req, res) => {
     const { externalId } = req.params;
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     const phaseType = String(req.query.phaseType ?? "regular");
     const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
     const phaseFilterPP = phaseType === "all" ? sql`` : sql`AND pp.phase_type = ${phaseType}`;
@@ -2542,7 +2552,7 @@ export async function registerRoutes(
   // Tramos de ritmo desde pbp_possessions (is_transition / is_early_offense / is_halfcourt).
   app.get("/api/stats/team/:externalId/pace-segments", requireAuth, async (req, res) => {
     const { externalId } = req.params;
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     const phaseType = String(req.query.phaseType ?? "regular");
     const phaseFilterPP = phaseType === "all" ? sql`` : sql`AND pp.phase_type = ${phaseType}`;
     try {
@@ -2658,7 +2668,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/stats/league-averages", requireAuth, async (req, res) => {
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     const phaseType = String(req.query.phaseType ?? "regular");
     const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
     const phaseFilterPP = phaseType === "all" ? sql`` : sql`AND pp.phase_type = ${phaseType}`;
@@ -2835,7 +2845,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/stats/player-percentiles", requireAuth, async (req, res) => {
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     const phaseType = String(req.query.phaseType ?? "regular");
     const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
     const positionPct = typeof req.query.position === "string" && req.query.position.trim()
@@ -2905,7 +2915,7 @@ export async function registerRoutes(
   // Dispara el procesamiento de todos los partidos pendientes de possessions
   // Útil para re-sync histórico
   app.post("/api/stats/admin/process-possessions", requireAuth, async (req, res) => {
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     // Fire and forget — puede tardar varios minutos
     processAllPendingPossessions(seasonId).catch((err: any) =>
       console.error("[admin] processAllPendingPossessions failed:", err.message)
@@ -2916,7 +2926,7 @@ export async function registerRoutes(
   // GET /api/stats/admin/possessions-status
   // Estado del procesamiento: cuántos partidos tienen possessions vs total
   app.get("/api/stats/admin/possessions-status", requireAuth, async (req, res) => {
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     try {
       const totalRes = await db.execute(sql`
         SELECT COUNT(*) AS total FROM stats_games
@@ -2949,7 +2959,7 @@ export async function registerRoutes(
     const adminAuth = req.headers.authorization ?? "";
     const adminToken = adminAuth.startsWith("Bearer ") ? adminAuth.slice(7) : "";
     if (adminToken !== adminKey) return res.status(401).json({ error: "Unauthorized" });
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     processAllPendingPossessions(seasonId).catch((err: any) =>
       console.error("[trigger] failed:", err.message)
     );
@@ -2964,7 +2974,7 @@ export async function registerRoutes(
     const adminToken = adminAuth.startsWith("Bearer ") ? adminAuth.slice(7) : "";
     if (adminToken !== adminKey) return res.status(401).json({ error: "Unauthorized" });
     const gameId = Number(req.params.gameId);
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     if (isNaN(gameId)) return res.status(400).json({ error: "invalid gameId" });
     processPossessions(gameId, seasonId).catch((err: any) =>
       console.error("[process-game] failed:", err.message)
@@ -2981,7 +2991,7 @@ export async function registerRoutes(
     const adminToken = adminAuth.startsWith("Bearer ") ? adminAuth.slice(7) : "";
     if (adminToken !== adminKey) return res.status(401).json({ error: "Unauthorized" });
     const gameId = Number(req.params.gameId);
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     if (isNaN(gameId)) return res.status(400).json({ error: "invalid gameId" });
     try {
       await processPossessions(gameId, seasonId);
@@ -2995,7 +3005,7 @@ export async function registerRoutes(
   app.get("/api/stats/team/:id/lineups", requireAuth, async (req, res) => {
     try {
       const externalId = Number(req.params.id);
-      const seasonId = Number(req.query.seasonId ?? 2092);
+      const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
       const phaseType = String(req.query.phaseType ?? "regular");
       const phaseFilterLS = phaseType === "all" ? sql`` : sql`AND ls.phase_type = ${phaseType}`;
       // Resolver external_id → internal_id (pbp_lineup_stats usa internal)
@@ -3127,7 +3137,7 @@ export async function registerRoutes(
     try {
       const externalId = Number(req.params.id);
       const playerExternalId = String(req.params.playerId);
-      const seasonId = Number(req.query.seasonId ?? 2092);
+      const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
       const teamIntRes2 = await db.execute(sql`SELECT id FROM stats_teams WHERE external_id = ${externalId} LIMIT 1`);
       const teamId = Number((teamIntRes2 as any).rows?.[0]?.id ?? externalId);
 
@@ -3206,7 +3216,7 @@ export async function registerRoutes(
 
   // ─── GET /api/stats/players/all-detail — bulk player detail para prefetch desktop ─
   app.get("/api/stats/players/all-detail", requireAuth, async (req, res) => {
-    const seasonId = Number(req.query.seasonId ?? 2092);
+    const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     const phaseType = "regular";
     const phaseFilter = sql`AND pgs.phase_type = ${phaseType}`;
     try {
@@ -3355,7 +3365,7 @@ export async function registerRoutes(
   app.get("/api/stats/players/combined", requireAuth, async (req, res) => {
     try {
       const teamId = Number(req.query.teamId);
-      const seasonId = Number(req.query.seasonId ?? 2092);
+      const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
       const minPoss = Number(req.query.minPossessions ?? 5);
       const playerIdsParam = String(req.query.playerIds ?? "");
 

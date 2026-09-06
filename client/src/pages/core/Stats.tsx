@@ -40,6 +40,7 @@ import {
   type TeamRosterPlayer,
   type TeamGameLogEntry,
   type StatsPhaseType,
+  DEFAULT_SEASON_ID,
 } from "@/lib/stats-api";
 
 type MainTab = "liga" | "jugadoras";
@@ -452,7 +453,7 @@ export default function Stats() {
 
   const seasonsQ = useSeasons();
   const seasons = seasonsQ.data?.seasons ?? [];
-  const effectiveSeasonId = seasonId ?? seasons[0]?.seasonId ?? 2092;
+  const effectiveSeasonId = seasonId ?? seasons[0]?.seasonId ?? DEFAULT_SEASON_ID;
   const seasonLabel =
     seasons.find((s) => s.seasonId === effectiveSeasonId)?.label ?? String(effectiveSeasonId);
 
@@ -1053,11 +1054,11 @@ export default function Stats() {
                             onMouseEnter={() => {
                               const id = String(row.teamExternalId);
                               queryClient.prefetchQuery({
-                                queryKey: ["stats-team-detail", id, effectiveSeasonId ?? 2092, phaseType],
+                                queryKey: ["stats-team-detail", id, effectiveSeasonId ?? DEFAULT_SEASON_ID, phaseType],
                                 queryFn: () =>
                                   apiRequest(
                                     "GET",
-                                    `/api/stats/team/${id}?seasonId=${effectiveSeasonId ?? 2092}&phaseType=${phaseType}`,
+                                    `/api/stats/team/${id}?seasonId=${effectiveSeasonId ?? DEFAULT_SEASON_ID}&phaseType=${phaseType}`,
                                   ).then((r) => r.json()),
                                 staleTime: 1000 * 60 * 30,
                               });

@@ -15,6 +15,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { type ReportOverride } from "@/lib/overrideEngine";
 import { UCoreBootSplash } from "@/components/branding/UScoutBrand";
 import { useRailwayWarmup } from "@/hooks/useRailwayWarmup";
+import { DEFAULT_SEASON_ID } from "@/lib/stats-api";
 
 const OnboardingFlow = lazy(() => import("@/pages/OnboardingFlow"));
 const Login = lazy(() => import("@/pages/Login"));
@@ -272,14 +273,14 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
       });
       // Standings — key correcto: [name, seasonId, phaseType]
       queryClient.prefetchQuery({
-        queryKey: ["stats-standings", 2092, "regular"],
-        queryFn: () => apiRequest("GET", "/api/stats/standings?seasonId=2092&phaseType=regular").then(r => r.json()).catch(() => ({ standings: [] })),
+        queryKey: ["stats-standings", DEFAULT_SEASON_ID, "regular"],
+        queryFn: () => apiRequest("GET", `/api/stats/standings?seasonId=${DEFAULT_SEASON_ID}&phaseType=regular`).then(r => r.json()).catch(() => ({ standings: [] })),
         staleTime: 1_800_000,
       });
       // League averages — key correcto: [name, seasonId, position, phaseType]
       queryClient.prefetchQuery({
-        queryKey: ["stats-league-averages-v3", 2092, "all", "regular"],
-        queryFn: () => apiRequest("GET", "/api/stats/league-averages?seasonId=2092&phaseType=regular").then(r => r.json()).catch(() => null),
+        queryKey: ["stats-league-averages-v3", DEFAULT_SEASON_ID, "all", "regular"],
+        queryFn: () => apiRequest("GET", `/api/stats/league-averages?seasonId=${DEFAULT_SEASON_ID}&phaseType=regular`).then(r => r.json()).catch(() => null),
         staleTime: 7_200_000,
       });
     }, isDesktop ? 400 : 800);
@@ -288,10 +289,10 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
     // Solo desktop — en mobile 200+ jugadoras es demasiado para calentar en background
     const t3 = isDesktop ? window.setTimeout(async () => {
       try {
-        const data = await apiRequest("GET", "/api/stats/players/all-detail?seasonId=2092").then(r => r.json());
+        const data = await apiRequest("GET", `/api/stats/players/all-detail?seasonId=${DEFAULT_SEASON_ID}`).then(r => r.json());
         const players = data?.players ?? {};
         for (const [externalId, detail] of Object.entries(players)) {
-          queryClient.setQueryData(["stats-player-detail", externalId, 2092, "regular"], detail);
+          queryClient.setQueryData(["stats-player-detail", externalId, DEFAULT_SEASON_ID, "regular"], detail);
         }
       } catch { /* silently ignore */ }
     }, 1_800) : undefined;

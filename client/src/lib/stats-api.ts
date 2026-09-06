@@ -3,6 +3,11 @@ import { apiRequest } from "./queryClient";
 
 export type StatsPhaseType = "regular" | "playoff" | "all";
 
+// Temporada usada cuando el llamador no pasa seasonId explicito. Debe coincidir
+// con CURRENT_SEASON_ID en server/routes.ts -- actualizar los dos a la vez
+// cuando la temporada 2026-27 (2093) empiece a tener partidos reales.
+export const DEFAULT_SEASON_ID = 2092;
+
 function statsPhaseQs(phaseType?: StatsPhaseType): string {
   return `phaseType=${encodeURIComponent(phaseType ?? "regular")}`;
 }
@@ -304,7 +309,7 @@ export function useTeamDetail(
 ) {
   const phase = phaseType ?? "regular";
   return useQuery({
-    queryKey: ["stats-team-detail", externalId, seasonId ?? 2092, phase],
+    queryKey: ["stats-team-detail", externalId, seasonId ?? DEFAULT_SEASON_ID, phase],
     queryFn: async () => {
       const qs = new URLSearchParams();
       if (seasonId) qs.set("seasonId", String(seasonId));
@@ -325,7 +330,7 @@ export function usePlayerDetail(
 ) {
   const phase = phaseType ?? "regular";
   return useQuery({
-    queryKey: ["stats-player-detail", externalId, seasonId ?? 2092, phase],
+    queryKey: ["stats-player-detail", externalId, seasonId ?? DEFAULT_SEASON_ID, phase],
     queryFn: async () => {
       const qs = new URLSearchParams({ phaseType: phase });
       if (seasonId) qs.set("seasonId", String(seasonId));
@@ -406,12 +411,12 @@ export function useLeagueAverages(
 ) {
   const phase = phaseType ?? "regular";
   return useQuery({
-    queryKey: ["stats-league-averages-v3", seasonId ?? 2092, position ?? "all", phase],
+    queryKey: ["stats-league-averages-v3", seasonId ?? DEFAULT_SEASON_ID, position ?? "all", phase],
     queryFn: async () => {
       const pos = position ? `&position=${encodeURIComponent(position)}` : "";
       const r = await apiRequest(
         "GET",
-        `/api/stats/league-averages?seasonId=${seasonId ?? 2092}&${statsPhaseQs(phase)}${pos}`,
+        `/api/stats/league-averages?seasonId=${seasonId ?? DEFAULT_SEASON_ID}&${statsPhaseQs(phase)}${pos}`,
       );
       const raw = (await r.json()) as Record<string, unknown>;
       return normalizeLeagueAverages(raw);
@@ -428,12 +433,12 @@ export function usePlayerPercentiles(
 ) {
   const phase = phaseType ?? "regular";
   return useQuery({
-    queryKey: ["stats-player-percentiles", seasonId ?? 2092, position ?? "all", phase],
+    queryKey: ["stats-player-percentiles", seasonId ?? DEFAULT_SEASON_ID, position ?? "all", phase],
     queryFn: async () => {
       const pos = position ? `&position=${encodeURIComponent(position)}` : "";
       const r = await apiRequest(
         "GET",
-        `/api/stats/player-percentiles?seasonId=${seasonId ?? 2092}&${statsPhaseQs(phase)}${pos}`,
+        `/api/stats/player-percentiles?seasonId=${seasonId ?? DEFAULT_SEASON_ID}&${statsPhaseQs(phase)}${pos}`,
       );
       return r.json() as Promise<{
         p95Ppg: number;
@@ -543,11 +548,11 @@ export function usePaceSegments(
 ) {
   const phase = phaseType ?? "regular";
   return useQuery({
-    queryKey: ["stats-pace-segments", externalId, seasonId ?? 2092, phase],
+    queryKey: ["stats-pace-segments", externalId, seasonId ?? DEFAULT_SEASON_ID, phase],
     queryFn: async () => {
       const r = await apiRequest(
         "GET",
-        `/api/stats/team/${externalId}/pace-segments?seasonId=${seasonId ?? 2092}&${statsPhaseQs(phase)}`,
+        `/api/stats/team/${externalId}/pace-segments?seasonId=${seasonId ?? DEFAULT_SEASON_ID}&${statsPhaseQs(phase)}`,
       );
       return r.json() as Promise<PaceSegments>;
     },
@@ -679,11 +684,11 @@ export function useTeamLineups(
 ) {
   const phase = phaseType ?? "regular";
   return useQuery({
-    queryKey: ["stats-team-lineups", teamExternalId, seasonId ?? 2092, phase],
+    queryKey: ["stats-team-lineups", teamExternalId, seasonId ?? DEFAULT_SEASON_ID, phase],
     queryFn: async () => {
       const r = await apiRequest(
         "GET",
-        `/api/stats/team/${teamExternalId}/lineups?seasonId=${seasonId ?? 2092}&${statsPhaseQs(phase)}`,
+        `/api/stats/team/${teamExternalId}/lineups?seasonId=${seasonId ?? DEFAULT_SEASON_ID}&${statsPhaseQs(phase)}`,
       );
       const raw = await r.json();
       const arr: LineupApiRow[] = Array.isArray(raw)
@@ -703,11 +708,11 @@ export function usePlayerOnOff(
   seasonId?: number,
 ) {
   return useQuery({
-    queryKey: ["stats-player-on-off", teamExternalId, playerId, seasonId ?? 2092],
+    queryKey: ["stats-player-on-off", teamExternalId, playerId, seasonId ?? DEFAULT_SEASON_ID],
     queryFn: async () => {
       const r = await apiRequest(
         "GET",
-        `/api/stats/team/${teamExternalId}/on-off/${playerId}?seasonId=${seasonId ?? 2092}`,
+        `/api/stats/team/${teamExternalId}/on-off/${playerId}?seasonId=${seasonId ?? DEFAULT_SEASON_ID}`,
       );
       const raw = (await r.json()) as {
         playerExternalId?: string;
@@ -775,11 +780,11 @@ export function usePlayersCombinedLineups(
   seasonId?: number,
 ) {
   return useQuery({
-    queryKey: ["stats-players-combined", teamExternalId, playerIds?.join(","), seasonId ?? 2092],
+    queryKey: ["stats-players-combined", teamExternalId, playerIds?.join(","), seasonId ?? DEFAULT_SEASON_ID],
     queryFn: async () => {
       const qs = new URLSearchParams({
         teamId: String(teamExternalId),
-        seasonId: String(seasonId ?? 2092),
+        seasonId: String(seasonId ?? DEFAULT_SEASON_ID),
         playerIds: playerIds!.join(","),
       });
       const r = await apiRequest("GET", `/api/stats/players/combined?${qs.toString()}`);
