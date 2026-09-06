@@ -858,3 +858,22 @@ Causa raiz en \`writeConstraintsToNotes\` (useSessionForm.ts): el marker \`\nOPS
 - Decidir si ejecutar el plan de refactor de Schedule.tsx (docs/PLAN_refactor_schedule.md) y por que fase empezar.
 - drizzle-orm/drizzle-kit/sharp desactualizados (requieren --force, breaking changes) -- evaluar con calma, no forzar sin revisar codigo.
 - Recordatorio: Pablo debe cambiar su password 8888 por una real.
+
+### 2026-09-06 (cont. 6) -- Password de Postgres rotada y verificada
+
+Pablo genero la password nueva en el dashboard de Supabase (Database > Settings,
+URL directa https://supabase.com/dashboard/project/ybpzvkkxcmwwxrrouyhm/database/settings
+-- la ruta "Project Settings > Database" que di antes estaba desactualizada).
+
+Actualizado DATABASE_URL en Railway (redeploy automatico, SUCCESS) y en .env
+local. Verificado end-to-end: /api/ping -> 200 en produccion, /stats carga
+datos reales (standings, boxscores) confirmando conexion real a Postgres con
+la password nueva; npm run dev local arranca sin errores de conexion. La
+password vieja (Miercoles_13) ya no es valida -- sigue visible en el historial
+de git pero inerte.
+
+"Leaked Password Protection" de Supabase Auth: Pablo confirmo que es feature
+de plan Pro, no disponible en su plan actual -- descartado, no aplica.
+En su lugar, Pablo subio los requisitos de complejidad de password en la
+configuracion de Auth (sin detalle de que exactamente cambio -- confirmar si
+hace falta en el futuro).
