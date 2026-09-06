@@ -739,22 +739,22 @@ type HubSectionDef = {
 const HUB_SECTIONS: HubSectionDef[] = [
   {
     id: 'defensa', view: 'defensa', icon: Shield, color: 'blue',
-    getLabel: (l) => l === 'zh' ? '防守' : 'Defensa',
+    getLabel: (l) => l === 'zh' ? '防守' : l === 'es' ? 'Defensa' : 'Defense',
     getDesc: (l) => l === 'zh' ? '防守战术体系和覆盖方案' : l === 'es' ? 'Sistema defensivo y coberturas' : 'Defensive system and coverages',
   },
   {
     id: 'transicion', view: 'transicion', icon: Zap, color: 'green',
-    getLabel: (l) => l === 'zh' ? '转换' : 'Transición',
+    getLabel: (l) => l === 'zh' ? '转换' : l === 'es' ? 'Transición' : 'Transition',
     getDesc: (l) => l === 'zh' ? '攻防转换原则' : l === 'es' ? 'Reglas de transición ofensiva y defensiva' : 'Offensive and defensive transition rules',
   },
   {
     id: 'ataque', view: 'ataque', icon: Trophy, color: 'amber',
-    getLabel: (l) => l === 'zh' ? '进攻' : 'Ataque',
+    getLabel: (l) => l === 'zh' ? '进攻' : l === 'es' ? 'Ataque' : 'Offense',
     getDesc: (l) => l === 'zh' ? '进攻战术体系和配合' : l === 'es' ? 'Sistemas ofensivos y conjuntos de jugadas' : 'Offensive systems and play sets',
   },
   {
     id: 'saques', view: null, icon: Flag, color: 'purple',
-    getLabel: (l) => l === 'zh' ? '界外球' : 'Saques',
+    getLabel: (l) => l === 'zh' ? '界外球' : l === 'es' ? 'Saques' : 'Inbounds',
     getDesc: (l) => l === 'zh' ? '底线和边线界外球' : l === 'es' ? 'Jugadas de saque de fondo y banda' : 'Baseline and sideline inbound plays',
   },
 ];
@@ -1060,7 +1060,7 @@ function DefensaHub({
                       {badgeText}
                     </span>
                     <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0 tabular-nums">
-                      {new Date(plan.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
+                      {new Date(plan.createdAt).toLocaleDateString(zh ? 'zh-CN' : es ? 'es-ES' : 'en-US', { day: '2-digit', month: '2-digit' })}
                     </span>
                     <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0" />
                   </button>
