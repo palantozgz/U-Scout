@@ -307,9 +307,12 @@ function PlayerAvatarUpload({ imageUrl, onUpload }: { imageUrl: string; onUpload
 }
 
 // ─── Power Bar ────────────────────────────────────────────────────────────────
-function PowerBar({ label, value, onChange, tooltip }: {
-  label: string; value: PhysicalLevel; onChange: (v: PhysicalLevel) => void; tooltip?: string;
+function PowerBar({ label, value: rawValue, onChange, tooltip }: {
+  label: string; value: PhysicalLevel | undefined | null; onChange: (v: PhysicalLevel) => void; tooltip?: string;
 }) {
+  // Jugadoras importadas de WCBA pueden tener inputs = {} (sin hidratar) -> value llega undefined.
+  // Tratamos undefined/null igual que 0 ("no observado") en vez de renderizar "undefined/5".
+  const value: PhysicalLevel = rawValue ?? 0;
   const levelColorMap: Record<1 | 2 | 3 | 4 | 5, string> = {
     1: "bg-sky-300 border-sky-300",
     2: "bg-blue-400 border-blue-400",
@@ -961,8 +964,8 @@ export default function PlayerEditor() {
             <div className="bg-background rounded-2xl p-5 space-y-5 border border-border shadow-sm">
               <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">💪 {t("physical_profile")}</h3>
               {/* Todas las barras con el mismo color (primary) */}
-              <PowerBar label={t("athleticism")} value={inputs.athleticism} onChange={v => ui("athleticism", v)} tooltip={t("hint_athleticism")} />
-              <PowerBar label={t("physical_strength")} value={inputs.physicalStrength} onChange={v => ui("physicalStrength", v)} tooltip={t("hint_physical_strength")} />
+              <PowerBar label={t("athleticism")} value={inputs.athleticism ?? 0} onChange={v => ui("athleticism", v)} tooltip={t("hint_athleticism")} />
+              <PowerBar label={t("physical_strength")} value={inputs.physicalStrength ?? 0} onChange={v => ui("physicalStrength", v)} tooltip={t("hint_physical_strength")} />
               <PowerBar label={t("court_vision")} value={inputs.courtVision ?? 3} onChange={v => ui("courtVision", v)} tooltip={t("hint_court_vision")} />
 
               {/* Contacto en penetración — aplica a ISO, PnR y cualquier drive */}
