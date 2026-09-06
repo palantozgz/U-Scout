@@ -4283,7 +4283,7 @@ function StatsTeamSheet({
                             {row.pct?.toFixed(1)}%
                             {row.league != null && (
                               <span className="text-muted-foreground font-normal ml-1 text-[9px]">
-                                (liga {row.league.toFixed(1)}%)
+                                ({locale === "zh" ? "联赛" : locale === "es" ? "liga" : "lg"} {row.league.toFixed(1)}%)
                               </span>
                             )}
                           </span>
@@ -4321,7 +4321,7 @@ function StatsTeamSheet({
                         ? `Media ${paceQ.data.avg_possession_time}s/pos.`
                         : `Avg ${paceQ.data.avg_possession_time}s/poss.`}
                     {paceQ.data.lg && (
-                      <span> · liga {paceQ.data.lg.avg_possession_time}s</span>
+                      <span> · {locale === "zh" ? "联赛" : locale === "es" ? "liga" : "lg"} {paceQ.data.lg.avg_possession_time}s</span>
                     )}
                   </p>
                 </div>
@@ -4329,7 +4329,7 @@ function StatsTeamSheet({
               {paceQ.data?.insufficient_data && (
                 <div className="px-4 py-2 border-t border-border/50">
                   <p className="text-[10px] text-muted-foreground">
-                    {locale === "zh" ? "PBP数据不足" : "Datos PBP insuficientes para ritmo"} (
+                    {locale === "zh" ? "PBP数据不足" : locale === "es" ? "Datos PBP insuficientes para ritmo" : "Insufficient PBP data for pace"} (
                     {paceQ.data.possessions} pos.)
                   </p>
                 </div>
