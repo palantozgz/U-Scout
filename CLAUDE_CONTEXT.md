@@ -758,3 +758,85 @@ Hallazgo nuevo sin investigar: Stats.tsx tiene un patron inverso (mas comprobaci
 Bundle de produccion confirmado: ~180KB gzip de carga inicial (entry + vendor chunks), medido sobre build local. El objetivo de <300KB para TestFlight de la sesion de rendimiento anterior ya esta cumplido. Nota: no confirmado que corresponda exactamente al ultimo commit desplegado en Railway -- recomendado remedir con build limpio antes de anunciar el objetivo cerrado formalmente.
 
 Ambos reports (QA + Codigo) entregados a Pablo, cubren la sesion completa del 2026-09-06.
+
+### 2026-09-06 (cont. 2) -- Continuacion autonoma: bugs pendientes cerrados + bundle confirmado
+
+**1. Bug PowerBar "undefined/5" -- CORREGIDO, DESPLEGADO Y VERIFICADO.**
+Causa raiz: POST /api/stats/import-team (routes.ts) inserta inputs={} (vacio) para jugadoras importadas de WCBA en vez de un shape con defaults -- por eso 307 jugadoras importadas tenian athleticism/physicalStrength en undefined. PowerBar solo trataba value===0 como "no observado" ("--"), pero undefined caia al template literal -> "undefined/5". Fix en dos capas en PlayerEditor.tsx (sin tocar routes.ts ni la DB): (1) PowerBar normaliza undefined/null a 0 internamente, (2) los call sites de athleticism/physicalStrength anaden ?? 0, igual que ya hacian courtVision/ftShooting/foulDrawing. Commit: 7b31585. Nota para el futuro: el bug de fondo (inputs={} en el import) sigue ahi -- cualquier campo NUEVO que se anada a PlayerInput sin ?? default en su call site puede repetir este patron para jugadoras importadas. Si se quiere cerrar de raiz, el import-team endpoint deberia insertar un defaultInputs completo (no {}), pero eso es un cambio de mayor alcance (routes.ts + posible migracion de datos de las 307 jugadoras ya importadas) que no se ha hecho.
+
+**2. Patron i18n inverso en Stats.tsx (gap -4 zh/es) -- INVESTIGADO Y CORREGIDO.**
+No era el mismo tipo de bug que los ya corregidos. Gap explicado al 100%: 2 palabras "liga" hardcodeadas sin locale (visibles literalmente para usuarios EN y ZH) + 1 mensaje "PBP insuficiente" con ternario de 2 vias (zh vs fallback en espanol para todos los demas, incluido EN) -- las 3 en la seccion de pace-segments (Offensive Pace). Los otros 3 zh-only checks del archivo (pickName, translatePosition, lineupShortNames) son intencionales: eligen nombre/posicion en chino vs ingles/romanizado, no traducen copy de UI, no necesitan rama es. Commit: 1174b4b.
+
+**3. Bundle de produccion -- CONFIRMADO FORMALMENTE con build limpio del ultimo commit desplegado (1174b4b, ya en Railway).**
+Carga inicial eager (script principal + vendor-react + vendor-query + vendor-supabase + vendor-lucide, los unicos con modulepreload en index.html):
+- index-C2tYbtic.js: 43.38 KB gzip
+- vendor-react: 62.91 KB gzip
+- vendor-query: 11.70 KB gzip
+- vendor-supabase: 50.84 KB gzip
+- vendor-lucide: 6.20 KB gzip
+- **Total JS eager: 175.03 KB gzip** (consistente con el ~180KB estimado antes)
+- CSS (index-DdJsuPZQ.css): 28.45 KB gzip adicionales -> total JS+CSS eager: ~203.5 KB gzip
+Objetivo <300KB para TestFlight: **CUMPLIDO Y CONFIRMADO**, con margen (~100KB de holgura incluso contando CSS). No hace falta remedir de nuevo salvo cambio estructural grande en dependencias eager (vendor-react/query/supabase/lucide) o en el entry point.
+
+**Ambos fixes de codigo: npm run check limpio antes de cada commit, commit por hallazgo, push -> Railway SUCCESS confirmado para los dos (deployments f7b208d6 y caa96f2b).**
+
+**Pendiente que sigue para la proxima sesion (sin tocar aun):**
+- Countdown "proxima sesion" en Schedule vista jugadora: sigue sin poder probarse por falta de una sesion real con fecha futura proxima.
+- Settings->ZH: sigue verificado solo con la cuenta de coach asistente, falta con la cuenta real de Pablo (head_coach).
+- Plan de refactor de Schedule.tsx (god file 3621 lineas, dos copias del formulario de wellness ya detectadas) -- pendiente de proponer antes de ejecutar, no discutido aun con Pablo en esta sesion.
+- Recordatorio pendiente: Pablo debe cambiar su password 8888 por una real.
+
+### 2026-09-06 (cont. 3) -- Audit externo (Cursor) + fix de seguridad P0 verificado y desplegado
+
+Pablo compartio un audit completo hecho con Cursor sobre todo el arbol de codigo (arquitectura, salud de codigo, performance, bugs, UX, seguridad). Verifique personalmente contra el codigo real (no me fie del audit a ciegas) los hallazgos de severidad P0 antes de actuar, y corregi los que eran seguros de arreglar sin coordinacion externa.
+
+**CONFIRMADO Y CORREGIDO -- 3 endpoints admin de routes.ts sin ninguna autenticacion:**
+`POST /api/stats/admin/trigger-possessions`, `process-game/:gameId`, `process-game-sync/:gameId` no tenian requireAuth ni ningun otro guard (uno de ellos literalmente comentado "Temporal — sin auth"). Cualquiera con la URL de Railway podia disparar reprocesado pesado de posesiones sobre toda la temporada. Fix: mismo patron ya usado en /api/stats/sync-status (Bearer STATS_INGEST_KEY, el mismo secreto que ya usa el collector Pi para el endpoint de ingest), pero fail-closed (500 si la env var no esta configurada; sync-status es fail-open, eso se queda como esta por ahora, ver pendientes). Confirmado que el collector Pi NO llama a estos 3 endpoints (son herramientas manuales de Pablo via curl) -- no hay riesgo de romper el pipeline automatico. process-game-sync ademas devolvia err.stack al cliente en el JSON de error -- ahora solo se loguea en servidor.
+
+**CONFIRMADO Y CORREGIDO -- 3 endpoints GET de stats sin requireAuth (a diferencia de TODOS los demas GET /api/stats/*):**
+`team/:id/lineups`, `team/:id/on-off/:playerId`, `players/combined` no tenian requireAuth -- unico patron distinto entre ~15 endpoints GET de stats, claro descuido y no diseno intencional. Fix: requireAuth anadido. Verificado en produccion tras el deploy: sin token -> 401 en los 3; con el Bearer token real de la sesion de Pablo (extraido de localStorage y probado via fetch directo) -> 200 en los 3. Cero cambios de cliente necesarios (apiRequest() ya mandaba el token, simplemente el servidor no lo estaba comprobando).
+
+Commit: `57ca656`. npm run check limpio. Railway: SUCCESS. Verificacion end-to-end en produccion confirmada (curl sin auth -> 401; fetch con token real -> 200/400 segun validacion de parametros, nunca 401).
+
+**NO TOCADO -- requiere decision/coordinacion de Pablo, no una llamada tecnica unilateral:**
+- **Password de Postgres en texto plano en package.json** (scripts dev/db:push/db:migrate), presente en el historial de git desde hace tiempo (confirmado: aparece en 16 commits distintos de package.json). Esto es MAS urgente que los endpoints ya corregidos porque da acceso directo a la base de datos completa sin pasar por la app. Requiere: (1) rotar la password en Supabase, (2) actualizar DATABASE_URL en las variables de Railway, (3) mover los scripts de package.json a usar solo variables de entorno (nunca hardcodeadas), (4) decidir si se reescribe el historial de git (rewrite + force-push, rompe cualquier clone/fork existente) o se acepta el riesgo residual del historial ya expuesto tras rotar. Recomendacion: rotar YA (paso mas urgente y de menor riesgo), reescribir historial es opcional/discutible dado el coste.
+- sync-status fail-open si STATS_INGEST_KEY no esta configurada (bajo riesgo dado que ya esta configurada en Railway, pero es un design smell -- se podria alinear a fail-closed como los 3 nuevos).
+- Resto del audit (god files Stats.tsx/Schedule.tsx/routes.ts, arbol duplicado client/ vs ucore/client/, season 2092 hardcodeada ~23 sitios, membership no pasado a useCapabilities en varias pantallas, prefetch pesado de all-detail en desktop, recharts 378KB de WellnessTrendChart, a11y) -- son cambios de mayor alcance, algunos ya con precedente de "no dividir sin discutir primero" (Schedule.tsx). Planes completos entregados a Pablo en chat, pendientes de que el decida cuales ejecutar y en que orden.
+
+**Pendiente que sigue sin tocar:**
+- Countdown "proxima sesion" en Schedule vista jugadora: sigo sin poder crear la sesion de prueba -- el layout de escritorio que carga por defecto en el navegador headless no tiene navegacion a la semana siguiente visible ni un boton "+" claro; identifique openCreatePrefilled(d, hour) en Schedule.tsx como el trigger pero no localice el elemento clickeable correcto todavia.
+- Settings->ZH: YA VERIFICADO con la cuenta real de Pablo (pablomgz@hotmail.com, Head_coach confirmado en pantalla) -- traduccion completa correcta, revertido a English al terminar.
+- Bundle: YA CONFIRMADO FORMALMENTE (ver entrada anterior de hoy) -- 175.03 KB gzip JS eager + 28.45 KB CSS, objetivo <300KB cumplido.
+- Plan de refactor de Schedule.tsx: pendiente de redactar y proponer antes de ejecutar.
+- Recordatorio pendiente: Pablo debe cambiar su password 8888 por una real.
+
+### 2026-09-06 (cont. 4) -- Countdown de Schedule resuelto + RLS abierto en 3 tablas corregido (P0 real, aplicado y verificado)
+
+**Countdown de Schedule: VERIFICADO, funciona correctamente, no era un bug de codigo.**
+Cree una sesion de prueba real (Lunes 7 Sep, Court Practice, 09:00, INNER MONGOLIA). La cuenta QA jugadora mostraba "No upcoming sessions" -- investigue con SQL directo (no solo la UI): rol/status/club_id de la jugadora correctos en club_members, y la query REST exacta que hace el hook (ver mas abajo, va directo a Supabase, no a Express) SI devolvia la sesion cuando la reproduje a mano con su token real. Causa real: cache persistida obsoleta en localStorage (\`uscout-cache-v1\`) en el navegador de prueba -- el mismo patron ya conocido para cambios hechos fuera de la app normal. Al limpiar esa key, el countdown aparecio correcto al instante: "NEXT SESSION - Court Practice - 8h 46m". Sesion de prueba borrada por SQL al terminar.
+
+**HALLAZGO P0 REAL, CONFIRMADO Y CORREGIDO: RLS completamente abierto en schedule_events, schedule_participants y wellness_entries.**
+Durante la investigacion del countdown descubri que \`client/src/lib/schedule.ts\` y \`wellness.ts\` usan \`supabase.from(...)\` DIRECTO desde el navegador (no pasan por Express/requireAuth) para leer Y escribir estas 3 tablas. Las 3 tenian politicas RLS \`allow_all\`/\`allow_all_authenticated\` (\`using: true\` sin ninguna restriccion) -- CUALQUIER usuario autenticado de la app, de cualquier club, podia leer/crear/editar/BORRAR eventos de calendario, respuestas de asistencia y entradas de wellness de CUALQUIER OTRO club, con solo conocer el club_id/event_id (facil de obtener, no son secretos). Hoy el riesgo real es bajo (solo existe 1 club en la BD), pero es una vulnerabilidad estructural que se activa en cuanto se de de alta un segundo club/equipo en la plataforma.
+
+Fix aplicado via 2 migraciones (\`fix_open_rls_schedule_wellness\`, \`add_own_row_read_policy_club_members\`):
+- schedule_events: SELECT para cualquier club_member activo del club; INSERT/UPDATE/DELETE solo para head_coach o coach con operations_access=true (mismo criterio que \`canCreateEvent\` en capabilities.ts).
+- schedule_participants: SELECT club-wide para miembros activos; INSERT/UPDATE solo de la propia fila (user_id = auth.uid()); staff puede gestionar cualquier fila del club.
+- wellness_entries: cada usuario solo puede leer/escribir SU PROPIA fila; staff (head_coach/coach+ops) puede leer todas las del club.
+- Efecto colateral descubierto y corregido: \`club_members\` tenia RLS activado (por un trigger automatico \`rls_auto_enable()\` que activa RLS en toda tabla nueva) pero CERO politicas -- en Postgres eso deniega TODO acceso via rol \`authenticated\`, incluso leer la propia fila. Esto rompia las subqueries de las 3 politicas nuevas (bloqueaba tanto a Pablo como a cualquiera). Anadida una politica minima: cada usuario puede leer (solo SELECT) su propia fila de club_members.
+
+**Sin acceso a Supabase branching en este plan** ("Branching is supported only on the Pro plan or above") -- no pude probar en un entorno aislado antes de aplicar a produccion. Verifique en caliente inmediatamente despues de cada migracion, con llamadas REST reales usando los tokens reales de Pablo (head_coach) y de la cuenta QA jugadora:
+- Pablo: crear evento -> 201 OK. Leer -> OK.
+- QA jugadora: leer eventos del club -> OK (ve los eventos reales). Crear evento -> 403 (correctamente bloqueada). Responder su propia asistencia -> 201 OK. Responder asistencia EN NOMBRE de Pablo (suplantacion) -> 403 (correctamente bloqueada). Enviar su propio wellness -> 201 OK.
+Todos los datos de prueba de esta verificacion fueron borrados por SQL al terminar. Confirmado tambien que el dashboard de wellness de Pablo ("0/1 submitted") sigue agregando datos correctamente tras el fix.
+
+**Hallazgos MENORES de la misma revision de seguridad (Supabase Advisor), sin accion necesaria o de bajo impacto:**
+- ~35 tablas mas (clubs, players, teams, staff_members, stats_*, users, subscriptions, etc.) tienen RLS activado sin ninguna politica -- pero NINGUNA de ellas se consulta directo desde el cliente (\`grep supabase.from(\` en client/src solo encontro schedule_events/schedule_participants/wellness_entries) -- el servidor Express las toca via Drizzle+service-role, que bypassea RLS. Son inertes hoy, pero cualquier feature futura que empiece a usar \`supabase.from()\` client-side sobre estas tablas sin darse cuenta se encontrara con fail-closed total (0 filas, sin error claro) -- vale la pena recordarlo si aparece un bug de "esto deberia tener datos y esta vacio" en el futuro.
+- 3 funciones SECURITY DEFINER marcadas como "ejecutables por cualquiera via RPC" (anonymize_override, handle_new_auth_user, rls_auto_enable) -- revisadas: las 3 son RETURNS trigger / RETURNS event_trigger, Postgres no permite invocarlas fuera de contexto de trigger aunque el linter las marque como expuestas. Falso positivo del advisor, no explotable.
+- "Leaked Password Protection" desactivada en Supabase Auth -- toggle facil en el dashboard (Authentication settings), cero riesgo, pura mejora. Recomendado activarlo, aprovechando que Pablo ya tiene que entrar al dashboard para rotar la password de Postgres.
+- 3 funciones sin \`search_path\` fijo (function_search_path_mutable) -- hardening menor, bajo riesgo real en este contexto (schema \`public\` no compartido con usuarios no confiables creando objetos), no urgente.
+
+**Pendiente que sigue:**
+- Bug menor: el dialogo de detalle de sesion en Schedule.tsx muestra las notas sin parsear -- literalmente \`OPS:{"attendance":{"mode":"all_team"}}\` en vez de texto legible.
+- Planes de refactor de season 2092 (45 sitios, 6 archivos) y de Schedule.tsx (god file) -- todavia sin redactar.
+- Rotacion de password de Postgres en Supabase -- sigue pendiente de accion directa de Pablo (aprovechar la visita al dashboard para activar tambien leaked-password-protection).
+- Recordatorio: Pablo debe cambiar su password 8888 por una real.
