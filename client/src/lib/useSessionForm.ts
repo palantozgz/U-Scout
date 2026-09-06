@@ -71,7 +71,11 @@ export function writeConstraintsToNotes(
   const hasAny = Object.values(constraints).some((v) => v !== undefined && v !== null && String(v).trim() !== "");
   if (!hasAny) return clean || null;
   const payload = JSON.stringify(constraints);
-  return `${clean || ""}${clean ? "\n\n" : ""}OPS:${payload}`.trim();
+  // IMPORTANT: readConstraintsFromNotes looks for the exact marker "\nOPS:" (with a
+  // leading newline). When clean is empty this used to omit the newline entirely
+  // ("OPS:{...}" with no \n prefix), which made lastIndexOf("\nOPS:") return -1 and
+  // the raw JSON got shown to the user as if it were their own notes text.
+  return `${clean}\nOPS:${payload}`;
 }
 
 type CreateEventMut = {
