@@ -324,10 +324,10 @@ player_stats, invite_links
 1. **Stats Phase 4** — popup/detail views de jugadora (card expand)
 2. **ReportViewV4 — formato 3 slides** — Slide 1: ¿Quién es? · Slide 2: ¿Qué hará? · Slide 3: ¿Qué hago yo?
 3. **U Playbook FASE 2** — Transición wizard + backend persistencia
-4. **Bundle optimization + Capacitor build** — target <300 KB inicial para App Store. Schedule.tsx es el chunk más grande (131.8 KB gzip). División del god file requiere Cursor sesion dedicada.
+4. **Bundle optimization + Capacitor build** — Carga inicial ~191 KB OK. Schedule ya en 20.9 KB. Siguiente paso: Capacitor build → TestFlight.
 
 ### P2
-5. **Schedule.tsx refactor** — 5138 líneas, 50+ estados. Dividir el dialog de creación en subcomponente. Necesita Cursor con archivo completo en contexto.
+5. **Capacitor build + TestFlight** — `npx cap sync && npx cap open ios` → Xcode archive → TestFlight
 6. **player_stats UI** — `/coach/stats-entry`, tabla existe en Supabase, falta backend + frontend
 7. **hasReport fix en MyScout** — usa `createDefaultPlayer` inputs → siempre true
 8. **Schedule scroll re-centering** (List ↔ Planner toggle)
@@ -422,13 +422,16 @@ player_stats, invite_links
 - FASE 1 redesign: hub 4-cards, DefensaHub, TransicionShell, AtaqueShell, PlaybookPlanReader, PlaybookPlayerView — ✅ 50107aa
 - Fix bug persistencia: `playbookClubId` → `storage.getClubForUser()` — ✅ d4694a0
 
-**Bundle analysis (2026-09-06):**
-- Total JS: 730.9 KB gzip (67 chunks)
-- Schedule.tsx: 131.8 KB gzip (chunk lazy, solo al navegar)
+**Bundle analysis (2026-09-06, post-refactor Schedule):**
+- Total JS: 735.9 KB gzip (70 chunks)
+- **Schedule.tsx: 131.8 KB → 20.9 KB gzip** — lazy-load de SessionCreateDialog, WellnessStaffTab, WellnessTrendChart
+- WellnessTrendChart (recharts): 107.1 KB — solo carga si el usuario abre el tab de trends
 - vendor-react: 62.9 KB, vendor-supabase: 50.8 KB
-- Carga inicial real: ~191 KB gzip (index + vendors + locale)
-- generatedHintGenderI18n va embebido en los locales (lazy con ellos)
-- Schedule god file (5138 líneas, 50+ estados) es el mayor candidato de optimización
+- Carga inicial: ~191 KB gzip (sin cambios)
+- Navegar a /schedule: antes 131.8 KB, ahora 20.9 KB parse
+- Schedule.tsx: 5155 → 3621 líneas
+- Archivos extraidos: `useSessionForm.ts`, `scheduleActivityConfig.ts`, `SessionCreateDialog.tsx`, `schedule/WellnessStaffTab.tsx`, `schedule/WellnessTrendChart.tsx`
+- Backup: `backup/pre-schedule-extract-20260906`
 
 **i18n audit:**
 - 1400 keys en los 3 locales, 0 vacías
