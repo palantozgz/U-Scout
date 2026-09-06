@@ -2156,13 +2156,12 @@ export async function registerRoutes(
 
   // ─── GET /api/stats/sync-status ─────────────────────────────────────────────
   app.get("/api/stats/sync-status", async (req, res) => {
-    // Auth: STATS_INGEST_KEY (same as ingest endpoint, called by collector)
+    // Auth: STATS_INGEST_KEY (same as ingest endpoint, called by collector) -- fail-closed
     const key = process.env.STATS_INGEST_KEY;
-    if (key) {
-      const auth = req.headers.authorization ?? "";
-      const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-      if (token !== key) return res.status(401).json({ error: "Unauthorized" });
-    }
+    if (!key) return res.status(500).json({ error: "Ingest auth not configured" });
+    const auth = req.headers.authorization ?? "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (token !== key) return res.status(401).json({ error: "Unauthorized" });
 
     const pbpRows = await db.execute(sql`
       SELECT DISTINCT sg.external_game_id

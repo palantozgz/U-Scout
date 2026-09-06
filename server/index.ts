@@ -45,7 +45,7 @@ export function log(message: string, source = "express") {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     res.status(status).json({ message });
-    throw err;
+    console.error(`[error-handler] ${status} ${message}`, err.stack ?? err);
   });
 
   if (app.get("env") === "development") {
