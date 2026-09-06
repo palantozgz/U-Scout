@@ -1,10 +1,9 @@
 import { ModulePageShell } from "./ModulePage";
 import { useLocale, type I18nKey } from "@/lib/i18n";
-import { ModuleHeader } from "@/components/branding/ModuleHeader";
 import { SkeletonSchedule } from "@/components/SkeletonLoaders";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/useAuth";
 import { useCapabilities, type ClubMembership } from "@/lib/capabilities";
 import { useClub } from "@/lib/club-api";
@@ -23,15 +22,9 @@ import {
   LayoutTemplate,
   Share2,
   X,
-  Dumbbell,
-  HeartPulse,
-  Trophy,
-  Bus,
-  Video,
   CalendarDays,
   Info,
 } from "lucide-react";
-import { AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { toPng } from "html-to-image";
 import {
   DropdownMenu,
@@ -41,13 +34,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
-import { formatTimeHHMMFromParts, formatTimeHHMMFromTotalMinutes, parseTimeHHMMToTotalMinutes } from "@/lib/timeHHMM";
+import { formatTimeHHMMFromParts } from "@/lib/timeHHMM";
 import {
   todayKey,
   type WellnessEntry,
   useUpsertWellnessEntry,
-  useWellnessEntriesForDate,
-  useWellnessEntriesRangeForUsers,
   useWellnessEntriesLastNDays,
   useWellnessEntryToday,
 } from "@/lib/wellness";
@@ -66,6 +57,13 @@ import {
   startOfTomorrowLocal,
   type ScheduleEvent,
 } from "@/lib/schedule";
+import {
+  useSessionForm,
+  readConstraintsFromNotes,
+  type AttendanceMode,
+  type SessionTemplate,
+} from "@/lib/useSessionForm";
+import { ACTIVITY_TYPE_CONFIG } from "@/lib/scheduleActivityConfig";
 
 function localDateKey(d: Date): string {
   const yyyy = d.getFullYear();
@@ -88,82 +86,15 @@ function useLongPress(onLongPress: () => void, ms = 500) {
   return { onMouseDown: start, onTouchStart: start, onMouseUp: cancel, onTouchEnd: cancel, onMouseLeave: cancel };
 }
 
-type AttendanceMode = "all_team" | "groups" | "signup" | "selected_players";
-type LoadWeight = "low" | "medium" | "high";
-type GroupSignupMode = "coach_assign" | "auto_signup";
-type ActivityTypeConfig = {
-  value: ScheduleEvent["session_type"];
-  labelKey: any;
-  icon: typeof Dumbbell;
-  defaultDuration: number;
-  allowedDurations: number[];
-  defaultAttendanceMode: AttendanceMode;
-  defaultGearHint: "ball" | "weights" | "travel" | "video" | "none";
-  loadWeight: LoadWeight;
-};
-
-const ACTIVITY_TYPE_CONFIG: Record<ScheduleEvent["session_type"], ActivityTypeConfig> = {
-  training: {
-    value: "training",
-    labelKey: "schedule_activity_court_practice",
-    icon: Dumbbell,
-    defaultDuration: 90,
-    allowedDurations: [60, 90, 120],
-    defaultAttendanceMode: "all_team",
-    defaultGearHint: "ball",
-    loadWeight: "medium",
-  },
-  recovery: {
-    value: "recovery",
-    labelKey: "schedule_activity_physical_training",
-    icon: HeartPulse,
-    defaultDuration: 60,
-    allowedDurations: [60, 90],
-    defaultAttendanceMode: "all_team",
-    defaultGearHint: "weights",
-    loadWeight: "medium",
-  },
-  match: {
-    value: "match",
-    labelKey: "schedule_activity_match",
-    icon: Trophy,
-    defaultDuration: 120,
-    allowedDurations: [120, 150, 180],
-    defaultAttendanceMode: "all_team",
-    defaultGearHint: "ball",
-    loadWeight: "high",
-  },
-  travel: {
-    value: "travel",
-    labelKey: "schedule_activity_travel",
-    icon: Bus,
-    defaultDuration: 120,
-    allowedDurations: [],
-    defaultAttendanceMode: "all_team",
-    defaultGearHint: "travel",
-    loadWeight: "medium",
-  },
-  meeting: {
-    value: "meeting",
-    labelKey: "schedule_activity_meeting_video",
-    icon: Video,
-    defaultDuration: 60,
-    allowedDurations: [30, 60, 90],
-    defaultAttendanceMode: "all_team",
-    defaultGearHint: "video",
-    loadWeight: "low",
-  },
-  other: {
-    value: "other",
-    labelKey: "schedule_activity_event",
-    icon: CalendarDays,
-    defaultDuration: 60,
-    allowedDurations: [60, 90],
-    defaultAttendanceMode: "all_team",
-    defaultGearHint: "none",
-    loadWeight: "low",
-  },
-};
+const SessionCreateDialog = lazy(() =>
+  import("@/components/SessionCreateDialog").then((m) => ({ default: m.SessionCreateDialog })),
+);
+const WellnessStaffTab = lazy(() =>
+  import("@/components/schedule/WellnessStaffTab").then((m) => ({ default: m.WellnessStaffTab })),
+);
+const WellnessTrendChart = lazy(() =>
+  import("@/components/schedule/WellnessTrendChart").then((m) => ({ default: m.WellnessTrendChart })),
+);
 
 export default function Schedule() {
   const { t, locale } = useLocale();
@@ -260,22 +191,47 @@ export default function Schedule() {
   const [desktopSelectedEvent, setDesktopSelectedEvent] = useState<ScheduleEvent | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const isEditing = Boolean(editingSessionId);
-  const [showAdvancedCreate, setShowAdvancedCreate] = useState(false);
-  const [createSessionType, setCreateSessionType] = useState<ScheduleEvent["session_type"]>("training");
-  const [createTitle, setCreateTitle] = useState("");
-  const [createDate, setCreateDate] = useState("");
-  const [createStartMins, setCreateStartMins] = useState<number | null>(null);
-  const [createEndTime, setCreateEndTime] = useState("");
-  const [createLocation, setCreateLocation] = useState("");
-  const [createNotes, setCreateNotes] = useState("");
-  const [createAttendanceRequired, setCreateAttendanceRequired] = useState(true);
+  const form = useSessionForm();
+  const {
+    createSessionType, setCreateSessionType,
+    createTitle, setCreateTitle,
+    createDate, setCreateDate,
+    createStartMins, setCreateStartMins,
+    createEndTime, setCreateEndTime,
+    createLocation, setCreateLocation,
+    createNotes, setCreateNotes,
+    createAttendanceRequired, setCreateAttendanceRequired,
+    useCustomDateTime, setUseCustomDateTime,
+    durationMins, setDurationMins,
+    repeatEnabled, setRepeatEnabled,
+    repeatWeeks, setRepeatWeeks,
+    repeatWeekdays, setRepeatWeekdays,
+    targetAttendance, setTargetAttendance,
+    maxCapacity, setMaxCapacity,
+    groupName, setGroupName,
+    attendanceMode, setAttendanceMode,
+    attendanceModeTouched, setAttendanceModeTouched,
+    groupsCount, setGroupsCount,
+    groupCapacity, setGroupCapacity,
+    groupSignupMode, setGroupSignupMode,
+    coachGroupAssignments, setCoachGroupAssignments,
+    signupDeadline, setSignupDeadline,
+    signupMaxSpots, setSignupMaxSpots,
+    selectedPlayerIds, setSelectedPlayerIds,
+    customDurationOpen, setCustomDurationOpen,
+    customDurationMins, setCustomDurationMins,
+    groupAssignOpen, setGroupAssignOpen,
+    choosePlayersOpen, setChoosePlayersOpen,
+    trainingTags, setTrainingTags,
+    subgroupCount, setSubgroupCount,
+    subgroupMinutes, setSubgroupMinutes,
+    applyDurationPreset,
+  } = form;
   const [pendingSessionIds, setPendingSessionIds] = useState<Set<string>>(() => new Set());
 
   const locationKey = useMemo(() => `uscout-schedule-locations:${clubId ?? "no-club"}`, [clubId]);
   const [recentLocations, setRecentLocations] = useState<string[]>([]);
   // location presets now contextual per session type in slot create
-  const [useCustomDateTime, setUseCustomDateTime] = useState(false);
-  const [durationMins, setDurationMins] = useState<number | null>(null);
   const [cancelTarget, setCancelTarget] = useState<ScheduleEvent | null>(null);
   const [repeatWeekPlanOpen, setRepeatWeekPlanOpen] = useState(false);
   const [repeatWeekPlanWeeks, setRepeatWeekPlanWeeks] = useState<1 | 2 | 3 | 4 | 6 | 8>(4);
@@ -296,42 +252,7 @@ export default function Schedule() {
   const portraitDayRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const landscapeDayRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const plannerGridRef = useRef<HTMLDivElement | null>(null);
-  const [repeatEnabled, setRepeatEnabled] = useState(false);
-  const [repeatWeeks, setRepeatWeeks] = useState<1 | 2 | 3 | 4 | 6 | 8>(4);
-  const [repeatWeekdays, setRepeatWeekdays] = useState<Set<number>>(() => new Set([1, 3, 5])); // Mon/Wed/Fri
-
-  const [targetAttendance, setTargetAttendance] = useState("");
-  const [maxCapacity, setMaxCapacity] = useState("");
-  const [groupName, setGroupName] = useState("");
-  // UI-ready only (not persisted yet)
-  const [attendanceMode, setAttendanceMode] = useState<AttendanceMode>("all_team");
-  const [attendanceModeTouched, setAttendanceModeTouched] = useState(false);
-  const [groupsCount, setGroupsCount] = useState("");
-  const [groupCapacity, setGroupCapacity] = useState("");
-  const [groupSignupMode, setGroupSignupMode] = useState<GroupSignupMode>("coach_assign");
-  const [coachGroupAssignments, setCoachGroupAssignments] = useState<Record<string, number>>({});
-  const [signupDeadline, setSignupDeadline] = useState("");
-  const [signupMaxSpots, setSignupMaxSpots] = useState("");
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(() => new Set());
-  const [customDurationOpen, setCustomDurationOpen] = useState(false);
-  const [customDurationMins, setCustomDurationMins] = useState<string>("");
-  const [groupAssignOpen, setGroupAssignOpen] = useState(false);
-  const [choosePlayersOpen, setChoosePlayersOpen] = useState(false);
   const [playerActionsTick, setPlayerActionsTick] = useState(0);
-  const [trainingTags, setTrainingTags] = useState<Set<string>>(() => new Set());
-  const [subgroupCount, setSubgroupCount] = useState("");
-  const [subgroupMinutes, setSubgroupMinutes] = useState("");
-
-  type SessionTemplate = {
-    id: string;
-    name: string;
-    session_type: ScheduleEvent["session_type"];
-    title: string;
-    location: string | null;
-    notes: string | null;
-    attendance_required: boolean;
-    constraints?: { target_attendance?: number; max_capacity?: number; group_name?: string };
-  };
 
   const templatesKey = useMemo(() => `uscout-schedule-templates:${clubId ?? "no-club"}`, [clubId]);
   const [templates, setTemplates] = useState<SessionTemplate[]>([]);
@@ -432,55 +353,6 @@ export default function Schedule() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  const readConstraintsFromNotes = (notes: string | null | undefined) => {
-    const raw = notes ?? "";
-    const marker = "\nOPS:";
-    const idx = raw.lastIndexOf(marker);
-    if (idx === -1) return { notesClean: raw.trim() || null, constraints: {} as any };
-    const jsonPart = raw.slice(idx + marker.length).trim();
-    const notesClean = raw.slice(0, idx).trim() || null;
-    try {
-      const parsed = JSON.parse(jsonPart) as any;
-      const c: any = {};
-      if (typeof parsed?.target_attendance === "number") c.target_attendance = parsed.target_attendance;
-      if (typeof parsed?.max_capacity === "number") c.max_capacity = parsed.max_capacity;
-      if (typeof parsed?.group_name === "string") c.group_name = parsed.group_name;
-      if (Array.isArray(parsed?.tags)) c.tags = parsed.tags.filter((x: any) => typeof x === "string");
-      if (parsed?.subgroups && typeof parsed.subgroups === "object") c.subgroups = parsed.subgroups;
-      if (parsed?.attendance && typeof parsed.attendance === "object") c.attendance = parsed.attendance;
-      return { notesClean, constraints: c };
-    } catch {
-      return { notesClean: raw.trim() || null, constraints: {} as any };
-    }
-  };
-
-  const writeConstraintsToNotes = (
-    baseNotes: string | null,
-    constraints: {
-      target_attendance?: number;
-      max_capacity?: number;
-      group_name?: string;
-      tags?: string[];
-      subgroups?: { count?: number; minutes?: number };
-      attendance?: {
-        mode: AttendanceMode;
-        groups_count?: number;
-        group_capacity?: number;
-        group_signup_mode?: GroupSignupMode;
-        coach_assignments?: Record<string, number>;
-        signup_deadline?: string;
-        signup_max_spots?: number;
-        selected_player_ids?: string[];
-      };
-    },
-  ) => {
-    const clean = (baseNotes ?? "").trim();
-    const hasAny = Object.values(constraints).some((v) => v !== undefined && v !== null && String(v).trim() !== "");
-    if (!hasAny) return clean || null;
-    const payload = JSON.stringify(constraints);
-    return `${clean || ""}${clean ? "\n\n" : ""}OPS:${payload}`.trim();
-  };
-
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(templatesKey);
@@ -512,78 +384,6 @@ export default function Schedule() {
     setTargetAttendance(String(tpl.constraints?.target_attendance ?? ""));
     setMaxCapacity(String(tpl.constraints?.max_capacity ?? ""));
     setGroupName(String(tpl.constraints?.group_name ?? ""));
-  };
-
-  const runCreateOrUpdate = async (opts?: { overrideTemplate?: SessionTemplate | null; dateOverride?: string }) => {
-    if (!clubId || !userId) return;
-    if (!createDate || createStartMins == null) return;
-    if (attendanceMode === "selected_players" && selectedPlayerIds.size < 1) return;
-    if (!signupMaxSpotsOk) return;
-    const baseTitle = (opts?.overrideTemplate ? opts.overrideTemplate.title : createTitle).trim();
-    const title = baseTitle || t(ACTIVITY_TYPE_CONFIG[createSessionType].labelKey);
-    const dateStr = opts?.dateOverride ?? createDate;
-    const startsIso = new Date(`${dateStr}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`).toISOString();
-    const endsIso = createEndTime
-      ? new Date(`${dateStr}T${createEndTime}`).toISOString()
-      : durationMins && durationMins > 0
-        ? new Date(new Date(`${dateStr}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`).getTime() + durationMins * 60000).toISOString()
-        : null;
-    const constraints = {
-      target_attendance: targetAttendance.trim() ? Number(targetAttendance) : undefined,
-      max_capacity: maxCapacity.trim() ? Number(maxCapacity) : undefined,
-      group_name: groupName.trim() ? groupName.trim() : undefined,
-      attendance: {
-        mode: attendanceMode,
-        groups_count: attendanceMode === "groups" && groupsCount.trim() ? Number(groupsCount) : undefined,
-        group_capacity: attendanceMode === "groups" && groupCapacity.trim() ? Number(groupCapacity) : undefined,
-        group_signup_mode: attendanceMode === "groups" ? groupSignupMode : undefined,
-        coach_assignments:
-          attendanceMode === "groups" && groupSignupMode === "coach_assign" && Object.keys(coachGroupAssignments).length > 0
-            ? coachGroupAssignments
-            : undefined,
-        signup_deadline: attendanceMode === "signup" && signupDeadline.trim() ? signupDeadline.trim() : undefined,
-        signup_max_spots: attendanceMode === "signup" && signupMaxSpots.trim() ? Number(signupMaxSpots) : undefined,
-        selected_player_ids:
-          attendanceMode === "selected_players" && selectedPlayerIds.size > 0 ? Array.from(selectedPlayerIds) : undefined,
-      },
-      tags: trainingTags.size > 0 ? Array.from(trainingTags) : undefined,
-      subgroups:
-        subgroupCount.trim() || subgroupMinutes.trim()
-          ? {
-              count: subgroupCount.trim() ? Number(subgroupCount) : undefined,
-              minutes: subgroupMinutes.trim() ? Number(subgroupMinutes) : undefined,
-            }
-          : undefined,
-    };
-    const rawNotes = opts?.overrideTemplate ? (opts.overrideTemplate.notes ?? "") : createNotes;
-    const notesWithOps = writeConstraintsToNotes(rawNotes.trim() || null, constraints);
-    if (editingSessionId) {
-      await updateEventMut.mutateAsync({
-        id: editingSessionId,
-        club_id: clubId,
-        patch: {
-          session_type: createSessionType,
-          title,
-          starts_at: startsIso,
-          ends_at: endsIso,
-          location: (opts?.overrideTemplate ? (opts.overrideTemplate.location ?? "") : createLocation).trim() || null,
-          notes: notesWithOps,
-          attendance_required: createAttendanceRequired,
-        },
-      });
-    } else {
-      await createEventMut.mutateAsync({
-        club_id: clubId,
-        session_type: createSessionType,
-        title,
-        starts_at: startsIso,
-        ends_at: endsIso,
-        location: (opts?.overrideTemplate ? (opts.overrideTemplate.location ?? "") : createLocation).trim() || null,
-        notes: notesWithOps,
-        attendance_required: createAttendanceRequired,
-        created_by: userId,
-      });
-    }
   };
 
   const mondayOf = (base: Date) => {
@@ -696,12 +496,6 @@ export default function Schedule() {
   }, [locale]);
 
   const formatTimeHHMM = (h: number, m: number) => formatTimeHHMMFromParts(h, m);
-  const createStartTime = useMemo(() => {
-    return typeof createStartMins === "number" && Number.isFinite(createStartMins)
-      ? formatTimeHHMMFromTotalMinutes(createStartMins)
-      : "";
-  }, [createStartMins]);
-
   const days = useMemo(() => {
     return Array.from({ length: 7 }).map((_, i) => {
       const d = new Date(selectedWeekStart);
@@ -712,7 +506,6 @@ export default function Schedule() {
 
   const openCreatePrefilled = (d: Date, hour: number) => {
     setEditingSessionId(null);
-    setShowAdvancedCreate(false);
     setCreateSessionType("training");
     setCreateTitle("");
     const yyyy = d.getFullYear();
@@ -983,32 +776,6 @@ export default function Schedule() {
     });
   };
 
-  const applyQuickPick = (pick: "today_evening" | "tomorrow_morning" | "tomorrow_evening") => {
-    const base = new Date();
-    base.setSeconds(0, 0);
-    const d = new Date(base);
-    const hour =
-      pick === "tomorrow_morning" ? 9 : pick === "today_evening" || pick === "tomorrow_evening" ? 18 : 18;
-    if (pick.startsWith("tomorrow")) d.setDate(d.getDate() + 1);
-    d.setHours(hour, 0, 0, 0);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    setCreateDate(`${yyyy}-${mm}-${dd}`);
-    setCreateStartMins(hour * 60);
-    setUseCustomDateTime(false);
-  };
-
-  const applyDurationPreset = (mins: number) => {
-    setDurationMins(mins);
-    if (!createDate || createStartMins == null) return;
-    const start = new Date(`${createDate}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`);
-    if (Number.isNaN(start.getTime())) return;
-    const end = new Date(start.getTime() + mins * 60000);
-    setCreateEndTime(formatTimeHHMM(end.getHours(), end.getMinutes()));
-    setUseCustomDateTime(true);
-  };
-
   const openSessionDetail = (ev: ScheduleEvent) => {
     if (isDesktop) {
       setDesktopSelectedEvent(ev);
@@ -1019,7 +786,6 @@ export default function Schedule() {
 
   const startEditing = (ev: ScheduleEvent) => {
     setEditingSessionId(ev.id);
-    setShowAdvancedCreate(false);
     setCreateSessionType(ev.session_type);
     setCreateTitle(ev.title ?? "");
     const d = new Date(ev.starts_at);
@@ -1151,13 +917,6 @@ export default function Schedule() {
     return "border-border bg-background/40 text-foreground";
   };
 
-  const adjustStartTimeMins = (deltaMins: number) => {
-    if (createStartMins == null) return;
-    const next = (createStartMins + deltaMins + 1440) % 1440;
-    setCreateStartMins(next);
-    if (durationMins) applyDurationPreset(durationMins);
-  };
-
   const duplicateInOneTap = (ev: ScheduleEvent) => {
     if (!clubId || !userId) return;
     const starts = new Date(ev.starts_at);
@@ -1202,22 +961,6 @@ export default function Schedule() {
     toast({ description: t("schedule_template_saved") });
   };
 
-  const signupMaxSpotsOk = useMemo(() => {
-    const raw = signupMaxSpots.trim();
-    if (!raw) return true;
-    const n = Number(raw);
-    return Number.isFinite(n) && n >= 1;
-  }, [signupMaxSpots]);
-
-  const canSubmitCreate = Boolean(
-    clubId &&
-      userId &&
-      createDate &&
-      createStartTime &&
-      signupMaxSpotsOk &&
-      (attendanceMode !== "selected_players" || selectedPlayerIds.size >= 1),
-  );
-
   const [sleepQuality, setSleepQuality] = useState<string>("");
   const [energyLevel, setEnergyLevel] = useState<string>("");
   const [muscleSoreness, setMuscleSoreness] = useState<string>("");
@@ -1231,21 +974,6 @@ export default function Schedule() {
 
   const last7Q = useWellnessEntriesLastNDays({ clubId, userId, days: 7 });
   const last30Q = useWellnessEntriesLastNDays({ clubId, userId, days: 30 });
-  const staffTodayEntriesQ = useWellnessEntriesForDate({ clubId, entryDate, userIds: rosterPlayerUserIds });
-  const staffRange30Q = useWellnessEntriesRangeForUsers({
-    clubId,
-    userIds: rosterPlayerUserIds,
-    fromDate: (() => {
-      const d = new Date();
-      d.setDate(d.getDate() - 29);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yyyy}-${mm}-${dd}`;
-    })(),
-    toDate: entryDate,
-  });
-
   const submittedToday = Boolean(entryQ.data);
 
   const playerBaseline = useMemo(() => {
@@ -1264,160 +992,8 @@ export default function Schedule() {
     };
   }, [entryDate, last30Q.data]);
 
-  const rosterLabelByUserId = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const m of rosterPlayers) {
-      map[m.userId] = ((m as any).fullName ?? (m as any).full_name ?? (m as any).email ?? m.userId) as string;
-    }
-    return map;
-  }, [rosterPlayers]);
-
-  const staffWellnessSummary = useMemo(() => {
-    const entries = staffTodayEntriesQ.data ?? [];
-    const byUser: Record<string, (typeof entries)[number]> = {};
-    for (const e of entries) byUser[e.user_id] = e;
-    const total = rosterPlayerUserIds.length;
-    const submitted = entries.length;
-    const missing = Math.max(0, total - submitted);
-    const lowReadinessUserIds = new Set(entries.filter((e) => e.mental_readiness <= 2).map((e) => e.user_id));
-    const highSorenessUserIds = new Set(entries.filter((e) => e.muscle_soreness >= 4).map((e) => e.user_id));
-    const belowNormalUserIds = new Set<string>([...Array.from(lowReadinessUserIds), ...Array.from(highSorenessUserIds)]);
-
-    const priority = rosterPlayerUserIds
-      .map((uid) => {
-        const e = byUser[uid];
-        const missingSubmission = !e;
-        const lowReadiness = Boolean(e && e.mental_readiness <= 2);
-        const highSoreness = Boolean(e && e.muscle_soreness >= 4);
-        const lowSleep = Boolean(e && e.sleep_quality <= 2);
-        const score = missingSubmission ? 100 : (lowReadiness ? 40 : e!.mental_readiness === 3 ? 15 : 0) + (highSoreness ? 25 : 0) + (lowSleep ? 20 : 0);
-        return {
-          userId: uid,
-          score,
-          missingSubmission,
-          lowReadiness,
-          highSoreness,
-          lowSleep,
-          entry: e ?? null,
-        };
-      })
-      .filter((p) => p.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-
-    return {
-      total,
-      submitted,
-      missing,
-      lowReadinessCount: lowReadinessUserIds.size,
-      highSorenessCount: highSorenessUserIds.size,
-      belowNormalCount: belowNormalUserIds.size,
-      priority,
-    };
-  }, [rosterPlayerUserIds, staffTodayEntriesQ.data]);
-
-  const staffTrend = useMemo(() => {
-    const entries = staffRange30Q.data ?? [];
-    const dayKeys = Array.from({ length: 30 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (29 - i));
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yyyy}-${mm}-${dd}`;
-    });
-
-    const byDay = new Map<string, typeof entries>();
-    for (const k of dayKeys) byDay.set(k, []);
-    for (const e of entries) {
-      if (!byDay.has(e.entry_date)) continue;
-      byDay.get(e.entry_date)!.push(e);
-    }
-
-    const totalRoster = rosterPlayerUserIds.length || 0;
-    const avgNum = (
-      list: typeof entries,
-      field: "sleep_quality" | "energy_level" | "muscle_soreness" | "mental_readiness",
-    ) => {
-      if (list.length === 0) return null;
-      return list.reduce((acc, e) => acc + (e as any)[field], 0) / list.length;
-    };
-
-    const points = dayKeys.map((k) => {
-      const list = byDay.get(k) ?? [];
-      const submitted = list.length;
-      const submissionPct = totalRoster > 0 ? Math.round((submitted / totalRoster) * 100) : 0;
-      return {
-        day: k,
-        submissionPct,
-        avgSleep: avgNum(list, "sleep_quality"),
-        avgEnergy: avgNum(list, "energy_level"),
-        avgReadiness: avgNum(list, "mental_readiness"),
-        avgSoreness: avgNum(list, "muscle_soreness"),
-        submitted,
-      };
-    });
-
-    return { points };
-  }, [rosterPlayerUserIds.length, rosterPlayerUserIds, staffRange30Q.data]);
-
   const [wellnessTrendRange, setWellnessTrendRange] = useState<"7d" | "30d">("7d");
-  const [staffRiskSort, setStaffRiskSort] = useState<"score" | "missing" | "readiness" | "soreness" | "sleep">("score");
-  const [staffTrendRange, setStaffTrendRange] = useState<"7d" | "30d">("7d");
 
-  const staffTeamAvgToday = useMemo(() => {
-    const entries = staffTodayEntriesQ.data ?? [];
-    if (entries.length === 0) return null;
-    const avg = (field: "sleep_quality" | "energy_level" | "muscle_soreness" | "mental_readiness") =>
-      entries.reduce((acc, e) => acc + (e as any)[field], 0) / entries.length;
-    return {
-      sleep: avg("sleep_quality"),
-      energy: avg("energy_level"),
-      soreness: avg("muscle_soreness"),
-      readiness: avg("mental_readiness"),
-      n: entries.length,
-    };
-  }, [staffTodayEntriesQ.data]);
-
-  const staffRiskRows = useMemo(() => {
-    const entries = staffTodayEntriesQ.data ?? [];
-    const byUser: Record<string, (typeof entries)[number]> = {};
-    for (const e of entries) byUser[e.user_id] = e;
-    return rosterPlayerUserIds.map((uid) => {
-      const e = byUser[uid];
-      const missingSubmission = !e;
-      const lowReadiness = Boolean(e && e.mental_readiness <= 2);
-      const highSoreness = Boolean(e && e.muscle_soreness >= 4);
-      const lowSleep = Boolean(e && e.sleep_quality <= 2);
-      const score = missingSubmission
-        ? 100
-        : (lowReadiness ? 40 : e!.mental_readiness === 3 ? 15 : 0) + (highSoreness ? 25 : 0) + (lowSleep ? 20 : 0);
-      return {
-        userId: uid,
-        name: rosterLabelByUserId[uid] ?? uid,
-        score,
-        missingSubmission,
-        lowReadiness,
-        highSoreness,
-        lowSleep,
-        entry: e ?? null,
-      };
-    });
-  }, [rosterLabelByUserId, rosterPlayerUserIds, staffTodayEntriesQ.data]);
-
-  const staffRiskRowsSorted = useMemo(() => {
-    const rows = [...staffRiskRows];
-    const v = (r: (typeof rows)[number], field: "sleep_quality" | "energy_level" | "muscle_soreness" | "mental_readiness") =>
-      r.entry ? (r.entry as any)[field] : null;
-    rows.sort((a, b) => {
-      if (staffRiskSort === "missing") return Number(b.missingSubmission) - Number(a.missingSubmission) || b.score - a.score;
-      if (staffRiskSort === "sleep") return (v(a, "sleep_quality") ?? 999) - (v(b, "sleep_quality") ?? 999) || b.score - a.score;
-      if (staffRiskSort === "readiness") return (v(a, "mental_readiness") ?? 999) - (v(b, "mental_readiness") ?? 999) || b.score - a.score;
-      if (staffRiskSort === "soreness") return (v(b, "muscle_soreness") ?? -1) - (v(a, "muscle_soreness") ?? -1) || b.score - a.score;
-      return b.score - a.score;
-    });
-    return rows;
-  }, [staffRiskRows, staffRiskSort]);
 
   const setFromEntry = (e: {
     sleep_quality: number;
@@ -1461,76 +1037,6 @@ export default function Schedule() {
     const rem = mins % 60;
     return t("schedule_countdown_hours").replace("{h}", String(hrs)).replace("{m}", String(rem));
   }, [nextSession?.starts_at, t]);
-
-  const summaryText = useMemo(() => {
-    const parts: string[] = [];
-    parts.push(t(ACTIVITY_TYPE_CONFIG[createSessionType].labelKey));
-    if (createDate && createStartMins != null) parts.push(`${createDate} ${formatTimeHHMMFromTotalMinutes(createStartMins)}`);
-    else parts.push(t("schedule_create_summary_time_missing"));
-    if (createLocation.trim()) parts.push(createLocation.trim());
-    else parts.push(t("schedule_create_summary_location_missing"));
-    return parts.join(" · ");
-  }, [createDate, createLocation, createSessionType, createStartMins, t]);
-
-  const createLocationPlaceholderKey = useMemo(() => {
-    if (createSessionType === "training") return "schedule_session_location_placeholder_training";
-    if (createSessionType === "recovery") return "schedule_session_location_placeholder_recovery";
-    if (createSessionType === "match") return "schedule_session_location_placeholder_match";
-    if (createSessionType === "travel") return "schedule_session_location_placeholder_travel";
-    if (createSessionType === "meeting") return "schedule_session_location_placeholder_meeting";
-    return "schedule_session_location_placeholder_other";
-  }, [createSessionType]);
-
-  // Title is optional; if blank we fall back to the activity label on save.
-
-  useEffect(() => {
-    const cfg = ACTIVITY_TYPE_CONFIG[createSessionType];
-    // Keep UI clean: duration chips adapt by type; if current duration isn't allowed, reset to the type default.
-    // Travel uses "block time" semantics: no duration chips and no forced end time.
-    if (createSessionType === "travel") {
-      setDurationMins(null);
-      setCreateEndTime("");
-      setUseCustomDateTime(false);
-      setCustomDurationOpen(false);
-      setCustomDurationMins("");
-    } else if (durationMins == null || !cfg.allowedDurations.includes(durationMins)) {
-      applyDurationPreset(cfg.defaultDuration);
-    }
-    // Type defaults must actually work: only auto-apply if coach hasn't manually changed attendance mode this session.
-    if (!attendanceModeTouched) setAttendanceMode(cfg.defaultAttendanceMode);
-  }, [
-    applyDurationPreset,
-    attendanceModeTouched,
-    createSessionType,
-    durationMins,
-    setCreateEndTime,
-    setCustomDurationMins,
-    setDurationMins,
-    setUseCustomDateTime,
-  ]);
-
-  const derivedDurationFromEndTimeMins = useMemo(() => {
-    if (!createDate || createStartMins == null || !createEndTime) return null;
-    const start = new Date(`${createDate}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`);
-    const end = new Date(`${createDate}T${createEndTime}`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
-    const diff = Math.round((end.getTime() - start.getTime()) / 60000);
-    if (!Number.isFinite(diff) || diff <= 0) return null;
-    return diff;
-  }, [createDate, createEndTime, createStartMins]);
-
-  const durationOptions = useMemo(() => {
-    const cfg = ACTIVITY_TYPE_CONFIG[createSessionType];
-    return cfg.allowedDurations;
-  }, [createSessionType]);
-
-  useEffect(() => {
-    if (createSessionType === "travel") return;
-    if (!derivedDurationFromEndTimeMins) return;
-    // If user edits end time directly, reflect it as a "Custom" duration selection.
-    setDurationMins(derivedDurationFromEndTimeMins);
-    setCustomDurationMins(String(derivedDurationFromEndTimeMins));
-  }, [createSessionType, derivedDurationFromEndTimeMins]);
 
   useEffect(() => {
     if (!showLocalWellness) return;
@@ -2775,269 +2281,14 @@ export default function Schedule() {
               ) : null}
 
               {!isPlayer ? (
-                <div className="mt-4 space-y-3">
-                  {(() => {
-                    const top = staffRiskRowsSorted.find((p) => p.score > 0) ?? null;
-                    const missing = staffWellnessSummary.missing;
-                    return (
-                      <div className="rounded-2xl border border-border bg-card p-4">
-                        <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
-                          {t("wellness_staff_today" as any)}
-                        </p>
-                        <div className="mt-2 grid grid-cols-2 gap-2">
-                          <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
-                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                              {t("wellness_staff_missing_today_label" as any)}
-                            </p>
-                            <p className="mt-1 text-lg font-black text-foreground">{missing}</p>
-                          </div>
-                          <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
-                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                              {t("wellness_staff_top_risk_label" as any)}
-                            </p>
-                            <p className="mt-1 text-sm font-extrabold text-foreground truncate">
-                              {top ? top.name : t("wellness_staff_top_risk_none" as any)}
-                            </p>
-                            {top ? (
-                              <p className="mt-0.5 text-xs font-semibold text-muted-foreground">
-                                {t("wellness_staff_priority_score" as any).replace("{score}", String(top.score))}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  <div className="rounded-2xl border border-border bg-background/40 p-3">
-                    <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
-                      {t("wellness_staff_alerts_title" as any)}
-                    </p>
-                    <div className="mt-2 space-y-1.5">
-                      {staffWellnessSummary.belowNormalCount >= 3 ? (
-                        <p className="text-sm font-semibold text-foreground">{t("wellness_staff_alert_below_normal" as any)}</p>
-                      ) : null}
-                      {staffWellnessSummary.missing > 0 ? (
-                        <p className="text-sm font-semibold text-foreground">{t("wellness_staff_alert_missing" as any)}</p>
-                      ) : null}
-                      {staffWellnessSummary.belowNormalCount < 3 && staffWellnessSummary.missing === 0 ? (
-                        <p className="text-sm font-semibold text-muted-foreground">{t("wellness_staff_alert_all_clear" as any)}</p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-border bg-card p-4">
-                    <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
-                      {t("wellness_schedule_correlations" as any)}
-                    </p>
-                    <div className="mt-2 space-y-1.5">
-                      {(() => {
-                        const sessions = weekEventsQ.data ?? [];
-                        const now = Date.now();
-                        const recentWindowMs = 3 * 86400000;
-                        const recent = sessions.filter((s) => Math.abs(new Date(s.starts_at).getTime() - now) <= recentWindowMs);
-                        const hasMatch = recent.some((s) => s.session_type === "match");
-                        const hasTravel = recent.some((s) => s.session_type === "travel");
-                        const loadScore = sessions
-                          .filter((s) => {
-                            const ts = new Date(s.starts_at).getTime();
-                            return ts <= now && ts >= now - 7 * 86400000;
-                          })
-                          .reduce((acc, s) => {
-                            const w = ACTIVITY_TYPE_CONFIG[s.session_type]?.loadWeight ?? "low";
-                            return acc + (w === "high" ? 3 : w === "medium" ? 2 : 1);
-                          }, 0);
-                        const heavyWeek = loadScore >= 10;
-                        const entries = staffTodayEntriesQ.data ?? [];
-                        const highSoreness = entries.some((e) => e.muscle_soreness >= 4);
-                        const lowSleep = entries.some((e) => e.sleep_quality <= 2);
-                        const lowReadiness = entries.some((e) => e.mental_readiness <= 2);
-                        const lines: string[] = [];
-                        if (hasMatch && highSoreness) lines.push(t("wellness_corr_match_soreness_watch" as any));
-                        if (hasTravel && lowSleep) lines.push(t("wellness_corr_travel_sleep_watch" as any));
-                        if (heavyWeek && lowReadiness) lines.push(t("wellness_corr_heavy_week_readiness_watch" as any));
-                        if (lines.length === 0) lines.push(t("wellness_corr_none" as any));
-                        return lines.map((txt) => (
-                          <p key={txt} className="text-sm font-semibold text-muted-foreground">
-                            {txt}
-                          </p>
-                        ));
-                      })()}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <KpiCard
-                      title={t("wellness_staff_card_submitted_pct" as any)}
-                      value={wellnessPctQ.isLoading ? t("schedule_placeholder_kpi") : `${wellnessPctQ.data?.pct ?? 0}%`}
-                      subtitle={
-                        wellnessPctQ.data
-                          ? t("wellness_staff_card_submitted_subtitle" as any)
-                              .replace("{submitted}", String(wellnessPctQ.data.submitted))
-                              .replace("{total}", String(wellnessPctQ.data.total))
-                          : undefined
-                      }
-                    />
-                    <KpiCard
-                      title={t("wellness_staff_card_missing_today" as any)}
-                      value={staffTodayEntriesQ.isLoading ? t("schedule_placeholder_kpi") : String(staffWellnessSummary.missing)}
-                    />
-                    <KpiCard
-                      title={t("wellness_staff_card_low_readiness" as any)}
-                      value={staffTodayEntriesQ.isLoading ? t("schedule_placeholder_kpi") : String(staffWellnessSummary.lowReadinessCount)}
-                      subtitle={t("wellness_staff_threshold_low_readiness" as any)}
-                    />
-                    <KpiCard
-                      title={t("wellness_staff_card_high_soreness" as any)}
-                      value={staffTodayEntriesQ.isLoading ? t("schedule_placeholder_kpi") : String(staffWellnessSummary.highSorenessCount)}
-                      subtitle={t("wellness_staff_threshold_high_soreness" as any)}
-                    />
-                  </div>
-
-                  <div className="rounded-2xl border border-border bg-card p-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
-                        {t("wellness_staff_team_trends" as any)}
-                      </p>
-                      <ToggleGroup
-                        type="single"
-                        value={staffTrendRange}
-                        onValueChange={(v) => setStaffTrendRange((v as any) || "7d")}
-                        className="justify-end"
-                      >
-                        <ToggleGroupItem value="7d" size="sm" variant="outline" className="h-9 px-2.5">
-                          7d
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="30d" size="sm" variant="outline" className="h-9 px-2.5">
-                          30d
-                        </ToggleGroupItem>
-                      </ToggleGroup>
-                    </div>
-                    <div className="mt-3">
-                      {staffRange30Q.isLoading ? (
-                        <p className="text-sm text-muted-foreground">{t("wellness_loading_today")}</p>
-                      ) : (
-                        (() => {
-                          const points = staffTrend.points;
-                          const slice = staffTrendRange === "7d" ? points.slice(-7) : points;
-                          const series = (metric: "avgSleep" | "avgEnergy" | "avgSoreness" | "avgReadiness") =>
-                            slice.map((p) => ({ date: p.day, value: (p as any)[metric] as number | null }));
-                          return (
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <p className="text-xs font-bold text-foreground">{t("wellness_metric_sleep" as any)}</p>
-                                <div className="mt-1">
-                                  <WellnessTrendChart points={series("avgSleep")} goodUp color="#3b82f6" />
-                                </div>
-                              </div>
-                              <div>
-                                <p className="text-xs font-bold text-foreground">{t("wellness_metric_energy" as any)}</p>
-                                <div className="mt-1">
-                                  <WellnessTrendChart points={series("avgEnergy")} goodUp color="#f59e0b" />
-                                </div>
-                              </div>
-                              <div>
-                                <p className="text-xs font-bold text-foreground">{t("wellness_metric_soreness" as any)}</p>
-                                <div className="mt-1">
-                                  <WellnessTrendChart points={series("avgSoreness")} goodUp={false} color="#ef4444" />
-                                </div>
-                              </div>
-                              <div>
-                                <p className="text-xs font-bold text-foreground">{t("wellness_metric_readiness" as any)}</p>
-                                <div className="mt-1">
-                                  <WellnessTrendChart points={series("avgReadiness")} goodUp color="#10b981" />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })()
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-border bg-card p-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
-                        {t("wellness_staff_priority_title" as any)}
-                      </p>
-                      <select
-                        className="h-9 rounded-md border border-border bg-background px-2 text-sm"
-                        value={staffRiskSort}
-                        onChange={(e) => setStaffRiskSort(e.target.value as any)}
-                      >
-                        <option value="score">{t("wellness_sort_highest_risk" as any)}</option>
-                        <option value="sleep">{t("wellness_sort_lowest_sleep" as any)}</option>
-                        <option value="soreness">{t("wellness_sort_highest_soreness" as any)}</option>
-                        <option value="readiness">{t("wellness_sort_lowest_readiness" as any)}</option>
-                        <option value="missing">{t("wellness_sort_missing_today" as any)}</option>
-                      </select>
-                    </div>
-                    <div className="mt-3 space-y-2">
-                      {staffTodayEntriesQ.isLoading ? (
-                        <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
-                          <p className="text-sm font-medium text-muted-foreground">{t("wellness_loading_today")}</p>
-                        </div>
-                      ) : staffRiskRowsSorted.filter((p) => p.score > 0).length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
-                          <p className="text-sm font-medium text-muted-foreground">{t("wellness_staff_priority_empty" as any)}</p>
-                        </div>
-                      ) : (
-                        staffRiskRowsSorted
-                          .filter((p) => p.score > 0)
-                          .slice(0, 5)
-                          .map((p) => {
-                          const reasons: string[] = [];
-                          if (p.missingSubmission) reasons.push(t("wellness_reason_missing" as any));
-                          if (p.lowReadiness) reasons.push(t("wellness_reason_low_readiness" as any));
-                          if (p.highSoreness) reasons.push(t("wellness_reason_high_soreness" as any));
-                          if (p.lowSleep) reasons.push(t("wellness_reason_low_sleep" as any));
-                          const team = staffTeamAvgToday;
-                          const chips: string[] = [];
-                          if (team && p.entry) {
-                            const rd = p.entry.mental_readiness - team.readiness;
-                            const sr = p.entry.muscle_soreness - team.soreness;
-                            if (p.lowReadiness) chips.push(t("wellness_vs_team" as any).replace("{metric}", t("wellness_metric_readiness" as any)).replace("{delta}", `${rd >= 0 ? "+" : ""}${(Math.round(rd * 10) / 10).toFixed(1)}`));
-                            if (p.highSoreness) chips.push(t("wellness_vs_team" as any).replace("{metric}", t("wellness_metric_soreness" as any)).replace("{delta}", `${sr >= 0 ? "+" : ""}${(Math.round(sr * 10) / 10).toFixed(1)}`));
-                            if (p.lowSleep) {
-                              const sl = p.entry.sleep_quality - team.sleep;
-                              chips.push(t("wellness_vs_team" as any).replace("{metric}", t("wellness_metric_sleep" as any)).replace("{delta}", `${sl >= 0 ? "+" : ""}${(Math.round(sl * 10) / 10).toFixed(1)}`));
-                            }
-                          }
-                          return (
-                            <div key={p.userId} className="rounded-xl border border-border bg-background/40 px-3 py-3 min-h-[56px]">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm font-extrabold text-foreground truncate">{p.name}</p>
-                                <p className="text-xs font-bold text-muted-foreground">{t("wellness_staff_priority_score" as any).replace("{score}", String(p.score))}</p>
-                              </div>
-                              <div className="mt-1 flex flex-wrap gap-1.5">
-                                {reasons.slice(0, 4).map((r) => (
-                                  <span
-                                    key={r}
-                                    className={[
-                                      "px-2 py-0.5 rounded-full border text-xs font-black tracking-wide",
-                                      r === t("wellness_reason_missing" as any)
-                                        ? "border-sky-500/25 bg-sky-500/10 text-sky-900 dark:text-sky-200"
-                                        : r === t("wellness_reason_high_soreness" as any) || r === t("wellness_reason_low_readiness" as any)
-                                          ? "border-amber-500/25 bg-amber-500/10 text-amber-900 dark:text-amber-200"
-                                          : "border-border bg-muted/25 text-muted-foreground",
-                                    ].join(" ")}
-                                  >
-                                    {r}
-                                  </span>
-                                ))}
-                                {chips.slice(0, 2).map((c) => (
-                                  <span key={c} className="px-2 py-0.5 rounded-full border border-border bg-background/40 text-xs font-black tracking-wide text-muted-foreground">
-                                    {c}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <Suspense fallback={<div className="mt-4 text-sm text-muted-foreground">{t("wellness_loading_today")}</div>}>
+                  <WellnessStaffTab
+                    clubId={clubId}
+                    rosterPlayers={rosterPlayers}
+                    weekEvents={weekEventsQ.data ?? []}
+                    t={t}
+                  />
+                </Suspense>
               ) : showLocalWellness ? (
                 <>
                   <div className="mt-4 space-y-4">
@@ -3144,7 +2395,8 @@ export default function Schedule() {
                       <p className="mt-1 text-xs font-semibold text-muted-foreground">
                         {t("wellness_baseline_subtitle" as any).replace("{n}", String(playerBaseline.n))}
                       </p>
-                      <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Suspense fallback={null}>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
                         {[
                           { key: "sleep", label: t("wellness_metric_sleep" as any), today: entryQ.data.sleep_quality, base: playerBaseline.sleep, goodUp: true },
                           { key: "energy", label: t("wellness_metric_energy" as any), today: entryQ.data.energy_level, base: playerBaseline.energy, goodUp: true },
@@ -3175,6 +2427,7 @@ export default function Schedule() {
                           );
                         })}
                       </div>
+                        </Suspense>
                     </div>
                   ) : null}
 
@@ -3348,741 +2601,28 @@ export default function Schedule() {
         </Tabs>
       </div>
 
-      <Dialog
-        open={createOpen}
-        onOpenChange={(open) => {
-          setCreateOpen(open);
-          if (!open) {
-            setEditingSessionId(null);
-            setShowAdvancedCreate(false);
-            setAttendanceModeTouched(false);
-            setCustomDurationOpen(false);
-            setCustomDurationMins("");
-          }
-        }}
-      >
-        <DialogContent className="max-w-md p-0 overflow-hidden">
-          <DialogHeader>
-            <div className="px-5 pt-5 pb-3">
-              <DialogTitle>{t("schedule_create_session_title")}</DialogTitle>
-              <p className="mt-1 text-xs text-muted-foreground font-medium">{t("schedule_create_session_subtitle")}</p>
-            </div>
-          </DialogHeader>
-          <div className="px-5 pb-24 max-h-[70dvh] overflow-y-auto">
-            <div className="space-y-4 pb-4">
-              <div className="rounded-xl border border-border bg-card px-3 py-2">
-                <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
-                  {t("schedule_create_context" as any).replace(
-                    "{when}",
-                    (() => {
-                      const d = createDate ? new Date(`${createDate}T00:00`) : null;
-                      const labelDay = d ? new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d) : "";
-                      const labelDate = d ? new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" }).format(d) : "";
-                      const mins = typeof createStartMins === "number" ? createStartMins : null;
-                      const hour = typeof mins === "number" ? Math.floor(mins / 60) : null;
-                      const slot =
-                        typeof hour === "number" && hour >= 0 && hour < 12
-                          ? t("schedule_planner_slot_morning" as any)
-                          : typeof hour === "number" && hour < 17
-                            ? t("schedule_planner_slot_midday" as any)
-                            : t("schedule_planner_slot_evening" as any);
-                      return `${labelDay} · ${slot} · ${labelDate}`;
-                    })(),
-                  )}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
-                  {t("schedule_session_type")}
-                </p>
-                <ToggleGroup
-                  type="single"
-                  value={createSessionType}
-                  onValueChange={(v) => {
-                    if (!v) return;
-                    setCreateSessionType(v as any);
-                    setCustomDurationOpen(false);
-                    setCustomDurationMins("");
-                  }}
-                  className="mt-2 justify-start flex-wrap gap-2"
-                >
-                  {(
-                    showAdvancedCreate || isEditing || createSessionType === "other"
-                      ? (["training", "match", "recovery", "travel", "meeting", "other"] as const)
-                      : (["training", "match", "recovery", "travel", "meeting"] as const)
-                  ).map((k) => (
-                    <ToggleGroupItem key={k} value={k} size="sm" variant="outline" className="h-9 px-3">
-                      {t(ACTIVITY_TYPE_CONFIG[k].labelKey)}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="min-w-0 rounded-xl border border-border bg-card p-3">
-                  <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
-                    {t("schedule_session_start_time")}
-                  </p>
-                  <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-                    <div
-                      className="grid items-center gap-2"
-                      style={{ gridTemplateColumns: "1fr minmax(5.75rem, 1.2fr) 1fr" }}
-                    >
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-10 px-0 w-full font-black"
-                        onClick={() => adjustStartTimeMins(-15)}
-                      >
-                        -15
-                      </Button>
-                      <input
-                        className="h-10 w-full min-w-0 rounded-md border border-border bg-background px-3 text-[15px] leading-none text-center tabular-nums"
-                        type="time"
-                        value={createStartTime}
-                        onChange={(e) => {
-                          const mins = parseTimeHHMMToTotalMinutes(e.target.value);
-                          setCreateStartMins(mins);
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-10 px-0 w-full font-black"
-                        onClick={() => adjustStartTimeMins(15)}
-                      >
-                        +15
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="min-w-0 rounded-xl border border-border bg-card p-3">
-                  <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
-                    {t("schedule_duration_presets")}
-                  </p>
-                  {createSessionType === "travel" ? (
-                    <div className="mt-2 rounded-xl border border-dashed border-border bg-muted/30 px-3 py-3">
-                      <p className="text-sm font-semibold text-muted-foreground">{t("schedule_travel_uses_block_time" as any)}</p>
-                    </div>
-                  ) : (
-                    <div className="mt-2 space-y-2">
-                      <div className="flex flex-wrap gap-2">
-                        {durationOptions.map((m) => (
-                          <Button
-                            key={m}
-                            type="button"
-                            size="sm"
-                            variant={durationMins === m ? "default" : "outline"}
-                            className="h-9 px-3"
-                            onClick={() => {
-                              setCustomDurationOpen(false);
-                              setCustomDurationMins("");
-                              applyDurationPreset(m);
-                            }}
-                          >
-                            {m}′
-                          </Button>
-                        ))}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={customDurationOpen || (durationMins != null && !durationOptions.includes(durationMins)) ? "default" : "outline"}
-                          className="h-9 px-3"
-                          onClick={() => setCustomDurationOpen((v) => !v)}
-                        >
-                          {t("schedule_duration_custom" as any)}
-                        </Button>
-                      </div>
-                      {customDurationOpen ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            className="flex-1 h-10 rounded-md border border-border bg-background px-3 text-sm"
-                            inputMode="numeric"
-                            value={customDurationMins}
-                            onChange={(e) => setCustomDurationMins(e.target.value)}
-                            placeholder={t("schedule_minutes" as any)}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-10"
-                            onClick={() => {
-                              const n = Number(customDurationMins);
-                              if (!Number.isFinite(n) || n <= 0) return;
-                              applyDurationPreset(Math.round(n));
-                            }}
-                          >
-                            {t("apply" as any)}
-                          </Button>
-                        </div>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-border bg-card p-3">
-                <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
-                  {t("schedule_attendance_mode")}
-                </p>
-                <ToggleGroup
-                  type="single"
-                  value={attendanceMode}
-                  onValueChange={(v) => {
-                    if (!v) return;
-                    setAttendanceMode(v as any);
-                    setAttendanceModeTouched(true);
-                  }}
-                  className="mt-2 justify-start flex-wrap gap-2"
-                >
-                  <ToggleGroupItem value="all_team" size="sm" variant="outline" className="h-9 px-2.5">
-                    {t("schedule_attendance_mode_all_team")}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="groups" size="sm" variant="outline" className="h-9 px-2.5">
-                    {t("schedule_attendance_mode_groups")}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="signup" size="sm" variant="outline" className="h-9 px-2.5">
-                    {t("schedule_attendance_mode_signup")}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="selected_players" size="sm" variant="outline" className="h-9 px-2.5">
-                    {t("schedule_attendance_mode_selected_players")}
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-
-              {attendanceMode === "groups" ? (
-                <div className="rounded-xl border border-border bg-card p-3 space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg border border-border bg-background/40 p-3">
-                      <p className="text-xs font-semibold text-muted-foreground">{t("schedule_groups_count")}</p>
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 px-0"
-                          onClick={() =>
-                            setGroupsCount((prev) => {
-                              const n = Math.max(2, Math.min(6, Number(prev) || 2));
-                              return String(Math.max(2, n - 1));
-                            })
-                          }
-                        >
-                          −
-                        </Button>
-                        <p className="text-lg font-black text-foreground">{Math.max(2, Math.min(6, Number(groupsCount) || 2))}</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 px-0"
-                          onClick={() =>
-                            setGroupsCount((prev) => {
-                              const n = Math.max(2, Math.min(6, Number(prev) || 2));
-                              return String(Math.min(6, n + 1));
-                            })
-                          }
-                        >
-                          +
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-border bg-background/40 p-3">
-                      <p className="text-xs font-semibold text-muted-foreground">{t("schedule_group_capacity")}</p>
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 px-0"
-                          onClick={() =>
-                            setGroupCapacity((prev) => {
-                              const n = Math.max(0, Number(prev) || 0);
-                              return String(Math.max(0, n - 1));
-                            })
-                          }
-                        >
-                          −
-                        </Button>
-                        <p className="text-lg font-black text-foreground">{Math.max(0, Number(groupCapacity) || 0) || "—"}</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 px-0"
-                          onClick={() =>
-                            setGroupCapacity((prev) => {
-                              const n = Math.max(0, Number(prev) || 0);
-                              return String(Math.min(99, n + 1));
-                            })
-                          }
-                        >
-                          +
-                        </Button>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">{t("schedule_capacity_unlimited_hint" as any)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold text-muted-foreground">{t("schedule_groups_assignment_mode")}</p>
-                    <ToggleGroup
-                      type="single"
-                      value={groupSignupMode}
-                      onValueChange={(v) => {
-                        if (!v) return;
-                        setGroupSignupMode(v as any);
-                      }}
-                      className="justify-end flex-wrap gap-2"
-                    >
-                      <ToggleGroupItem value="coach_assign" size="sm" variant="outline" className="h-9 px-2.5">
-                        {t("schedule_groups_mode_coach_assign")}
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="auto_signup" size="sm" variant="outline" className="h-9 px-2.5">
-                        {t("schedule_groups_mode_auto_signup")}
-                      </ToggleGroupItem>
-                    </ToggleGroup>
-                  </div>
-
-                  {groupSignupMode === "coach_assign" ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground">{t("schedule_coach_group_assign")}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("schedule_groups_assigned_count" as any).replace("{count}", String(Object.keys(coachGroupAssignments).length))}
-                        </p>
-                      </div>
-                      <Button type="button" variant="outline" className="h-9" onClick={() => setGroupAssignOpen(true)}>
-                        {t("schedule_assign_players" as any)}
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : attendanceMode === "selected_players" ? (
-                <div className="rounded-xl border border-border bg-card p-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground">{t("schedule_selected_players_quick" as any)}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {t("schedule_selected_players_hint").replace("{count}", String(selectedPlayerIds.size))}
-                    </p>
-                  </div>
-                  <Button type="button" variant="outline" className="h-9" onClick={() => setChoosePlayersOpen(true)}>
-                    {t("schedule_choose_players" as any)}
-                  </Button>
-                </div>
-              ) : null}
-
-              {(() => {
-                const hasAdvanced =
-                  !createAttendanceRequired ||
-                  Boolean(targetAttendance.trim()) ||
-                  Boolean(maxCapacity.trim()) ||
-                  Boolean(createNotes.trim()) ||
-                  Boolean(groupName.trim()) ||
-                  Boolean(signupDeadline.trim()) ||
-                  Boolean(signupMaxSpots.trim()) ||
-                  selectedPlayerIds.size > 0 ||
-                  (repeatEnabled && !isEditing);
-                return (
-                  <details
-                    className="rounded-xl border border-border bg-card p-3"
-                    open={showAdvancedCreate}
-                    onToggle={(e) => setShowAdvancedCreate((e.currentTarget as HTMLDetailsElement).open)}
-                  >
-                    <summary className="cursor-pointer list-none">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-extrabold text-foreground">
-                          {t("schedule_advanced_options" as any)}
-                        </p>
-                        {hasAdvanced && !showAdvancedCreate ? (
-                          <span className="text-xs font-semibold text-muted-foreground">•</span>
-                        ) : null}
-                      </div>
-                    </summary>
-
-                    <div className="mt-3 space-y-3">
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_session_title")}</p>
-                        <input
-                          className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                          value={createTitle}
-                          onChange={(e) => setCreateTitle(e.target.value)}
-                          placeholder={t("schedule_optional")}
-                        />
-                      </div>
-
-                      <div className="rounded-xl border border-border bg-background/40 p-3">
-                        <p className="text-xs font-semibold text-muted-foreground">{t("schedule_create_location" as any)}</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {(() => {
-                            const k = createSessionType;
-                            const keys =
-                              k === "training"
-                                ? (["schedule_loc_training_court", "schedule_loc_training_strength", "schedule_loc_training_outdoor"] as const)
-                                : k === "match"
-                                  ? (["schedule_loc_match_arena", "schedule_loc_match_home", "schedule_loc_match_away"] as const)
-                                  : k === "recovery"
-                                    ? (["schedule_loc_recovery_room", "schedule_loc_recovery_pool", "schedule_loc_recovery_physio"] as const)
-                                    : k === "travel"
-                                      ? (["schedule_loc_travel_airport", "schedule_loc_travel_bus", "schedule_loc_travel_hotel"] as const)
-                                      : (["schedule_loc_meeting_video", "schedule_loc_meeting_room"] as const);
-                            return keys.map((kk) => (
-                              <Button
-                                key={kk}
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-9"
-                                onClick={() => setCreateLocation(t(kk as any))}
-                              >
-                                {t(kk as any)}
-                              </Button>
-                            ));
-                          })()}
-                        </div>
-                        <div className="mt-2">
-                          <input
-                            className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                            value={createLocation}
-                            onChange={(e) => setCreateLocation(e.target.value)}
-                            placeholder={t(createLocationPlaceholderKey as any)}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_session_end_time")}</p>
-                        <input
-                          className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                          type="time"
-                          value={createEndTime}
-                          onChange={(e) => setCreateEndTime(e.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_session_notes")}</p>
-                        <textarea
-                          className="w-full min-h-[72px] rounded-md border border-border bg-background px-3 py-2 text-sm"
-                          value={createNotes}
-                          onChange={(e) => setCreateNotes(e.target.value)}
-                          placeholder={t("schedule_session_notes_placeholder")}
-                        />
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_group_name")}</p>
-                        <input
-                          className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                          value={groupName}
-                          onChange={(e) => setGroupName(e.target.value)}
-                          placeholder={t("schedule_optional")}
-                        />
-                      </div>
-
-                      <div className="rounded-xl border border-border bg-background/40 p-3 space-y-3">
-                        <label className="flex items-center justify-between gap-3 text-sm">
-                          <span className="font-semibold text-foreground">{t("schedule_session_attendance_required")}</span>
-                          <input
-                            type="checkbox"
-                            checked={createAttendanceRequired}
-                            onChange={(e) => setCreateAttendanceRequired(e.target.checked)}
-                          />
-                        </label>
-                        {createAttendanceRequired ? (
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_target_attendance")}</p>
-                              <div className="h-10 rounded-md border border-border bg-background px-2 flex items-center justify-between gap-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-9 w-8 px-0"
-                                  onClick={() =>
-                                    setTargetAttendance((prev) => {
-                                      const n = Math.max(0, Number(prev) || 0);
-                                      return String(Math.max(0, n - 1));
-                                    })
-                                  }
-                                >
-                                  −
-                                </Button>
-                                <p className="text-sm font-black text-foreground tabular-nums">
-                                  {Math.max(0, Number(targetAttendance) || 0) || "—"}
-                                </p>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-9 w-8 px-0"
-                                  onClick={() =>
-                                    setTargetAttendance((prev) => {
-                                      const n = Math.max(0, Number(prev) || 0);
-                                      return String(Math.min(99, n + 1));
-                                    })
-                                  }
-                                >
-                                  +
-                                </Button>
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_max_capacity")}</p>
-                              <div className="h-10 rounded-md border border-border bg-background px-2 flex items-center justify-between gap-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-9 w-8 px-0"
-                                  onClick={() =>
-                                    setMaxCapacity((prev) => {
-                                      const n = Math.max(0, Number(prev) || 0);
-                                      return String(Math.max(0, n - 1));
-                                    })
-                                  }
-                                >
-                                  −
-                                </Button>
-                                <p className="text-sm font-black text-foreground tabular-nums">
-                                  {Math.max(0, Number(maxCapacity) || 0) || "—"}
-                                </p>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-9 w-8 px-0"
-                                  onClick={() =>
-                                    setMaxCapacity((prev) => {
-                                      const n = Math.max(0, Number(prev) || 0);
-                                      return String(Math.min(99, n + 1));
-                                    })
-                                  }
-                                >
-                                  +
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-
-                      {attendanceMode === "signup" ? (
-                        <div className="rounded-xl border border-border bg-background/40 p-3 space-y-3">
-                          <div>
-                            <p className="text-xs font-semibold text-muted-foreground mb-1">
-                              {t("schedule_signup_deadline")}
-                            </p>
-                            <input
-                              className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                              type="datetime-local"
-                              value={signupDeadline}
-                              onChange={(e) => setSignupDeadline(e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-muted-foreground mb-1">
-                              {t("schedule_signup_max_spots")}
-                            </p>
-                            <input
-                              className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                              inputMode="numeric"
-                              value={signupMaxSpots}
-                              onChange={(e) => setSignupMaxSpots(e.target.value)}
-                              placeholder={t("schedule_optional")}
-                            />
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {attendanceMode === "selected_players" ? (
-                        <div className="rounded-xl border border-border bg-background/40 p-3 space-y-2">
-                          <p className="text-xs font-semibold text-muted-foreground">{t("schedule_attendance_mode_selected_players")}</p>
-                          <div className="rounded-lg border border-border bg-background/40 p-3 max-h-44 overflow-y-auto">
-                            {rosterPlayers.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">{t("schedule_no_roster_players")}</p>
-                            ) : (
-                              rosterPlayers.map((m) => {
-                                const checked = selectedPlayerIds.has(m.userId);
-                                const label = ((m as any).fullName ?? (m as any).full_name ?? (m as any).email ?? m.userId) as string;
-                                return (
-                                  <label key={m.userId} className="flex items-center justify-between gap-3 py-1.5">
-                                    <span className="text-sm font-semibold text-foreground truncate">{label}</span>
-                                    <input
-                                      type="checkbox"
-                                      checked={checked}
-                                      onChange={(e) => {
-                                        const on = e.target.checked;
-                                        setSelectedPlayerIds((prev) => {
-                                          const next = new Set(prev);
-                                          if (on) next.add(m.userId);
-                                          else next.delete(m.userId);
-                                          return next;
-                                        });
-                                      }}
-                                    />
-                                  </label>
-                                );
-                              })
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {t("schedule_selected_players_hint").replace("{count}", String(selectedPlayerIds.size))}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      {!isEditing ? (
-                        <details className="rounded-xl border border-border bg-background/40 p-3">
-                          <summary className="cursor-pointer list-none">
-                            <div className="flex items-center justify-between gap-3 text-sm">
-                              <span className="font-semibold text-foreground">{t("schedule_repeat")}</span>
-                              <span className="text-xs font-semibold text-muted-foreground">{t("schedule_repeat_advanced")}</span>
-                            </div>
-                          </summary>
-                          <div className="mt-3">
-                            <label className="flex items-center justify-between gap-3 text-sm">
-                              <span className="font-semibold text-foreground">{t("schedule_repeat_session")}</span>
-                              <input type="checkbox" checked={repeatEnabled} onChange={(e) => setRepeatEnabled(e.target.checked)} />
-                            </label>
-                            {repeatEnabled ? (
-                              <div className="mt-3 space-y-3">
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="text-xs font-semibold text-muted-foreground">{t("schedule_repeat_weeks")}</p>
-                                  <select
-                                    className="h-9 rounded-md border border-border bg-background px-2 text-sm"
-                                    value={repeatWeeks}
-                                    onChange={(e) => setRepeatWeeks(Number(e.target.value) as any)}
-                                  >
-                                    {[1, 2, 3, 4, 6, 8].map((w) => (
-                                      <option key={w} value={w}>
-                                        {t("schedule_repeat_weeks_value").replace("{weeks}", String(w))}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div>
-                                  <p className="text-xs font-semibold text-muted-foreground mb-2">{t("schedule_repeat_weekdays")}</p>
-                                  <ToggleGroup
-                                    type="multiple"
-                                    value={Array.from(repeatWeekdays).map(String)}
-                                    onValueChange={(vals) => setRepeatWeekdays(new Set((vals ?? []).map((v) => Number(v))))}
-                                    className="justify-start flex-wrap gap-2"
-                                  >
-                                    {[0, 1, 2, 3, 4, 5, 6].map((d) => (
-                                      <ToggleGroupItem key={d} value={String(d)} size="sm" variant="outline" className="h-9 px-3">
-                                        {new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(new Date(2024, 0, 7 + d))}
-                                      </ToggleGroupItem>
-                                    ))}
-                                  </ToggleGroup>
-                                </div>
-                              </div>
-                            ) : null}
-                          </div>
-                        </details>
-                      ) : null}
-                    </div>
-                  </details>
-                );
-              })()}
-
-              {/* Summary card removed for compact default create sheet */}
-
-              {/* Advanced fields above replace older scattered blocks */}
-
-              {createEventMut.isError ? <p className="text-sm text-destructive">{t("schedule_create_session_error")}</p> : null}
-            </div>
-          </div>
-
-          <div className="absolute bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-md px-5 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <Button variant="outline" onClick={() => setCreateOpen(false)} className="h-11">
-                {t("close")}
-              </Button>
-                <Button
-                  className="h-11 flex-1 font-black"
-                  disabled={!canSubmitCreate || createEventMut.isPending || updateEventMut.isPending}
-                  onClick={() => {
-                    const doReset = () => {
-                      pushRecentLocation(createLocation);
-                      setCreateOpen(false);
-                      setEditingSessionId(null);
-                      setShowAdvancedCreate(false);
-                      setCreateSessionType("training");
-                      setCreateTitle("");
-                      setCreateDate("");
-                      setCreateStartMins(null);
-                      setCreateEndTime("");
-                      setCreateLocation("");
-                      setCreateNotes("");
-                      setCreateAttendanceRequired(true);
-                      setUseCustomDateTime(false);
-                      setDurationMins(null);
-                      setRepeatEnabled(false);
-                      setRepeatWeeks(4);
-                      setRepeatWeekdays(new Set([1, 3, 5]));
-                      setTargetAttendance("");
-                      setMaxCapacity("");
-                      setGroupName("");
-                      setAttendanceMode("all_team");
-                      setAttendanceModeTouched(false);
-                      setGroupsCount("");
-                      setGroupCapacity("");
-                      setGroupSignupMode("coach_assign");
-                      setCoachGroupAssignments({});
-                      setSignupDeadline("");
-                      setSignupMaxSpots("");
-                      setSelectedPlayerIds(new Set());
-                      setCustomDurationOpen(false);
-                      setCustomDurationMins("");
-                    };
-                    void runCreateOrUpdate()
-                      .then(async () => {
-                        // Recurring: create copies on additional weeks/days
-                        if (repeatEnabled && !editingSessionId && repeatWeekdays.size > 0) {
-                          const base = new Date(`${createDate}T00:00:00`);
-                          const mon = mondayOf(base);
-                          const extraDates: string[] = [];
-                          for (let w = 1; w <= repeatWeeks; w++) {
-                            for (const jsDow of Array.from(repeatWeekdays).sort((a, b) => a - b)) {
-                              const d = new Date(mon.getTime() + (w * 7 + (jsDow + 6) % 7) * 86400000);
-                              const dk = localDateKey(d);
-                              if (dk !== createDate) extraDates.push(dk);
-                            }
-                          }
-                          for (const dateOverride of extraDates) {
-                            await runCreateOrUpdate({ dateOverride });
-                          }
-                        }
-                        toast({ description: editingSessionId ? t("schedule_edit_saved") : t("schedule_create_session_saved") });
-                        doReset();
-                      })
-                      .catch(() =>
-                        toast({
-                          variant: "destructive",
-                          description: editingSessionId ? t("schedule_edit_error") : t("schedule_create_session_error"),
-                        }),
-                      );
-                  }}
-                >
-                  {createEventMut.isPending || updateEventMut.isPending
-                    ? t("saving")
-                    : editingSessionId
-                      ? t("schedule_edit_save")
-                      : t("schedule_create_session_save")}
-                </Button>
-            </div>
-            {!canSubmitCreate ? (
-              <p className="mt-2 text-xs text-muted-foreground">{t("schedule_create_validation_hint")}</p>
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {createOpen ? (
+        <Suspense fallback={null}>
+          <SessionCreateDialog
+            isOpen={createOpen}
+            onClose={() => {
+              setCreateOpen(false);
+              setEditingSessionId(null);
+            }}
+            isEditing={isEditing}
+            editingSessionId={editingSessionId}
+            form={form}
+            clubId={clubId}
+            userId={userId}
+            rosterPlayers={rosterPlayers}
+            createEventMut={createEventMut}
+            updateEventMut={updateEventMut}
+            pushRecentLocation={pushRecentLocation}
+            t={t}
+            locale={locale}
+          />
+        </Suspense>
+      ) : null}
 
       <Dialog
         open={!isDesktop && sessionDetailEvent !== null}
@@ -4906,80 +3446,6 @@ function SparklineBars(props: {
         );
       })}
     </div>
-  );
-}
-
-function WellnessTrendChart(props: {
-  points: Array<{ date: string; value: number | null }>;
-  goodUp?: boolean;
-  height?: number;
-  color?: string;
-}) {
-  const h = props.height ?? 80;
-  const goodUp = props.goodUp ?? true;
-  const baseColor = props.color ?? (goodUp ? "#10b981" : "#f59e0b");
-  const hasSufficientData = props.points.filter((p) => p.value !== null).length >= 2;
-  if (!hasSufficientData) {
-    return (
-      <div style={{ height: h }} className="flex items-center justify-center">
-        <p className="text-xs text-muted-foreground">—</p>
-      </div>
-    );
-  }
-  const gradId = `wgrad-${baseColor.replace("#", "")}`;
-  return (
-    <ResponsiveContainer width="100%" height={h}>
-      <AreaChart data={props.points} margin={{ top: 4, right: 2, left: -28, bottom: 0 }}>
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={baseColor} stopOpacity={0.35} />
-            <stop offset="95%" stopColor={baseColor} stopOpacity={0.03} />
-          </linearGradient>
-        </defs>
-        <XAxis
-          dataKey="date"
-          tick={{ fontSize: 8, fill: "var(--muted-foreground)" }}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={(v: string) => {
-            try {
-              return new Intl.DateTimeFormat(undefined, { month: "numeric", day: "numeric" }).format(new Date(v));
-            } catch {
-              return v.slice(5);
-            }
-          }}
-          interval="preserveStartEnd"
-        />
-        <YAxis domain={[1, 5]} tick={{ fontSize: 8, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} ticks={[1, 2, 3, 4, 5]} />
-        <Tooltip
-          contentStyle={{
-            background: "var(--card)",
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-            fontSize: 11,
-            padding: "4px 8px",
-          }}
-          formatter={(v: number) => [`${Number(v).toFixed(1)}`, ""]}
-          labelFormatter={(label: string) => {
-            try {
-              return new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" }).format(new Date(label));
-            } catch {
-              return label;
-            }
-          }}
-        />
-        <ReferenceLine y={3} stroke="var(--border)" strokeDasharray="3 3" strokeWidth={1} />
-        <Area
-          type="monotone"
-          dataKey="value"
-          stroke={baseColor}
-          strokeWidth={2}
-          fill={`url(#${gradId})`}
-          dot={false}
-          connectNulls
-        />
-      </AreaChart>
-    </ResponsiveContainer>
   );
 }
 

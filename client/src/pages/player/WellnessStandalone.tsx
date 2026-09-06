@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Info, Activity } from "lucide-react";
+import { ArrowLeft, Activity } from "lucide-react";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/useAuth";
 import { useClub } from "@/lib/club-api";
 import { todayKey, useUpsertWellnessEntry, useWellnessEntryToday } from "@/lib/wellness";
 import { FirstVisitBanner } from "@/components/FirstVisitBanner";
+import { toast } from "@/hooks/use-toast";
 
 function WellnessRow(props: {
   label: string;
@@ -18,17 +19,12 @@ function WellnessRow(props: {
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-xs font-black tracking-tight text-foreground">{props.label}</p>
-          {props.tooltip ? (
-            <span className="inline-flex items-center text-muted-foreground" title={props.tooltip} aria-label={props.tooltip}>
-              <Info className="w-3.5 h-3.5" />
-            </span>
-          ) : null}
-        </div>
-        <p className="text-[11px] text-muted-foreground mt-0.5">{props.value ? "✓" : "1–5"}</p>
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0 flex-1 pt-1">
+        <p className="text-sm font-black tracking-tight text-foreground">{props.label}</p>
+        {props.tooltip && (
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{props.tooltip}</p>
+        )}
       </div>
       <ToggleGroup
         type="single"
@@ -127,26 +123,36 @@ export default function WellnessStandalone() {
           </div>
         ) : submittedToday && !editing ? (
           <div className="space-y-3">
-            <div className="rounded-xl border border-border bg-background/40 p-4">
+            <div className="rounded-xl border border-border bg-background/40 p-4 space-y-3">
               <p className="text-xs font-bold text-foreground">{t("wellness_submitted_today")}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_sleep" as any)}</p>
-                  <p className="mt-1 text-lg font-black text-foreground">{entryQ.data!.sleep_quality}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_energy" as any)}</p>
-                  <p className="mt-1 text-lg font-black text-foreground">{entryQ.data!.energy_level}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_soreness" as any)}</p>
-                  <p className="mt-1 text-lg font-black text-foreground">{entryQ.data!.muscle_soreness}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-card px-3 py-2">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{t("wellness_metric_readiness" as any)}</p>
-                  <p className="mt-1 text-lg font-black text-foreground">{entryQ.data!.mental_readiness}</p>
-                </div>
-              </div>
+              {(() => {
+                const e = entryQ.data!;
+                const metrics = [
+                  { label: t("wellness_metric_sleep" as any), value: e.sleep_quality, goodUp: true },
+                  { label: t("wellness_metric_energy" as any), value: e.energy_level, goodUp: true },
+                  { label: t("wellness_metric_soreness" as any), value: e.muscle_soreness, goodUp: false },
+                  { label: t("wellness_metric_readiness" as any), value: e.mental_readiness, goodUp: true },
+                ];
+                return metrics.map(({ label, value, goodUp }) => {
+                  const score = goodUp ? value : 6 - value; // normalize so high = good
+                  const color =
+                    score >= 4 ? "bg-emerald-500" :
+                    score >= 3 ? "bg-amber-400" :
+                    "bg-rose-500";
+                  const pct = (value / 5) * 100;
+                  return (
+                    <div key={label}>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
+                        <p className="text-sm font-black text-foreground tabular-nums">{value}<span className="text-[10px] font-normal text-muted-foreground">/5</span></p>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
 
             <Button
@@ -226,6 +232,7 @@ export default function WellnessStandalone() {
                     mental_readiness: Number(mentalReadiness),
                   }).then(() => {
                     setEditing(false);
+                    toast({ description: t("wellness_submit" as any) + " ✓" });
                   });
                 }}
                 data-testid="wellness-standalone-submit"

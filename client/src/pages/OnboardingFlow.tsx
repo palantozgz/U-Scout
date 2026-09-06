@@ -197,12 +197,12 @@ export default function OnboardingFlow({
         return (
           <FakePhoneFrame>
             <div className="flex-1 space-y-2">
-              {["睡眠", "能量", "酸痛", "状态"].map((label, i) => (
-                <div key={label} className="flex items-center justify-between gap-1">
-                  <div className="h-2 w-8 rounded bg-foreground/20" />
+              {[["sleep",4],["energy",3],["soreness",5],["readiness",4]].map(([key, sel]) => (
+                <div key={key as string} className="flex items-center justify-between gap-1">
+                  <div className="h-2 w-10 rounded bg-foreground/20" />
                   <div className="flex gap-0.5">
                     {[1,2,3,4,5].map((n) => (
-                      <div key={n} className={`h-4 w-4 rounded text-[8px] flex items-center justify-center font-black border ${n === [4,3,5,4][i] ? "bg-primary border-primary text-white" : "bg-muted border-border"}`}>
+                      <div key={n} className={`h-4 w-4 rounded text-[8px] flex items-center justify-center font-black border ${n === sel ? "bg-primary border-primary text-white" : "bg-muted border-border"}`}>
                         {n}
                       </div>
                     ))}
