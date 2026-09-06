@@ -840,3 +840,21 @@ Todos los datos de prueba de esta verificacion fueron borrados por SQL al termin
 - Planes de refactor de season 2092 (45 sitios, 6 archivos) y de Schedule.tsx (god file) -- todavia sin redactar.
 - Rotacion de password de Postgres en Supabase -- sigue pendiente de accion directa de Pablo (aprovechar la visita al dashboard para activar tambien leaked-password-protection).
 - Recordatorio: Pablo debe cambiar su password 8888 por una real.
+
+### 2026-09-06 (cont. 5) -- Bug OPS: notas + season 2092 centralizada + plan de Schedule.tsx
+
+**Bug OPS: sin parsear en notas de sesion -- CORREGIDO Y DESPLEGADO (commit 5c3b85e).**
+Causa raiz en \`writeConstraintsToNotes\` (useSessionForm.ts): el marker \`\nOPS:\` solo llevaba su newline si ya habia notas de texto libre previas (\`clean ? "\n\n" : ""\`). Sesiones creadas SIN notas (el caso mas comun, flujo rapido +Add session) guardaban \`"OPS:{...}"\` sin newline inicial -- readConstraintsFromNotes buscaba exactamente \`\nOPS:\` con lastIndexOf, no lo encontraba, y mostraba el JSON crudo como si fueran las notas del usuario. Fix: el marker ahora siempre lleva su newline. 1 fila real ya afectada en produccion corregida por SQL directo (UPDATE anteponiendo el newline que faltaba).
+
+**Season 2092 hardcodeada -- REFACTORIZADA COMPLETA (commit 39caa86), no solo un plan.**
+28 sitios sueltos (19 en routes.ts + 14 en stats-api.ts, unificados; 6 en App.tsx) centralizados en 2 constantes: \`CURRENT_SEASON_ID\` (server/routes.ts) y \`DEFAULT_SEASON_ID\` (client/lib/stats-api.ts, exportada y reusada en App.tsx/Stats.tsx). Casi se desplego un bug real: el primer intento derivaba la constante como \`Math.max()\` de las claves de SEASON_LABELS -- pero ese mapa incluye temporadas futuras (2093-2095) sin datos todavia. Verificado contra stats_games antes de confirmar: 2092 tiene 224 partidos, 2093/2094/2095 tienen 0. Con Math.max() se habria desplegado apuntando por defecto a una temporada vacia. Corregido a un valor fijo (2092) con comentario de cuando actualizarlo. Verificado en produccion tras el deploy: /stats sigue mostrando "2025-26" con datos reales.
+
+**Plan de refactor de Schedule.tsx -- REDACTADO, NO EJECUTADO** (\`docs/PLAN_refactor_schedule.md\`, commit b74b1f5). 4 fases (deduplicar wellness -> extraer hooks de datos -> extraer estado del formulario -> separar JSX en subcomponentes), explicitamente evitando re-proponer separar Desktop/Mobile (ya se intento y se revirtio). Confirmada la duplicacion exacta del formulario de wellness (~L2280 y ~L2510, mismo bloque de 4 WellnessRow + boton guardar). Pendiente de que Pablo decida si y por donde empezar.
+
+**Balance de la sesion completa de hoy (bloques 1-5): 13 fixes de codigo desplegados y verificados en produccion (PowerBar, i18n Stats.tsx x3, 2 endpoints admin + 3 GET sin auth, error handler + sync-status fail-closed, RLS abierto en 3 tablas + club_members sin politicas, notas OPS:, season 2092 x28 sitios) + 15 vulnerabilidades de npm audit resueltas + 1 hallazgo de audit corregido en su caracterizacion (membership de useCapabilities, no era bug) + 2 planes de refactor redactados (season ya ejecutado, Schedule.tsx pendiente).**
+
+**Pendiente real para la proxima sesion:**
+- Rotacion de password de Postgres en Supabase (accion directa de Pablo en el dashboard) + activar leaked-password-protection de paso.
+- Decidir si ejecutar el plan de refactor de Schedule.tsx (docs/PLAN_refactor_schedule.md) y por que fase empezar.
+- drizzle-orm/drizzle-kit/sharp desactualizados (requieren --force, breaking changes) -- evaluar con calma, no forzar sin revisar codigo.
+- Recordatorio: Pablo debe cambiar su password 8888 por una real.
