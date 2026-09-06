@@ -90,6 +90,9 @@ export function useUpsertWellnessEntry() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["wellness-entry"] });
+      // Also invalidate the plural key used by staff-facing views (WellnessStaffTab, trends, etc.)
+      // so a coach sees a fresh submission immediately instead of waiting for staleTime/reload.
+      void qc.invalidateQueries({ queryKey: ["wellness-entries"] });
     },
   });
 }
