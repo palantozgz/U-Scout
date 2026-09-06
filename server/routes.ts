@@ -2943,8 +2943,13 @@ export async function registerRoutes(
     }
   });
 
-  // Temporal — sin auth, solo para disparar re-sync de possessions
+  // Auth: STATS_INGEST_KEY (mismo secreto que el collector) -- endpoint admin, sin sesion de usuario
   app.post("/api/stats/admin/trigger-possessions", async (req, res) => {
+    const adminKey = process.env.STATS_INGEST_KEY;
+    if (!adminKey) return res.status(500).json({ error: "Admin auth not configured" });
+    const adminAuth = req.headers.authorization ?? "";
+    const adminToken = adminAuth.startsWith("Bearer ") ? adminAuth.slice(7) : "";
+    if (adminToken !== adminKey) return res.status(401).json({ error: "Unauthorized" });
     const seasonId = Number(req.query.seasonId ?? 2092);
     processAllPendingPossessions(seasonId).catch((err: any) =>
       console.error("[trigger] failed:", err.message)
@@ -2952,7 +2957,13 @@ export async function registerRoutes(
     return res.json({ ok: true, started: true, seasonId });
   });
 
+  // Auth: STATS_INGEST_KEY (mismo secreto que el collector) -- endpoint admin, sin sesion de usuario
   app.post("/api/stats/admin/process-game/:gameId", async (req, res) => {
+    const adminKey = process.env.STATS_INGEST_KEY;
+    if (!adminKey) return res.status(500).json({ error: "Admin auth not configured" });
+    const adminAuth = req.headers.authorization ?? "";
+    const adminToken = adminAuth.startsWith("Bearer ") ? adminAuth.slice(7) : "";
+    if (adminToken !== adminKey) return res.status(401).json({ error: "Unauthorized" });
     const gameId = Number(req.params.gameId);
     const seasonId = Number(req.query.seasonId ?? 2092);
     if (isNaN(gameId)) return res.status(400).json({ error: "invalid gameId" });
@@ -2962,8 +2973,14 @@ export async function registerRoutes(
     return res.json({ ok: true, gameId, seasonId });
   });
 
-  // POST /api/stats/admin/process-game-sync/:gameId — síncrono, devuelve error completo
+  // POST /api/stats/admin/process-game-sync/:gameId — sincrono, para debug puntual
+  // Auth: STATS_INGEST_KEY (mismo secreto que el collector) -- endpoint admin, sin sesion de usuario
   app.post("/api/stats/admin/process-game-sync/:gameId", async (req, res) => {
+    const adminKey = process.env.STATS_INGEST_KEY;
+    if (!adminKey) return res.status(500).json({ error: "Admin auth not configured" });
+    const adminAuth = req.headers.authorization ?? "";
+    const adminToken = adminAuth.startsWith("Bearer ") ? adminAuth.slice(7) : "";
+    if (adminToken !== adminKey) return res.status(401).json({ error: "Unauthorized" });
     const gameId = Number(req.params.gameId);
     const seasonId = Number(req.query.seasonId ?? 2092);
     if (isNaN(gameId)) return res.status(400).json({ error: "invalid gameId" });
@@ -2971,11 +2988,12 @@ export async function registerRoutes(
       await processPossessions(gameId, seasonId);
       return res.json({ ok: true, gameId, seasonId });
     } catch (err: any) {
-      return res.status(500).json({ ok: false, error: err.message, stack: err.stack?.slice(0, 500) });
+      console.error("[process-game-sync] failed:", err.message, err.stack?.slice(0, 500));
+      return res.status(500).json({ ok: false, error: err.message });
     }
   });
 
-  app.get("/api/stats/team/:id/lineups", async (req, res) => {
+  app.get("/api/stats/team/:id/lineups", requireAuth, async (req, res) => {
     try {
       const externalId = Number(req.params.id);
       const seasonId = Number(req.query.seasonId ?? 2092);
@@ -3106,7 +3124,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/stats/team/:id/on-off/:playerId", async (req, res) => {
+  app.get("/api/stats/team/:id/on-off/:playerId", requireAuth, async (req, res) => {
     try {
       const externalId = Number(req.params.id);
       const playerExternalId = String(req.params.playerId);
@@ -3335,7 +3353,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/stats/players/combined", async (req, res) => {
+  app.get("/api/stats/players/combined", requireAuth, async (req, res) => {
     try {
       const teamId = Number(req.query.teamId);
       const seasonId = Number(req.query.seasonId ?? 2092);
