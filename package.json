@@ -4,6 +4,9 @@
   "type": "module",
   "license": "MIT",
   "_buildVersion": "2",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev:client": "vite dev --port 5000",
     "dev": "PORT=3000 dotenv -e .env -- tsx server/index.ts",
