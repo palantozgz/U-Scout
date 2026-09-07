@@ -65,7 +65,7 @@ export const zClubModuleKey = z.enum(tuple1(CLUB_MODULE_KEYS));
 /** PATCH /api/club body (all optional; null clears context fields). */
 export const patchClubBodySchema = z.object({
   name: z.string().min(1).optional(),
-  logo: z.string().min(1).max(8).optional(),
+  logo: z.string().min(1).max(500_000).optional(),
   leagueType: z.union([zClubLeagueType, z.null()]).optional(),
   gender: z.union([zClubGender, z.null()]).optional(),
   level: z.union([zClubLevel, z.null()]).optional(),

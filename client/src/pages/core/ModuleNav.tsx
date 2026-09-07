@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useEffect, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Home, Target, CalendarDays, BarChart3, BookOpen } from "lucide-react";
@@ -6,6 +6,7 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { useClub } from "@/lib/club-api";
 import { isModuleEnabledFor } from "@/lib/moduleAccess";
+import { MODULE_PRELOADERS, preloadAllModulesOnce } from "@/lib/modulePreload";
 import type { ClubModuleKey } from "@shared/club-context";
 
 type NavItem = {
@@ -45,6 +46,16 @@ export function ModuleNav() {
   );
   const isFive = items.length === 5;
 
+  // Precarga en segundo plano los 5 chunks de módulo poco después de montar
+  // (ModuleNav vive en todas las páginas core, así que esto se dispara nada
+  // más aterrizar en cualquiera de ellas). Evita el lag de "primera apertura"
+  // de cada módulo en la sesión. Prioridad baja: 1.2s de retraso para no
+  // competir con los datos que ya calienta BackgroundPrefetcher.
+  useEffect(() => {
+    const t = window.setTimeout(() => preloadAllModulesOnce(), 1200);
+    return () => window.clearTimeout(t);
+  }, []);
+
   const displayName = profile?.username?.trim() || profile?.email?.split("@")[0] || "";
   const roleStr =
     effectiveRole === "head_coach" ? "Head Coach" :
@@ -77,6 +88,8 @@ export function ModuleNav() {
               key={it.key}
               type="button"
               onClick={() => setLocation(it.href)}
+              onMouseEnter={() => MODULE_PRELOADERS[it.key]?.()}
+              onTouchStart={() => MODULE_PRELOADERS[it.key]?.()}
               className={cn(
                 "h-14 landscape:h-11 flex flex-col items-center justify-center gap-0.5 transition-colors relative select-none",
                 it.active ? "text-primary" : "text-muted-foreground hover:text-foreground/70",
@@ -125,6 +138,7 @@ export function ModuleNav() {
             key={it.key}
             type="button"
             onClick={() => setLocation(it.href)}
+            onMouseEnter={() => MODULE_PRELOADERS[it.key]?.()}
             className={cn(
               "mx-1 lg:mx-2 min-h-11 rounded-lg flex items-center justify-center lg:justify-start gap-3 px-0 lg:px-3 py-2.5 transition-colors relative select-none",
               it.active

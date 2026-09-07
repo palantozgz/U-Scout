@@ -15,6 +15,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { type ReportOverride } from "@/lib/overrideEngine";
 import { UCoreBootSplash } from "@/components/branding/UScoutBrand";
 import { ModuleGate } from "@/components/ModuleGate";
+import {
+  preloadHome,
+  preloadScoutModule,
+  preloadScheduleModule,
+  preloadStatsModule,
+  preloadPlaybookModule,
+} from "@/lib/modulePreload";
 import { useRailwayWarmup } from "@/hooks/useRailwayWarmup";
 import { DEFAULT_SEASON_ID } from "@/lib/stats-api";
 
@@ -42,11 +49,11 @@ const PlayerTeamView = lazy(() =>
   import("@/pages/player/Dashboard").then(m => ({ default: m.PlayerTeamView })),
 );
 const PlayerProfileViewer = lazy(() => import("@/pages/player/Profile"));
-const UCoreHome = lazy(() => import("@/pages/core/Home"));
-const UCoreScout = lazy(() => import("@/pages/core/Scout"));
-const UCoreSchedule = lazy(() => import("@/pages/core/Schedule"));
-const UCoreStats = lazy(() => import("@/pages/core/Stats"));
-const UCorePlaybook = lazy(() => import("@/pages/core/Playbook"));
+const UCoreHome = lazy(preloadHome);
+const UCoreScout = lazy(preloadScoutModule);
+const UCoreSchedule = lazy(preloadScheduleModule);
+const UCoreStats = lazy(preloadStatsModule);
+const UCorePlaybook = lazy(preloadPlaybookModule);
 
 function RootRedirect({ to }: { to: string }) {
   const [, setLocation] = useLocation();
