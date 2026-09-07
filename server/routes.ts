@@ -1061,7 +1061,13 @@ export async function registerRoutes(
       const appRole = req.user!.role;
       const club = await storage.getClubForUser(uid);
       if (!club) return res.status(404).json({ error: "Club not found" });
-      if (club.ownerId !== uid && appRole !== "master") {
+      // Editar el club (nombre, logo, contexto de liga, modo de informe, modulos)
+      // esta permitido para el owner, un head_coach activo, o master — antes solo
+      // se permitia al owner literal, contradiciendo capabilities.ts (canEditClub)
+      // del cliente, que ya mostraba estos controles a cualquier head_coach.
+      // userCanManageClub ya implementa la logica correcta (usada en otros
+      // endpoints); reutilizarla aqui en vez de un chequeo propio mas estricto.
+      if (!(await userCanManageClub(req, club.id))) {
         return res.status(403).json({ error: "Forbidden" });
       }
       const updates = Object.fromEntries(
