@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { todayKey } from "@/lib/wellness";
 
@@ -415,5 +416,105 @@ export function useTodayWellnessSubmissionPct(params: { clubId?: string; playerU
       return { submitted, total, pct };
     },
   });
+}
+
+/**
+ * useScheduleData — Fase 1 del refactor de Schedule.tsx (docs/PLAN_refactor_schedule.md).
+ *
+ * Agrupa las queries/mutations de datos que antes vivían sueltas dentro del
+ * componente Schedule() (todayEventsQ, tomorrowEventsQ, weekEventsQ, sus
+ * mutations, y los useMemo derivados que dependen SOLO de esas tres queries:
+ * weekRestSessions, participantEventIds, nextSession). Cero cambio de
+ * comportamiento — mismo código, solo movido fuera del componente de render.
+ *
+ * Desviación deliberada respecto al plan original: el plan también listaba
+ * `prevWeekQ` como parte de este hook, pero esa query depende de
+ * `selectedWeekStart`/`selectedWeekEnd` — estado que se declara ~280 líneas
+ * más abajo en Schedule.tsx (el selector de semana del planner), no en el
+ * bloque de carga inicial. Meterla aquí habría obligado a mover ese estado
+ * también, aumentando el riesgo del cambio sin necesidad real — prevWeekQ y
+ * plannerWeekQ pertenecen conceptualmente al planner semanal, no a este
+ * bloque de "datos de hoy/mañana/semana actual", así que se quedan donde
+ * estaban en Schedule.tsx. Si en el futuro se hace Fase 3 (extraer el JSX
+ * del planner a su propio componente), ahí es donde tendría sentido agrupar
+ * prevWeekQ/plannerWeekQ en un hook propio.
+ */
+export function useScheduleData(params: {
+  clubId?: string;
+  userId?: string;
+  isPlayer: boolean;
+  rosterPlayerUserIds: string[];
+}) {
+  const { clubId, userId, isPlayer, rosterPlayerUserIds } = params;
+
+  const todayEventsQ = useTodayScheduleEvents({ clubId });
+  const tomorrowEventsQ = useTomorrowScheduleEvents({ clubId });
+  const weekEventsQ = useThisWeekScheduleEvents({ clubId });
+
+  // True solo en la primera carga sin datos cacheados — muestra skeleton
+  const isInitialLoad =
+    !todayEventsQ.data && !tomorrowEventsQ.data && !weekEventsQ.data &&
+    (todayEventsQ.isPending || tomorrowEventsQ.isPending || weekEventsQ.isPending);
+
+  const createEventMut = useCreateScheduleEvent();
+  const updateEventMut = useUpdateScheduleEvent();
+  const deleteEventMut = useDeleteScheduleEvent();
+  const upsertParticipant = useUpsertScheduleParticipant();
+
+  const weekRestSessions = useMemo(() => {
+    const start = startOfTomorrowLocal();
+    start.setDate(start.getDate() + 1);
+    const t0 = start.getTime();
+    return (weekEventsQ.data ?? []).filter((s) => new Date(s.starts_at).getTime() >= t0);
+  }, [weekEventsQ.data]);
+
+  const participantEventIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const s of todayEventsQ.data ?? []) ids.add(s.id);
+    for (const s of tomorrowEventsQ.data ?? []) ids.add(s.id);
+    for (const s of weekRestSessions) ids.add(s.id);
+    return Array.from(ids);
+  }, [todayEventsQ.data, tomorrowEventsQ.data, weekRestSessions]);
+
+  const myParticipantsQ = useScheduleParticipantsForUser({
+    clubId,
+    userId,
+    eventIds: isPlayer ? participantEventIds : [],
+  });
+  const todayParticipantsQ = useScheduleParticipantsForEvents({
+    clubId,
+    eventIds: todayEventsQ.data?.map((e) => e.id) ?? [],
+  });
+  const wellnessPctQ = useTodayWellnessSubmissionPct({ clubId, playerUserIds: rosterPlayerUserIds });
+
+  const nextSession = useMemo(() => {
+    const now = Date.now();
+    const all = [
+      ...(todayEventsQ.data ?? []),
+      ...(tomorrowEventsQ.data ?? []),
+      ...(weekEventsQ.data ?? []),
+    ];
+    const upcoming = all
+      .filter((s) => new Date(s.starts_at).getTime() >= now)
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+    return upcoming[0] ?? null;
+  }, [todayEventsQ.data, tomorrowEventsQ.data, weekEventsQ.data]);
+
+  return {
+    todayEventsQ,
+    tomorrowEventsQ,
+    weekEventsQ,
+    isInitialLoad,
+    createEventMut,
+    updateEventMut,
+    deleteEventMut,
+    upsertParticipant,
+    weekRestSessions,
+    participantEventIds,
+    myParticipantsQ,
+    todayParticipantsQ,
+    wellnessPctQ,
+    nextSession,
+  };
 }
 
