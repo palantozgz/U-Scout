@@ -441,7 +441,8 @@ function App() {
   useEffect(() => {
     const el = document.getElementById("boot-loader");
     if (!el) return;
-    el.classList.add("boot-loader-hide");
+    el.style.opacity = "0";
+    el.style.pointerEvents = "none";
     const t = window.setTimeout(() => el.remove(), 260);
     return () => window.clearTimeout(t);
   }, []);
