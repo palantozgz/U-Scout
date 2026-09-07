@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "rea
 import { Switch, Route, useLocation, useRoute } from "wouter";
 import { migrateLegacyOnboarding, shouldOfferOnboarding } from "@/lib/onboarding-state";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClientProvider, useIsFetching, useQuery } from "@tanstack/react-query";
 import { ClubGenderProvider } from "@/lib/clubGenderContext";
 import { Toaster } from "@/components/ui/toaster";
 import { OfflineBanner } from "@/components/OfflineBanner";
@@ -307,6 +307,31 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
   return null;
 }
 
+/**
+ * Mini indicador de sincronización en segundo plano: un punto discreto que
+ * aparece solo mientras TanStack Query tiene alguna query en vuelo (refetch
+ * por foco, staleTime vencido, prefetch, etc.), sin bloquear la UI. Se coloca
+ * arriba a la izquierda para no chocar con la nav inferior móvil (ModuleNav,
+ * fixed bottom) ni con el badge de preview role (arriba a la derecha).
+ */
+function BackgroundSyncIndicator() {
+  const isFetching = useIsFetching();
+  if (!isFetching) return null;
+  return (
+    <div
+      className="fixed z-[80] flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-card/90 shadow-sm backdrop-blur"
+      style={{
+        left: "calc(env(safe-area-inset-left) + 10px)",
+        top: "calc(env(safe-area-inset-top) + 10px)",
+      }}
+      aria-hidden="true"
+      data-testid="background-sync-indicator"
+    >
+      <div className="h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+    </div>
+  );
+}
+
 function ClubSecurityGate(props: { children: ReactNode }) {
   useRailwayWarmup(); // pre-warm Railway on app focus / resume
   const { user, profile, signOut } = useAuth();
@@ -410,12 +435,24 @@ function App() {
     };
   }, [isJoinRoute, loading]);
 
+  // Quita la pantalla de carga estática (pre-React) de index.html apenas
+  // App() monta por primera vez. A partir de aquí el propio UCoreBootSplash
+  // de React cubre el resto de la espera (auth loading).
+  useEffect(() => {
+    const el = document.getElementById("boot-loader");
+    if (!el) return;
+    el.classList.add("boot-loader-hide");
+    const t = window.setTimeout(() => el.remove(), 260);
+    return () => window.clearTimeout(t);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ClubGenderProvider>
       <TooltipProvider>
         <OfflineBanner />
         <Toaster />
+        {isAuthed ? <BackgroundSyncIndicator /> : null}
         <div className={`h-[100dvh] bg-background md:pl-12 lg:pl-48 relative overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${typeof window !== "undefined" && (window as any).Capacitor?.isNativePlatform?.() ? "w-full" : "max-w-md mx-auto shadow-2xl border-x border-border md:max-w-none md:ml-0 md:mr-0 md:shadow-none md:border-x-0"}`}>
           {showSplash ? <UCoreBootSplash fadeOut={splashFadeOut} /> : null}
           {previewRole && previewRole !== profile?.role ? (
