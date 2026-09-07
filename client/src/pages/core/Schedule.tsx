@@ -2290,80 +2290,51 @@ export default function Schedule() {
                   />
                 </Suspense>
               ) : showLocalWellness ? (
-                <>
-                  <div className="mt-4 space-y-4">
-                    <WellnessRow
-                      label={t("wellness_metric_sleep" as any)}
-                      tooltip={t("wellness_tooltip_sleep" as any)}
-                      value={sleepQuality}
-                      goodUp
-                      onValueChange={(v) => {
-                        setLocalSaved(false);
-                        setSleepQuality(v);
-                      }}
-                    />
-                    <WellnessRow
-                      label={t("wellness_metric_energy" as any)}
-                      tooltip={t("wellness_tooltip_energy" as any)}
-                      value={energyLevel}
-                      goodUp
-                      onValueChange={(v) => {
-                        setLocalSaved(false);
-                        setEnergyLevel(v);
-                      }}
-                    />
-                    <WellnessRow
-                      label={t("wellness_metric_soreness" as any)}
-                      tooltip={t("wellness_tooltip_soreness" as any)}
-                      value={muscleSoreness}
-                      goodUp
-                      onValueChange={(v) => {
-                        setLocalSaved(false);
-                        setMuscleSoreness(v);
-                      }}
-                    />
-                    <WellnessRow
-                      label={t("wellness_metric_readiness" as any)}
-                      tooltip={t("wellness_tooltip_readiness" as any)}
-                      value={mentalReadiness}
-                      goodUp
-                      onValueChange={(v) => {
-                        setLocalSaved(false);
-                        setMentalReadiness(v);
-                      }}
-                    />
-                  </div>
-
-                  <div className="mt-5 flex gap-2">
-                    <Button
-                      className="flex-1"
-                      disabled={!wellnessComplete}
-                      onClick={() => {
-                        try {
-                          window.localStorage.setItem(
-                            localKey,
-                            JSON.stringify({
-                              sleep_quality: Number(sleepQuality),
-                              energy_level: Number(energyLevel),
-                              muscle_soreness: Number(muscleSoreness),
-                              mental_readiness: Number(mentalReadiness),
-                              saved_at: new Date().toISOString(),
-                            }),
-                          );
-                        } catch {
-                          // ignore
-                        }
-                        setLocalSaved(true);
-                        toast({ description: t("wellness_saved_local") });
-                      }}
-                      data-testid="wellness-submit-local"
-                    >
-                      {localSaved ? t("wellness_saved_local_cta") : t("wellness_save_local")}
-                    </Button>
-                  </div>
-
-                  <p className="mt-2 text-xs text-muted-foreground">{t("wellness_local_note")}</p>
-                </>
+                <WellnessEntryForm
+                  t={t}
+                  sleepQuality={sleepQuality}
+                  onSleepQualityChange={(v) => {
+                    setLocalSaved(false);
+                    setSleepQuality(v);
+                  }}
+                  energyLevel={energyLevel}
+                  onEnergyLevelChange={(v) => {
+                    setLocalSaved(false);
+                    setEnergyLevel(v);
+                  }}
+                  muscleSoreness={muscleSoreness}
+                  onMuscleSorenessChange={(v) => {
+                    setLocalSaved(false);
+                    setMuscleSoreness(v);
+                  }}
+                  mentalReadiness={mentalReadiness}
+                  onMentalReadinessChange={(v) => {
+                    setLocalSaved(false);
+                    setMentalReadiness(v);
+                  }}
+                  saveDisabled={!wellnessComplete}
+                  saveLabel={localSaved ? t("wellness_saved_local_cta") : t("wellness_save_local")}
+                  saveTestId="wellness-submit-local"
+                  onSave={() => {
+                    try {
+                      window.localStorage.setItem(
+                        localKey,
+                        JSON.stringify({
+                          sleep_quality: Number(sleepQuality),
+                          energy_level: Number(energyLevel),
+                          muscle_soreness: Number(muscleSoreness),
+                          mental_readiness: Number(mentalReadiness),
+                          saved_at: new Date().toISOString(),
+                        }),
+                      );
+                    } catch {
+                      // ignore
+                    }
+                    setLocalSaved(true);
+                    toast({ description: t("wellness_saved_local") });
+                  }}
+                  footNote={t("wellness_local_note")}
+                />
               ) : entryQ.isLoading ? (
                 <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
                   <p className="text-sm font-medium text-muted-foreground">{t("wellness_loading_today")}</p>
@@ -2512,49 +2483,21 @@ export default function Schedule() {
                   </div>
                 </div>
               ) : (
-                <>
-                  <div className="mt-4 space-y-4">
-                    <WellnessRow
-                      label={t("wellness_metric_sleep" as any)}
-                      tooltip={t("wellness_tooltip_sleep" as any)}
-                      value={sleepQuality}
-                      goodUp
-                      onValueChange={setSleepQuality}
-                      disabled={upsert.isPending}
-                    />
-                    <WellnessRow
-                      label={t("wellness_metric_energy" as any)}
-                      tooltip={t("wellness_tooltip_energy" as any)}
-                      value={energyLevel}
-                      goodUp
-                      onValueChange={setEnergyLevel}
-                      disabled={upsert.isPending}
-                    />
-                    <WellnessRow
-                      label={t("wellness_metric_soreness" as any)}
-                      tooltip={t("wellness_tooltip_soreness" as any)}
-                      value={muscleSoreness}
-                      goodUp
-                      onValueChange={setMuscleSoreness}
-                      disabled={upsert.isPending}
-                    />
-                    <WellnessRow
-                      label={t("wellness_metric_readiness" as any)}
-                      tooltip={t("wellness_tooltip_readiness" as any)}
-                      value={mentalReadiness}
-                      goodUp
-                      onValueChange={setMentalReadiness}
-                      disabled={upsert.isPending}
-                    />
-                  </div>
-
-              <div className="mt-5 flex gap-2">
-                <Button
-                  className="flex-1"
-                  disabled={
-                    !wellnessComplete || upsert.isPending || !clubId || !userId
-                  }
-                  onClick={() => {
+                <WellnessEntryForm
+                  t={t}
+                  sleepQuality={sleepQuality}
+                  onSleepQualityChange={setSleepQuality}
+                  energyLevel={energyLevel}
+                  onEnergyLevelChange={setEnergyLevel}
+                  muscleSoreness={muscleSoreness}
+                  onMuscleSorenessChange={setMuscleSoreness}
+                  mentalReadiness={mentalReadiness}
+                  onMentalReadinessChange={setMentalReadiness}
+                  disabled={upsert.isPending}
+                  saveDisabled={!wellnessComplete || upsert.isPending || !clubId || !userId}
+                  saveLabel={upsert.isPending ? t("saving") : t("wellness_submit")}
+                  saveTestId="wellness-submit"
+                  onSave={() => {
                     if (!clubId || !userId) return;
                     void upsert.mutateAsync({
                       club_id: clubId,
@@ -2571,30 +2514,19 @@ export default function Schedule() {
                       toast({ variant: "destructive", description: t("wellness_save_error") });
                     });
                   }}
-                  data-testid="wellness-submit"
-                >
-                  {upsert.isPending ? t("saving") : t("wellness_submit")}
-                </Button>
-                {submittedToday && wellnessEditing ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setWellnessEditing(false);
-                      setSleepQuality("");
-                      setEnergyLevel("");
-                      setMuscleSoreness("");
-                      setMentalReadiness("");
-                    }}
-                  >
-                    {t("cancel")}
-                  </Button>
-                ) : null}
-              </div>
-
-              {backendAvailable ? (
-                <p className="mt-2 text-xs text-muted-foreground">{t("wellness_persistence_note")}</p>
-              ) : null}
-                </>
+                  onCancel={
+                    submittedToday && wellnessEditing
+                      ? () => {
+                          setWellnessEditing(false);
+                          setSleepQuality("");
+                          setEnergyLevel("");
+                          setMuscleSoreness("");
+                          setMentalReadiness("");
+                        }
+                      : undefined
+                  }
+                  footNote={backendAvailable ? t("wellness_persistence_note") : undefined}
+                />
               )}
             </div>
           </TabsContent>
@@ -3397,6 +3329,84 @@ function WellnessRow(props: {
         ))}
       </ToggleGroup>
     </div>
+  );
+}
+
+function WellnessEntryForm(props: {
+  t: (key: I18nKey) => string;
+  sleepQuality: string;
+  onSleepQualityChange: (v: string) => void;
+  energyLevel: string;
+  onEnergyLevelChange: (v: string) => void;
+  muscleSoreness: string;
+  onMuscleSorenessChange: (v: string) => void;
+  mentalReadiness: string;
+  onMentalReadinessChange: (v: string) => void;
+  disabled?: boolean;
+  onSave: () => void;
+  saveDisabled: boolean;
+  saveLabel: string;
+  saveTestId?: string;
+  onCancel?: () => void;
+  cancelLabel?: string;
+  footNote?: string;
+}) {
+  const { t } = props;
+  return (
+    <>
+      <div className="mt-4 space-y-4">
+        <WellnessRow
+          label={t("wellness_metric_sleep" as any)}
+          tooltip={t("wellness_tooltip_sleep" as any)}
+          value={props.sleepQuality}
+          goodUp
+          onValueChange={props.onSleepQualityChange}
+          disabled={props.disabled}
+        />
+        <WellnessRow
+          label={t("wellness_metric_energy" as any)}
+          tooltip={t("wellness_tooltip_energy" as any)}
+          value={props.energyLevel}
+          goodUp
+          onValueChange={props.onEnergyLevelChange}
+          disabled={props.disabled}
+        />
+        <WellnessRow
+          label={t("wellness_metric_soreness" as any)}
+          tooltip={t("wellness_tooltip_soreness" as any)}
+          value={props.muscleSoreness}
+          goodUp
+          onValueChange={props.onMuscleSorenessChange}
+          disabled={props.disabled}
+        />
+        <WellnessRow
+          label={t("wellness_metric_readiness" as any)}
+          tooltip={t("wellness_tooltip_readiness" as any)}
+          value={props.mentalReadiness}
+          goodUp
+          onValueChange={props.onMentalReadinessChange}
+          disabled={props.disabled}
+        />
+      </div>
+
+      <div className="mt-5 flex gap-2">
+        <Button
+          className="flex-1"
+          disabled={props.saveDisabled}
+          onClick={props.onSave}
+          data-testid={props.saveTestId ?? "wellness-submit"}
+        >
+          {props.saveLabel}
+        </Button>
+        {props.onCancel ? (
+          <Button variant="outline" onClick={props.onCancel}>
+            {props.cancelLabel ?? t("cancel")}
+          </Button>
+        ) : null}
+      </div>
+
+      {props.footNote ? <p className="mt-2 text-xs text-muted-foreground">{props.footNote}</p> : null}
+    </>
   );
 }
 
