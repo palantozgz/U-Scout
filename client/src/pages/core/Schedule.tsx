@@ -390,9 +390,9 @@ export default function Schedule() {
   const slotDefs = useMemo(
     () =>
       [
-        { key: "morning", labelKey: "schedule_planner_slot_morning", hour: 9 },
-        { key: "midday", labelKey: "schedule_planner_slot_midday", hour: 12 },
-        { key: "evening", labelKey: "schedule_planner_slot_evening", hour: 18 },
+        { key: "morning", labelKey: "schedule_planner_slot_morning", hour: 9, startHour: 0, endHour: 12 },
+        { key: "midday", labelKey: "schedule_planner_slot_midday", hour: 12, startHour: 12, endHour: 18 },
+        { key: "evening", labelKey: "schedule_planner_slot_evening", hour: 18, startHour: 18, endHour: 24 },
       ] as const,
     [],
   );
@@ -1667,11 +1667,11 @@ export default function Schedule() {
                           const label = new Intl.DateTimeFormat(intlLocale, { weekday: "long" }).format(d);
                           const dateLabel = new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" }).format(d);
 
-                          const sessionsInSlot = (hour: number) => {
+                          const sessionsInSlot = (slot: (typeof slotDefs)[number]) => {
                             const slotStart = new Date(d);
-                            slotStart.setHours(hour, 0, 0, 0);
-                            const slotEnd = new Date(slotStart);
-                            slotEnd.setHours(hour + 3, 0, 0, 0);
+                            slotStart.setHours(slot.startHour, 0, 0, 0);
+                            const slotEnd = new Date(d);
+                            slotEnd.setHours(slot.endHour, 0, 0, 0);
                             return daySessionsAll.filter((s) => {
                               const ts = new Date(s.starts_at).getTime();
                               return ts >= slotStart.getTime() && ts < slotEnd.getTime();
@@ -1715,7 +1715,7 @@ export default function Schedule() {
 
                               <div className="mt-2.5 space-y-1.5">
                                 {slotDefs.map((slot) => {
-                                  const list = sessionsInSlot(slot.hour);
+                                  const list = sessionsInSlot(slot);
                                   return (
                                     <div
                                       key={slot.key}
@@ -1723,6 +1723,9 @@ export default function Schedule() {
                                     >
                                       <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                                         {t(slot.labelKey as any)}
+                                        <span className="ml-1.5 font-semibold normal-case tracking-normal text-muted-foreground/60">
+                                          {formatSlotHourRange(slot.startHour, slot.endHour)}
+                                        </span>
                                       </p>
 
                                       {list.length > 0 ? (
@@ -1835,13 +1838,16 @@ export default function Schedule() {
                               <div key={slot.key} className="flex items-center">
                                 <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
                                   {t(slot.labelKey as any)}
+                                  <span className="block font-semibold normal-case tracking-normal text-muted-foreground/60">
+                                    {formatSlotHourRange(slot.startHour, slot.endHour)}
+                                  </span>
                                 </p>
                               </div>
                               {days.map((d) => {
                                 const slotStart = new Date(d);
-                                slotStart.setHours(slot.hour, 0, 0, 0);
-                                const slotEnd = new Date(slotStart);
-                                slotEnd.setHours(slot.hour + 3, 0, 0, 0);
+                                slotStart.setHours(slot.startHour, 0, 0, 0);
+                                const slotEnd = new Date(d);
+                                slotEnd.setHours(slot.endHour, 0, 0, 0);
                                 const inSlot = (plannerWeekQ.data ?? []).filter((s) => {
                                   const ts = new Date(s.starts_at).getTime();
                                   return ts >= slotStart.getTime() && ts < slotEnd.getTime();
@@ -3595,5 +3601,12 @@ function formatTime(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+/** "9:00–12:00" style range for a planner slot header — fixes the original
+ *  complaint that Morning/Midday/Evening gave no hint of their actual hours. */
+function formatSlotHourRange(startHour: number, endHour: number): string {
+  const fmt = (h: number) => `${String(h % 24).padStart(2, "0")}:00`;
+  return `${fmt(startHour)}–${fmt(endHour)}`;
 }
 
