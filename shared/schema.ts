@@ -133,6 +133,8 @@ export const clubs = pgTable("clubs", {
   gender: varchar("gender", { length: 16 }),
   level: varchar("level", { length: 32 }),
   ageCategory: varchar("age_category", { length: 16 }),
+  /** U Scout: modo de informe por defecto del club. null/'advanced' = 3 slides (historico). 'simple' = el head coach activo el slide unico condensado como vista por defecto. */
+  reportMode: varchar("report_mode", { length: 16 }),
 });
 
 export type Club = typeof clubs.$inferSelect;

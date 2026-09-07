@@ -4,6 +4,7 @@ import type {
   ClubGender,
   ClubLeagueType,
   ClubLevel,
+  ClubReportMode,
 } from "@shared/club-context";
 import { apiRequest } from "./queryClient";
 import { useAuth } from "@/lib/useAuth";
@@ -53,6 +54,7 @@ export interface ClubPayload {
     gender?: string | null;
     level?: string | null;
     ageCategory?: string | null;
+    reportMode?: string | null;
   };
   members: ClubMemberDto[];
   pendingInvitations: ClubInvitationDto[];
@@ -85,6 +87,7 @@ export type PatchClubBody = {
   gender?: ClubGender | null;
   level?: ClubLevel | null;
   ageCategory?: ClubAgeCategory | null;
+  reportMode?: ClubReportMode | null;
 };
 
 export function usePatchClub() {

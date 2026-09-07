@@ -77,6 +77,16 @@ export default function ReportSlidesV1({
   const gender = clubGender === "F" ? "f" : clubGender === "M" ? "m" : "n";
   const [slide, setSlide] = useState(0);
   const [simpleMode, setSimpleMode] = useState(true);
+  // Sincroniza el modo por defecto con la preferencia del club (clubs.report_mode) una
+  // sola vez, cuando llegan los datos del club — después de eso el toggle manual del
+  // usuario manda (no se vuelve a sobrescribir aunque clubQ refetchée).
+  const clubDefaultAppliedRef = useRef(false);
+  useEffect(() => {
+    if (clubDefaultAppliedRef.current) return;
+    if (!clubQ.data) return;
+    clubDefaultAppliedRef.current = true;
+    setSimpleMode(clubQ.data.club.reportMode === "simple");
+  }, [clubQ.data]);
   const [arrowsVisible, setArrowsVisible] = useState(false);
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null);
   const [showSwipeHint, setShowSwipeHint] = useState(false);

@@ -61,6 +61,7 @@ import type {
   ClubGender,
   ClubLeagueType,
   ClubLevel,
+  ClubReportMode,
 } from "@shared/club-context";
 import {
   CLUB_AGE_CATEGORIES,
@@ -836,6 +837,37 @@ export default function ClubManagement() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground">
+                        {locale === "zh" ? "U Scout 默认报告视图" : locale === "es" ? "Vista por defecto de U Scout" : "U Scout default report view"}
+                      </Label>
+                      <Select
+                        disabled={!canEditClubContext || patchClub.isPending}
+                        value={q.data.club.reportMode ?? "advanced"}
+                        onValueChange={(v) =>
+                          patchClub.mutate({ reportMode: v === "advanced" ? null : (v as ClubReportMode) })
+                        }
+                      >
+                        <SelectTrigger className="bg-background border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="advanced">
+                            {locale === "zh" ? "完整报告（3页）" : locale === "es" ? "Informe completo (3 slides)" : "Full report (3 slides)"}
+                          </SelectItem>
+                          <SelectItem value="simple">
+                            {locale === "zh" ? "快速简报（1页）" : locale === "es" ? "Resumen rápido (1 slide)" : "Quick brief (1 slide)"}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
+                        {locale === "zh"
+                          ? "教练和球员仍可随时切换视图。这只是默认选项。"
+                          : locale === "es"
+                            ? "Coaches y jugadoras siguen pudiendo cambiar de vista en cualquier momento. Esto solo fija el punto de partida."
+                            : "Coaches and players can still switch views anytime — this only sets the starting point."}
+                      </p>
                     </div>
                   </div>
                 </section>

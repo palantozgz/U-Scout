@@ -26,6 +26,10 @@ export type ClubLevel = (typeof CLUB_LEVELS)[number];
 export const CLUB_AGE_CATEGORIES = ["senior", "U23", "U18", "U16"] as const;
 export type ClubAgeCategory = (typeof CLUB_AGE_CATEGORIES)[number];
 
+/** U Scout report display mode default for the club. null/'advanced' = 3-slide format (historic). 'simple' = single condensed slide shown by default. */
+export const CLUB_REPORT_MODES = ["simple", "advanced"] as const;
+export type ClubReportMode = (typeof CLUB_REPORT_MODES)[number];
+
 /** Auto-inferred gender and level when a leagueType is selected and the field is currently null */
 export const LEAGUE_AUTO_INFER: Partial<
   Record<ClubLeagueType, { gender?: ClubGender; level?: ClubLevel }>
@@ -51,6 +55,7 @@ export const zClubLeagueType = z.enum(tuple1(CLUB_LEAGUE_TYPES));
 export const zClubGender = z.enum(tuple1(CLUB_GENDERS));
 export const zClubLevel = z.enum(tuple1(CLUB_LEVELS));
 export const zClubAgeCategory = z.enum(tuple1(CLUB_AGE_CATEGORIES));
+export const zClubReportMode = z.enum(tuple1(CLUB_REPORT_MODES));
 
 /** PATCH /api/club body (all optional; null clears context fields). */
 export const patchClubBodySchema = z.object({
@@ -60,4 +65,5 @@ export const patchClubBodySchema = z.object({
   gender: z.union([zClubGender, z.null()]).optional(),
   level: z.union([zClubLevel, z.null()]).optional(),
   ageCategory: z.union([zClubAgeCategory, z.null()]).optional(),
+  reportMode: z.union([zClubReportMode, z.null()]).optional(),
 });
