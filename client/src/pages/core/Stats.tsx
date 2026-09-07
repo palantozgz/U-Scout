@@ -226,6 +226,45 @@ function PhaseToggle({
   );
 }
 
+/** Filtro Grupo A / Grupo B para standings y leaders (temporada regular WCBA
+ *  dividida en dos grupos paralelos). A\u00f1adido 2026-09-08 a peticion de Pablo,
+ *  que dirige un equipo de Grupo B esta temporada. Solo tiene sentido cuando
+ *  se mira la temporada regular (con playoffs los grupos ya no aplican). */
+function GroupToggle({
+  group,
+  onChange,
+  locale,
+}: {
+  group: "all" | "group_a" | "group_b";
+  onChange: (g: "all" | "group_a" | "group_b") => void;
+  locale: string;
+}) {
+  const es = locale === "es";
+  const zh = locale === "zh";
+  return (
+    <div className="flex rounded-md overflow-hidden border border-border text-xs">
+      {(["all", "group_a", "group_b"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          className={
+            group === v
+              ? "bg-primary text-primary-foreground px-2.5 py-1 font-semibold"
+              : "px-2.5 py-1 text-muted-foreground hover:bg-muted transition-colors"
+          }
+        >
+          {v === "all"
+            ? es ? "Todos" : zh ? "全部" : "All"
+            : v === "group_a"
+              ? es ? "Grupo A" : zh ? "A组" : "Group A"
+              : es ? "Grupo B" : zh ? "B组" : "Group B"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function CompactRosterList({
   players,
   activePlayerId,
@@ -416,6 +455,14 @@ export default function Stats() {
   useEffect(() => {
     localStorage.setItem("stats-phase-type", phaseType);
   }, [phaseType]);
+  const [groupFilter, setGroupFilter] = useState<"all" | "group_a" | "group_b">(() => {
+    const stored = localStorage.getItem("stats-group-filter");
+    if (stored === "group_a" || stored === "group_b") return stored;
+    return "all";
+  });
+  useEffect(() => {
+    localStorage.setItem("stats-group-filter", groupFilter);
+  }, [groupFilter]);
 
   useEffect(() => {
     const raw = search.startsWith("?") ? search.slice(1) : search;
@@ -460,8 +507,8 @@ export default function Stats() {
   const playersQ = usePlayerSeasonStats(phaseType);
   const playersRaw = playersQ.data?.players ?? [];
 
-  const standingsQ = useStandings(effectiveSeasonId, phaseType);
-  const leadersQ = useLeaders(effectiveSeasonId, leaderStat, phaseType);
+  const standingsQ = useStandings(effectiveSeasonId, phaseType, groupFilter);
+  const leadersQ = useLeaders(effectiveSeasonId, leaderStat, phaseType, groupFilter);
   const leagueAvgQ = useLeagueAverages(effectiveSeasonId, null, phaseType);
 
   const seasonMetaLabel = seasons.find((s) => s.seasonId === effectiveSeasonId)?.label;
@@ -1006,6 +1053,12 @@ export default function Stats() {
                 {L.segLideres}
               </button>
             </div>
+            )}
+
+            {centerView === "default" && phaseType !== "playoff" && (
+              <div className="flex justify-center">
+                <GroupToggle group={groupFilter} onChange={setGroupFilter} locale={locale} />
+              </div>
             )}
 
             {!standingsQ.isLoading && !standingsQ.isError && (ligaSegment === "clasificacion" || centerView === "standings") && (

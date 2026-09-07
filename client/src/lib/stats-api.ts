@@ -140,14 +140,17 @@ export function useSeasons() {
   });
 }
 
-export function useStandings(seasonId: number, phaseType?: StatsPhaseType) {
+export type StatsGroup = "all" | "group_a" | "group_b";
+
+export function useStandings(seasonId: number, phaseType?: StatsPhaseType, group?: StatsGroup) {
   const phase = phaseType ?? "regular";
+  const grp = group ?? "all";
   return useQuery({
-    queryKey: ["stats-standings", seasonId, phase],
+    queryKey: ["stats-standings", seasonId, phase, grp],
     queryFn: async () => {
       const r = await apiRequest(
         "GET",
-        `/api/stats/standings?seasonId=${seasonId}&${statsPhaseQs(phase)}`,
+        `/api/stats/standings?seasonId=${seasonId}&${statsPhaseQs(phase)}&group=${grp}`,
       );
       return r.json() as Promise<{ standings: StandingsRow[] }>;
     },
@@ -157,14 +160,15 @@ export function useStandings(seasonId: number, phaseType?: StatsPhaseType) {
   });
 }
 
-export function useLeaders(seasonId: number, stat: string, phaseType?: StatsPhaseType) {
+export function useLeaders(seasonId: number, stat: string, phaseType?: StatsPhaseType, group?: StatsGroup) {
   const phase = phaseType ?? "regular";
+  const grp = group ?? "all";
   return useQuery({
-    queryKey: ["stats-leaders", seasonId, stat, phase],
+    queryKey: ["stats-leaders", seasonId, stat, phase, grp],
     queryFn: async () => {
       const r = await apiRequest(
         "GET",
-        `/api/stats/leaders?seasonId=${seasonId}&stat=${encodeURIComponent(stat)}&${statsPhaseQs(phase)}`,
+        `/api/stats/leaders?seasonId=${seasonId}&stat=${encodeURIComponent(stat)}&${statsPhaseQs(phase)}&group=${grp}`,
       );
       return r.json() as Promise<{ leaders: LeaderRow[]; stat: string }>;
     },
