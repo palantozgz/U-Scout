@@ -711,6 +711,40 @@ function resolveIsoHandFinishesForMotor(inputs: PlayerInput): {
   return { isoStrongHandFinish: R, isoWeakHandFinish: L };
 }
 
+/**
+ * Map pnrFinishBallLeft/Right (nuevo, por lado de cancha) + fallback a
+ * pnrDominantFinish/pnrOppositeFinish (legacy, por mano dominante) → motor
+ * pnrFinishLeft/Right. Mismo patrón que resolveIsoHandFinishesForMotor.
+ *
+ * Sin este fallback, fichas scouteadas con los campos legacy (común en
+ * perfiles más antiguos, p.ej. jugadoras de PnR con "pnrDominantFinish"/
+ * "pnrOppositeFinish" rellenados pero nunca los campos nuevos por lado)
+ * llegaban al motor con pnrFinishLeft/Right en null — perdiendo la señal de
+ * finalización en PnR por completo (afecta force_direction, aware_pnr_direction,
+ * y la nota de manejadora del semáforo de cierre).
+ */
+function resolvePnrFinishesForMotor(inputs: PlayerInput): {
+  pnrFinishLeft: PnrFinish | null;
+  pnrFinishRight: PnrFinish | null;
+} {
+  let L = inputs.pnrFinishBallLeft ?? null;
+  let R = inputs.pnrFinishBallRight ?? null;
+  if (L == null && R == null && (inputs.pnrDominantFinish != null || inputs.pnrOppositeFinish != null)) {
+    const dom = inputs.postDominantHand ?? "Right";
+    if (dom === "Right") {
+      R = inputs.pnrDominantFinish ?? null;
+      L = inputs.pnrOppositeFinish ?? null;
+    } else if (dom === "Left") {
+      L = inputs.pnrDominantFinish ?? null;
+      R = inputs.pnrOppositeFinish ?? null;
+    } else {
+      R = inputs.pnrDominantFinish ?? null;
+      L = inputs.pnrOppositeFinish ?? null;
+    }
+  }
+  return { pnrFinishLeft: L, pnrFinishRight: R };
+}
+
 function legacySpotZoneToSpotZones(
   sz: "corner" | "wing" | "top" | null | undefined,
 ): SpotZones | null {
@@ -1013,8 +1047,7 @@ export function playerInputToMotorInputs(inputs: PlayerInput): PlayerInputs {
     pnrEff: inputs.motorPnrEff ?? null,
     pnrEffLeft: inputs.pnrEffLeft ?? null,
     pnrEffRight: inputs.pnrEffRight ?? null,
-    pnrFinishLeft: inputs.pnrFinishBallLeft ?? null,
-    pnrFinishRight: inputs.pnrFinishBallRight ?? null,
+    ...resolvePnrFinishesForMotor(inputs),
     trapResponse,
     screenerAction: screenerToMotor(),
     pnrScreenTiming: inputs.pnrScreenTiming ?? null,
