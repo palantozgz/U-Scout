@@ -343,6 +343,31 @@ export function usePlayerDetail(
   });
 }
 
+export interface PlayerWcbaLink {
+  externalId: string | null;
+  ppg: number;
+  rpg: number;
+  apg: number;
+}
+
+/** Resuelve el nombre de una jugadora scouteada (players.name) a su externalId de
+ *  stats_players + PPG/RPG/APG rápidos. Mismo endpoint que ya usa PlayerEditorStatsChip;
+ *  compartido aquí para que otras pantallas (p.ej. el slide sencillo de U Scout) puedan
+ *  encadenarlo con usePlayerDetail() y obtener la ficha completa de stats WCBA. */
+export function usePlayerWcbaLink(name: string | null | undefined) {
+  return useQuery({
+    queryKey: ["stats-player-link", name],
+    queryFn: async (): Promise<PlayerWcbaLink> => {
+      const r = await apiRequest("GET", `/api/stats/player-link?name=${encodeURIComponent(name ?? "")}`);
+      return r.json();
+    },
+    enabled: Boolean(name?.trim()),
+    staleTime: 600_000, // 10min
+    retry: 0,
+    networkMode: "offlineFirst",
+  });
+}
+
 export interface LeagueAverages {
   ppg: number;
   rpg: number;

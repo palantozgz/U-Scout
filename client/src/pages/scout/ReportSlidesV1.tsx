@@ -1,11 +1,14 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
-import { generateMotorV4 } from "@/lib/motor-v4";
+import { ArrowLeft, ChevronLeft, ChevronRight, Eye, CornerRightDown } from "lucide-react";
+import { computeCloseoutThreat, type CloseoutThreatReport } from "@/lib/closeoutThreat";
+import { usePlayerWcbaLink, usePlayerDetail, type PlayerDetail } from "@/lib/stats-api";
+import { generateMotorV4, type MotorV4Output } from "@/lib/motor-v4";
 import { SITUATION_ICONS } from "@/lib/motor-icons";
 import {
   renderReport,
   renderSituationDescription,
   type RenderContext,
+  type RenderedReport,
 } from "@/lib/reportTextRenderer";
 import {
   usePlayer,
@@ -73,6 +76,7 @@ export default function ReportSlidesV1({
   const clubGender = clubQ.data?.club?.gender;
   const gender = clubGender === "F" ? "f" : clubGender === "M" ? "m" : "n";
   const [slide, setSlide] = useState(0);
+  const [simpleMode, setSimpleMode] = useState(true);
   const [arrowsVisible, setArrowsVisible] = useState(false);
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
@@ -129,6 +133,14 @@ export default function ReportSlidesV1({
     if (!overrides || overrides.length === 0) return report;
     return applyOverrides(report, overrides);
   }, [report, overrides]);
+
+  // ── Slide sencillo: semaforo de cierre + stats WCBA de apoyo ──────────────
+  const closeoutReport: CloseoutThreatReport | null = useMemo(() => {
+    if (!motorOutput) return null;
+    return computeCloseoutThreat(motorOutput.inputs, motorOutput.situations);
+  }, [motorOutput]);
+  const wcbaLinkQ = usePlayerWcbaLink(player?.name);
+  const wcbaDetailQ = usePlayerDetail(wcbaLinkQ.data?.externalId ?? null);
 
   const situationRunnersUp = useMemo(() => {
     if (!motorOutput || !report) return [];
@@ -282,18 +294,53 @@ export default function ReportSlidesV1({
         )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-black text-foreground truncate">{player.name}</p>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{SLIDE_LABELS[slide]}</p>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+            {simpleMode ? (es ? "Resumen rápido" : zh ? "快速简报" : "Quick brief") : SLIDE_LABELS[slide]}
+          </p>
         </div>
-        <div className="flex gap-1.5 shrink-0">
-          {Array.from({ length: TOTAL_SLIDES }, (_, i) => (
-            <button key={i} type="button" onClick={() => goTo(i)}
-              className={cn("rounded-full transition-all", i === slide ? "w-4 h-2 bg-primary" : "w-2 h-2 bg-muted-foreground/30")}
-              aria-label={`Slide ${i + 1}`} />
-          ))}
+        <div className="flex gap-1.5 shrink-0 items-center">
+          {simpleMode ? (
+            <button
+              type="button"
+              onClick={() => setSimpleMode(false)}
+              className="text-[11px] font-bold text-primary underline underline-offset-2"
+            >
+              {es ? "Ver informe completo" : zh ? "查看完整报告" : "View full report"}
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setSimpleMode(true)}
+                className="mr-1 text-[11px] font-bold text-muted-foreground underline underline-offset-2"
+              >
+                {es ? "Resumen" : zh ? "简报" : "Brief"}
+              </button>
+              {Array.from({ length: TOTAL_SLIDES }, (_, i) => (
+                <button key={i} type="button" onClick={() => goTo(i)}
+                  className={cn("rounded-full transition-all", i === slide ? "w-4 h-2 bg-primary" : "w-2 h-2 bg-muted-foreground/30")}
+                  aria-label={`Slide ${i + 1}`} />
+              ))}
+            </>
+          )}
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto">
+        {simpleMode ? (
+          <SimpleReportSlide
+            player={player}
+            photo={photo}
+            finalReport={finalReport}
+            motorOutput={motorOutput}
+            closeoutReport={closeoutReport}
+            wcbaPlayer={wcbaDetailQ.data?.player ?? null}
+            wcbaLoading={wcbaLinkQ.isLoading || (Boolean(wcbaLinkQ.data?.externalId) && wcbaDetailQ.isLoading)}
+            es={es}
+            zh={zh}
+          />
+        ) : (
+        <>
 
         {/* SLIDE 0: ¿Quién es? */}
         {slide === 0 && (
@@ -446,9 +493,12 @@ export default function ReportSlidesV1({
             )}
           </div>
         )}
+        </>
+        )}
       </main>
 
       {/* ── Nav arrows ── */}
+      {!simpleMode && (
       <div className={cn(
         "fixed bottom-6 left-0 right-0 flex justify-between px-4 pointer-events-none transition-opacity duration-300 z-20",
         arrowsVisible ? "opacity-100" : "opacity-0",
@@ -464,6 +514,7 @@ export default function ReportSlidesV1({
           <ChevronRight className="w-5 h-5 text-foreground" />
         </button>
       </div>
+      )}
 
       {bottomBar && (
         <div className="sticky bottom-0 z-10 bg-background border-t border-border">{bottomBar}</div>
@@ -517,3 +568,236 @@ function situationColors(id: string): { border: string; text: string; bg: string
   if (id === "oreb")         return { border: "border-l-rose-500",   text: "text-rose-500 dark:text-rose-400",   bg: "bg-rose-500/8"   };
   return { border: "border-l-muted-foreground/30", text: "text-muted-foreground", bg: "" };
 }
+
+// ── Modo sencillo (punto 6, sesión 2026-09-07) ─────────────────────────────────────────
+function CloseoutBadge(props: { report: CloseoutThreatReport; es: boolean; zh: boolean }) {
+  const { report, es, zh } = props;
+
+  if (report.light === "insufficient_data") {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-3">
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70 mb-1">
+          {es ? "Semáforo de cierre" : zh ? "补防信号灯" : "Closeout light"}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {es
+            ? "Sin datos de scouting suficientes todavía para el cierre."
+            : zh
+              ? "暂无足够的补防相关侦察数据。"
+              : "Not enough scouting data yet for the closeout read."}
+        </p>
+      </div>
+    );
+  }
+
+  const COLOR_MAP: Record<
+    "red" | "yellow" | "green",
+    { border: string; text: string; dot: string; label: string; desc: string }
+  > = {
+    red: {
+      border: "border-l-red-500",
+      text: "text-red-600 dark:text-red-400",
+      dot: "bg-red-500",
+      label: es ? "Cierra fuerte" : zh ? "全力补防" : "Close out hard",
+      desc: es
+        ? "Tira en el catch-and-shoot — contesta cada toque."
+        : zh
+          ? "接球即投——每次都要干扰出手。"
+          : "Shoots on the catch — contest every touch.",
+    },
+    yellow: {
+      border: "border-l-amber-500",
+      text: "text-amber-600 dark:text-amber-400",
+      dot: "bg-amber-500",
+      label: es ? "Normal" : zh ? "正常" : "Normal",
+      desc: es
+        ? "Lectura mixta o frecuencia baja — cierre estándar."
+        : zh
+          ? "数据混合或频率较低——正常补防即可。"
+          : "Mixed read or low frequency — standard closeout.",
+    },
+    green: {
+      border: "border-l-emerald-500",
+      text: "text-emerald-600 dark:text-emerald-400",
+      dot: "bg-emerald-500",
+      label: es ? "Puedes ayudar" : zh ? "可协防" : "Safe to help off",
+      desc: es
+        ? "No suele tirar en el catch — puedes dar un paso atrás."
+        : zh
+          ? "接球后很少出手——可以适当收缩协防。"
+          : "Rarely shoots on the catch — you can sag off a step.",
+    },
+  };
+  const c = COLOR_MAP[report.light];
+
+  const handlerText = (() => {
+    if (!report.handlerNote) return null;
+    if (report.handlerNote.contradictsCloseout) {
+      return es
+        ? 'Tira bien en el catch, pero como manejadora prefiere penetrar — el "under" no la saca de su tiro porque no suele parar a lanzar de bote.'
+        : zh
+          ? "接球投篮不错，但作为挡拆持球人更倾向突破——防守走下线（under）无法限制她，因为她运球后很少选择跳投。"
+          : 'Shoots well on the catch, but as a PnR handler she prefers to drive — going under the screen won\'t take her out of her shot, because she rarely pulls up off the dribble.';
+    }
+    if (report.handlerNote.lean === "drives") {
+      return es
+        ? "Como manejadora en el bloqueo, prefiere penetrar antes que tirar de bote."
+        : zh
+          ? "作为挡拆持球人，她更倾向于突破而不是运球跳投。"
+          : "As a PnR handler, she prefers to drive rather than pull up off the dribble.";
+    }
+    if (report.handlerNote.lean === "shoots") {
+      return es
+        ? "Como manejadora, también lanza bien de bote — el \"under\" es arriesgado."
+        : zh
+          ? "作为挡拆持球人，她运球后跳投也很稳——防守走下线有风险。"
+          : 'As a PnR handler, she also shoots well off the dribble — going under is risky.';
+    }
+    return es
+      ? "Como manejadora, su reacción al bloqueo es variable."
+      : zh
+        ? "作为挡拆持球人，她的反应比较多变。"
+        : "As a PnR handler, her reaction off the screen is mixed.";
+  })();
+
+  return (
+    <div className={cn("rounded-2xl border border-border border-l-4 p-4 bg-card", c.border)}>
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", c.dot)} />
+        <p className={cn("text-[10px] font-black uppercase tracking-widest", c.text)}>
+          {es ? "Semáforo de cierre" : zh ? "补防信号灯" : "Closeout light"} — {c.label}
+        </p>
+      </div>
+      <p className="text-sm font-semibold text-foreground/85 leading-snug">{c.desc}</p>
+      {report.watchDrive && (
+        <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-background/50 px-2.5 py-2">
+          <Eye className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground" aria-hidden />
+          <CornerRightDown className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground" aria-hidden />
+          <p className="text-xs font-semibold text-muted-foreground">
+            {es
+              ? "Ojo: ataca el aro tras el cierre."
+              : zh
+                ? "注意：补防后她会攻击篮筐。"
+                : "Watch: attacks the rim off the closeout."}
+          </p>
+        </div>
+      )}
+      {handlerText && (
+        <div
+          className={cn(
+            "mt-2 rounded-lg px-2.5 py-2",
+            report.handlerNote?.contradictsCloseout ? "bg-amber-500/10 border border-amber-500/25" : "bg-background/50",
+          )}
+        >
+          <p className="text-xs font-semibold text-muted-foreground">{handlerText}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatCell(props: { value: string; label: string }) {
+  return (
+    <div className="text-center">
+      <p className="text-base font-black text-foreground tabular-nums">{props.value}</p>
+      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">{props.label}</p>
+    </div>
+  );
+}
+
+function StatsStrip(props: {
+  wcbaPlayer: PlayerDetail | null;
+  loading: boolean;
+  es: boolean;
+  zh: boolean;
+}) {
+  const { wcbaPlayer, loading, es, zh } = props;
+  // Sin placeholder mientras carga, y sin nada si no hay match WCBA — mejor no
+  // decir nada que inventar un dato que no existe (mismo criterio que insufficient_data).
+  if (loading || !wcbaPlayer) return null;
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+        {es ? "Stats WCBA (temporada)" : zh ? "WCBA数据（本赛季）" : "WCBA stats (season)"}
+      </p>
+      <div className="grid grid-cols-4 gap-2">
+        <StatCell value={wcbaPlayer.ppg.toFixed(1)} label="PPG" />
+        <StatCell value={wcbaPlayer.fg3Pct != null ? `${wcbaPlayer.fg3Pct.toFixed(0)}%` : "—"} label="3P%" />
+        <StatCell value={wcbaPlayer.ftRate != null ? wcbaPlayer.ftRate.toFixed(2) : "—"} label="FT Rate" />
+        <StatCell value={wcbaPlayer.tsPct != null ? `${wcbaPlayer.tsPct.toFixed(0)}%` : "—"} label="TS%" />
+      </div>
+      <p className="mt-2 text-[10px] text-muted-foreground/60">
+        {es ? `${wcbaPlayer.games} partidos jugados` : zh ? `已出场 ${wcbaPlayer.games} 场` : `${wcbaPlayer.games} games played`}
+      </p>
+    </div>
+  );
+}
+
+function SimpleReportSlide(props: {
+  player: { name: string; number?: string | number | null; imageUrl?: string | null };
+  photo: boolean;
+  finalReport: RenderedReport | null;
+  motorOutput: MotorV4Output | null;
+  closeoutReport: CloseoutThreatReport | null;
+  wcbaPlayer: PlayerDetail | null;
+  wcbaLoading: boolean;
+  es: boolean;
+  zh: boolean;
+}) {
+  const { player, photo, finalReport, motorOutput, closeoutReport, wcbaPlayer, wcbaLoading, es, zh } = props;
+  if (!finalReport || !motorOutput) return null;
+  const topSituation = finalReport.situations[0];
+  const denyInstruction = finalReport.defense.deny?.instruction;
+
+  return (
+    <div className="px-4 pt-6 pb-24 space-y-3 max-w-lg mx-auto">
+      <div className="flex items-center gap-4">
+        <Suspense fallback={<div className="w-14 h-14 rounded-full bg-muted/40" />}>
+          {photo ? (
+            <img src={player.imageUrl ?? undefined} alt={player.name} className="w-14 h-14 rounded-full object-cover ring-2 ring-border shrink-0" />
+          ) : (
+            <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-border shrink-0">
+              <BasketballPlaceholderAvatar size={56} />
+            </div>
+          )}
+        </Suspense>
+        <div className="min-w-0 flex-1">
+          <p className="text-lg font-black text-foreground leading-tight truncate">{player.name}</p>
+          <p className="text-xs font-bold text-primary/80 uppercase tracking-widest">{finalReport.identity.archetypeLabel}</p>
+        </div>
+      </div>
+
+      {finalReport.identity.threat && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-destructive/70 mb-1">
+            {es ? "Amenaza principal" : zh ? "主要威胁" : "Main threat"}
+          </p>
+          <p className="text-sm font-semibold text-foreground leading-snug">{finalReport.identity.threat}</p>
+        </div>
+      )}
+
+      {topSituation && (
+        <div className="rounded-2xl border border-border bg-card px-4 py-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">
+            {es ? "Lo que más hace" : zh ? "最常见进攻方式" : "What she does most"}
+          </p>
+          <p className="text-sm font-semibold text-foreground leading-snug">{topSituation.description}</p>
+        </div>
+      )}
+
+      {denyInstruction && (
+        <div className="rounded-2xl border border-border border-l-4 border-l-red-500 bg-red-500/8 px-4 py-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 mb-1">
+            {es ? "Prioridad defensiva" : zh ? "防守重点" : "Defensive priority"}
+          </p>
+          <p className="text-sm font-semibold text-foreground/90 leading-snug">{denyInstruction}</p>
+        </div>
+      )}
+
+      {closeoutReport && <CloseoutBadge report={closeoutReport} es={es} zh={zh} />}
+
+      <StatsStrip wcbaPlayer={wcbaPlayer} loading={wcbaLoading} es={es} zh={zh} />
+    </div>
+  );
+}
+
