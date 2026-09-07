@@ -30,6 +30,10 @@ export type ClubAgeCategory = (typeof CLUB_AGE_CATEGORIES)[number];
 export const CLUB_REPORT_MODES = ["simple", "advanced"] as const;
 export type ClubReportMode = (typeof CLUB_REPORT_MODES)[number];
 
+/** Modules the head coach can enable/disable club-wide for everyone except themselves. 'home' is always on. */
+export const CLUB_MODULE_KEYS = ["schedule", "scout", "stats", "playbook"] as const;
+export type ClubModuleKey = (typeof CLUB_MODULE_KEYS)[number];
+
 /** Auto-inferred gender and level when a leagueType is selected and the field is currently null */
 export const LEAGUE_AUTO_INFER: Partial<
   Record<ClubLeagueType, { gender?: ClubGender; level?: ClubLevel }>
@@ -56,6 +60,7 @@ export const zClubGender = z.enum(tuple1(CLUB_GENDERS));
 export const zClubLevel = z.enum(tuple1(CLUB_LEVELS));
 export const zClubAgeCategory = z.enum(tuple1(CLUB_AGE_CATEGORIES));
 export const zClubReportMode = z.enum(tuple1(CLUB_REPORT_MODES));
+export const zClubModuleKey = z.enum(tuple1(CLUB_MODULE_KEYS));
 
 /** PATCH /api/club body (all optional; null clears context fields). */
 export const patchClubBodySchema = z.object({
@@ -66,4 +71,5 @@ export const patchClubBodySchema = z.object({
   level: z.union([zClubLevel, z.null()]).optional(),
   ageCategory: z.union([zClubAgeCategory, z.null()]).optional(),
   reportMode: z.union([zClubReportMode, z.null()]).optional(),
+  disabledModules: z.array(zClubModuleKey).optional(),
 });

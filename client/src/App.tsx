@@ -14,6 +14,7 @@ import { useClub } from "@/lib/club-api";
 import { apiRequest } from "@/lib/queryClient";
 import { type ReportOverride } from "@/lib/overrideEngine";
 import { UCoreBootSplash } from "@/components/branding/UScoutBrand";
+import { ModuleGate } from "@/components/ModuleGate";
 import { useRailwayWarmup } from "@/hooks/useRailwayWarmup";
 import { DEFAULT_SEASON_ID } from "@/lib/stats-api";
 
@@ -126,10 +127,18 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
 
       {/* U Core shell routes */}
       <Route path="/home" component={UCoreHome} />
-      <Route path="/scout" component={UCoreScout} />
-      <Route path="/schedule" component={UCoreSchedule} />
-      <Route path="/stats" component={UCoreStats} />
-      <Route path="/playbook" component={UCorePlaybook} />
+      <Route path="/scout">
+        <ModuleGate moduleKey="scout"><UCoreScout /></ModuleGate>
+      </Route>
+      <Route path="/schedule">
+        <ModuleGate moduleKey="schedule"><UCoreSchedule /></ModuleGate>
+      </Route>
+      <Route path="/stats">
+        <ModuleGate moduleKey="stats"><UCoreStats /></ModuleGate>
+      </Route>
+      <Route path="/playbook">
+        <ModuleGate moduleKey="playbook"><UCorePlaybook /></ModuleGate>
+      </Route>
       <Route path="/more">
         <RootRedirect to="/home" />
       </Route>
@@ -154,7 +163,9 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       {/* Player Mode — /player = equipos rivales primero; /player/reports = rejilla de informes */}
       <Route path="/player/reports" component={PlayerHome} />
       <Route path="/player/home-settings" component={PlayerHomeSettingsStub} />
-      <Route path="/player/wellness" component={WellnessStandalone} />
+      <Route path="/player/wellness">
+        <ModuleGate moduleKey="schedule"><WellnessStandalone /></ModuleGate>
+      </Route>
       <Route path="/player/teams">
         <RootRedirect to="/player" />
       </Route>

@@ -983,6 +983,7 @@ export async function registerRoutes(
           level: club.level ?? null,
           ageCategory: club.ageCategory ?? null,
           reportMode: club.reportMode ?? null,
+          disabledModules: club.disabledModules ?? [],
         },
         members: members.map((m) => {
           const fromAdmin = authByUserId.get(m.userId) ?? { fullName: null, email: null };
@@ -1078,11 +1079,12 @@ export async function registerRoutes(
           level: club.level ?? null,
           ageCategory: club.ageCategory ?? null,
           reportMode: club.reportMode ?? null,
+          disabledModules: club.disabledModules ?? [],
         });
       }
       const updated = await storage.updateClub(
         club.id,
-        updates as Partial<Pick<Club, "name" | "logo" | "leagueType" | "gender" | "level" | "ageCategory" | "reportMode">>,
+        updates as Partial<Pick<Club, "name" | "logo" | "leagueType" | "gender" | "level" | "ageCategory" | "reportMode" | "disabledModules">>,
       );
       if (!updated) return res.status(404).json({ error: "Club not found" });
       res.json({
@@ -1096,6 +1098,7 @@ export async function registerRoutes(
         level: updated.level ?? null,
         ageCategory: updated.ageCategory ?? null,
         reportMode: updated.reportMode ?? null,
+        disabledModules: updated.disabledModules ?? [],
       });
     } catch (err) {
       res.status(500).json({ error: "Failed to update club" });

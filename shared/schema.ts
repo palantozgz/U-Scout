@@ -135,6 +135,8 @@ export const clubs = pgTable("clubs", {
   ageCategory: varchar("age_category", { length: 16 }),
   /** U Scout: modo de informe por defecto del club. null/'advanced' = 3 slides (historico). 'simple' = el head coach activo el slide unico condensado como vista por defecto. */
   reportMode: varchar("report_mode", { length: 16 }),
+  /** Modulos desactivados por el head coach para el resto de usuarios (coach/player). Claves: schedule|scout|stats|playbook. 'home' nunca se desactiva. Vacio = todos activos. */
+  disabledModules: text("disabled_modules").array().notNull().default(sql`'{}'::text[]`),
 });
 
 export type Club = typeof clubs.$inferSelect;

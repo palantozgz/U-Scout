@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -62,6 +63,7 @@ import type {
   ClubLeagueType,
   ClubLevel,
   ClubReportMode,
+  ClubModuleKey,
 } from "@shared/club-context";
 import {
   CLUB_AGE_CATEGORIES,
@@ -870,6 +872,78 @@ export default function ClubManagement() {
                       </p>
                     </div>
                   </div>
+                </section>
+
+                <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    {locale === "zh" ? "模块" : locale === "es" ? "Módulos" : "Modules"}
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {locale === "zh"
+                      ? "对教练和球员隐藏暂时不需要的模块，让应用更简洁（例如季前赛只开放日程与状态）。"
+                      : locale === "es"
+                        ? "Oculta a coaches y jugadoras los módulos que aún no toca usar — útil para lanzar la app por fases (p. ej. en pretemporada, solo Schedule y Wellness)."
+                        : "Hide modules coaches and players don't need yet — useful for rolling the app out in phases (e.g. preseason: only Schedule and Wellness)."}
+                  </p>
+                  {!canEditClubContext && (
+                    <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-primary/40 pl-3">
+                      {t("club_ctx_viewer_hint")}
+                    </p>
+                  )}
+                  <div className="space-y-2">
+                    {(
+                      [
+                        {
+                          key: "schedule" as ClubModuleKey,
+                          label: locale === "zh" ? "日程与状态" : locale === "es" ? "Schedule y Wellness" : "Schedule & Wellness",
+                          sub: locale === "zh" ? "训练安排、每日打卡" : locale === "es" ? "Calendario de sesiones y check-in diario" : "Session calendar and daily check-in",
+                        },
+                        {
+                          key: "scout" as ClubModuleKey,
+                          label: "U Scout",
+                          sub: locale === "zh" ? "对手球探报告" : locale === "es" ? "Informes de scouting rival" : "Opponent scouting reports",
+                        },
+                        {
+                          key: "stats" as ClubModuleKey,
+                          label: "U Stats",
+                          sub: locale === "zh" ? "WCBA联赛数据" : locale === "es" ? "Estadísticas de la liga WCBA" : "WCBA league stats",
+                        },
+                        {
+                          key: "playbook" as ClubModuleKey,
+                          label: "U Playbook",
+                          sub: locale === "zh" ? "战术手册" : locale === "es" ? "Manual táctico" : "Tactical manual",
+                        },
+                      ]
+                    ).map((mod) => {
+                      const isDisabled = (q.data!.club.disabledModules ?? []).includes(mod.key);
+                      return (
+                        <div key={mod.key} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-3 py-2.5">
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-foreground truncate">{mod.label}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{mod.sub}</p>
+                          </div>
+                          <Switch
+                            checked={!isDisabled}
+                            disabled={!canEditClubContext || patchClub.isPending}
+                            onCheckedChange={(checked) => {
+                              const current = q.data!.club.disabledModules ?? [];
+                              const next = checked
+                                ? current.filter((k) => k !== mod.key)
+                                : Array.from(new Set([...current, mod.key]));
+                              patchClub.mutate({ disabledModules: next as ClubModuleKey[] });
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
+                    {locale === "zh"
+                      ? "作为主教练，你始终能看到所有模块。"
+                      : locale === "es"
+                        ? "Como head coach, tú siempre ves todos los módulos."
+                        : "As head coach, you always see every module."}
+                  </p>
                 </section>
               </TabsContent>
 

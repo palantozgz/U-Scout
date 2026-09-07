@@ -4,6 +4,9 @@ import { cn } from "@/lib/utils";
 import { Home, Target, CalendarDays, BarChart3, BookOpen } from "lucide-react";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
+import { useClub } from "@/lib/club-api";
+import { isModuleEnabledFor } from "@/lib/moduleAccess";
+import type { ClubModuleKey } from "@shared/club-context";
 
 type NavItem = {
   key: string;
@@ -29,7 +32,17 @@ function useModuleNavItems() {
 export function ModuleNav() {
   const [loc, setLocation] = useLocation();
   const { profile, effectiveRole } = useAuth();
-  const items = useModuleNavItems();
+  const clubQ = useClub({ enabled: Boolean(profile) });
+  const allItems = useModuleNavItems();
+  const items = useMemo(
+    () =>
+      allItems.filter(
+        (it) =>
+          it.key === "home" ||
+          isModuleEnabledFor(it.key as ClubModuleKey, clubQ.data?.club.disabledModules, effectiveRole),
+      ),
+    [allItems, clubQ.data?.club.disabledModules, effectiveRole],
+  );
   const isFive = items.length === 5;
 
   const displayName = profile?.username?.trim() || profile?.email?.split("@")[0] || "";

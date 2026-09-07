@@ -2,6 +2,10 @@ import { type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { CalendarDays, BarChart3, Target, Heart, Building2, BookOpen } from "lucide-react";
 import { useHomeData } from "@/lib/useHomeData";
+import { useAuth } from "@/lib/useAuth";
+import { useClub } from "@/lib/club-api";
+import { isModuleEnabledFor } from "@/lib/moduleAccess";
+import type { ClubModuleKey } from "@shared/club-context";
 import { ModuleNav } from "./ModuleNav";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
 
@@ -132,6 +136,9 @@ function ModCard(props: {
 // ── Main component ────────────────────────────────────────────
 
 export default function HomeMobile() {
+  const { profile, effectiveRole } = useAuth();
+  const clubQ = useClub({ enabled: Boolean(profile) });
+  const modEnabled = (k: ClubModuleKey) => isModuleEnabledFor(k, clubQ.data?.club.disabledModules, effectiveRole);
   const {
     t, locale,
     setLocation,
@@ -299,6 +306,7 @@ export default function HomeMobile() {
           <div className="grid grid-cols-2 gap-2">
             {mode === "staff" ? (
               <>
+                {modEnabled("schedule") && (
                 <ModCard
                   icon={<CalendarDays className="w-6 h-6" />}
                   title={t("ucore_card_schedule_title")}
@@ -309,6 +317,8 @@ export default function HomeMobile() {
                   onClick={() => setLocation("/schedule")}
                   testId="ucore-home-card-schedule"
                 />
+                )}
+                {modEnabled("scout") && (
                 <ModCard
                   icon={<Target className="w-6 h-6" />}
                   title={t("ucore_card_scout_title")}
@@ -316,6 +326,8 @@ export default function HomeMobile() {
                   onClick={() => setLocation("/scout")}
                   testId="ucore-home-card-scout"
                 />
+                )}
+                {modEnabled("stats") && (
                 <ModCard
                   icon={<BarChart3 className="w-6 h-6" />}
                   title={t("ucore_card_stats_title")}
@@ -323,6 +335,8 @@ export default function HomeMobile() {
                   onClick={() => setLocation("/stats")}
                   testId="ucore-home-card-stats"
                 />
+                )}
+                {modEnabled("playbook") && (
                 <ModCard
                   icon={<BookOpen className="w-6 h-6" />}
                   title="U Playbook"
@@ -330,9 +344,11 @@ export default function HomeMobile() {
                   onClick={() => setLocation("/playbook")}
                   testId="ucore-home-card-playbook"
                 />
+                )}
               </>
             ) : (
               <>
+                {modEnabled("schedule") && (
                 <ModCard
                   icon={<CalendarDays className="w-6 h-6" />}
                   title={t("ucore_card_schedule_title")}
@@ -340,6 +356,8 @@ export default function HomeMobile() {
                   onClick={() => setLocation("/schedule")}
                   testId="ucore-home-card-schedule"
                 />
+                )}
+                {modEnabled("schedule") && (
                 <ModCard
                   icon={<Heart className="w-6 h-6" />}
                   title={t("home_wellness_today")}
@@ -347,6 +365,8 @@ export default function HomeMobile() {
                   onClick={() => setLocation("/player/wellness")}
                   testId="ucore-home-card-wellness"
                 />
+                )}
+                {modEnabled("scout") && (
                 <ModCard
                   icon={<Target className="w-6 h-6" />}
                   title={t("ucore_card_scout_title")}
@@ -356,6 +376,8 @@ export default function HomeMobile() {
                   onClick={() => setLocation("/scout")}
                   testId="ucore-home-card-scout"
                 />
+                )}
+                {modEnabled("stats") && (
                 <ModCard
                   icon={<BarChart3 className="w-6 h-6" />}
                   title={t("ucore_card_stats_title")}
@@ -363,6 +385,7 @@ export default function HomeMobile() {
                   onClick={() => setLocation("/stats")}
                   testId="ucore-home-card-stats"
                 />
+                )}
               </>
             )}
           </div>

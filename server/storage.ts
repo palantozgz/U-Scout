@@ -121,7 +121,7 @@ export interface IStorage {
   createClub(row: InsertClub): Promise<Club>;
   updateClub(
     id: string,
-    updates: Partial<Pick<Club, "name" | "logo" | "leagueType" | "gender" | "level" | "ageCategory">>,
+    updates: Partial<Pick<Club, "name" | "logo" | "leagueType" | "gender" | "level" | "ageCategory" | "reportMode" | "disabledModules">>,
   ): Promise<Club | undefined>;
 
   createClubMember(row: InsertClubMember): Promise<ClubMember>;
@@ -612,7 +612,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateClub(
     id: string,
-    updates: Partial<Pick<Club, "name" | "logo" | "leagueType" | "gender" | "level" | "ageCategory">>,
+    updates: Partial<Pick<Club, "name" | "logo" | "leagueType" | "gender" | "level" | "ageCategory" | "reportMode" | "disabledModules">>,
   ): Promise<Club | undefined> {
     const [updated] = await db.update(clubs).set(updates).where(eq(clubs.id, id)).returning();
     return updated;
