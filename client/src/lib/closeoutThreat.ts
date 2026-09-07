@@ -29,15 +29,27 @@
  * NO tira de bote como manejadora → avisar de que ir "por debajo" (under) del
  * bloqueo no la saca de su juego, porque preferirá penetrar en vez de parar a tirar.
  *
- * insufficient_data: cuando no hay ninguna señal observada (spotUpAction y
- * offBallCutAction ambos sin rellenar). A 2026-09-07, la inmensa mayoría de
- * jugadoras en producción están en este estado (solo datos de importación WCBA,
- * sin ficha de scouting real) — es el comportamiento correcto, no un bug: mejor
- * no decir nada que inventar un color con datos que no existen. Como las fichas
- * no se publican a la jugadora rival... perdón, al COACH RIVAL no aplica aquí —
- * lo relevante es que el informe no se publica al staff/jugadoras propias hasta
- * que el entrenador lo aprueba, así que este estado nunca debería llegar a
- * publicarse si el entrenador hace scouting completo antes de aprobar.
+ * insufficient_data: cuando el motor no ha detectado NINGUNA situación ofensiva
+ * activa (`situations.length === 0`) — es decir, la jugadora no tiene ninguna
+ * frecuencia de ataque scouteada (ISO/PnR/post/etc. todas en "Never" o vacías).
+ * A 2026-09-07, la inmensa mayoría de jugadoras en producción están en este
+ * estado (solo datos de importación WCBA, `inputs={}`, sin ficha de scouting
+ * real) — es el comportamiento correcto, no un bug: mejor no decir nada que
+ * inventar un color con datos que no existen. Lo relevante es que el informe
+ * no se publica al staff/jugadoras propias hasta que el entrenador lo aprueba
+ * (ver `scouting_report_assignments`), así que este estado nunca debería
+ * llegar a publicarse si el entrenador hace scouting completo antes de aprobar.
+ *
+ * OJO — por qué NO se usa spotUpFreq/perimeterThreats como gate adicional:
+ * ese campo es legacy y casi nunca se rellena (en producción, solo 1 de 5
+ * fichas reales lo tenía). Gatear la señal de closeoutReaction por él producía
+ * falsos negativos reales: una manejadora de PnR con `closeoutReaction:
+ * "Catch & Shoot"` explícitamente scouteado salía como "sin datos" solo
+ * porque nadie había tocado el campo de frecuencia de spot-up, que es un
+ * campo aparte y no tiene por qué estar relleno para que la reacción al
+ * cierre sea real. El gate correcto es "¿hay ALGO scouteado de esta
+ * jugadora?" (situations.length), no "¿es específicamente una tiradora de
+ * spot-up por frecuencia?".
  */
 
 import type { EnrichedInputs } from "./motor-v2.1";
@@ -72,7 +84,8 @@ function situationScore(situations: RankedSituation[], prefix: string): number {
   return max;
 }
 
-const FREQ_WEIGHT: Record<string, number> = { P: 1, S: 0.7, R: 0.35, N: 0 };
+const RED_THRESHOLD = 0.35;
+const GREEN_THRESHOLD = -0.35;
 
 // +1 = tira en el catch, -1 = ataca el aro en vez de tirar.
 const SPOT_ACTION_VALUE: Record<string, number> = {
@@ -87,9 +100,6 @@ const OFFBALL_CUT_VALUE: Record<string, number> = {
   curl: -0.3, // el curl busca el aro, no el tiro inmediato
   catch_and_drive: -1,
 };
-
-const RED_THRESHOLD = 0.35;
-const GREEN_THRESHOLD = -0.35;
 
 /** +1 = prefiere penetrar, -1 = prefiere tirar de bote. */
 const PNR_FINISH_LEAN: Record<string, number> = {
@@ -126,13 +136,19 @@ export function computeCloseoutThreat(
   inputs: EnrichedInputs,
   situations: RankedSituation[],
 ): CloseoutThreatReport {
+  // Gate real: ¿hay ALGO scouteado de esta jugadora? Si el motor no detectó
+  // ninguna situación ofensiva activa, no hay base para ningún color — ver
+  // nota larga arriba sobre por qué esto reemplaza el gate por spotUpFreq.
+  if (situations.length === 0) {
+    return { light: "insufficient_data", index: null, watchDrive: false, handlerNote: null };
+  }
+
   type Sig = { value: number; weight: number };
   const signals: Sig[] = [];
 
   if (inputs.spotUpAction && SPOT_ACTION_VALUE[inputs.spotUpAction] !== undefined) {
-    const freqW = inputs.spotUpFreq ? (FREQ_WEIGHT[inputs.spotUpFreq] ?? 0.3) : 0.3;
     const situW = Math.max(situationScore(situations, "catch_shoot"), 0.15);
-    signals.push({ value: SPOT_ACTION_VALUE[inputs.spotUpAction], weight: freqW * situW });
+    signals.push({ value: SPOT_ACTION_VALUE[inputs.spotUpAction], weight: situW });
   }
   if (inputs.offBallCutAction && OFFBALL_CUT_VALUE[inputs.offBallCutAction] !== undefined) {
     const situW = Math.max(situationScore(situations, "off_ball"), 0.15);
