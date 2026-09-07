@@ -1759,6 +1759,15 @@ export async function registerRoutes(
     const phaseType = String(req.query.phaseType ?? "regular");
     const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
     const phaseFilterPP = phaseType === "all" ? sql`` : sql`AND pp.phase_type = ${phaseType}`;
+    // Grupo A/B: la WCBA divide la temporada regular en dos grupos paralelos
+    // (12 equipos "premier" en A, 6 equipos en B) y ya lo etiqueta ella misma en
+    // stats_standings.phase_name ("\u5e38\u89c4\u8d5bA\u7ec4" / "\u5e38\u89c4\u8d5bB\u7ec4") -- no hace falta
+    // adivinar nada por phase_id, que cambia cada temporada. A\u00f1adido 2026-09-08.
+    const groupParam = String(req.query.group ?? "all");
+    const groupFilter =
+      groupParam === "group_a" ? sql`AND ss.phase_name LIKE '%A\u7ec4%'`
+      : groupParam === "group_b" ? sql`AND ss.phase_name LIKE '%B\u7ec4%'`
+      : sql``;
     try {
       const rows = await db.execute(sql`
         SELECT
@@ -1798,7 +1807,7 @@ export async function registerRoutes(
           ON pgs.team_id = st.id
         LEFT JOIN stats_games sg
           ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
-        WHERE ss.season_id = ${seasonId}
+        WHERE ss.season_id = ${seasonId} ${groupFilter}
         GROUP BY
           st.id, st.external_id, st.name_zh, st.name_en, st.logo_url,
           ss.rank, ss.wins, ss.losses, ss.win_pct,
@@ -1818,6 +1827,19 @@ export async function registerRoutes(
     const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     const phaseType = String(req.query.phaseType ?? "regular");
     const phaseFilter = phaseType === "all" ? sql`` : sql`AND pgs.phase_type = ${phaseType}`;
+    // Grupo A/B -- ver nota igual en /api/stats/standings. Aqui el join es por
+    // team_id (interno), no por team_external_id, porque pgs.team_id ya es interno.
+    const groupParam = String(req.query.group ?? "all");
+    const groupJoin =
+      groupParam === "group_a" || groupParam === "group_b"
+        ? sql`JOIN (
+            SELECT st2.id AS team_id
+            FROM stats_standings ss2
+            JOIN stats_teams st2 ON st2.external_id = ss2.team_external_id
+            WHERE ss2.season_id = ${seasonId}
+              AND ss2.phase_name LIKE ${groupParam === "group_a" ? "%A\u7ec4%" : "%B\u7ec4%"}
+          ) tg ON tg.team_id = pgs.team_id`
+        : sql``;
     const stat = String(req.query.stat ?? "ppg");
     const allowedStats: Record<string, string> = {
       ppg: "AVG(pgs.pts)",
@@ -1847,6 +1869,7 @@ export async function registerRoutes(
           COUNT(DISTINCT pgs.game_id)::int AS games
         FROM pbp_player_game_stats pgs
         JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId} ${phaseFilter}
+        ${groupJoin}
         LEFT JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
         LEFT JOIN stats_teams st ON st.id = pgs.team_id
         GROUP BY pgs.player_external_id, sp.name_zh, sp.name_en, sp.photo_url, st.name_zh, st.name_en, st.external_id
