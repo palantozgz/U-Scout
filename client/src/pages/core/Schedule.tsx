@@ -775,8 +775,11 @@ export default function Schedule() {
     if (ev.ends_at) {
       const e = new Date(ev.ends_at);
       setCreateEndTime(formatTimeHHMM(e.getHours(), e.getMinutes()));
+      const realDurationMins = Math.round((e.getTime() - d.getTime()) / 60000);
+      setDurationMins(realDurationMins > 0 ? realDurationMins : null);
     } else {
       setCreateEndTime("");
+      setDurationMins(null);
     }
     setCreateLocation(ev.location ?? "");
     const parsed = readConstraintsFromNotes(ev.notes ?? null);
@@ -1752,7 +1755,7 @@ export default function Schedule() {
                                                 >
                                                   <p className="text-sm font-extrabold text-foreground truncate">{ev.title}</p>
                                                   <p className="mt-0.5 text-xs font-semibold text-muted-foreground truncate">
-                                                    {formatTime(ev.starts_at)}
+                                                    {formatTimeRange(ev.starts_at, ev.ends_at)}
                                                     {ev.location ? ` · ${ev.location}` : ""}
                                                   </p>
                                                   {tags.length > 0 ? (
@@ -1901,13 +1904,14 @@ export default function Schedule() {
                                         className="w-full rounded-lg border border-border bg-background/40 px-2 py-2 text-left hover:bg-muted/20 active:scale-[0.98] transition-colors"
                                         onOpenDetail={() => openSessionDetail(ev)}
                                         onOpenEdit={() => startEditing(ev)}
+                                        desktopInteraction={isDesktop}
                                         draggable={canCreateEvent}
                                         onDragStart={() => setDraggedSession(ev)}
                                         onDragEnd={() => { setDraggedSession(null); setDragOverCell(null); }}
                                       >
                                       <p className="text-xs font-extrabold text-foreground truncate">{ev.title}</p>
                                       <p className="text-xs font-semibold text-muted-foreground truncate">
-                                      {formatTime(ev.starts_at)}
+                                      {formatTimeRange(ev.starts_at, ev.ends_at)}
                                       {ev.location ? ` · ${ev.location}` : ""}
                                       </p>
                                       </PlannerSessionCardButton>
@@ -2063,7 +2067,7 @@ export default function Schedule() {
                           key={ev.id}
                           sessionType={ev.session_type}
                           title={ev.title}
-                          subtitle={`${formatTime(ev.starts_at)}${ev.location ? ` · ${ev.location}` : ""}`}
+                          subtitle={`${formatTimeRange(ev.starts_at, ev.ends_at)}${ev.location ? ` · ${ev.location}` : ""}`}
                           onClick={() => openSessionDetail(ev)}
                           right={
                             canCreateSession ? (
@@ -3566,6 +3570,8 @@ function PlannerSessionCardButton(props: {
   draggable?: boolean;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  /** Escritorio: raton, no touch -- doble clic para editar en vez de mantener pulsado (que no tiene sentido con raton). */
+  desktopInteraction?: boolean;
 }) {
   const suppressNextClickRef = useRef(false);
   const longPress = useLongPress(() => {
@@ -3576,7 +3582,7 @@ function PlannerSessionCardButton(props: {
     <button
       type="button"
       className={cn(props.className, props.draggable ? "cursor-grab active:cursor-grabbing" : "")}
-      {...longPress}
+      {...(props.desktopInteraction ? {} : longPress)}
       draggable={props.draggable}
       onDragStart={(e) => {
         if (!props.draggable) return;
@@ -3586,6 +3592,7 @@ function PlannerSessionCardButton(props: {
         props.onDragStart?.();
       }}
       onDragEnd={() => props.onDragEnd?.()}
+      onDoubleClick={props.desktopInteraction ? props.onOpenEdit : undefined}
       onClick={() => {
         if (suppressNextClickRef.current) {
           suppressNextClickRef.current = false;
@@ -3671,6 +3678,13 @@ function formatTime(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+/** "09:30" o, si hay hora de fin, "09:30–11:30" -- para que la duración real de la sesión se vea de un vistazo en las tarjetas del Planner. */
+function formatTimeRange(startsAt: string, endsAt: string | null): string {
+  const start = formatTime(startsAt);
+  if (!endsAt) return start;
+  return `${start}–${formatTime(endsAt)}`;
 }
 
 /** "9:00–12:00" style range for a planner slot header — fixes the original
