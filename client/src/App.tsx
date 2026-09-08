@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Switch, Route, useLocation, useRoute } from "wouter";
 import { migrateLegacyOnboarding, shouldOfferOnboarding } from "@/lib/onboarding-state";
-import { todayEventsQueryKey, weekEventsQueryKey } from "@/lib/schedule";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useIsFetching, useQuery } from "@tanstack/react-query";
 import { ClubGenderProvider } from "@/lib/clubGenderContext";
@@ -249,17 +248,15 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
     // Razón: el coach navega a /scout en los primeros 1-2s. Necesitamos el
     // listado de jugadores antes de que llegue ahí, no 2s después.
     const t1 = window.setTimeout(() => {
-      // Schedule: para el widget de Home
-      queryClient.prefetchQuery({
-        queryKey: todayEventsQueryKey(clubId),
-        queryFn: () => apiRequest("GET", `/api/schedule/events?clubId=${clubId}&range=today`).then(r => r.json()).catch(() => null),
-        staleTime: 60_000,
-      });
-      queryClient.prefetchQuery({
-        queryKey: weekEventsQueryKey(clubId),
-        queryFn: () => apiRequest("GET", `/api/schedule/events?clubId=${clubId}&range=week`).then(r => r.json()).catch(() => null),
-        staleTime: 60_000,
-      });
+      // NOTA: el prefetch de Schedule que vivia aqui (GET /api/schedule/events)
+      // apuntaba a una ruta que nunca existio en el servidor -- el fallback
+      // SPA devolvia el index.html (200, text/html), r.json() lanzaba, y el
+      // .catch(() => null) guardaba `null` en cache bajo la MISMA queryKey
+      // que usan useTodayScheduleEvents/useThisWeekScheduleEvents (que si
+      // funcionan, via Supabase directo). Resultado: durante el staleTime
+      // (60s) tras cada login, "Sessions Today"/"Next Session" mostraban 0 y
+      // el countdown saltaba a la sesion siguiente aunque hubiera sesiones
+      // reales ese dia. Eliminado -- los hooks reales ya cachean sin ayuda.
       // Scouts y equipos propios — U Scout
       queryClient.prefetchQuery({
         queryKey: ["/api/teams", userId],
