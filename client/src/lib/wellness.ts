@@ -13,7 +13,16 @@ export type WellnessEntry = {
   submitted_at: string;
 };
 
-export function todayKey(timezoneName?: string): string {
+/**
+ * "YYYY-MM-DD" del día actual. Por defecto en Asia/Shanghai (hora del club),
+ * NO en la zona horaria del dispositivo -- las 8 llamadas existentes a esta
+ * función en la app no pasaban `timezoneName`, así que hasta ahora todas
+ * calculaban "hoy" con el reloj local del dispositivo (mismo bug que ya se
+ * corrigió dos veces en Schedule; aquí determinaba en qué día quedaba
+ * archivado el check-in de wellness y si "hoy" ya estaba enviado o no).
+ * Se puede seguir pasando otra zona explícitamente si algún día hace falta.
+ */
+export function todayKey(timezoneName: string = "Asia/Shanghai"): string {
   try {
     if (timezoneName) {
       const d = new Date();
@@ -36,6 +45,29 @@ export function todayKey(timezoneName?: string): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
+ * "YYYY-MM-DD" de hace `n` días, anclado al día calendario del club
+ * (Asia/Shanghai) y no al reloj del dispositivo. Para rangos tipo últimos
+ * 7/30 días -- mismo bug de zona horaria que todayKey(), mismo arreglo.
+ */
+export function dateKeyNDaysAgo(n: number, timezoneName: string = "Asia/Shanghai"): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezoneName,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const y = Number(parts.find((p) => p.type === "year")?.value);
+  const m = Number(parts.find((p) => p.type === "month")?.value);
+  const d2 = Number(parts.find((p) => p.type === "day")?.value);
+  const dt = new Date(Date.UTC(y, m - 1, d2));
+  dt.setUTCDate(dt.getUTCDate() - n);
+  const yyyy2 = dt.getUTCFullYear();
+  const mm2 = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd2 = String(dt.getUTCDate()).padStart(2, "0");
+  return `${yyyy2}-${mm2}-${dd2}`;
 }
 
 export function useWellnessEntryToday(params: { clubId?: string; userId?: string }) {
@@ -124,12 +156,7 @@ export function useWellnessEntriesLastNDays(params: { clubId?: string; userId?: 
     networkMode: "offlineFirst",
     queryFn: async (): Promise<WellnessEntry[]> => {
       const end = todayKey();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - (params.days - 1));
-      const yyyy = startDate.getFullYear();
-      const mm = String(startDate.getMonth() + 1).padStart(2, "0");
-      const dd = String(startDate.getDate()).padStart(2, "0");
-      const start = `${yyyy}-${mm}-${dd}`;
+      const start = dateKeyNDaysAgo(params.days - 1);
 
       const { data, error } = await supabase
         .from("wellness_entries")

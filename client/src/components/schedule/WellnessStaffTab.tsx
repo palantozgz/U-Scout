@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   todayKey,
+  dateKeyNDaysAgo,
   useWellnessEntriesForDate,
   useWellnessEntriesRangeForUsers,
 } from "@/lib/wellness";
@@ -13,6 +14,58 @@ import type { I18nKey } from "@/lib/i18n";
 import { WellnessTrendChart } from "@/components/schedule/WellnessTrendChart";
 
 type Translate = (key: I18nKey) => string;
+
+/**
+ * Puntuación de riesgo de una jugadora para el día de hoy.
+ *
+ * Combina dos señales, siguiendo la práctica recomendada en monitorización
+ * de wellness deportivo (comparar SIEMPRE contra la línea base propia de
+ * cada atleta, no solo un umbral absoluto igual para todas -- una jugadora
+ * que SIEMPRE duerme regular no debería saltar como alerta cada día si ese
+ * es su patrón normal; lo que importa es la desviación respecto a sí misma):
+ *
+ * 1) Umbral absoluto (igual que antes): valores muy bajos (<=2 sobre 5) se
+ *    marcan siempre, sea cual sea el historial -- un 1 en lucidez mental es
+ *    una señal de atención en cualquier caso.
+ * 2) Desviación personal: si la jugadora tiene suficiente historial (>=5
+ *    registros en los últimos 30 días, sin contar hoy), se compara el valor
+ *    de hoy contra SU media. Una caída de >=1.5 puntos respecto a su normal
+ *    suma más que una caída de >=1.0, aunque el valor absoluto de hoy no
+ *    fuera especialmente bajo.
+ *
+ * Sin datos suficientes de historial, el score se apoya solo en (1), como
+ * hasta ahora -- esto es intencionadamente conservador: mejor no personalizar
+ * que personalizar con poquísimos datos.
+ */
+function personalDeviationBonus(todayValue: number, baselineAvg: number | null): number {
+  if (baselineAvg == null) return 0;
+  const worseningBy = baselineAvg - todayValue; // positivo = peor que su normal
+  if (worseningBy >= 1.5) return 20;
+  if (worseningBy >= 1.0) return 10;
+  return 0;
+}
+
+type WellnessBaseline = { sleep: number | null; readiness: number | null; soreness: number | null; n: number } | null;
+
+function computeWellnessRiskScore(
+  entry: { sleep_quality: number; energy_level: number; muscle_soreness: number; mental_readiness: number } | null | undefined,
+  baseline: WellnessBaseline,
+): { score: number; lowReadiness: boolean; highSoreness: boolean; lowSleep: boolean; missingSubmission: boolean } {
+  const missingSubmission = !entry;
+  if (!entry) return { score: 100, lowReadiness: false, highSoreness: false, lowSleep: false, missingSubmission };
+  const lowReadiness = entry.mental_readiness <= 2;
+  const highSoreness = entry.muscle_soreness <= 2;
+  const lowSleep = entry.sleep_quality <= 2;
+  const absoluteScore =
+    (lowReadiness ? 40 : entry.mental_readiness === 3 ? 15 : 0) + (highSoreness ? 25 : 0) + (lowSleep ? 20 : 0);
+  const deviationScore =
+    (baseline && baseline.n >= 5
+      ? personalDeviationBonus(entry.mental_readiness, baseline.readiness) +
+        personalDeviationBonus(entry.sleep_quality, baseline.sleep) +
+        personalDeviationBonus(entry.muscle_soreness, baseline.soreness)
+      : 0);
+  return { score: absoluteScore + deviationScore, lowReadiness, highSoreness, lowSleep, missingSubmission };
+}
 
 function KpiCard(props: { title: string; value: string; subtitle?: string }) {
   return (
@@ -41,14 +94,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
   const staffRange30Q = useWellnessEntriesRangeForUsers({
     clubId,
     userIds: rosterPlayerUserIds,
-    fromDate: (() => {
-      const d = new Date();
-      d.setDate(d.getDate() - 29);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yyyy}-${mm}-${dd}`;
-    })(),
+    fromDate: dateKeyNDaysAgo(29),
     toDate: entryDate,
   });
 
@@ -59,6 +105,27 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
     }
     return map;
   }, [rosterPlayers]);
+
+  /** Media de cada jugadora en los últimos 30 días, sin contar hoy -- su "normal". */
+  const baselineByUser = useMemo(() => {
+    const entries = (staffRange30Q.data ?? []).filter((e) => e.entry_date !== entryDate);
+    const byUser: Record<string, typeof entries> = {};
+    for (const e of entries) {
+      (byUser[e.user_id] ??= []).push(e);
+    }
+    const map: Record<string, WellnessBaseline> = {};
+    for (const uid of rosterPlayerUserIds) {
+      const list = byUser[uid] ?? [];
+      if (list.length === 0) {
+        map[uid] = null;
+        continue;
+      }
+      const avg = (field: "sleep_quality" | "muscle_soreness" | "mental_readiness") =>
+        list.reduce((acc, e) => acc + e[field], 0) / list.length;
+      map[uid] = { sleep: avg("sleep_quality"), readiness: avg("mental_readiness"), soreness: avg("muscle_soreness"), n: list.length };
+    }
+    return map;
+  }, [entryDate, rosterPlayerUserIds, staffRange30Q.data]);
 
   const staffWellnessSummary = useMemo(() => {
     const entries = staffTodayEntriesQ.data ?? [];
@@ -74,18 +141,14 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
     const priority = rosterPlayerUserIds
       .map((uid) => {
         const e = byUser[uid];
-        const missingSubmission = !e;
-        const lowReadiness = Boolean(e && e.mental_readiness <= 2);
-        const highSoreness = Boolean(e && e.muscle_soreness <= 2);
-        const lowSleep = Boolean(e && e.sleep_quality <= 2);
-        const score = missingSubmission ? 100 : (lowReadiness ? 40 : e!.mental_readiness === 3 ? 15 : 0) + (highSoreness ? 25 : 0) + (lowSleep ? 20 : 0);
+        const r = computeWellnessRiskScore(e, baselineByUser[uid] ?? null);
         return {
           userId: uid,
-          score,
-          missingSubmission,
-          lowReadiness,
-          highSoreness,
-          lowSleep,
+          score: r.score,
+          missingSubmission: r.missingSubmission,
+          lowReadiness: r.lowReadiness,
+          highSoreness: r.highSoreness,
+          lowSleep: r.lowSleep,
           entry: e ?? null,
         };
       })
@@ -102,18 +165,11 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
       belowNormalCount: belowNormalUserIds.size,
       priority,
     };
-  }, [rosterPlayerUserIds, staffTodayEntriesQ.data]);
+  }, [baselineByUser, rosterPlayerUserIds, staffTodayEntriesQ.data]);
 
   const staffTrend = useMemo(() => {
     const entries = staffRange30Q.data ?? [];
-    const dayKeys = Array.from({ length: 30 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (29 - i));
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yyyy}-${mm}-${dd}`;
-    });
+    const dayKeys = Array.from({ length: 30 }).map((_, i) => dateKeyNDaysAgo(29 - i));
 
     const byDay = new Map<string, typeof entries>();
     for (const k of dayKeys) byDay.set(k, []);
@@ -172,25 +228,19 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
     for (const e of entries) byUser[e.user_id] = e;
     return rosterPlayerUserIds.map((uid) => {
       const e = byUser[uid];
-      const missingSubmission = !e;
-      const lowReadiness = Boolean(e && e.mental_readiness <= 2);
-      const highSoreness = Boolean(e && e.muscle_soreness <= 2);
-      const lowSleep = Boolean(e && e.sleep_quality <= 2);
-      const score = missingSubmission
-        ? 100
-        : (lowReadiness ? 40 : e!.mental_readiness === 3 ? 15 : 0) + (highSoreness ? 25 : 0) + (lowSleep ? 20 : 0);
+      const r = computeWellnessRiskScore(e, baselineByUser[uid] ?? null);
       return {
         userId: uid,
         name: rosterLabelByUserId[uid] ?? uid,
-        score,
-        missingSubmission,
-        lowReadiness,
-        highSoreness,
-        lowSleep,
+        score: r.score,
+        missingSubmission: r.missingSubmission,
+        lowReadiness: r.lowReadiness,
+        highSoreness: r.highSoreness,
+        lowSleep: r.lowSleep,
         entry: e ?? null,
       };
     });
-  }, [rosterLabelByUserId, rosterPlayerUserIds, staffTodayEntriesQ.data]);
+  }, [baselineByUser, rosterLabelByUserId, rosterPlayerUserIds, staffTodayEntriesQ.data]);
 
   const staffRiskRowsSorted = useMemo(() => {
     const rows = [...staffRiskRows];

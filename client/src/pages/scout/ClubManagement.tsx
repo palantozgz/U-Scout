@@ -629,7 +629,6 @@ export default function ClubManagement() {
                         <button
                           type="button"
                           onClick={cycleLogo}
-                          disabled={patchClub.isPending}
                           className={cn(
                             "flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30 text-5xl leading-none transition-[box-shadow]",
                             "ring-offset-background hover:ring-2 hover:ring-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50",
@@ -658,7 +657,6 @@ export default function ClubManagement() {
                                 size="sm"
                                 variant="secondary"
                                 className="h-8 w-full px-1 text-[10px] font-bold leading-tight"
-                                disabled={patchClub.isPending}
                               >
                                 {t("club_logo_manage")}
                               </Button>
@@ -686,7 +684,6 @@ export default function ClubManagement() {
                             size="sm"
                             variant="secondary"
                             className="h-8 w-full px-1 text-[10px] font-bold leading-tight"
-                            disabled={patchClub.isPending}
                             onClick={() => logoFileRef.current?.click()}
                           >
                             {t("club_logo_upload")}
@@ -724,7 +721,7 @@ export default function ClubManagement() {
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-muted-foreground">{t("club_ctx_league")}</Label>
                       <Select
-                        disabled={!canEditClubContext || patchClub.isPending}
+                        disabled={!canEditClubContext}
                         value={q.data.club.leagueType ?? CTX_UNSET}
                         onValueChange={(v) => {
                           const newLeague = v === CTX_UNSET ? null : (v as ClubLeagueType);
@@ -765,7 +762,6 @@ export default function ClubManagement() {
                       <Select
                         disabled={
                           !canEditClubContext ||
-                          patchClub.isPending ||
                           leagueLocksContextFields(q.data.club.leagueType)
                         }
                         value={q.data.club.gender ?? CTX_UNSET}
@@ -791,7 +787,6 @@ export default function ClubManagement() {
                       <Select
                         disabled={
                           !canEditClubContext ||
-                          patchClub.isPending ||
                           leagueLocksContextFields(q.data.club.leagueType)
                         }
                         value={q.data.club.level ?? CTX_UNSET}
@@ -817,7 +812,6 @@ export default function ClubManagement() {
                       <Select
                         disabled={
                           !canEditClubContext ||
-                          patchClub.isPending ||
                           leagueLocksContextFields(q.data.club.leagueType)
                         }
                         value={q.data.club.ageCategory ?? CTX_UNSET}
@@ -845,7 +839,7 @@ export default function ClubManagement() {
                         {locale === "zh" ? "U Scout 默认报告视图" : locale === "es" ? "Vista por defecto de U Scout" : "U Scout default report view"}
                       </Label>
                       <Select
-                        disabled={!canEditClubContext || patchClub.isPending}
+                        disabled={!canEditClubContext}
                         value={q.data.club.reportMode ?? "advanced"}
                         onValueChange={(v) =>
                           patchClub.mutate({ reportMode: v === "advanced" ? null : (v as ClubReportMode) })
