@@ -491,7 +491,16 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
           return (
             <div key={p.userId} className="rounded-xl border border-border bg-background/40 px-3 py-3 min-h-[56px]">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-extrabold text-foreground truncate">{p.name}</p>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={[
+                      "h-2.5 w-2.5 shrink-0 rounded-full",
+                      p.score >= 40 ? "bg-rose-500" : p.score >= 15 ? "bg-amber-400" : "bg-emerald-500",
+                    ].join(" ")}
+                    aria-hidden
+                  />
+                  <p className="text-sm font-extrabold text-foreground truncate">{p.name}</p>
+                </div>
                 <p className="text-xs font-bold text-muted-foreground">{t("wellness_staff_priority_score" as any).replace("{score}", String(p.score))}</p>
               </div>
               <div className="mt-1 flex flex-wrap gap-1.5">
