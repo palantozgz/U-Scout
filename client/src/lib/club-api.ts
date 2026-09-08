@@ -100,7 +100,27 @@ export function usePatchClub() {
       const res = await apiRequest("PATCH", "/api/club", body);
       return res.json() as Promise<ClubPayload["club"]>;
     },
-    onSuccess: () => {
+    // Optimistic update: the UI (module toggles, league/gender/level selects,
+    // logo, report mode) must react instantly on tap — Railway's round trip
+    // should never be visible as button lag. Mirrors the pattern already used
+    // by useDeleteClubMember / useBanClubMember / useSetClubMemberOperationsAccess
+    // below in this same file.
+    onMutate: async (body) => {
+      await qc.cancelQueries({ queryKey: clubQueryKey });
+      const prev = qc.getQueryData<ClubPayload>(clubQueryKey);
+      if (prev) {
+        qc.setQueryData<ClubPayload>(clubQueryKey, {
+          ...prev,
+          club: { ...prev.club, ...body },
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _body, ctx) => {
+      if (ctx?.prev) qc.setQueryData(clubQueryKey, ctx.prev);
+    },
+    onSettled: () => {
+      // Server remains source of truth (e.g. league auto-infers gender/level/age).
       void qc.invalidateQueries({ queryKey: clubQueryKey });
     },
   });
