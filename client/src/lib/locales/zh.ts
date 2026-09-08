@@ -60,7 +60,7 @@ const zh = {
 
   home_greeting_hi: "你好",
   home_kpi_players: "球员",
-  home_kpi_week: "本周",
+  home_kpi_week: "本周训练场次",
   home_kpi_wellness: "健康",
   home_kpi_next_session: "天",
   home_kpi_reports: "报告",

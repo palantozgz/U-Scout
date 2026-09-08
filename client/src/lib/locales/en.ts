@@ -68,7 +68,7 @@ const en = {
 
   home_greeting_hi: "Hi",
   home_kpi_players: "PLAYERS",
-  home_kpi_week: "THIS WEEK",
+  home_kpi_week: "SESSIONS THIS WEEK",
   home_kpi_wellness: "WELLNESS",
   home_kpi_next_session: "DAYS",
   home_kpi_reports: "REPORTS",

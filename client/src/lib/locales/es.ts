@@ -60,7 +60,7 @@ const es = {
 
   home_greeting_hi: "Hola",
   home_kpi_players: "JUGADORAS",
-  home_kpi_week: "ESTA SEMANA",
+  home_kpi_week: "SESIONES ESTA SEMANA",
   home_kpi_wellness: "BIENESTAR",
   home_kpi_next_session: "DÍAS",
   home_kpi_reports: "INFORMES",
