@@ -50,7 +50,7 @@ function clubDateParts(date: Date): { year: number; month: number; day: number }
 }
 
 /** Medianoche (00:00 Asia/Shanghai) del día que contiene `date`, como instante UTC. */
-function clubMidnightUtc(date: Date): Date {
+export function clubMidnightUtc(date: Date): Date {
   const { year, month, day } = clubDateParts(date);
   // Asia/Shanghai es UTC+8 fijo -> medianoche local = dia anterior 16:00 UTC.
   return new Date(Date.UTC(year, month - 1, day) - 8 * 60 * 60 * 1000);

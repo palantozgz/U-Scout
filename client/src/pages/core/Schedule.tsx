@@ -57,6 +57,7 @@ import {
   useScheduleData,
   startOfTomorrowLocal,
   CLUB_TIME_ZONE,
+  clubMidnightUtc,
   type ScheduleEvent,
 } from "@/lib/schedule";
 import {
@@ -365,12 +366,18 @@ export default function Schedule() {
   };
 
   const mondayOf = (base: Date) => {
-    const d = new Date(base);
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay(); // 0=Sun
-    const diff = (day + 6) % 7; // days since Monday
-    d.setDate(d.getDate() - diff);
-    return d;
+    // Ancla en el dia calendario del club (Asia/Shanghai), no en el reloj del
+    // dispositivo -- mismo bug ya corregido en startOfTodayLocal/todayKey.
+    // localDateKey(base) ya da el dia correcto en hora de China; se usa un
+    // ancla neutra a mediodia UTC para calcular el dia de la semana sin
+    // arrastrar de nuevo la zona horaria del dispositivo, y clubMidnightUtc
+    // convierte el lunes resultante a su medianoche real en China.
+    const [y, m, d] = localDateKey(base).split("-").map(Number);
+    const noonAnchor = new Date(Date.UTC(y, m - 1, d, 12));
+    const dow = noonAnchor.getUTCDay(); // 0=Sun
+    const diff = (dow + 6) % 7; // dias desde el lunes
+    noonAnchor.setUTCDate(noonAnchor.getUTCDate() - diff);
+    return clubMidnightUtc(noonAnchor);
   };
 
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => mondayOf(new Date()));
