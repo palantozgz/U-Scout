@@ -18,7 +18,7 @@ import {
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { useClub } from "@/lib/club-api";
-import { cn, isRealPhoto } from "@/lib/utils";
+import { cn, isRealPhoto, localName } from "@/lib/utils";
 import {
   Sheet,
   SheetContent,
@@ -68,6 +68,7 @@ export default function ReportSlidesV1({
   const { t, locale } = useLocale();
   const { user } = useAuth();
   const { data: player, isLoading } = usePlayer(playerId);
+  const displayName = player ? localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) : "";
   const clubQ = useClub({ enabled: Boolean(user) });
   const clubMotorCtx = useMemo(
     () => clubRowToMotorContext(clubQ.data?.club),
@@ -303,7 +304,7 @@ export default function ReportSlidesV1({
           </button>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-black text-foreground truncate">{player.name}</p>
+          <p className="text-sm font-black text-foreground truncate">{displayName}</p>
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             {simpleMode ? (es ? "Resumen rápido" : zh ? "快速简报" : "Quick brief") : SLIDE_LABELS[slide]}
           </p>
@@ -358,7 +359,7 @@ export default function ReportSlidesV1({
             <div className="flex items-center gap-4">
               <Suspense fallback={<div className="w-16 h-16 rounded-full bg-muted/40" />}>
                 {photo ? (
-                  <img src={player.imageUrl} alt={player.name} className="w-16 h-16 rounded-full object-cover ring-2 ring-border shrink-0" />
+                  <img src={player.imageUrl} alt={displayName} className="w-16 h-16 rounded-full object-cover ring-2 ring-border shrink-0" />
                 ) : (
                   <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-border shrink-0">
                     <BasketballPlaceholderAvatar size={64} />
@@ -366,7 +367,7 @@ export default function ReportSlidesV1({
                 )}
               </Suspense>
               <div className="flex-1 min-w-0">
-                <p className="text-xl font-black text-foreground leading-tight truncate">{player.name}</p>
+                <p className="text-xl font-black text-foreground leading-tight truncate">{displayName}</p>
                 {player.number && <p className="text-xs text-muted-foreground font-semibold">#{player.number}</p>}
               </div>
             </div>
@@ -755,6 +756,7 @@ function SimpleReportSlide(props: {
   zh: boolean;
 }) {
   const { player, photo, finalReport, motorOutput, closeoutReport, wcbaPlayer, wcbaLoading, es, zh } = props;
+  const displayName = localName(player.name, (player as any).nameEn ?? (player as any).name_en, zh ? "zh" : es ? "es" : "en");
   if (!finalReport || !motorOutput) return null;
   const topSituation = finalReport.situations[0];
   const denyInstruction = finalReport.defense.deny?.instruction;
@@ -764,7 +766,7 @@ function SimpleReportSlide(props: {
       <div className="flex items-center gap-4">
         <Suspense fallback={<div className="w-14 h-14 rounded-full bg-muted/40" />}>
           {photo ? (
-            <img src={player.imageUrl ?? undefined} alt={player.name} className="w-14 h-14 rounded-full object-cover ring-2 ring-border shrink-0" />
+            <img src={player.imageUrl ?? undefined} alt={displayName} className="w-14 h-14 rounded-full object-cover ring-2 ring-border shrink-0" />
           ) : (
             <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-border shrink-0">
               <BasketballPlaceholderAvatar size={56} />
@@ -772,7 +774,7 @@ function SimpleReportSlide(props: {
           )}
         </Suspense>
         <div className="min-w-0 flex-1">
-          <p className="text-lg font-black text-foreground leading-tight truncate">{player.name}</p>
+          <p className="text-lg font-black text-foreground leading-tight truncate">{displayName}</p>
           <p className="text-xs font-bold text-primary/80 uppercase tracking-widest">{finalReport.identity.archetypeLabel}</p>
         </div>
       </div>
