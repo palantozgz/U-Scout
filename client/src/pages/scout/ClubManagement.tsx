@@ -924,7 +924,7 @@ export default function ClubManagement() {
                           </div>
                           <Switch
                             checked={!isDisabled}
-                            disabled={!canEditClubContext || patchClub.isPending}
+                            disabled={!canEditClubContext}
                             onCheckedChange={(checked) => {
                               const current = q.data!.club.disabledModules ?? [];
                               const next = checked

@@ -2028,6 +2028,7 @@ export default function Schedule() {
                           sessionType={ev.session_type}
                           title={ev.title}
                           subtitle={`${formatTime(ev.starts_at)}${ev.location ? ` · ${ev.location}` : ""}`}
+                          onClick={() => openSessionDetail(ev)}
                           right={
                             canCreateSession ? (
                               <DropdownMenu>
@@ -3577,11 +3578,20 @@ function SessionRow(props: {
   subtitle?: string;
   right?: ReactNode;
   sessionType?: ScheduleEvent["session_type"];
+  onClick?: () => void;
 }) {
   const accent = props.sessionType ? STAFF_SESSION_ROW_ACCENT[props.sessionType] : null;
   const TypeIcon = props.sessionType ? ACTIVITY_TYPE_CONFIG[props.sessionType].icon : null;
   return (
-    <div className="flex overflow-hidden rounded-xl border border-border bg-background/40">
+    <div
+      className={cn(
+        "flex overflow-hidden rounded-xl border border-border bg-background/40",
+        props.onClick ? "cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-colors" : "",
+      )}
+      onClick={props.onClick}
+      role={props.onClick ? "button" : undefined}
+      tabIndex={props.onClick ? 0 : undefined}
+    >
       {accent && TypeIcon ? (
         <div
           className={["flex w-11 shrink-0 flex-col items-center justify-center border-r", accent.panel].join(" ")}
@@ -3597,7 +3607,11 @@ function SessionRow(props: {
             <p className="mt-0.5 text-xs font-semibold text-muted-foreground truncate">{props.subtitle}</p>
           ) : null}
         </div>
-        {props.right ? <div className="shrink-0">{props.right}</div> : null}
+        {props.right ? (
+          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            {props.right}
+          </div>
+        ) : null}
       </div>
     </div>
   );
