@@ -223,6 +223,8 @@ export default function Schedule() {
   const [applyWeekTemplateOpen, setApplyWeekTemplateOpen] = useState(false);
   const [applyTargetTemplateId, setApplyTargetTemplateId] = useState<string | null>(null);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [draggedSession, setDraggedSession] = useState<ScheduleEvent | null>(null);
+  const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   // (touchStartX removed - no swipe pages in portrait)
   const [highlightDayKey, setHighlightDayKey] = useState<string | null>(null);
   const portraitDayRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -1861,9 +1863,37 @@ export default function Schedule() {
                                   return ts >= slotStart.getTime() && ts < slotEnd.getTime();
                                 });
 
-                                const isCellToday = d.toLocaleDateString('sv') === new Date().toLocaleDateString('sv');
+                                const cellDayKey = localDateKey(d);
+                                const isCellToday = cellDayKey === localDateKey(new Date());
+                                const cellKey = `${slot.key}-${cellDayKey}`;
+                                const isDragOver = dragOverCell === cellKey;
                                 return (
-                                  <div key={`${slot.key}-${d.toLocaleDateString('sv')}`} className={['space-y-1 rounded-lg px-0.5 py-2', isCellToday ? 'bg-primary/5' : ''].join(' ')}>
+                                  <div
+                                    key={cellKey}
+                                    className={[
+                                      'space-y-1 rounded-lg px-0.5 py-2 transition-colors',
+                                      isCellToday ? 'bg-primary/5' : '',
+                                      isDragOver ? 'bg-primary/15 ring-2 ring-primary/50' : '',
+                                    ].join(' ')}
+                                    onDragOver={(e) => {
+                                      if (!canCreateEvent || !draggedSession) return;
+                                      e.preventDefault();
+                                      e.dataTransfer.dropEffect = 'move';
+                                      if (dragOverCell !== cellKey) setDragOverCell(cellKey);
+                                    }}
+                                    onDragLeave={() => {
+                                      setDragOverCell((prev) => (prev === cellKey ? null : prev));
+                                    }}
+                                    onDrop={(e) => {
+                                      if (!canCreateEvent) return;
+                                      e.preventDefault();
+                                      setDragOverCell(null);
+                                      if (draggedSession) {
+                                        moveSessionToSlot(draggedSession, d, slot.hour);
+                                      }
+                                      setDraggedSession(null);
+                                    }}
+                                  >
                                     {inSlot.length > 0 ? (
                                       inSlot.map((ev) => (
                                       <PlannerSessionCardButton
@@ -1871,6 +1901,9 @@ export default function Schedule() {
                                         className="w-full rounded-lg border border-border bg-background/40 px-2 py-2 text-left hover:bg-muted/20 active:scale-[0.98] transition-colors"
                                         onOpenDetail={() => openSessionDetail(ev)}
                                         onOpenEdit={() => startEditing(ev)}
+                                        draggable={canCreateEvent}
+                                        onDragStart={() => setDraggedSession(ev)}
+                                        onDragEnd={() => { setDraggedSession(null); setDragOverCell(null); }}
                                       >
                                       <p className="text-xs font-extrabold text-foreground truncate">{ev.title}</p>
                                       <p className="text-xs font-semibold text-muted-foreground truncate">
@@ -1883,10 +1916,13 @@ export default function Schedule() {
                                       <button
                                         type="button"
                                         onClick={() => openCreatePrefilled(d, slot.hour)}
-                                        className="w-full rounded-lg border border-dashed border-border bg-muted/20 px-2 py-4 text-left hover:bg-muted/30"
+                                        className={cn(
+                                          "w-full rounded-lg border border-dashed border-border bg-muted/20 px-2 py-4 text-left hover:bg-muted/30",
+                                          isDragOver ? "border-primary/60" : "",
+                                        )}
                                       >
                                         <p className="text-xs font-semibold text-muted-foreground">
-                                          {t("schedule_planner_add")}
+                                          {isDragOver ? (locale === "zh" ? "松开以移动到这里" : locale === "es" ? "Suelta aquí para mover" : "Drop here to move") : t("schedule_planner_add")}
                                         </p>
                                       </button>
                                     ) : (
@@ -3527,6 +3563,9 @@ function PlannerSessionCardButton(props: {
   onOpenDetail: () => void;
   onOpenEdit: () => void;
   children: React.ReactNode;
+  draggable?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }) {
   const suppressNextClickRef = useRef(false);
   const longPress = useLongPress(() => {
@@ -3536,8 +3575,17 @@ function PlannerSessionCardButton(props: {
   return (
     <button
       type="button"
-      className={props.className}
+      className={cn(props.className, props.draggable ? "cursor-grab active:cursor-grabbing" : "")}
       {...longPress}
+      draggable={props.draggable}
+      onDragStart={(e) => {
+        if (!props.draggable) return;
+        e.dataTransfer.effectAllowed = "move";
+        // Firefox requires data to be set for drag to start.
+        try { e.dataTransfer.setData("text/plain", "session"); } catch { /* ignore */ }
+        props.onDragStart?.();
+      }}
+      onDragEnd={() => props.onDragEnd?.()}
       onClick={() => {
         if (suppressNextClickRef.current) {
           suppressNextClickRef.current = false;
