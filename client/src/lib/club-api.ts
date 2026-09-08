@@ -11,6 +11,21 @@ import { apiRequest } from "./queryClient";
 import { useAuth } from "@/lib/useAuth";
 
 export const clubQueryKey = ["/api/club"] as const;
+/**
+ * La query real de useClub() vive en [...clubQueryKey, userId] (ver abajo),
+ * NO en clubQueryKey a secas. Las mutaciones de este archivo necesitan leer
+ * y escribir exactamente esa misma entrada de cache para que el update
+ * optimista sea visible al instante -- si usan solo `clubQueryKey`,
+ * getQueryData/setQueryData apuntan a una entrada que useClub() nunca lee,
+ * y el "optimismo" es un no-op silencioso (el cambio solo se ve tras el
+ * invalidate+refetch de onSettled, con el retraso de red de vuelta).
+ * `invalidateQueries` sí hace match por prefijo por defecto, así que esas
+ * llamadas pueden seguir usando `clubQueryKey` a secas sin problema.
+ */
+function useClubQueryKeyExact() {
+  const { user } = useAuth();
+  return [...clubQueryKey, user?.id ?? "anon"] as const;
+}
 /** v3 — bump second segment when stats JSON shape changes (avoids stale persisted cache without auth fields). */
 export const clubStatsQueryKey = ["/api/club/stats", "v3"] as const;
 
@@ -95,6 +110,7 @@ export type PatchClubBody = {
 
 export function usePatchClub() {
   const qc = useQueryClient();
+  const key = useClubQueryKeyExact();
   return useMutation({
     mutationFn: async (body: PatchClubBody) => {
       const res = await apiRequest("PATCH", "/api/club", body);
@@ -102,14 +118,12 @@ export function usePatchClub() {
     },
     // Optimistic update: the UI (module toggles, league/gender/level selects,
     // logo, report mode) must react instantly on tap — Railway's round trip
-    // should never be visible as button lag. Mirrors the pattern already used
-    // by useDeleteClubMember / useBanClubMember / useSetClubMemberOperationsAccess
-    // below in this same file.
+    // should never be visible as button lag.
     onMutate: async (body) => {
       await qc.cancelQueries({ queryKey: clubQueryKey });
-      const prev = qc.getQueryData<ClubPayload>(clubQueryKey);
+      const prev = qc.getQueryData<ClubPayload>(key);
       if (prev) {
-        qc.setQueryData<ClubPayload>(clubQueryKey, {
+        qc.setQueryData<ClubPayload>(key, {
           ...prev,
           club: { ...prev.club, ...body },
         });
@@ -117,7 +131,7 @@ export function usePatchClub() {
       return { prev };
     },
     onError: (_err, _body, ctx) => {
-      if (ctx?.prev) qc.setQueryData(clubQueryKey, ctx.prev);
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev);
     },
     onSettled: () => {
       // Server remains source of truth (e.g. league auto-infers gender/level/age).
@@ -145,15 +159,16 @@ export function useClubInvite() {
 
 export function useDeleteClubMember() {
   const qc = useQueryClient();
+  const key = useClubQueryKeyExact();
   return useMutation({
     mutationFn: async (memberId: string) => {
       await apiRequest("DELETE", `/api/club/members/${encodeURIComponent(memberId)}`);
     },
     onMutate: async (memberId) => {
       await qc.cancelQueries({ queryKey: clubQueryKey });
-      const prev = qc.getQueryData<ClubPayload>(clubQueryKey);
+      const prev = qc.getQueryData<ClubPayload>(key);
       if (prev) {
-        qc.setQueryData<ClubPayload>(clubQueryKey, {
+        qc.setQueryData<ClubPayload>(key, {
           ...prev,
           members: prev.members.filter((m) => m.id !== memberId),
         });
@@ -161,7 +176,7 @@ export function useDeleteClubMember() {
       return { prev };
     },
     onError: (_err, _memberId, ctx) => {
-      if (ctx?.prev) qc.setQueryData(clubQueryKey, ctx.prev);
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev);
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: clubQueryKey });
@@ -172,6 +187,7 @@ export function useDeleteClubMember() {
 
 export function useBanClubMember() {
   const qc = useQueryClient();
+  const key = useClubQueryKeyExact();
   return useMutation({
     mutationFn: async ({ id, ban }: { id: string; ban: boolean }) => {
       const path = ban
@@ -181,9 +197,9 @@ export function useBanClubMember() {
     },
     onMutate: async (args) => {
       await qc.cancelQueries({ queryKey: clubQueryKey });
-      const prev = qc.getQueryData<ClubPayload>(clubQueryKey);
+      const prev = qc.getQueryData<ClubPayload>(key);
       if (prev) {
-        qc.setQueryData<ClubPayload>(clubQueryKey, {
+        qc.setQueryData<ClubPayload>(key, {
           ...prev,
           members: prev.members.map((m) =>
             m.id === args.id ? { ...m, status: args.ban ? "banned" : "active" } : m,
@@ -193,7 +209,7 @@ export function useBanClubMember() {
       return { prev };
     },
     onError: (_err, _args, ctx) => {
-      if (ctx?.prev) qc.setQueryData(clubQueryKey, ctx.prev);
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev);
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: clubQueryKey });
@@ -203,6 +219,7 @@ export function useBanClubMember() {
 
 export function useSetClubMemberOperationsAccess() {
   const qc = useQueryClient();
+  const key = useClubQueryKeyExact();
   return useMutation({
     mutationFn: async (args: { id: string; operationsAccess: boolean }) => {
       const res = await apiRequest(
@@ -235,9 +252,9 @@ export function useSetClubMemberOperationsAccess() {
     },
     onMutate: async (args) => {
       await qc.cancelQueries({ queryKey: clubQueryKey });
-      const prev = qc.getQueryData<ClubPayload>(clubQueryKey);
+      const prev = qc.getQueryData<ClubPayload>(key);
       if (prev) {
-        qc.setQueryData<ClubPayload>(clubQueryKey, {
+        qc.setQueryData<ClubPayload>(key, {
           ...prev,
           members: prev.members.map((m) => (m.id === args.id ? { ...m, operationsAccess: args.operationsAccess } : m)),
         });
@@ -245,7 +262,7 @@ export function useSetClubMemberOperationsAccess() {
       return { prev };
     },
     onError: (_err, _args, ctx) => {
-      if (ctx?.prev) qc.setQueryData(clubQueryKey, ctx.prev);
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev);
     },
     onSettled: () => {
       // Always refetch to ensure server is source of truth.
