@@ -220,6 +220,9 @@ export default function Schedule() {
   const [weekTemplateNotes, setWeekTemplateNotes] = useState("");
   const [weekTemplateFavorite, setWeekTemplateFavorite] = useState(false);
   const [weekTemplateEditPhase, setWeekTemplateEditPhase] = useState<WeekTemplate["phase"]>("regular");
+  const [weekTemplateEditLoad, setWeekTemplateEditLoad] = useState<NonNullable<WeekTemplate["load_level"]>>("medium");
+  const [weekTemplateEditGames, setWeekTemplateEditGames] = useState<NonNullable<WeekTemplate["games_count"]>>(0);
+  const [weekTemplateEditTags, setWeekTemplateEditTags] = useState("");
   const [editingWeekTemplateId, setEditingWeekTemplateId] = useState<string | null>(null);
   const [applyWeekTemplateOpen, setApplyWeekTemplateOpen] = useState(false);
   const [applyTargetTemplateId, setApplyTargetTemplateId] = useState<string | null>(null);
@@ -2838,6 +2841,9 @@ export default function Schedule() {
                 setWeekTemplateNotes("");
                             setWeekTemplateFavorite(false);
                             setWeekTemplateEditPhase("regular");
+                            setWeekTemplateEditLoad("medium");
+                            setWeekTemplateEditGames(0);
+                            setWeekTemplateEditTags("");
                 setSaveWeekTemplateOpen(true);
               }}
             >
@@ -2900,6 +2906,9 @@ export default function Schedule() {
                             setWeekTemplateNotes(tpl.notes ?? "");
                             setWeekTemplateFavorite(Boolean(tpl.favorite));
                             setWeekTemplateEditPhase((tpl.phase ?? "regular") as any);
+                            setWeekTemplateEditLoad((tpl.load_level ?? "medium") as any);
+                            setWeekTemplateEditGames((tpl.games_count ?? 0) as any);
+                            setWeekTemplateEditTags(tpl.tags ?? "");
                             setSaveWeekTemplateOpen(true);
                           }}
                         >
@@ -2982,14 +2991,8 @@ export default function Schedule() {
                 <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_load_level" as any)}</p>
                 <select
                   className="w-full h-10 rounded-md border border-border bg-background px-2 text-sm"
-                  value={(weekTemplates.find((x) => x.id === editingWeekTemplateId)?.load_level ?? "medium") as any}
-                  onChange={(e) => {
-                    const v = e.target.value as any;
-                    setWeekTemplates((prev) =>
-                      prev.map((t2) => (t2.id === editingWeekTemplateId ? { ...t2, load_level: v, updatedAt: new Date().toISOString() } : t2)),
-                    );
-                  }}
-                  disabled={!editingWeekTemplateId}
+                  value={weekTemplateEditLoad}
+                  onChange={(e) => setWeekTemplateEditLoad(e.target.value as any)}
                 >
                   <option value="low">{t("schedule_load_low" as any)}</option>
                   <option value="medium">{t("schedule_load_medium" as any)}</option>
@@ -3006,14 +3009,8 @@ export default function Schedule() {
                 <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_games_count" as any)}</p>
                 <select
                   className="w-full h-10 rounded-md border border-border bg-background px-2 text-sm"
-                  value={String(weekTemplates.find((x) => x.id === editingWeekTemplateId)?.games_count ?? 0)}
-                  onChange={(e) => {
-                    const v = Number(e.target.value) as any;
-                    setWeekTemplates((prev) =>
-                      prev.map((t2) => (t2.id === editingWeekTemplateId ? { ...t2, games_count: v, updatedAt: new Date().toISOString() } : t2)),
-                    );
-                  }}
-                  disabled={!editingWeekTemplateId}
+                  value={String(weekTemplateEditGames)}
+                  onChange={(e) => setWeekTemplateEditGames(Number(e.target.value) as any)}
                 >
                   <option value="0">{t("schedule_games_0" as any)}</option>
                   <option value="1">{t("schedule_games_1" as any)}</option>
@@ -3024,15 +3021,9 @@ export default function Schedule() {
                 <p className="text-xs font-semibold text-muted-foreground mb-1">{t("schedule_tags" as any)}</p>
                 <input
                   className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
-                  value={weekTemplates.find((x) => x.id === editingWeekTemplateId)?.tags ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setWeekTemplates((prev) =>
-                      prev.map((t2) => (t2.id === editingWeekTemplateId ? { ...t2, tags: v, updatedAt: new Date().toISOString() } : t2)),
-                    );
-                  }}
+                  value={weekTemplateEditTags}
+                  onChange={(e) => setWeekTemplateEditTags(e.target.value)}
                   placeholder={t("schedule_tags_placeholder" as any)}
-                  disabled={!editingWeekTemplateId}
                 />
               </div>
             </div>
@@ -3054,9 +3045,9 @@ export default function Schedule() {
                   name: weekTemplateName.trim(),
                   notes: weekTemplateNotes.trim() ? weekTemplateNotes.trim() : null,
                   phase: weekTemplateEditPhase ?? existing?.phase ?? "regular",
-                  games_count: existing?.games_count ?? 0,
-                  load_level: existing?.load_level ?? "medium",
-                  tags: existing?.tags ?? "",
+                  games_count: weekTemplateEditGames,
+                  load_level: weekTemplateEditLoad,
+                  tags: weekTemplateEditTags,
                   favorite: weekTemplateFavorite,
                   createdAt: existing?.createdAt ?? now,
                   updatedAt: now,
