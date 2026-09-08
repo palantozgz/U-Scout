@@ -137,6 +137,8 @@ export const clubs = pgTable("clubs", {
   reportMode: varchar("report_mode", { length: 16 }),
   /** Modulos desactivados por el head coach para el resto de usuarios (coach/player). Claves: schedule|scout|stats|playbook. 'home' nunca se desactiva. Vacio = todos activos. */
   disabledModules: text("disabled_modules").array().notNull().default(sql`'{}'::text[]`),
+  /** Token opaco para el feed de calendario .ics publico (sin login). Null hasta que alguien lo pide por primera vez. */
+  icalToken: varchar("ical_token", { length: 64 }),
 });
 
 export type Club = typeof clubs.$inferSelect;

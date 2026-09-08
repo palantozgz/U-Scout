@@ -463,6 +463,25 @@ export default function ClubManagement() {
     }
   };
 
+  const [icalLoading, setIcalLoading] = useState(false);
+  const copyIcalLink = async () => {
+    setIcalLoading(true);
+    try {
+      const r = await apiRequest("GET", "/api/club/ical-link");
+      if (!r.ok) throw new Error("failed");
+      const data = await r.json();
+      await copyLink(data.url as string, "ical");
+    } catch {
+      toast({
+        variant: "destructive",
+        description:
+          locale === "zh" ? "无法生成日历链接" : locale === "es" ? "No se pudo generar el enlace de calendario" : "Couldn't generate the calendar link",
+      });
+    } finally {
+      setIcalLoading(false);
+    }
+  };
+
   const openInvite = (role: "coach" | "player") => {
     setInviteRole(role);
     setInviteEmail("");
@@ -866,6 +885,29 @@ export default function ClubManagement() {
                       </p>
                     </div>
                   </div>
+                </section>
+
+                <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    {locale === "zh" ? "日历同步" : locale === "es" ? "Sincronización de calendario" : "Calendar sync"}
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {locale === "zh"
+                      ? "把修行日程订阅到 Google/Apple/Outlook 日历。任何人拿到链接都能订阅，不需登录，还能自动同步新增的训练。"
+                      : locale === "es"
+                        ? "Suscribe el calendario de entrenamientos en Google, Apple u Outlook. Cualquiera con el enlace puede suscribirse (sin iniciar sesión) y las sesiones nuevas apareceran solas."
+                        : "Subscribe the training schedule in Google, Apple, or Outlook calendar. Anyone with the link can subscribe (no login needed) and new sessions show up automatically."}
+                  </p>
+                  <Button size="sm" variant="outline" className="gap-2" disabled={icalLoading} onClick={copyIcalLink}>
+                    {copiedId === "ical" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedId === "ical"
+                      ? t("invite_copied")
+                      : locale === "zh"
+                        ? "复制日历链接"
+                        : locale === "es"
+                          ? "Copiar enlace de calendario"
+                          : "Copy calendar link"}
+                  </Button>
                 </section>
 
                 <section className="rounded-2xl border border-border bg-card p-4 space-y-3">

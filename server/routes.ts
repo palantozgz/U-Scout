@@ -1,5 +1,6 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
+import { randomBytes } from "crypto";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
@@ -39,6 +40,56 @@ function publicAppOrigin(req: Request): string {
       ? xfHost.split(",")[0].trim()
       : req.headers.host ?? "localhost";
   return `${proto}://${host}`;
+}
+
+// ── Calendar (.ics) export ─────────────────────────────────────────────────
+// Formato de fecha exigido por RFC5545 para instantes UTC: YYYYMMDDTHHMMSSZ.
+function icsUtcStamp(d: Date): string {
+  return d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+}
+// Escapado de texto libre segun RFC5545 (backslash, punto y coma, coma, salto de linea).
+function icsEscapeText(s: string): string {
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\r?\n/g, "\\n");
+}
+function buildIcsCalendar(clubName: string, events: Array<{
+  id: string;
+  title: string;
+  session_type: string;
+  starts_at: string;
+  ends_at: string | null;
+  location: string | null;
+  notes: string | null;
+}>): string {
+  const now = icsUtcStamp(new Date());
+  const lines: string[] = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//U Core//Schedule Export//ES",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    `X-WR-CALNAME:${icsEscapeText(clubName)} \u2014 U Core`,
+  ];
+  for (const ev of events) {
+    const start = new Date(ev.starts_at);
+    const end = ev.ends_at ? new Date(ev.ends_at) : new Date(start.getTime() + 60 * 60000);
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${ev.id}@ucore.app`,
+      `DTSTAMP:${now}`,
+      `DTSTART:${icsUtcStamp(start)}`,
+      `DTEND:${icsUtcStamp(end)}`,
+      `SUMMARY:${icsEscapeText(ev.title || ev.session_type)}`,
+    );
+    if (ev.location) lines.push(`LOCATION:${icsEscapeText(ev.location)}`);
+    if (ev.notes) lines.push(`DESCRIPTION:${icsEscapeText(ev.notes)}`);
+    lines.push("END:VEVENT");
+  }
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
 }
 
 const createInvitationBodySchema = z.object({
@@ -931,6 +982,58 @@ export async function registerRoutes(
   });
 
   // ── My Club ──────────────────────────────────────────────────────────────
+  // ── Calendar (.ics) export ─────────────────────────────────────────────────
+  // Devuelve (generando uno si hace falta) el link publico y sin login del
+  // feed de calendario del club para suscribir en Google/Apple/Outlook.
+  app.get("/api/club/ical-link", requireAuth, async (req, res) => {
+    try {
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      let token = (club as any).icalToken as string | null | undefined;
+      if (!token) {
+        token = randomBytes(24).toString("hex");
+        await db.execute(sql`UPDATE clubs SET ical_token = ${token} WHERE id = ${club.id}`);
+      }
+      const base = publicAppOrigin(req);
+      res.json({ url: `${base}/api/ical/${token}.ics` });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load calendar link" });
+    }
+  });
+
+  // Publico, sin requireAuth -- lo consumen apps de calendario (Google/Apple/
+  // Outlook) que refrescan el feed periodicamente sin sesion de U Core.
+  // El token opaco (24 bytes aleatorios) hace de credencial: sin login pero
+  // no adivinable. Devuelve los proximos 90 dias de sesiones del club.
+  app.get("/api/ical/:token.ics", async (req, res) => {
+    try {
+      const token = req.params.token as string;
+      const clubRows = await db.execute(
+        sql`SELECT id, name FROM clubs WHERE ical_token = ${token} LIMIT 1`,
+      );
+      const club = ((clubRows as any).rows ?? [])[0];
+      if (!club) return res.status(404).send("Not found");
+      const from = new Date().toISOString();
+      const to = new Date(Date.now() + 90 * 86400000).toISOString();
+      const evRows = await db.execute(sql`
+        SELECT id, title, session_type, starts_at, ends_at, location, notes
+        FROM schedule_events
+        WHERE club_id = ${club.id} AND starts_at >= ${from} AND starts_at < ${to}
+        ORDER BY starts_at ASC
+      `);
+      const events = ((evRows as any).rows ?? []) as Array<{
+        id: string; title: string; session_type: string;
+        starts_at: string; ends_at: string | null; location: string | null; notes: string | null;
+      }>;
+      const ics = buildIcsCalendar(club.name, events);
+      res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+      res.setHeader("Content-Disposition", `inline; filename="${club.name.replace(/[^a-z0-9]+/gi, "-")}.ics"`);
+      res.send(ics);
+    } catch (err) {
+      res.status(500).send("Failed to build calendar feed");
+    }
+  });
+
   app.get("/api/club", requireAuth, async (req, res) => {
     try {
       const uid = req.user!.id;
