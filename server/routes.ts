@@ -55,6 +55,17 @@ function icsEscapeText(s: string): string {
     .replace(/,/g, "\\,")
     .replace(/\r?\n/g, "\\n");
 }
+// `notes` guarda "<texto visible>\nOPS:<json de configuracion interna>" (ver
+// readConstraintsFromNotes en useSessionForm.ts) -- sin esto el JSON interno
+// (asistencia, subgrupos, etc.) se filtraba tal cual a la descripcion del
+// evento que ve el usuario en su calendario.
+function cleanNotesForExport(notes: string | null): string | null {
+  if (!notes) return null;
+  const marker = "\nOPS:";
+  const idx = notes.lastIndexOf(marker);
+  const clean = (idx === -1 ? notes : notes.slice(0, idx)).trim();
+  return clean || null;
+}
 function buildIcsCalendar(clubName: string, events: Array<{
   id: string;
   title: string;
@@ -85,7 +96,8 @@ function buildIcsCalendar(clubName: string, events: Array<{
       `SUMMARY:${icsEscapeText(ev.title || ev.session_type)}`,
     );
     if (ev.location) lines.push(`LOCATION:${icsEscapeText(ev.location)}`);
-    if (ev.notes) lines.push(`DESCRIPTION:${icsEscapeText(ev.notes)}`);
+    const cleanNotes = cleanNotesForExport(ev.notes);
+    if (cleanNotes) lines.push(`DESCRIPTION:${icsEscapeText(cleanNotes)}`);
     lines.push("END:VEVENT");
   }
   lines.push("END:VCALENDAR");
