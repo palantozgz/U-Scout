@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Switch, Route, useLocation, useRoute } from "wouter";
 import { migrateLegacyOnboarding, shouldOfferOnboarding } from "@/lib/onboarding-state";
+import { todayEventsQueryKey, weekEventsQueryKey } from "@/lib/schedule";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useIsFetching, useQuery } from "@tanstack/react-query";
 import { ClubGenderProvider } from "@/lib/clubGenderContext";
@@ -250,12 +251,12 @@ function BackgroundPrefetcher({ clubId, userId }: { clubId: string; userId: stri
     const t1 = window.setTimeout(() => {
       // Schedule: para el widget de Home
       queryClient.prefetchQuery({
-        queryKey: ["schedule", "events", "today", clubId],
+        queryKey: todayEventsQueryKey(clubId),
         queryFn: () => apiRequest("GET", `/api/schedule/events?clubId=${clubId}&range=today`).then(r => r.json()).catch(() => null),
         staleTime: 60_000,
       });
       queryClient.prefetchQuery({
-        queryKey: ["schedule", "events", "week", clubId],
+        queryKey: weekEventsQueryKey(clubId),
         queryFn: () => apiRequest("GET", `/api/schedule/events?clubId=${clubId}&range=week`).then(r => r.json()).catch(() => null),
         staleTime: 60_000,
       });

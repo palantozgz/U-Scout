@@ -26,22 +26,78 @@ export type ScheduleParticipant = {
   responded_at: string;
 };
 
+/**
+ * El club opera siempre en hora de China (Asia/Shanghai, UTC+8 fijo, sin
+ * horario de verano) sin importar en qué zona horaria esté configurado el
+ * dispositivo de quien usa la app (coach viajando, jugadora con el móvil en
+ * otro huso, etc.). Antes estas fronteras se calculaban con el reloj LOCAL
+ * del dispositivo (`new Date().setHours(0,0,0,0)`), lo que hacía que "hoy"
+ * pudiera desalinearse con el día real del club y dejara fuera sesiones que
+ * sí eran de hoy (bug: "Sessions Today: 0" / countdown a la sesión
+ * equivocada). Ahora se calcula siempre en Asia/Shanghai, explícitamente.
+ */
+export const CLUB_TIME_ZONE = "Asia/Shanghai";
+
+function clubDateParts(date: Date): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CLUB_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  return { year: get("year"), month: get("month"), day: get("day") };
+}
+
+/** Medianoche (00:00 Asia/Shanghai) del día que contiene `date`, como instante UTC. */
+function clubMidnightUtc(date: Date): Date {
+  const { year, month, day } = clubDateParts(date);
+  // Asia/Shanghai es UTC+8 fijo -> medianoche local = dia anterior 16:00 UTC.
+  return new Date(Date.UTC(year, month - 1, day) - 8 * 60 * 60 * 1000);
+}
+
 export function startOfTodayLocal(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return clubMidnightUtc(new Date());
 }
 
 export function startOfTomorrowLocal(): Date {
   const d = startOfTodayLocal();
-  d.setDate(d.getDate() + 1);
+  d.setUTCDate(d.getUTCDate() + 1);
   return d;
 }
 
 export function endOfWeekLocal(): Date {
   const d = startOfTodayLocal();
-  d.setDate(d.getDate() + 7);
+  d.setUTCDate(d.getUTCDate() + 7);
   return d;
+}
+
+/**
+ * Día actual del club (Asia/Shanghai) como "YYYY-MM-DD". Se mete como parte
+ * de las queryKey de abajo para que, al cruzar la medianoche de China, React
+ * Query trate "hoy" como una key NUEVA (cache miss -> refetch inmediato) en
+ * vez de seguir sirviendo indefinidamente el resultado de ayer hasta que el
+ * staleTime (2h) expire por casualidad. Antes la key era solo
+ * ["schedule","events","today",clubId] -- sin nada que cambie de un día
+ * a otro, así que una caché calentada un día podía seguir contestándose
+ * como "hoy" al día siguiente (bug: "Sessions Today: 0" con sesiones reales
+ * ese mismo día).
+ */
+function clubTodayKeyString(): string {
+  const { year, month, day } = clubDateParts(new Date());
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+export function todayEventsQueryKey(clubId: string | null | undefined) {
+  return ["schedule", "events", "today", clubId ?? null, clubTodayKeyString()] as const;
+}
+
+export function tomorrowEventsQueryKey(clubId: string | null | undefined) {
+  return ["schedule", "events", "tomorrow", clubId ?? null, clubTodayKeyString()] as const;
+}
+
+export function weekEventsQueryKey(clubId: string | null | undefined) {
+  return ["schedule", "events", "week", clubId ?? null, clubTodayKeyString()] as const;
 }
 
 async function fetchScheduleEventsRange(params: { clubId: string; fromIso: string; toIso: string }) {
@@ -71,7 +127,7 @@ export function useScheduleEventsRange(params: { clubId?: string; fromIso?: stri
 
 export function useTodayScheduleEvents(params: { clubId?: string }) {
   return useQuery({
-    queryKey: ["schedule", "events", "today", params.clubId ?? null],
+    queryKey: todayEventsQueryKey(params.clubId),
     enabled: Boolean(params.clubId),
     networkMode: "offlineFirst",
     queryFn: async (): Promise<ScheduleEvent[]> => {
@@ -84,7 +140,7 @@ export function useTodayScheduleEvents(params: { clubId?: string }) {
 
 export function useTomorrowScheduleEvents(params: { clubId?: string }) {
   return useQuery({
-    queryKey: ["schedule", "events", "tomorrow", params.clubId ?? null],
+    queryKey: tomorrowEventsQueryKey(params.clubId),
     enabled: Boolean(params.clubId),
     networkMode: "offlineFirst",
     queryFn: async (): Promise<ScheduleEvent[]> => {
@@ -102,7 +158,7 @@ export function useTomorrowScheduleEvents(params: { clubId?: string }) {
 
 export function useThisWeekScheduleEvents(params: { clubId?: string }) {
   return useQuery({
-    queryKey: ["schedule", "events", "week", params.clubId ?? null],
+    queryKey: weekEventsQueryKey(params.clubId),
     enabled: Boolean(params.clubId),
     networkMode: "offlineFirst",
     queryFn: async (): Promise<ScheduleEvent[]> => {
@@ -124,7 +180,7 @@ export function useCreateScheduleEvent() {
       const to = startOfTomorrowLocal();
       if (startsAt < from || startsAt >= to) return { clubId, inserted: false as const };
 
-      const key = ["schedule", "events", "today", clubId] as const;
+      const key = todayEventsQueryKey(clubId);
       const previous = qc.getQueryData<ScheduleEvent[]>(key);
       const optimistic: ScheduleEvent = {
         id: `optimistic-${Math.random().toString(16).slice(2)}`,
@@ -182,7 +238,7 @@ export function useCreateScheduleEvent() {
       }
     },
     onSuccess: (event, vars, ctx) => {
-      const key = ["schedule", "events", "today", vars.club_id] as const;
+      const key = todayEventsQueryKey(vars.club_id);
       // Replace optimistic row (if any) with real one, then ensure fresh ordering.
       qc.setQueryData<ScheduleEvent[]>(key, (cur) => {
         const withoutOptimistic = (cur ?? []).filter((e) => !e.id.startsWith("optimistic-"));
@@ -203,9 +259,9 @@ export function useUpdateScheduleEvent() {
     onMutate: async (vars: { id: string; club_id: string; patch: Partial<Omit<ScheduleEvent, "id" | "club_id" | "created_at" | "created_by">> }) => {
       const clubId = vars.club_id;
       const keys = [
-        ["schedule", "events", "today", clubId] as const,
-        ["schedule", "events", "tomorrow", clubId] as const,
-        ["schedule", "events", "week", clubId] as const,
+        todayEventsQueryKey(clubId),
+        tomorrowEventsQueryKey(clubId),
+        weekEventsQueryKey(clubId),
       ];
       const previous = keys.map((k) => [k, qc.getQueryData<ScheduleEvent[]>(k)] as const);
       for (const k of keys) {
@@ -260,9 +316,9 @@ export function useDeleteScheduleEvent() {
     onMutate: async (vars: { id: string; club_id: string }) => {
       const clubId = vars.club_id;
       const keys = [
-        ["schedule", "events", "today", clubId] as const,
-        ["schedule", "events", "tomorrow", clubId] as const,
-        ["schedule", "events", "week", clubId] as const,
+        todayEventsQueryKey(clubId),
+        tomorrowEventsQueryKey(clubId),
+        weekEventsQueryKey(clubId),
       ];
       const previous = keys.map((k) => [k, qc.getQueryData<ScheduleEvent[]>(k)] as const);
       for (const k of keys) {

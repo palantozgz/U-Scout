@@ -56,6 +56,7 @@ import {
   useUpsertScheduleParticipant,
   useScheduleData,
   startOfTomorrowLocal,
+  CLUB_TIME_ZONE,
   type ScheduleEvent,
 } from "@/lib/schedule";
 import {
@@ -67,10 +68,17 @@ import {
 import { ACTIVITY_TYPE_CONFIG } from "@/lib/scheduleActivityConfig";
 
 function localDateKey(d: Date): string {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  // Siempre en la zona horaria del club (Asia/Shanghai), nunca la del
+  // dispositivo -- para que coincida exactamente con las fronteras
+  // "hoy/manana" de useScheduleData y con el dialogo de detalle de sesion.
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CLUB_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 function useLongPress(onLongPress: () => void, ms = 500) {
@@ -1045,7 +1053,7 @@ export default function Schedule() {
     });
   }, []);
 
-  const schedTodayKey = new Date().toDateString();
+  const schedTodayKey = localDateKey(new Date());
 
   const desktopPanel = isDesktop ? (
     <ScheduleDesktopPanel
@@ -1094,10 +1102,10 @@ export default function Schedule() {
                 {/* Day headers */}
                 <div className="grid grid-cols-7 gap-1 mb-1">
                   {schedWeekDays.map((d) => {
-                    const name = new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d);
-                    const isToday = d.toDateString() === schedTodayKey;
+                    const name = new Intl.DateTimeFormat(intlLocale, { weekday: "short", timeZone: CLUB_TIME_ZONE }).format(d);
+                    const isToday = localDateKey(d) === schedTodayKey;
                     return (
-                      <div key={d.toDateString()} className="text-center py-1">
+                      <div key={localDateKey(d)} className="text-center py-1">
                         <span className={cn("text-[10px] md:text-xs font-medium uppercase tracking-wide",
                           isToday ? "text-primary" : "text-muted-foreground/70")}>{name}</span>
                       </div>
@@ -1108,9 +1116,9 @@ export default function Schedule() {
                 <div className="grid grid-cols-7 gap-1">
                   {schedWeekDays.map((d) => {
                     const key = localDateKey(d);
-                    const isToday = d.toDateString() === schedTodayKey;
+                    const isToday = key === schedTodayKey;
                     const dayEvents = (weekEventsQ.data ?? []).filter(
-                      (ev) => ev.starts_at.slice(0, 10) === key,
+                      (ev) => localDateKey(new Date(ev.starts_at)) === key,
                     );
                     const EVENT_COLORS: Record<string, string> = {
                       training: "bg-primary/15 text-primary",
@@ -1146,7 +1154,7 @@ export default function Schedule() {
                         <span className={cn("text-[11px] md:text-sm font-medium leading-none mb-0.5",
                           isToday ? "text-primary" : "text-muted-foreground/70")}>{d.getDate()}</span>
                         {dayEvents.map((ev) => {
-                          const timeStr = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(ev.starts_at));
+                          const timeStr = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", timeZone: CLUB_TIME_ZONE }).format(new Date(ev.starts_at));
                           const colorClass = EVENT_COLORS[(ev as any).type ?? "training"] ?? EVENT_COLORS.training;
                           return (
                             <div key={ev.id} className={cn("rounded px-1.5 py-0.5 text-[10px] md:text-sm font-medium leading-tight truncate", colorClass)}>
@@ -1662,9 +1670,9 @@ export default function Schedule() {
                         {days.map((d) => {
                           const dayKey = localDateKey(d);
                           const daySessionsAll = (plannerWeekQ.data ?? [])
-                            .filter((s) => new Date(s.starts_at).toLocaleDateString("sv") === dayKey)
+                            .filter((s) => localDateKey(new Date(s.starts_at)) === dayKey)
                             .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
-                          const label = new Intl.DateTimeFormat(intlLocale, { weekday: "long" }).format(d);
+                          const label = new Intl.DateTimeFormat(intlLocale, { weekday: "long", timeZone: CLUB_TIME_ZONE }).format(d);
                           const dateLabel = new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" }).format(d);
 
                           const sessionsInSlot = (slot: (typeof slotDefs)[number]) => {
@@ -1678,7 +1686,7 @@ export default function Schedule() {
                             });
                           };
 
-                          const isToday = dayKey === new Date().toLocaleDateString("sv");
+                          const isToday = dayKey === localDateKey(new Date());
                           const isHighlighted = highlightDayKey === dayKey;
                           return (
                             <div
@@ -1792,13 +1800,13 @@ export default function Schedule() {
                             <div
                               key={d.toISOString()}
                               ref={(el) => {
-                                landscapeDayRefs.current[d.toLocaleDateString("sv")] = el;
+                                landscapeDayRefs.current[localDateKey(d)] = el;
                               }}
                               className={[
                                 "text-center rounded-lg px-0.5 pb-1",
                                 (() => {
-                                  const dk = d.toLocaleDateString("sv");
-                                  const isTodayLs = dk === new Date().toLocaleDateString("sv");
+                                  const dk = localDateKey(d);
+                                  const isTodayLs = dk === localDateKey(new Date());
                                   const isHighLs = highlightDayKey === dk;
                                   if (isTodayLs) return "border-2 border-primary bg-primary/5 shadow-[0_0_0_3px_hsl(var(--primary)/0.12)]";
                                   if (isHighLs) return "ring-2 ring-primary/60";
@@ -1807,19 +1815,19 @@ export default function Schedule() {
                               ].join(" ")}
                             >
                               <p className="text-xs font-black text-foreground">
-                                {new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d)}
+                                {new Intl.DateTimeFormat(intlLocale, { weekday: "short", timeZone: CLUB_TIME_ZONE }).format(d)}
                               </p>
                               <p className="text-xs font-semibold text-muted-foreground">
                                 {new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" }).format(d)}
                               </p>
                               <div className="mt-1 flex items-center justify-center gap-1 flex-wrap">
                                 {(() => {
-                                  const dayKey = d.toLocaleDateString("sv");
-                                  const daySessions = (plannerWeekQ.data ?? []).filter((s) => new Date(s.starts_at).toLocaleDateString("sv") === dayKey);
+                                  const dayKey = localDateKey(d);
+                                  const daySessions = (plannerWeekQ.data ?? []).filter((s) => localDateKey(new Date(s.starts_at)) === dayKey);
                                   const chips: string[] = [];
                                   if (daySessions.length === 0) chips.push("schedule_insight_no_sessions");
                                   if (daySessions.length >= 3) chips.push("schedule_insight_overloaded");
-                                  const todayKey = new Date().toLocaleDateString("sv");
+                                  const todayKey = localDateKey(new Date());
                                   if (dayKey === todayKey && pendingResponses > 0) chips.push("schedule_insight_low_attendance_risk");
                                   return chips.slice(0, 2).map((k) => (
                                     <span
@@ -2147,7 +2155,7 @@ export default function Schedule() {
                     {days.map((d) => {
                       const dayKey = localDateKey(d);
                       const daySessions = (plannerWeekQ.data ?? [])
-                        .filter((ev) => ev.starts_at.slice(0, 10) === dayKey)
+                        .filter((ev) => localDateKey(new Date(ev.starts_at)) === dayKey)
                         .slice()
                         .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
 
@@ -3451,7 +3459,7 @@ function ScheduleSessionDetailBody(props: {
         {t(ACTIVITY_TYPE_CONFIG[event.session_type].labelKey)}
       </span>
       <p className="text-muted-foreground font-medium">
-        {new Intl.DateTimeFormat(intlLocale, { weekday: "long", month: "short", day: "numeric" }).format(
+        {new Intl.DateTimeFormat(intlLocale, { weekday: "long", month: "short", day: "numeric", timeZone: CLUB_TIME_ZONE }).format(
           new Date(event.starts_at),
         )}
         {" · "}
@@ -3597,7 +3605,7 @@ function SessionRow(props: {
 
 function formatTime(iso: string): string {
   try {
-    return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+    return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", timeZone: CLUB_TIME_ZONE }).format(new Date(iso));
   } catch {
     return iso;
   }
