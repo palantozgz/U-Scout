@@ -7,7 +7,7 @@ import { db } from "./db";
 import { storage } from "./storage";
 import { insertTeamSchema, insertPlayerSchema, type Club } from "@shared/schema";
 import { patchClubBodySchema } from "@shared/club-context";
-import { requireAuth } from "./auth";
+import { requireAuth, grantRole } from "./auth";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { lookupAuthBasicsByUserIds, mergeAuthWithSession } from "./authUserLookup";
 import { registerStatsIngest } from "./stats-ingest";
@@ -1413,6 +1413,30 @@ export async function registerRoutes(
           invitedEmail: inv.invitedEmail,
           joinedAt: new Date(),
         });
+      }
+
+      // Keep auth role in sync with the club role granted by this invitation.
+      // club_members.role alone is NOT enough: client-side capabilities
+      // (canCreateEvent, canViewClubManagement, canAccessPersonnel, etc.) read
+      // user_metadata.role, and server-side privileged checks (isHeadCoachOrMaster,
+      // canManageTeam) read req.user.role, which for head_coach/master requires a
+      // row in user_roles (see resolveRole() in auth.ts). Without this sync, an
+      // invited head_coach ends up with club_members.role="head_coach" but is
+      // still treated as a plain "coach" by the rest of the app.
+      try {
+        if (inv.role === "head_coach" || inv.role === "master") {
+          await grantRole(userId, inv.role, inv.createdBy);
+        }
+        const admin = getSupabaseAdmin();
+        if (admin) {
+          const { data: existingUser } = await admin.auth.admin.getUserById(userId);
+          const currentMeta = existingUser?.user?.user_metadata ?? {};
+          await admin.auth.admin.updateUserById(userId, {
+            user_metadata: { ...currentMeta, role: inv.role },
+          });
+        }
+      } catch (syncErr) {
+        console.log(`[club-invite] role sync failed for userId=${userId}, role=${inv.role}:`, syncErr);
       }
 
       res.json({ ok: true, clubId: inv.clubId, role: inv.role });
