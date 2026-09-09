@@ -16,3 +16,9 @@ CURSOR_PROMPT_*.md
 scripts/collect_*.js
 scripts/find_*.cjs
 scripts/wcba_*.cjs
+
+# Playwright E2E output (see e2e/, ways-of-working memory for how to run it)
+test-results/
+e2e/report/
+playwright-report/
+blob-report/
