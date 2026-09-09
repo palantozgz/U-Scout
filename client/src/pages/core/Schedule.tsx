@@ -58,6 +58,12 @@ import {
   startOfTomorrowLocal,
   CLUB_TIME_ZONE,
   clubMidnightUtc,
+  useWeekTemplates,
+  useCreateWeekTemplate,
+  useUpdateWeekTemplate,
+  useDeleteWeekTemplate,
+  type WeekTemplate,
+  type WeekTemplateSession,
   type ScheduleEvent,
 } from "@/lib/schedule";
 import {
@@ -239,69 +245,17 @@ export default function Schedule() {
   const templatesKey = useMemo(() => `uscout-schedule-templates:${clubId ?? "no-club"}`, [clubId]);
   const [templates, setTemplates] = useState<SessionTemplate[]>([]);
 
-  type WeekTemplateSession = {
-    dayIndex: number; // 0..6 (Mon..Sun relative to selected week start)
-    startMins: number; // minutes from midnight (local)
-    durationMins: number | null;
-    session_type: ScheduleEvent["session_type"];
-    title: string;
-    location: string | null;
-    notes: string | null;
-    attendance_required: boolean;
-  };
-
-  type WeekTemplate = {
-    id: string;
-    name: string;
-    notes: string | null;
-    phase?: "preseason" | "regular" | "playoff" | "off";
-    games_count?: 0 | 1 | 2;
-    load_level?: "low" | "medium" | "high";
-    tags?: string;
-    favorite?: boolean;
-    createdAt: string;
-    updatedAt: string;
-    lastUsedAt?: string;
-    sessions: WeekTemplateSession[];
-  };
-
-  const weekTemplatesKey = useMemo(() => `uscout-schedule-week-templates:${clubId ?? "no-club"}`, [clubId]);
-  const [weekTemplates, setWeekTemplates] = useState<WeekTemplate[]>([]);
+  const weekTemplatesQ = useWeekTemplates({ clubId });
+  const weekTemplates = weekTemplatesQ.data ?? [];
+  const createWeekTemplateMut = useCreateWeekTemplate();
+  const updateWeekTemplateMut = useUpdateWeekTemplate();
+  const deleteWeekTemplateMut = useDeleteWeekTemplate();
   const [weekTemplateSearch, setWeekTemplateSearch] = useState("");
   const [weekTemplateSort, setWeekTemplateSort] = useState<"recent" | "alpha">("recent");
   const [weekTemplatePhase, setWeekTemplatePhase] = useState<WeekTemplate["phase"] | "all">("all");
   const [weekTemplateGames, setWeekTemplateGames] = useState<WeekTemplate["games_count"] | "all">("all");
   const [weekTemplateLoad, setWeekTemplateLoad] = useState<WeekTemplate["load_level"] | "all">("all");
   const [weekTemplateFavOnly, setWeekTemplateFavOnly] = useState(false);
-
-  const persistWeekTemplates = (next: WeekTemplate[]) => {
-    setWeekTemplates(next);
-    try {
-      window.localStorage.setItem(weekTemplatesKey, JSON.stringify(next));
-    } catch {
-      // ignore
-    }
-  };
-
-  useEffect(() => {
-    // persist anytime templates change (metadata edits are done inline)
-    try {
-      window.localStorage.setItem(weekTemplatesKey, JSON.stringify(weekTemplates));
-    } catch {
-      // ignore
-    }
-  }, [weekTemplates, weekTemplatesKey]);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(weekTemplatesKey);
-      const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-      if (Array.isArray(parsed)) setWeekTemplates(parsed as WeekTemplate[]);
-      else setWeekTemplates([]);
-    } catch {
-      setWeekTemplates([]);
-    }
-  }, [weekTemplatesKey]);
 
   const weekTemplatesSorted = useMemo(() => {
     const norm = (s: string) => s.trim().toLowerCase();
@@ -676,29 +630,26 @@ export default function Schedule() {
       .slice(0, 200);
   };
 
-  const upsertWeekTemplate = (tpl: WeekTemplate) => {
-    persistWeekTemplates([tpl, ...weekTemplates.filter((t) => t.id !== tpl.id)].slice(0, 24));
-  };
-
   const duplicateWeekTemplate = (tpl: WeekTemplate) => {
-    const now = new Date().toISOString();
-      const copy: WeekTemplate = {
-      ...tpl,
-      id: `wktpl-${Math.random().toString(16).slice(2)}`,
+    if (!clubId) return;
+    createWeekTemplateMut.mutate(
+      {
         name: `${tpl.name} (${t("invite_copy")})`,
-      createdAt: now,
-      updatedAt: now,
-      lastUsedAt: undefined,
-    };
-    upsertWeekTemplate(copy);
-    toast({ description: t("schedule_week_template_duplicated") });
+        notes: tpl.notes,
+        phase: tpl.phase,
+        games_count: tpl.games_count,
+        load_level: tpl.load_level,
+        tags: tpl.tags,
+        favorite: false,
+        sessions: tpl.sessions,
+      },
+      { onSuccess: () => toast({ description: t("schedule_week_template_duplicated") }) },
+    );
   };
 
   const markWeekTemplateUsed = (id: string) => {
-    const now = new Date().toISOString();
-    persistWeekTemplates(
-      weekTemplates.map((t) => (t.id === id ? { ...t, lastUsedAt: now, updatedAt: now } : t)),
-    );
+    if (!clubId) return;
+    updateWeekTemplateMut.mutate({ id, clubId, markUsed: true });
   };
 
   const applyWeekTemplate = async (tpl: WeekTemplate, mode: "replace" | "merge") => {
@@ -897,8 +848,11 @@ export default function Schedule() {
   };
 
   const deleteWeekTemplate = (id: string) => {
-    persistWeekTemplates(weekTemplates.filter((t2) => t2.id !== id));
-    toast({ description: t("schedule_week_template_deleted" as any) });
+    if (!clubId) return;
+    deleteWeekTemplateMut.mutate(
+      { id, clubId },
+      { onSuccess: () => toast({ description: t("schedule_week_template_deleted" as any) }) },
+    );
   };
 
   const typePillClass = (k: ScheduleEvent["session_type"]) => {
@@ -2877,9 +2831,8 @@ export default function Schedule() {
                           className="h-10 w-10 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
                           aria-label={t("schedule_favorite_toggle" as any)}
                           onClick={() => {
-                            persistWeekTemplates(
-                              weekTemplates.map((t2) => (t2.id === tpl.id ? { ...t2, favorite: !t2.favorite, updatedAt: new Date().toISOString() } : t2)),
-                            );
+                            if (!clubId) return;
+                            updateWeekTemplateMut.mutate({ id: tpl.id, clubId, favorite: !tpl.favorite });
                           }}
                         >
                           <span className="text-base leading-none">{tpl.favorite ? "★" : "☆"}</span>
@@ -3034,28 +2987,34 @@ export default function Schedule() {
               {t("cancel")}
             </Button>
             <Button
-              disabled={!weekTemplateName.trim() || (plannerWeekQ.data?.length ?? 0) === 0}
+              disabled={!weekTemplateName.trim() || (plannerWeekQ.data?.length ?? 0) === 0 || createWeekTemplateMut.isPending || updateWeekTemplateMut.isPending}
               onClick={() => {
-                const now = new Date().toISOString();
-                const id = editingWeekTemplateId ?? `wktpl-${Math.random().toString(16).slice(2)}`;
-                const existing = weekTemplates.find((x) => x.id === id);
+                if (!clubId) return;
                 const sessions = buildWeekTemplateFromCurrentWeek();
-                const tpl: WeekTemplate = {
-                  id,
+                const basePayload = {
                   name: weekTemplateName.trim(),
                   notes: weekTemplateNotes.trim() ? weekTemplateNotes.trim() : null,
-                  phase: weekTemplateEditPhase ?? existing?.phase ?? "regular",
+                  phase: weekTemplateEditPhase,
                   games_count: weekTemplateEditGames,
                   load_level: weekTemplateEditLoad,
                   tags: weekTemplateEditTags,
                   favorite: weekTemplateFavorite,
-                  createdAt: existing?.createdAt ?? now,
-                  updatedAt: now,
-                  lastUsedAt: existing?.lastUsedAt,
-                  sessions: sessions.length > 0 ? sessions : existing?.sessions ?? [],
                 };
-                upsertWeekTemplate(tpl);
-                toast({ description: t("schedule_week_template_saved") });
+                if (editingWeekTemplateId) {
+                  // Al editar solo metadatos (sin sesiones nuevas capturadas en la
+                  // semana visible), no se toca `sessions` -- si no, editar el
+                  // nombre/etiquetas de un template mientras se mira una semana
+                  // vacia borraria las sesiones guardadas del template.
+                  updateWeekTemplateMut.mutate(
+                    { id: editingWeekTemplateId, clubId, ...basePayload, ...(sessions.length > 0 ? { sessions } : {}) },
+                    { onSuccess: () => toast({ description: t("schedule_week_template_saved") }) },
+                  );
+                } else {
+                  createWeekTemplateMut.mutate(
+                    { ...basePayload, sessions },
+                    { onSuccess: () => toast({ description: t("schedule_week_template_saved") }) },
+                  );
+                }
                 setSaveWeekTemplateOpen(false);
               }}
             >

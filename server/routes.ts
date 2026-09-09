@@ -1046,6 +1046,118 @@ export async function registerRoutes(
     }
   });
 
+  // ── Schedule week templates (Planner) ──────────────────────────────
+  // Antes vivian solo en localStorage del navegador (clave por clubId) --
+  // un template guardado se perdia sin aviso si Safari limpiaba el storage
+  // (ITP borra tras ~7 dias sin visitar el sitio), al cambiar de dispositivo,
+  // o al limpiar datos del navegador. Ahora persisten en la tabla real.
+  function weekTemplateRowToJson(r: any) {
+    return {
+      id: r.id,
+      name: r.name,
+      notes: r.notes ?? null,
+      phase: r.phase,
+      games_count: r.games_count,
+      load_level: r.load_level,
+      tags: r.tags,
+      favorite: r.favorite,
+      sessions: r.sessions ?? [],
+      createdAt: new Date(r.created_at).toISOString(),
+      updatedAt: new Date(r.updated_at).toISOString(),
+      lastUsedAt: r.last_used_at ? new Date(r.last_used_at).toISOString() : undefined,
+    };
+  }
+  async function userIsActiveStaffOfClub(req: Request, clubId: string): Promise<boolean> {
+    if (req.user!.role === "master") return true;
+    const m = await storage.getClubMemberByClubAndUser(clubId, req.user!.id);
+    return Boolean(m && m.status === "active" && (m.role === "head_coach" || m.role === "coach"));
+  }
+
+  app.get("/api/club/week-templates", requireAuth, async (req, res) => {
+    try {
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      const rows = await db.execute(
+        sql`SELECT * FROM schedule_week_templates WHERE club_id = ${club.id} ORDER BY updated_at DESC`,
+      );
+      res.json(((rows as any).rows ?? []).map(weekTemplateRowToJson));
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load week templates" });
+    }
+  });
+
+  app.post("/api/club/week-templates", requireAuth, async (req, res) => {
+    try {
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      if (!(await userIsActiveStaffOfClub(req, club.id))) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const b = req.body ?? {};
+      if (!b.name || typeof b.name !== "string") return res.status(400).json({ error: "name required" });
+      const rows = await db.execute(sql`
+        INSERT INTO schedule_week_templates
+          (club_id, name, notes, phase, games_count, load_level, tags, favorite, sessions, created_by)
+        VALUES (
+          ${club.id}, ${b.name}, ${b.notes ?? null}, ${b.phase ?? "regular"},
+          ${b.games_count ?? 0}, ${b.load_level ?? "medium"}, ${b.tags ?? ""}, ${Boolean(b.favorite)},
+          ${JSON.stringify(b.sessions ?? [])}::jsonb, ${req.user!.id}
+        )
+        RETURNING *
+      `);
+      const row = ((rows as any).rows ?? [])[0];
+      res.status(201).json(weekTemplateRowToJson(row));
+    } catch (err) {
+      res.status(500).json({ error: "Failed to create week template" });
+    }
+  });
+
+  app.patch("/api/club/week-templates/:id", requireAuth, async (req, res) => {
+    try {
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      if (!(await userIsActiveStaffOfClub(req, club.id))) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const id = req.params.id as string;
+      const b = req.body ?? {};
+      const rows = await db.execute(sql`
+        UPDATE schedule_week_templates SET
+          name = COALESCE(${b.name ?? null}, name),
+          notes = ${b.notes !== undefined ? b.notes : sql`notes`},
+          phase = COALESCE(${b.phase ?? null}, phase),
+          games_count = COALESCE(${b.games_count ?? null}, games_count),
+          load_level = COALESCE(${b.load_level ?? null}, load_level),
+          tags = COALESCE(${b.tags ?? null}, tags),
+          favorite = COALESCE(${b.favorite !== undefined ? b.favorite : null}, favorite),
+          sessions = COALESCE(${b.sessions !== undefined ? JSON.stringify(b.sessions) : null}::jsonb, sessions),
+          last_used_at = COALESCE(${b.markUsed ? new Date().toISOString() : null}, last_used_at),
+          updated_at = now()
+        WHERE id = ${id} AND club_id = ${club.id}
+        RETURNING *
+      `);
+      const row = ((rows as any).rows ?? [])[0];
+      if (!row) return res.status(404).json({ error: "Template not found" });
+      res.json(weekTemplateRowToJson(row));
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update week template" });
+    }
+  });
+
+  app.delete("/api/club/week-templates/:id", requireAuth, async (req, res) => {
+    try {
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      if (!(await userIsActiveStaffOfClub(req, club.id))) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      await db.execute(sql`DELETE FROM schedule_week_templates WHERE id = ${req.params.id} AND club_id = ${club.id}`);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: "Failed to delete week template" });
+    }
+  });
+
   app.get("/api/club", requireAuth, async (req, res) => {
     try {
       const uid = req.user!.id;

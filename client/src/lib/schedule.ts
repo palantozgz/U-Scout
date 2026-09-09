@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { supabase } from "@/lib/supabase";
+import { apiRequest } from "@/lib/queryClient";
 import { todayKey } from "@/lib/wellness";
 
 export type ScheduleEvent = {
@@ -572,5 +573,123 @@ export function useScheduleData(params: {
     wellnessPctQ,
     nextSession,
   };
+}
+
+// ── Week templates (Planner "Week templates") ───────────────────────
+// Antes vivian solo en localStorage (se perdian sin aviso: ITP de Safari,
+// cambio de dispositivo, limpieza de datos...). Ahora en el servidor,
+// mismo patron optimista que el resto de mutations de este archivo.
+export type WeekTemplateSession = {
+  dayIndex: number;
+  startMins: number;
+  durationMins: number | null;
+  session_type: ScheduleEvent["session_type"];
+  title: string;
+  location: string | null;
+  notes: string | null;
+  attendance_required: boolean;
+};
+
+export type WeekTemplate = {
+  id: string;
+  name: string;
+  notes: string | null;
+  phase?: "preseason" | "regular" | "playoff" | "off";
+  games_count?: 0 | 1 | 2;
+  load_level?: "low" | "medium" | "high";
+  tags?: string;
+  favorite?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt?: string;
+  sessions: WeekTemplateSession[];
+};
+
+function weekTemplatesQueryKey(clubId: string | null | undefined) {
+  return ["schedule", "week-templates", clubId ?? null] as const;
+}
+
+export function useWeekTemplates(params: { clubId?: string }) {
+  return useQuery({
+    queryKey: weekTemplatesQueryKey(params.clubId),
+    enabled: Boolean(params.clubId),
+    networkMode: "offlineFirst",
+    queryFn: async (): Promise<WeekTemplate[]> => {
+      const res = await apiRequest("GET", "/api/club/week-templates");
+      if (!res.ok) throw new Error("Failed to load week templates");
+      return (await res.json()) as WeekTemplate[];
+    },
+  });
+}
+
+export function useCreateWeekTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Omit<WeekTemplate, "id" | "createdAt" | "updatedAt">) => {
+      const res = await apiRequest("POST", "/api/club/week-templates", body);
+      if (!res.ok) throw new Error("Failed to create week template");
+      return (await res.json()) as WeekTemplate;
+    },
+    onSuccess: (created, _body, _ctx) => {
+      void qc.invalidateQueries({ queryKey: ["schedule", "week-templates"], exact: false });
+    },
+  });
+}
+
+export function useUpdateWeekTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { id: string; clubId: string; markUsed?: boolean } & Partial<Omit<WeekTemplate, "id">>) => {
+      const { id, clubId, ...patch } = body;
+      const res = await apiRequest("PATCH", `/api/club/week-templates/${id}`, patch);
+      if (!res.ok) throw new Error("Failed to update week template");
+      return (await res.json()) as WeekTemplate;
+    },
+    onMutate: async (vars) => {
+      const key = weekTemplatesQueryKey(vars.clubId);
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<WeekTemplate[]>(key);
+      if (previous) {
+        const { markUsed, clubId: _c, ...fields } = vars;
+        qc.setQueryData<WeekTemplate[]>(
+          key,
+          previous.map((t) => (t.id === vars.id ? { ...t, ...fields, updatedAt: new Date().toISOString() } : t)),
+        );
+      }
+      return { key, previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(ctx.key, ctx.previous);
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["schedule", "week-templates"], exact: false });
+    },
+  });
+}
+
+export function useDeleteWeekTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; clubId: string }) => {
+      const res = await apiRequest("DELETE", `/api/club/week-templates/${vars.id}`);
+      if (!res.ok && res.status !== 404) throw new Error("Failed to delete week template");
+      return { id: vars.id };
+    },
+    onMutate: async (vars) => {
+      const key = weekTemplatesQueryKey(vars.clubId);
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<WeekTemplate[]>(key);
+      if (previous) {
+        qc.setQueryData<WeekTemplate[]>(key, previous.filter((t) => t.id !== vars.id));
+      }
+      return { key, previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(ctx.key, ctx.previous);
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["schedule", "week-templates"], exact: false });
+    },
+  });
 }
 
