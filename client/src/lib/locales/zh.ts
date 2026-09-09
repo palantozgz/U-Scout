@@ -1627,6 +1627,8 @@ const zh = {
   playbook_cancel: "取消",
   playbook_back_btn: "返回",
   playbook_restart: "重新开始",
+  playbook_wizard_continue: "继续",
+  playbook_wizard_skip: "跳过 →",
   playbook_skip: "跳过 — 使用基础规则 →",
   playbook_skip_continue: "不添加KYP继续 →",
   playbook_step_of: "第 {current} 步，共 {total} 步",

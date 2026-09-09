@@ -1639,6 +1639,8 @@ const es = {
   playbook_cancel: "Cancelar",
   playbook_back_btn: "Atrás",
   playbook_restart: "Reiniciar",
+  playbook_wizard_continue: "Continuar",
+  playbook_wizard_skip: "Saltar →",
   playbook_skip: "Saltar — usar filosofía base →",
   playbook_skip_continue: "Continuar sin KYP →",
   playbook_step_of: "Paso {current} de {total}",

@@ -620,7 +620,7 @@ function DefensiveSystemBuilder({
                 />
                 <button type="button" onClick={() => submitText(textValue)}
                   className="w-full h-11 rounded-xl border border-primary bg-primary/8 text-primary text-sm font-bold hover:bg-primary/15 transition-colors">
-                  {textValue.trim() ? 'Continuar' : 'Saltar →'}
+                  {textValue.trim() ? t('playbook_wizard_continue') : t('playbook_wizard_skip')}
                 </button>
               </div>
             )}

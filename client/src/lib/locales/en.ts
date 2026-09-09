@@ -1678,6 +1678,8 @@ const en = {
   playbook_cancel: "Cancel",
   playbook_back_btn: "Back",
   playbook_restart: "Restart",
+  playbook_wizard_continue: "Continue",
+  playbook_wizard_skip: "Skip →",
   playbook_skip: "Skip — use base philosophy →",
   playbook_skip_continue: "Continue without KYP →",
   playbook_step_of: "Step {current} of {total}",
