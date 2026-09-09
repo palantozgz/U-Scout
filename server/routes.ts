@@ -1413,6 +1413,11 @@ export async function registerRoutes(
           invitedEmail: inv.invitedEmail,
           joinedAt: new Date(),
         });
+      } else if (existing.role !== inv.role) {
+        // Already a member (e.g. re-invited with a promotion/demotion): keep
+        // club_members.role in sync with what this invitation grants, so it
+        // doesn't drift from the auth role synced below.
+        await storage.updateClubMemberRole(existing.id, inv.role);
       }
 
       // Keep auth role in sync with the club role granted by this invitation.

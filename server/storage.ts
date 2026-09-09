@@ -133,6 +133,7 @@ export interface IStorage {
   deleteClubMember(id: string): Promise<void>;
   updateClubMemberStatus(id: string, status: "active" | "banned"): Promise<ClubMember | undefined>;
   updateClubMemberOperationsAccess(id: string, operationsAccess: boolean): Promise<ClubMember | undefined>;
+  updateClubMemberRole(id: string, role: string): Promise<ClubMember | undefined>;
 
   createClubInvitation(row: InsertClubInvitation): Promise<ClubInvitation>;
   getClubInvitationByToken(token: string): Promise<ClubInvitation | undefined>;
@@ -674,6 +675,15 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db
       .update(clubMembers)
       .set({ operationsAccess })
+      .where(eq(clubMembers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateClubMemberRole(id: string, role: string): Promise<ClubMember | undefined> {
+    const [updated] = await db
+      .update(clubMembers)
+      .set({ role })
       .where(eq(clubMembers.id, id))
       .returning();
     return updated;
