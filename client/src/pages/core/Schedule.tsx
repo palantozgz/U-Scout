@@ -1097,24 +1097,10 @@ export default function Schedule() {
                       travel:   "bg-muted text-muted-foreground",
                     };
                     return (
-                      <button
+                      <div
                         key={key}
-                        type="button"
-                        onClick={() => {
-                          const el = (portraitDayRefs.current[key] ?? landscapeDayRefs.current[key]) as HTMLElement | null;
-                          if (el) {
-                            let parent = el.parentElement;
-                            while (parent && parent.scrollHeight <= parent.clientHeight) {
-                              parent = parent.parentElement;
-                            }
-                            if (parent) {
-                              const targetTop = el.offsetTop - (parent as HTMLElement).offsetTop - 16;
-                              parent.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
-                            }
-                          }
-                        }}
                         className={cn(
-                          "min-h-[72px] rounded-xl border p-1.5 flex flex-col gap-1 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-colors text-left w-full",
+                          "min-h-[72px] rounded-xl border p-1.5 flex flex-col gap-1 text-left w-full",
                           isToday
                             ? "border-primary/30 bg-primary/4"
                             : "border-border/30 bg-card",
@@ -1126,12 +1112,17 @@ export default function Schedule() {
                           const timeStr = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", timeZone: CLUB_TIME_ZONE }).format(new Date(ev.starts_at));
                           const colorClass = EVENT_COLORS[(ev as any).type ?? "training"] ?? EVENT_COLORS.training;
                           return (
-                            <div key={ev.id} className={cn("rounded px-1.5 py-0.5 text-[10px] md:text-sm font-medium leading-tight truncate", colorClass)}>
-                              {timeStr} {ev.title}
-                            </div>
+                            <button
+                              key={ev.id}
+                              type="button"
+                              onClick={() => openSessionDetail(ev)}
+                              className={cn("rounded px-1.5 py-0.5 text-[10px] md:text-sm font-medium leading-tight truncate text-left w-full cursor-pointer hover:opacity-80 transition-opacity", colorClass)}
+                            >
+                              {timeStr} {sessionDisplayTitle(ev, t)}
+                            </button>
                           );
                         })}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -1183,7 +1174,7 @@ export default function Schedule() {
                             </div>
                           )}
                           <div className="min-w-0 flex-1">
-                            <p className="text-lg font-black leading-tight tracking-tight text-foreground sm:text-xl">{nextSession.title}</p>
+                            <p className="text-lg font-black leading-tight tracking-tight text-foreground sm:text-xl">{sessionDisplayTitle(nextSession, t)}</p>
                             {nextSessionCountdown ? (
                               <p className="mt-2 text-2xl font-black text-primary">{nextSessionCountdown}</p>
                             ) : null}
@@ -1302,7 +1293,7 @@ export default function Schedule() {
                         return (
                           <SessionRow
                             key={ev.id}
-                            title={ev.title}
+                            title={sessionDisplayTitle(ev, t)}
                             subtitle={`${formatTime(ev.starts_at)}${ev.location ? ` · ${ev.location}` : ""}`}
                             right={
                               attendanceRequired ? (
@@ -1527,7 +1518,7 @@ export default function Schedule() {
                       {(tomorrowEventsQ.data ?? []).map((ev) => (
                         <SessionRow
                           key={ev.id}
-                          title={ev.title}
+                          title={sessionDisplayTitle(ev, t)}
                           subtitle={`${formatTime(ev.starts_at)}${ev.location ? ` · ${ev.location}` : ""}`}
                         />
                       ))}
@@ -1544,7 +1535,7 @@ export default function Schedule() {
                       {weekRestSessions.map((ev) => (
                         <SessionRow
                           key={ev.id}
-                          title={ev.title}
+                          title={sessionDisplayTitle(ev, t)}
                           subtitle={`${formatTime(ev.starts_at)}${ev.location ? ` · ${ev.location}` : ""}`}
                         />
                       ))}
@@ -1717,7 +1708,7 @@ export default function Schedule() {
                                                   onOpenDetail={() => openSessionDetail(ev)}
                                                   onOpenEdit={() => startEditing(ev)}
                                                 >
-                                                  <p className="text-sm font-extrabold text-foreground truncate">{ev.title}</p>
+                                                  <p className="text-sm font-extrabold text-foreground truncate">{sessionDisplayTitle(ev, t)}</p>
                                                   <p className="mt-0.5 text-xs font-semibold text-muted-foreground truncate">
                                                     {formatTimeRange(ev.starts_at, ev.ends_at)}
                                                     {ev.location ? ` · ${ev.location}` : ""}
@@ -1873,7 +1864,7 @@ export default function Schedule() {
                                         onDragStart={() => setDraggedSession(ev)}
                                         onDragEnd={() => { setDraggedSession(null); setDragOverCell(null); }}
                                       >
-                                      <p className="text-xs font-extrabold text-foreground truncate">{ev.title}</p>
+                                      <p className="text-xs font-extrabold text-foreground truncate">{sessionDisplayTitle(ev, t)}</p>
                                       <p className="text-xs font-semibold text-muted-foreground truncate">
                                       {formatTimeRange(ev.starts_at, ev.ends_at)}
                                       {ev.location ? ` · ${ev.location}` : ""}
@@ -2005,7 +1996,7 @@ export default function Schedule() {
                   <KpiCard
                     title={t("schedule_staff_kpi_next_session_countdown")}
                     value={nextSessionCountdown ?? t("schedule_placeholder_kpi")}
-                    subtitle={nextSession ? nextSession.title : undefined}
+                    subtitle={nextSession ? sessionDisplayTitle(nextSession, t) : undefined}
                   />
                 </div>
                 <div className="rounded-2xl border border-border bg-card p-4">
@@ -2030,7 +2021,7 @@ export default function Schedule() {
                         <SessionRow
                           key={ev.id}
                           sessionType={ev.session_type}
-                          title={ev.title}
+                          title={sessionDisplayTitle(ev, t)}
                           subtitle={`${formatTimeRange(ev.starts_at, ev.ends_at)}${ev.location ? ` · ${ev.location}` : ""}`}
                           onClick={() => openSessionDetail(ev)}
                           right={
@@ -2209,7 +2200,7 @@ export default function Schedule() {
                                         }}
                                       >
                                         <div style={{ fontSize: 12, fontWeight: 800, lineHeight: 1.2 }}>
-                                          {ev.title}
+                                          {sessionDisplayTitle(ev, t)}
                                         </div>
                                         <div style={{ marginTop: 3, fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
                                           {formatTime(ev.starts_at)}
@@ -3057,7 +3048,7 @@ export default function Schedule() {
                               const mm = String(s.startMins % 60).padStart(2, "0");
                               return (
                                 <p key={idx} className="text-xs font-semibold text-muted-foreground truncate">
-                                  {hh}:{mm} · {s.title}
+                                  {hh}:{mm} · {sessionDisplayTitle(s, t)}
                                 </p>
                               );
                             })}
@@ -3503,7 +3494,7 @@ function ScheduleDesktopPanel(props: {
   }
   return (
     <div className="flex flex-col gap-4 p-5">
-      <h2 className="text-base font-black tracking-tight text-foreground pr-2">{props.event.title}</h2>
+      <h2 className="text-base font-black tracking-tight text-foreground pr-2">{sessionDisplayTitle(props.event, props.t)}</h2>
       <ScheduleSessionDetailBody
         event={props.event}
         intlLocale={props.intlLocale}
@@ -3642,6 +3633,20 @@ function formatTimeRange(startsAt: string, endsAt: string | null): string {
   const start = formatTime(startsAt);
   if (!endsAt) return start;
   return `${start}–${formatTime(endsAt)}`;
+}
+
+/**
+ * Si el coach no escribio un nombre propio para la sesion, el titulo
+ * guardado es "" (ver useSessionForm.ts) -- aqui se rellena con la etiqueta
+ * de ACTIVITY_TYPE_CONFIG traducida EN VIVO al idioma actual, en vez de
+ * depender de texto congelado desde el momento de creacion (eso era lo que
+ * hacia que "Court Practice" se quedara en ingles al cambiar de idioma).
+ */
+function sessionDisplayTitle(
+  ev: { title: string; session_type: ScheduleEvent["session_type"] },
+  t: (key: I18nKey) => string,
+): string {
+  return ev.title.trim() || t(ACTIVITY_TYPE_CONFIG[ev.session_type].labelKey);
 }
 
 /** "9:00–12:00" style range for a planner slot header — fixes the original

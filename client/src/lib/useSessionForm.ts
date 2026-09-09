@@ -236,7 +236,14 @@ export function useSessionForm() {
       if (attendanceMode === "selected_players" && selectedPlayerIds.size < 1) return;
       if (!signupMaxSpotsOk) return;
       const baseTitle = (opts?.overrideTemplate ? opts.overrideTemplate.title : createTitle).trim();
-      const title = baseTitle || defaultTitle;
+      // No se guarda defaultTitle (la etiqueta traducida en el momento de crear)
+      // como texto congelado -- eso es justo lo que hacia que "Court Practice"
+      // se quedara en ingles para siempre aunque luego se cambiara el idioma
+      // de la app. Si el coach no escribe un nombre propio, se guarda vacio y
+      // cada pantalla que muestra el titulo cae en la etiqueta de
+      // ACTIVITY_TYPE_CONFIG traducida en vivo segun el idioma actual.
+      const title = baseTitle;
+      void defaultTitle;
       const dateStr = opts?.dateOverride ?? createDate;
       const startsIso = new Date(`${dateStr}T${formatTimeHHMMFromTotalMinutes(createStartMins)}`).toISOString();
       const endsIso = createEndTime
