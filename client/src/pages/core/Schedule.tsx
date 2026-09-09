@@ -24,6 +24,7 @@ import {
   X,
   CalendarDays,
   Info,
+  SlidersHorizontal,
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import {
@@ -2755,16 +2756,20 @@ export default function Schedule() {
                     <option value="1">{t("schedule_games_1" as any)}</option>
                     <option value="2">{t("schedule_games_2" as any)}</option>
                   </select>
-                  <select
-                    className="h-9 rounded-md border border-border bg-background px-2 text-sm"
-                    value={weekTemplateLoad}
-                    onChange={(e) => setWeekTemplateLoad((e.target.value as any) || "all")}
-                  >
-                    <option value="all">{t("schedule_load_any" as any)}</option>
-                    <option value="low">{t("schedule_load_low" as any)}</option>
-                    <option value="medium">{t("schedule_load_medium" as any)}</option>
-                    <option value="high">{t("schedule_load_high" as any)}</option>
-                  </select>
+                  <div className="relative">
+                    <SlidersHorizontal className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <select
+                      className="h-9 rounded-md border border-border bg-background pl-7 pr-2 text-sm"
+                      value={weekTemplateLoad}
+                      onChange={(e) => setWeekTemplateLoad((e.target.value as any) || "all")}
+                      aria-label={t("schedule_load_any" as any)}
+                    >
+                      <option value="all">{t("schedule_load_any" as any)}</option>
+                      <option value="low">{t("schedule_load_low" as any)}</option>
+                      <option value="medium">{t("schedule_load_medium" as any)}</option>
+                      <option value="high">{t("schedule_load_high" as any)}</option>
+                    </select>
+                  </div>
                 </div>
                 <select
                   className="h-9 rounded-md border border-border bg-background px-2 text-sm"
@@ -2816,7 +2821,7 @@ export default function Schedule() {
                           {tpl.lastUsedAt ? ` · ${t("schedule_week_template_last_used")}` : ""}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap justify-end">
                         <button
                           type="button"
                           className="h-10 w-10 inline-flex items-center justify-center rounded-lg border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:bg-muted/40"
