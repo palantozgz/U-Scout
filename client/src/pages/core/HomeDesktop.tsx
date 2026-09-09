@@ -1,7 +1,11 @@
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Clock, MapPin, Building2, CalendarDays, Target, BarChart3, Heart, BookOpen } from "lucide-react";
 import { useHomeData } from "@/lib/useHomeData";
 import { useCapabilities } from "@/lib/capabilities";
+import { ACTIVITY_TYPE_CONFIG } from "@/lib/scheduleActivityConfig";
+import { CLUB_TIME_ZONE, type ScheduleEvent } from "@/lib/schedule";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ModuleNav } from "./ModuleNav";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
 
@@ -92,11 +96,11 @@ function AlertChip({
 }
 
 // ── Day pill for week strip ───────────────────────────────────
-function DayPill({ date, hasSession, isToday, locale, onClick }: { date: Date; hasSession: boolean; isToday: boolean; locale: string; onClick?: () => void }) {
+function DayPill({ date, hasSession, sessions, isToday, locale, t, onClick }: { date: Date; hasSession: boolean; sessions: ScheduleEvent[]; isToday: boolean; locale: string; t: (key: any) => string; onClick?: () => void }) {
   const intl  = locale === "es" ? "es" : locale === "zh" ? "zh-CN" : "en";
   const name  = new Intl.DateTimeFormat(intl, { weekday: "short" }).format(date);
   const num   = date.getDate();
-  return (
+  const pill = (
     <button
       type="button"
       onClick={onClick}
@@ -112,6 +116,41 @@ function DayPill({ date, hasSession, isToday, locale, onClick }: { date: Date; h
       <span className={cn("w-[5px] h-[5px] rounded-full",
         hasSession ? (isToday ? "bg-primary" : "bg-primary/50") : "bg-transparent")} />
     </button>
+  );
+  // Ratoncito de escritorio, no touch -- los entrenadores planifican mas en
+  // desktop/iPad que las jugadoras, asi que un vistazo rapido del dia sin
+  // tener que navegar a Schedule les ahorra clics todo el dia.
+  return (
+    <HoverCard openDelay={200} closeDelay={80}>
+      <HoverCardTrigger asChild>{pill}</HoverCardTrigger>
+      <HoverCardContent className="w-56 p-3" align="center">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-2">
+          {new Intl.DateTimeFormat(intl, { weekday: "long", month: "short", day: "numeric" }).format(date)}
+        </p>
+        {sessions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {locale === "zh" ? "本日无训练/比赛" : locale === "es" ? "Sin sesiones" : "No sessions"}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {sessions.map((ev) => (
+              <div key={ev.id} className="flex items-start gap-2">
+                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {ev.title.trim() || t(ACTIVITY_TYPE_CONFIG[ev.session_type].labelKey)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", timeZone: CLUB_TIME_ZONE }).format(new Date(ev.starts_at))}
+                    {ev.location ? ` · ${ev.location}` : ""}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
@@ -138,8 +177,23 @@ export default function HomeDesktop() {
     showClubActivityDot,
     weekDays,
     sessionDateSet,
+    weekSessionsQ,
     todayDateKey,
   } = useHomeData();
+
+  const sessionsByDay = useMemo(() => {
+    const map = new Map<string, ScheduleEvent[]>();
+    for (const ev of weekSessionsQ?.data ?? []) {
+      const key = new Date(ev.starts_at).toDateString();
+      const list = map.get(key) ?? [];
+      list.push(ev);
+      map.set(key, list);
+    }
+    for (const list of Array.from(map.values())) {
+      list.sort((a: ScheduleEvent, b: ScheduleEvent) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+    }
+    return map;
+  }, [weekSessionsQ?.data]);
 
   const caps = useCapabilities();
 
@@ -274,8 +328,10 @@ export default function HomeDesktop() {
                 {weekDays.map((d) => (
                   <DayPill key={d.toDateString()} date={d}
                     hasSession={sessionDateSet.has(d.toDateString())}
+                    sessions={sessionsByDay.get(d.toDateString()) ?? []}
                     isToday={d.toDateString() === todayDateKey}
                     locale={locale}
+                    t={t}
                     onClick={() => setLocation("/schedule")}
                   />
                 ))}

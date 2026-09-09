@@ -14,6 +14,7 @@ import {
   useTodayScheduleEvents,
   useTomorrowScheduleEvents,
   useTodayWellnessSubmissionPct,
+  CLUB_TIME_ZONE,
 } from "@/lib/schedule";
 import { useWellnessEntryToday, todayKey } from "@/lib/wellness";
 import { buildHomeSignals } from "@/lib/homeSignals";
@@ -184,7 +185,7 @@ export function useHomeData() {
   const nextSessionTimeStr = useMemo(() => {
     if (!nextSession?.starts_at) return null;
     try {
-      return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(
+      return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", timeZone: CLUB_TIME_ZONE }).format(
         new Date(nextSession.starts_at),
       );
     } catch {
