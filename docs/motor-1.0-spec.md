@@ -241,3 +241,99 @@ Comparado contra el framework de 6 preguntas, hay campos del `PlayerEditor` actu
 4. ¿El "emparejamiento defensivo" (pregunta 4 del framework) debe vivir en U Scout o es más bien de `GamePlan.tsx` (asignación de marcajes)? Son módulos hoy separados.
 5. ¿Estamos de acuerdo en que la Capa 0 sea autónoma (no un resumen recortado), aunque eso signifique rediseñar cómo se genera hoy la slide 1 del formato actual?
 6. El mapeo campo-por-campo de 13.4 puede recortar campos que hoy usa el staff con regularidad — ¿prioridad "agilidad del formulario" por encima de "no perder ningún campo ya usado", o al revés?
+
+---
+
+## 14. Decisiones finales — propuesta cerrada (ya no son preguntas abiertas, son mi recomendación concreta)
+
+> Pablo pidió que construyera yo la propuesta en vez de devolver preguntas. Aquí está la decisión en cada punto que antes dejé abierto, con el porqué. Sigue siendo una propuesta a que él apruebe o corrija — no una imposición — pero ya no es una lista de preguntas sin resolver.
+
+### 14.1. Las 6 preguntas abiertas, resueltas
+
+1. **¿Vínculo a U Stats obligatorio?** → **No, opcional con degradación elegante.** Muchas jugadoras rivales son extranjeras o de ligas sin PBP en el sistema. El motor debe funcionar idéntico sin Nivel 2 — simplemente sin Capa 3 ni chip de stat destacado en Capa 0. Forzarlo obligatorio bloquearía el uso normal del producto para un porcentaje real de jugadoras.
+2. **¿Conservar los `key` de v2.1/v4 por compatibilidad con `report_overrides`?** → **No conservarlos, pero migrar una vez.** Naming nuevo y limpio (Synergy Offensive Roles, sección 12.5) sin arrastrar la deuda de dos esquemas mezclados. Para no perder el historial de aprobaciones ya hechas: un script de migración único que traduzca los `itemKey` viejos conocidos (mapa fijo, no heurístico) a los nuevos en `report_overrides` existentes, ejecutado una sola vez al lanzar Motor 1.0. Los overrides que no tengan mapeo claro se pierden y hay que re-aprobar — aceptable, es coste único de una vez.
+3. **¿Prioridad núcleo vs. UX?** → **Núcleo primero (Fases 0-1), sin excepción.** Construir UX nueva sobre un motor que aún no es la única fuente de verdad significaría rehacer esa UX cuando el núcleo cambie. Es el orden que menos trabajo desperdicia.
+4. **¿Dónde vive el emparejamiento defensivo (pregunta 4 del framework)?** → **Campo ligero dentro de U Scout, no una integración completa con `GamePlan.tsx`.** Un solo campo opcional en el perfil de la jugadora rival: "quién de mi equipo suele marcarla" (selector del roster propio, editable por el staff). No requiere tocar `GamePlan.tsx` para empezar a aportar valor en la Capa 1. Integrarlo de verdad con la asignación táctica completa de `GamePlan` queda como fase futura opcional, no bloqueante.
+5. **¿Capa 0 autónoma, aunque implique rediseñar la slide 1 actual?** → **Sí.** Es el cambio de mayor impacto de todo el documento para el caso de uso real (jugadora leyendo en el móvil, posiblemente solo esa tarjeta). Mantener la slide 1 actual como "resumen recortado" en vez de autocontenida sería arrastrar el mismo problema de diseño que ya se identificó como mejorable.
+6. **¿Agilidad del formulario vs. no perder campos ya usados?** → **Agilidad por defecto, pero con revelado progresivo, no borrado.** Ningún campo del `PlayerEditor` actual desaparece de la base de datos ni dejará de poder rellenarse — se reorganiza la UI para mostrar primero lo esencial (las 6 preguntas) y el resto queda en una sección "avanzado" plegada por defecto. Nadie pierde capacidad, se gana velocidad para el caso común.
+
+### 14.2. Boceto del modelo de datos de Fase 0 (nivel de tipos, no código real — esto es lo que se implementaría)
+
+```ts
+// NIVEL 1 — observación del staff. Igual de espíritu que PlayerInputs de v2.1,
+// reagrupado explícitamente por las 11 situaciones estándar de Synergy (12.1).
+type StaffObservation = {
+  situacion: "iso" | "pnrHandler" | "pnrRollMan" | "post" | "transition"
+           | "spotUp" | "handoff" | "cut" | "offScreen" | "putback" | "misc";
+  frecuencia: "P" | "S" | "R" | "N";               // Principal/Secundaria/Rara/Nunca
+  camposObservados: Record<string, unknown>;         // los campos "neverInfer" de hoy, agrupados aquí
+};
+
+type PlayerProfileV1Inputs = {
+  identidad: { nombre: string; posicion: string; alturaCm: number; pesoKg: number; manoDominante: "I" | "D" | "Ambidiestra" };
+  wcbaExternalId?: string;              // vínculo opcional a U Stats (sección 5) — null si no aplica
+  emparejamientoDefensivo?: string;     // id de jugadora propia — respuesta 14.1.4
+  observaciones: StaffObservation[];    // una entrada por cada una de las 11 situaciones
+  formaReciente?: "hot" | "cold" | "stable";
+};
+
+// NIVEL 2 — dato real de U Stats, siempre con metadata de fiabilidad, nunca "pelado".
+type StatConVolumen = {
+  valor: number;
+  percentil: number;                    // idealmente por posición, sección 10.2
+  percentilAjustadoPorMuestra: number;  // tras contracción bayesiana, sección 12.3
+  volumenIntentos: number;
+  ventana: "temporada" | "ultimos_12";  // sección 12.4
+};
+
+type PlayerRealStats = {
+  ppg: StatConVolumen; rpg: StatConVolumen; apg: StatConVolumen;
+  fg3Pct: StatConVolumen; efgPct: StatConVolumen; tsPct: StatConVolumen;
+  usgPct: StatConVolumen; tovPct: StatConVolumen;
+};
+
+// OUTPUT — con confianza y quiet edge (sección 13.2)
+type DefenseOutput = {
+  key: string;              // naming nuevo, Synergy Offensive Roles adaptado
+  categoria: "deny" | "force" | "allow" | "aware";
+  situacionOrigen: string;
+  score: number;
+  confianza: "alta" | "media" | "baja";   // nuevo, no existía en v2.1/v4/mock-data
+};
+
+type QuietEdge = {
+  output: DefenseOutput | StatConVolumen;
+  motivo: "inesperado_para_posicion";     // el criterio, no solo percentil alto en abstracto
+};
+
+type ScoutingReportV1 = {
+  archetypeKey: string;              // Synergy Offensive Roles
+  capa0: { archetypeKey: string; statDestacado?: StatConVolumen; quietEdge?: QuietEdge; accionPrincipal: DefenseOutput };
+  capa1: { situaciones: DefenseOutput[]; emparejamientoDefensivo?: string };
+  capa2: { deny: DefenseOutput; force: DefenseOutput; allow: DefenseOutput };
+  capa3?: PlayerRealStats;            // ausente si no hay vínculo a U Stats
+};
+```
+
+Esto es el contrato de datos que Fase 0 tendría que fijar de verdad (con tipos exactos, no este boceto) antes de escribir el núcleo de cálculo de Fase 1.
+
+### 14.3. Mapa de naming propuesto: Synergy Offensive Roles → español, para archetypeKey
+
+| Synergy (inglés, estándar citado en 12.5) | `archetypeKey` propuesto |
+|---|---|
+| Playmaking ball handler | `armadora_creadora` |
+| Scoring ball handler | `armadora_anotadora` |
+| Secondary ball handler | `manejadora_secundaria` |
+| Slashing wing | `alero_penetradora` |
+| Spot-up shooting wing | `alero_tiradora` |
+| Dynamic shooting wing | `alero_movimiento` |
+| Playmaking big | `interior_creadora` |
+| Post-up big | `interior_poste` |
+| Stretch big | `interior_abridora` |
+| Rim-finishing big | `interior_finalizadora` |
+
+`[PENDIENTE VALIDAR CON PABLO]`: la traducción/naming exacto es una decisión de producto y de tono de marca, esto es una primera propuesta razonable, no la última palabra.
+
+### 14.4. Definición de "listo para empezar a construir"
+
+Con las secciones 1-14 de este documento, **la Fase 0 del roadmap (sección 8) ya tiene todo lo que necesita para arrancar**: modelo de datos (14.2), naming (14.3), qué conservar y qué cambiar (secciones 3-4, 13.2), y las decisiones de producto que antes bloqueaban el arranque (14.1). Lo único que sigue pendiente y no puedo resolver yo solo es el mapeo campo-por-campo de `PlayerEditor.tsx` (13.4) — requiere releer el archivo completo, que es trabajo mecánico de auditoría, no una decisión de producto; puedo hacerlo en la próxima tanda si quieres seguir antes de pasar a implementación real.
