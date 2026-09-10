@@ -381,3 +381,31 @@ Ya cubierto en gran parte por la Capa 0 autónoma (sección 13.3) y el hallazgo 
 1. Flujo de captura de 2 pasos (selección → detalle) en vez de 9 secciones fijas siempre visibles — reduce tiempo real del staff.
 2. Autorrelleno editable desde Nivel 2 para `ftShooting` y `foulDrawing` — reduce margen de error, con límite explícito de cuándo NO hacerlo (`athleticism`/`physicalStrength`).
 3. Cada acción defensiva emparejada con un "por qué" citando dato real cuando exista — mejora retención de la jugadora, no solo comodidad del staff.
+
+---
+
+## 16. Presentación a la jugadora — cómo se lee el informe, no solo qué contiene
+
+> Todo lo de las secciones 13-15 diseña **qué dato mostrar**. Esta sección diseña **cómo se ve y se siente** al leerlo, que es una pregunta distinta y Pablo tiene razón en separarla.
+
+### 16.1. El contexto real que hay que respetar, ya verificado en memoria del proyecto
+
+**[VERIFICADO, ya decidido como producto]** "El informe lo lee la jugadora directamente en el móvil, individualmente, bastante antes del día del partido" (`u-scout-design-decisions.md`). Esto es importante porque **descarta** una recomendación que encontré en la investigación de coaching (sección 12/13): la práctica de que "el mejor método de entrega es un walkthrough en pista en vivo, no un documento" ([How to Scout Opponents, Hoop Mentality](https://hoopmentality.com/blogs/basketball/how-to-scout-opponents-a-basketball-coachs-guide)) **no aplica aquí** — U Scout ya decidió el modelo asíncrono/individual, y es una decisión de producto válida (escala mejor, no depende de tiempo de pista compartido), no algo que este documento deba cuestionar. Lo que sí aplica de esa misma investigación es todo lo que ayuda a que un documento leído en solitario retenga tan bien como una sesión en vivo — ahí es donde hay que invertir.
+
+### 16.2. Principios de UX móvil deportiva, con fuente, aplicados a este caso concreto
+
+- **Regla de 2 toques**: cualquier información crítica (la Capa 0, sección 13.3) debe verse sin scroll ni navegación extra al abrir el informe — principio general de diseño móvil deportivo confirmado en [Sports App UX Design, TheFinch](https://thefinch.design/sports-app-ux-design-cricket-fantasy-live-score-platforms/): las interacciones principales no deberían requerir más de dos toques desde cualquier pantalla.
+- **Diseño para uso con una mano y en condiciones de luz variable**: la jugadora puede leer esto en el pabellón, en el bus, con luz mala — tipografía grande y contraste alto en la Capa 0 en particular (misma fuente que arriba).
+- **Nada de gamificación genérica (rachas, insignias, tablas de clasificación).** Esto sí lo descarto explícitamente, aunque aparece mucho en la literatura de apps deportivas de fitness/consumo ([Fitness App UI Design](https://stormotion.io/blog/fitness-app-ux/)) — encaja con apps de motivación personal, no con un informe de scouting profesional de un club WCBA. Añadir insignias por "leer tu informe" trivializaría el tono serio que ya tiene el producto.
+
+### 16.3. Lo que SÍ propongo añadir, justificado, no visto en ningún lado todavía
+
+**Confirmación de lectura, visible solo para el staff (nuevo, no existe hoy).** Verificado en memoria: hoy el flujo de aprobación rastrea quién del staff aprobó qué, pero no hay ningún rastro de si la jugadora **leyó de verdad** su informe antes del partido. Dado que el propio diseño aprobado dice "bastante antes del día del partido", el coach necesita saber si eso realmente pasa — sin esto, no hay forma de saber si el modelo async individual está funcionando de verdad o si las jugadoras simplemente no lo abren. Propuesta concreta: marca de tiempo de "visto" al abrir la Capa 0 por primera vez, visible en un panel de staff (no visible para otras jugadoras, no es un ranking público — evita la presión social que sí generaría una tabla de "quien ha leído/quién no" compartida entre compañeras).
+
+**Recordatorio, no notificación insistente.** Una única notificación cuando el informe se publica, y como mucho un segundo recordatorio si sigue sin abrirse a X horas del partido (número exacto a decidir con Pablo, no lo invento yo) — nunca más de dos avisos. Empujar demasiado iría en contra de la idea de "herramienta seria", se sentiría como spam.
+
+**Tono del texto: directo y de entrenador, no corporativo ni motivacional genérico.** Esto conecta con el hallazgo ya documentado de plantillas mezcladas inglés/español (sección 12.6/OUTPUT_CATALOG) — al unificar el idioma base, la ocasión es también para fijar un tono único: frases cortas, imperativas, sin relleno ("Fuerza a la izquierda", no "Se recomienda intentar forzar hacia el lado izquierdo cuando sea posible") — coincide con el estilo que ya usan las plantillas más logradas del catálogo actual (ej. "Cerrar el espacio").
+
+### 16.4. Lo que NO sé y no voy a inventar
+
+`[PENDIENTE VALIDAR CON PABLO]`: el número exacto de horas antes del partido para el recordatorio, si la marca de "visto" debe mostrarse solo a nivel de equipo (agregado, "7 de 12 ya lo han abierto") o también individual por jugadora, y si a las jugadoras les parecería bien saber que el staff ve si lo han abierto (esto es una cuestión de cultura de equipo, no algo que yo pueda decidir sin conocer al grupo real).
