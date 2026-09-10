@@ -179,3 +179,65 @@ Incluso Synergy —el estándar de oro con etiquetado humano por vídeo— tiene
 3. **Revisar criterio de calibración de pesos**: añadir "poder discriminante" junto a "PPP bruto" (12.2) — requiere más trabajo de análisis, no es trivial de calcular sin datos de tracking, pero vale la pena documentarlo como principio aunque se implemente de forma aproximada.
 4. **Percentiles por posición**, ya señalado en la sección 10.2 — sigue siendo el pendiente más crítico de la parte de stats.
 5. **Nomenclatura de archetypes estándar** (12.5) — barata, mayormente una decisión de naming, a validar con Pablo.
+
+---
+
+## 13. Rediseño desde cero — inputs, outputs y slides (todo lo anterior, motores y este mismo doc hasta ahora, se usa solo como material de referencia)
+
+> Encargo de Pablo: "revisa si hay que cambiar inputs y outputs y tipo de slides y todo, es como si empezásemos de cero". Esto NO es un parche sobre v2.1/v4/mock-data — es una propuesta nueva que aprovecha lo aprendido. Sigue siendo teoría/planificación, cero código.
+
+### 13.0. El hallazgo que reorganiza todo lo demás: el framework de 6 preguntas (encontrado hoy, no existía en el doc)
+
+Búsqueda adicional de hoy: una guía de coaching real de scouting de rivales define el informe de cada jugadora como la respuesta a **exactamente 6 preguntas**, una página por jugadora ([How to Scout Opponents, Hoop Mentality](https://hoopmentality.com/blogs/basketball/how-to-scout-opponents-a-basketball-coachs-guide)):
+
+1. **Mano dominante** — ¿hacia dónde prefiere atacar?
+2. **Zonas preferidas** — ¿dónde crea y finaliza?
+3. **Acción principal** — ¿cuál es su jugada/situación de referencia?
+4. **Emparejamiento defensivo** — ¿quién la marca en tu equipo y qué exige ese emparejamiento?
+5. **Señal de faltas** — ¿busca contacto/tiros libres a un ritmo alto, y cómo llega a la línea?
+6. **El detalle no obvio** — el único dato que cambia cómo se la defiende, distinto de las 5 anteriores.
+
+Esto es oro para el rediseño porque **5 de las 6 ya existen de alguna forma en el motor actual**, pero la 4ª (emparejamiento defensivo) **no existe en absoluto** hoy en U Scout — es un hueco real, no cubierto ni por `motor-v2.1` ni por `mock-data.ts`. Y la 6ª ("detalle no obvio") es exactamente el concepto que ya propuse en la sección 10 para el modo sencillo, ahora con respaldo externo citado, no solo intuición mía.
+
+### 13.1. INPUTS — modelo nuevo de 3 niveles por procedencia (reemplaza la lista plana de ~48 campos)
+
+En vez de un formulario plano de ~48 campos todos con el mismo peso aparente (el problema de `PlayerEditor.tsx` hoy, 1.969 líneas), separar explícitamente por **de dónde viene el dato**, cada nivel con su propia fiabilidad:
+
+**Nivel 1 — Observación del staff (cualitativa, nunca inferida ni calculada).** Aquí viven los campos que ya identificaba `INFERENCE_RULES.neverInfer` de v2.1 (dirección de ISO, hombro de post, tipo de corte, reacción a presión...) — esto se conserva sin cambios de fondo, es la joya del motor actual.
+
+**Nivel 2 — Dato real de U Stats (objetivo, requiere el vínculo `wcba_external_id` de la sección 5).** Nuevo respecto a todo lo anterior. Cada métrica de este nivel lleva metadata obligatoria: valor, percentil (idealmente por posición, sección 10.2), ventana temporal (temporada completa vs. últimos 10-15 partidos, sección 12.4), y nivel de confianza por tamaño de muestra (contracción bayesiana, sección 12.3) — nunca un número "pelado".
+
+**Nivel 3 — Inferido por el motor (calculado, nunca observación directa).** Se conserva el motor de inferencia actual (`applyInferences`), pero se le añade una función nueva que no existía: **detección de discrepancia Nivel 1 vs. Nivel 2** (ej. staff dice "ISO: Nunca" pero el USG% real de Nivel 2 está en P90 — el motor no debe autocorregir al staff, solo mostrar un aviso de "revisar", igual que ya proponía la sección 5.4).
+
+**Consecuencia práctica para `PlayerEditor`:** en vez de un formulario largo y plano, la UI podría mostrar primero el Nivel 2 (contexto real, si existe vínculo) como punto de partida, y pedir el Nivel 1 agrupado por las 11 situaciones estándar de Synergy (sección 12.1) — más ágil que un formulario único de 48 campos sueltos, sin quitarle rigor.
+
+### 13.2. OUTPUTS — qué se conserva, qué cambia
+
+**Se conserva sin cambio de fondo:** la estructura deny/force/allow con el cap anti-inflación a 0,72 (sección 3) — sigue siendo lógicamente sólida y no hay nada en la investigación de hoy que la contradiga.
+
+**Cambia — nueva metadata obligatoria por output:** cada output (deny/force/allow/aware) lleva ahora un campo de **confianza** (alta si Nivel 1 tiene observación directa consistente y/o Nivel 2 tiene volumen de muestra suficiente; baja si depende de inferencia de Nivel 3 sobre poco dato). Esto no existía en ningún output de v2.1/v4/mock-data — es la traducción directa de la sección 12.3 (shrinkage) a nivel de recomendación, no solo de estadística mostrada.
+
+**Cambia — naming de archetype:** adoptar (o adaptar traduciendo) los "Offensive Roles" de Synergy ya citados en 12.5, en vez del naming ad hoc actual (`arch_isolation_driver`/`archetype_iso_scorer`) — resuelve de raíz el problema de naming inconsistente entre motores que la auditoría encontró y ejecutó en vivo (sección 2.5).
+
+**Nuevo — output tipo "quiet edge" (detalle no obvio):** ningún motor actual tiene este concepto explícito. Se propone un algoritmo de selección específico: de entre TODOS los outputs generados (Nivel 1 cualitativo + Nivel 2 estadístico), elegir **el que menos se parezca al patrón típico de su posición** (ej. una base con rebote destacado, una pívot con 3P% destacado — la sorpresa posicional, no solo el percentil más alto en abstracto). Esto es distinto y complementario al algoritmo de la sección 10.3 (que ordena por percentil más alto sin ajuste posicional) — "quiet edge" prioriza lo **inesperado para la posición**, no solo lo **estadísticamente alto en general**.
+
+**Se elimina/limpia:** la entrada huérfana `deny.duck_in` (sección de auditoría ya documentada), y se fuerza un solo idioma base en las plantillas (ya documentado como inconsistencia en la auditoría).
+
+### 13.3. SLIDES — repensado como capas progresivas, no slides fijas de 1/2/3
+
+El formato actual (3 slides fijas: ¿Quién es? / ¿Qué hará? / ¿Qué hago yo?) se reorganiza en **capas**, donde la primera capa es autónoma y suficiente por sí sola — diseño mobile-first real, no un resumen recortado de algo más largo:
+
+- **Capa 0 — siempre visible, única en "modo sencillo":** una sola tarjeta que combina identidad (archetype con nomenclatura Synergy) + el stat destacado real más extremo (sección 10.3, con shrinkage aplicado) + el output "quiet edge" (13.2) + **una sola** acción defensiva concreta (el `winner` de `deny`, no una lista). Es la respuesta condensada a las 6 preguntas de Hoop Mentality en una sola tarjeta.
+- **Capa 1 — modo completo:** mapa de situaciones ordenado por amenaza (equivalente al "¿Qué hará?" actual), ahora con el emparejamiento defensivo (pregunta 4 de 13.0, hueco nuevo a construir) si el club ya tiene asignado quién la marca.
+- **Capa 2 — modo completo:** plan defensivo completo deny/force/allow con nivel de confianza visible por recomendación (13.2).
+- **Capa 3 — modo completo, nueva, no existía antes:** contexto estadístico real de U Stats con transparencia de muestra (chips con percentil Y tamaño de muestra visible, nunca un número sin contexto).
+
+### 13.4. Qué se propone recortar del modelo actual ("más ágil", como pide Pablo)
+
+Comparado contra el framework de 6 preguntas, hay campos del `PlayerEditor` actual (~48) que no alimentan ninguna de las 6 preguntas ni ningún output visible en las 4 capas de arriba — candidatos a revisar si de verdad hacen falta o son ruido heredado de iteraciones anteriores. `[PENDIENTE]`: no he hecho el mapeo campo-por-campo de los ~48 contra las 6 preguntas todavía (requiere releer `PlayerEditor.tsx` entero, que quedó pendiente en la auditoría original) — es el siguiente paso lógico antes de considerar esta sección cerrada.
+
+### 13.5. Preguntas abiertas nuevas de esta sección (se suman a las de la sección 11)
+
+4. ¿El "emparejamiento defensivo" (pregunta 4 del framework) debe vivir en U Scout o es más bien de `GamePlan.tsx` (asignación de marcajes)? Son módulos hoy separados.
+5. ¿Estamos de acuerdo en que la Capa 0 sea autónoma (no un resumen recortado), aunque eso signifique rediseñar cómo se genera hoy la slide 1 del formato actual?
+6. El mapeo campo-por-campo de 13.4 puede recortar campos que hoy usa el staff con regularidad — ¿prioridad "agilidad del formulario" por encima de "no perder ningún campo ya usado", o al revés?
