@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -73,6 +74,8 @@ export type SessionCreateDialogProps = {
   createEventMut: CreateEventMut;
   updateEventMut: UpdateEventMut;
   pushRecentLocation: (loc: string) => void;
+  /** When set, shows a delete button in the edit footer (only relevant when isEditing). */
+  onDelete?: () => void;
   t: Translate;
   locale: string;
 };
@@ -90,6 +93,7 @@ export function SessionCreateDialog(props: SessionCreateDialogProps) {
     createEventMut,
     updateEventMut,
     pushRecentLocation,
+    onDelete,
     t,
     locale,
   } = props;
@@ -894,6 +898,17 @@ export function SessionCreateDialog(props: SessionCreateDialogProps) {
               <Button variant="outline" onClick={onClose} className="h-11">
                 {t("close")}
               </Button>
+                {isEditing && onDelete ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-11 shrink-0 px-0 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                    aria-label={t("schedule_cancel_session")}
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                ) : null}
                 <Button
                   className="h-11 flex-1 font-black"
                   disabled={!canSubmitCreate || createEventMut.isPending || updateEventMut.isPending}

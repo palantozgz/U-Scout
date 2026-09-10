@@ -174,6 +174,7 @@ export default function Schedule() {
   const [sessionDetailEvent, setSessionDetailEvent] = useState<ScheduleEvent | null>(null);
   const [desktopSelectedEvent, setDesktopSelectedEvent] = useState<ScheduleEvent | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingSessionEvent, setEditingSessionEvent] = useState<ScheduleEvent | null>(null);
   const isEditing = Boolean(editingSessionId);
   const form = useSessionForm();
   const {
@@ -724,6 +725,7 @@ export default function Schedule() {
 
   const startEditing = (ev: ScheduleEvent) => {
     setEditingSessionId(ev.id);
+    setEditingSessionEvent(ev);
     setCreateSessionType(ev.session_type);
     setCreateTitle(ev.title ?? "");
     const d = new Date(ev.starts_at);
@@ -2518,6 +2520,7 @@ export default function Schedule() {
             onClose={() => {
               setCreateOpen(false);
               setEditingSessionId(null);
+              setEditingSessionEvent(null);
             }}
             isEditing={isEditing}
             editingSessionId={editingSessionId}
@@ -2528,6 +2531,17 @@ export default function Schedule() {
             createEventMut={createEventMut}
             updateEventMut={updateEventMut}
             pushRecentLocation={pushRecentLocation}
+            onDelete={
+              editingSessionEvent
+                ? () => {
+                    const ev = editingSessionEvent;
+                    setCreateOpen(false);
+                    setEditingSessionId(null);
+                    setEditingSessionEvent(null);
+                    setCancelTarget(ev);
+                  }
+                : undefined
+            }
             t={t}
             locale={locale}
           />
