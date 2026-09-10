@@ -1829,6 +1829,7 @@ export default function Schedule() {
                                 return (
                                   <div
                                     key={cellKey}
+                                    data-testid={`planner-cell-${cellKey}`}
                                     className={[
                                       'space-y-1 rounded-lg px-0.5 py-2 transition-colors',
                                       isCellToday ? 'bg-primary/5' : '',
