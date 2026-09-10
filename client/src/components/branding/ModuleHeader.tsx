@@ -86,6 +86,34 @@ export function ModuleHeader({ module, tagline, className }: ModuleHeaderProps) 
     // Wrapper de ancho completo — siempre ocupa todo el ancho disponible
     // para que el settings icon quede anclado al borde derecho real
     <div className={cn("relative w-full shrink-0", className)}>
+      {/* Compacta el header a una sola fila cuando el viewport es landscape
+          y de poca altura (típico de un móvil apaisado) — ahí el bloque
+          vertical logo+wordmark+tagline+punto se comía ~120px+ de un
+          viewport de ~400-430px, dejando casi sin espacio el contenido
+          real (visto en U Stats: el panel de detalle de equipo quedaba
+          con ~80px visibles). No afecta portrait ni desktop: la media
+          query solo dispara con poca altura Y orientación landscape. */}
+      <style>{`
+        @media (max-height: 500px) and (orientation: landscape) {
+          .module-header-inner {
+            flex-direction: row !important;
+            padding-top: 0.35rem !important;
+            padding-bottom: 0.35rem !important;
+            gap: 0.5rem !important;
+          }
+          .module-header-logo svg {
+            height: 22px !important;
+            width: 22px !important;
+          }
+          .module-header-tagline,
+          .module-header-dot {
+            display: none !important;
+          }
+          .module-header-wordmark {
+            font-size: 10px !important;
+          }
+        }
+      `}</style>
       {/* Settings — anclado top-right del wrapper, misma altura en todos los módulos */}
       <button
         type="button"
@@ -99,20 +127,20 @@ export function ModuleHeader({ module, tagline, className }: ModuleHeaderProps) 
 
       {/* Contenido centrado — logo + wordmark + tagline + dot */}
       <div
-        className="flex flex-col items-center text-foreground"
+        className="module-header-inner flex flex-col items-center text-foreground"
         style={{ paddingTop: "0.75rem", paddingBottom: "0.5rem", gap: "0.2rem" }}
       >
         {/* Logo: 56px en móvil, 88px en desktop */}
-        <span className="md:hidden"><UMark size={56} /></span>
-        <span className="hidden md:block"><UMark size={88} /></span>
+        <span className="module-header-logo md:hidden"><UMark size={56} /></span>
+        <span className="module-header-logo hidden md:block"><UMark size={88} /></span>
 
-        <span style={{ fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase", opacity: 0.45, fontWeight: 500 }}>
+        <span className="module-header-wordmark" style={{ fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase", opacity: 0.45, fontWeight: 500 }}>
           {wordmark}
         </span>
-        <span style={{ fontSize: "10px", letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.28, fontWeight: 500 }}>
+        <span className="module-header-tagline" style={{ fontSize: "10px", letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.28, fontWeight: 500 }}>
           {tagline}
         </span>
-        <div style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: accent }} aria-hidden />
+        <div className="module-header-dot" style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: accent }} aria-hidden />
       </div>
     </div>
   );
