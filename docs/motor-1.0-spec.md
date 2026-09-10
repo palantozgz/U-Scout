@@ -409,3 +409,84 @@ Ya cubierto en gran parte por la Capa 0 autónoma (sección 13.3) y el hallazgo 
 ### 16.4. Lo que NO sé y no voy a inventar
 
 `[PENDIENTE VALIDAR CON PABLO]`: el número exacto de horas antes del partido para el recordatorio, si la marca de "visto" debe mostrarse solo a nivel de equipo (agregado, "7 de 12 ya lo han abierto") o también individual por jugadora, y si a las jugadoras les parecería bien saber que el staff ve si lo han abierto (esto es una cuestión de cultura de equipo, no algo que yo pueda decidir sin conocer al grupo real).
+
+---
+
+## 17. Sistema de comparación y discrepancias entre entrenadores — diseño concreto
+
+> Ya existía como principio en la memoria del proyecto ("Staff sees all versions; the app surfaces specific discrepancies") pero sin diseño concreto de cómo. Aquí lo desarrollo.
+
+### 17.1. Qué cuenta como discrepancia (definición explícita, no existía)
+
+Cuando dos o más entrenadores editan el mismo perfil de forma independiente (paso 1 del flujo de aprobación ya aprobado), una discrepancia es cualquiera de estas tres cosas, cada una con su propio tratamiento visual:
+
+1. **Discrepancia de Nivel 1 (observación subjetiva)**: dos entrenadores marcan frecuencias distintas para la misma situación (ej. uno dice ISO=Principal, otro dice ISO=Secundaria). Esto es legítimo desafío cualitativo, no un error — se muestra lado a lado, ninguno "gana" automáticamente.
+2. **Discrepancia de output final** (consecuencia de la anterior, o de cómo cada uno interpretó el motor): el `archetypeKey` o la acción `deny` ganadora difiere entre versiones. Esta es la más crítica para resolver antes de publicar — dos entrenadores no pueden mandar planes defensivos contradictorios a la vez.
+3. **Discrepancia Nivel 1 vs. Nivel 2** (nueva, sección 13.1): un entrenador concreto discrepa del dato real de U Stats. Distinta de las dos anteriores porque aquí uno de los dos lados es un dato objetivo, no otra opinión — se marca de forma visualmente distinta ("el dato real dice X, tu observación dice Y").
+
+### 17.2. Cómo se resuelve (añade al flujo ya aprobado, no lo sustituye)
+
+El paso 3 ya aprobado ("staff ve todas las versiones, la app muestra discrepancias") se concreta así: vista de comparación campo a campo (side-by-side, no una lista de texto — el ojo detecta diferencias en columnas mucho más rápido que leyéndolas en prosa), con las discrepancias tipo 2 (output final contradictorio) bloqueando la publicación hasta que un entrenador con permiso elija explícitamente cuál versión prevalece — nunca un merge automático silencioso de dos opiniones contradictorias sobre baloncesto real.
+
+### 17.3. Conexión nueva con el sistema de confianza (sección 13.2)
+
+Esto no existía hasta ahora: si dos o más entrenadores coinciden de forma independiente en una observación de Nivel 1, eso en sí mismo es una señal de **confianza alta** para ese output — y si discrepan, confianza automáticamente **baja**, aunque cada uno por separado estuviera seguro. Es una forma barata de calibrar confianza sin necesitar más datos de U Stats: el acuerdo entre observadores humanos independientes es en sí una medida de fiabilidad, un principio estándar en metodología de scouting/evaluación (inter-rater agreement).
+
+---
+
+## 18. Modo offline y sincronización automática — para trabajar incluso en un avión
+
+### 18.1. Lo que ya existe en el stack y sobre lo que hay que construir (verificado, no asumido)
+
+**[VERIFICADO en memoria del proyecto]** U Stats ya usa `staleTime` con `networkMode: offlineFirst` en TanStack Query para lecturas cacheadas. Esto **no cubre** el caso que pide Pablo — eso es solo para leer datos ya descargados sin conexión, no para poder **escribir** (rellenar un scouting nuevo) estando offline y que se envíe solo después.
+
+### 18.2. La pieza que falta: cola de mutaciones offline persistida
+
+TanStack Query (la librería ya usada en todo el proyecto) tiene soporte oficial para esto exactamente: `PersistQueryClientProvider` + un persister (`localStorage` en web, o `AsyncStorage`/almacenamiento nativo vía Capacitor en la build de iOS) que guarda las mutaciones pausadas mientras no hay red, y `resumePausedMutations()` para reenviarlas al volver la conexión ([TanStack Query Mutations docs](https://tanstack.com/query/latest/docs/framework/react/guides/mutations)).
+
+**Honestidad técnica, no vender esto como magia perfecta:** esta función de TanStack Query tiene un historial real de bugs de fiabilidad documentados en su propio repo — mutaciones que se quedan atascadas en estado "pausado" tras recargar la app, o que no se reanudan correctamente entre versiones de la librería ([GitHub Issue #5847](https://github.com/TanStack/query/issues/5847); [Issue #6825](https://github.com/TanStack/query/issues/6825)). **Recomendación concreta:** no depender solo del reintento automático silencioso — añadir siempre un indicador visible ("3 cambios pendientes de sincronizar") y un botón manual de "Sincronizar ahora", para que el entrenador nunca se quede sin saber si su trabajo en el avión realmente se guardó al aterrizar.
+
+### 18.3. Disparadores de sincronización (los 3 que pide Pablo)
+
+1. **Al recuperar conexión** — evento de `onlineManager` de TanStack Query, disparo inmediato de `resumePausedMutations()`.
+2. **Cada cierto tiempo** — mientras la app está abierta y hay mutaciones pendientes, reintentar cada pocos minutos (no un número exacto propuesto aún, `[PENDIENTE]` decidir con Pablo, probablemente 3-5 min es razonable sin ser agresivo con batería/datos).
+3. **Al reabrir la app** — la app usa Capacitor para iOS; el plugin oficial `@capacitor/network` detecta el estado de conexión de forma más fiable que `navigator.onLine` del navegador dentro de un wrapper nativo — usarlo para disparar el intento de sync en el evento de "app vuelve a primer plano", no solo confiar en el evento web `online`.
+
+### 18.4. Qué datos deben poder crearse/editarse offline
+
+Todo lo de Nivel 1 (observación del staff, sección 13.1) debe poder rellenarse sin conexión — es el caso de uso real (entrenador viendo vídeo en el avión, sin wifi). El Nivel 2 (datos reales de U Stats) **no puede** funcionar offline si no estaba ya cacheado antes de perder la conexión — esto es una limitación real, no un fallo de diseño: no se puede consultar un dato en vivo de Supabase sin red. El motor debe generar el informe con lo que tenga (Nivel 1 completo + Nivel 2 desde caché si existía) y marcarlo como "generado offline, sin verificar contra datos más recientes" hasta la próxima sincronización.
+
+---
+
+## 19. Ventana horaria de avisos a la jugadora — ya decidido por Pablo, documento aquí la implementación
+
+Pablo ya fijó el número exacto (resuelve el `[PENDIENTE]` de la sección 16.4): **primer aviso al publicarse el scouting, restringido a la ventana 08:00-22:00; si no se ha abierto, segundo aviso al día siguiente, en la misma ventana horaria.**
+
+**Implementación propuesta:** la hora de referencia debe ser la zona horaria del club (`CLUB_TIME_ZONE`, ya usada en Schedule para evitar el mismo tipo de bug de zona horaria que ya se corrigió ahí — `Asia/Shanghai`), no la hora del dispositivo de la jugadora si viaja. Si el scouting se publica fuera de la ventana (ej. a las 23:30), la notificación se encola y se envía a las 08:00 del día siguiente, no inmediatamente. El segundo aviso ("no abierto") se dispara solo si, exactamente 24h después de publicado, sigue sin marca de "visto" (sección 16.3) — y ese segundo aviso también respeta la ventana 08:00-22:00 aunque las 24h se cumplan a medianoche.
+
+---
+
+## 20. Iconografía de arquetipos — la idea de Pablo, con respaldo científico real (no solo intuición de diseño)
+
+> Pablo: "la facilidad de recordar imágenes que se ajusten a estereotipos o arquetipos, reduciendo el tiempo para la jugadora". Esto tiene un nombre y una base científica sólida, busqué hoy.
+
+### 20.1. El fenómeno: "picture superiority effect" / teoría de doble codificación
+
+La memoria y el reconocimiento de imágenes es sistemáticamente más rápida y fiable que la de palabras — fenómeno bien establecido en psicología cognitiva desde Paivio (1971, 1986). En un experimento clásico, pares de imágenes se recordaron casi el doble que pares de palabras (58% vs. 32%), y la combinación imagen+palabra llegó al 76% ([Picture Superiority, UX Strategy](https://www.ux-strategy.ch/en/effects/picture-superiority-effect.html); [Wikipedia: Picture superiority effect](https://en.wikipedia.org/wiki/Picture_superiority_effect)). Investigación aplicada a formación encontró que combinar texto e imagen mejora un 89% el rendimiento en tests de transferencia frente a solo texto ([Growth Engineering, citando a Mayer](https://www.growthengineering.co.uk/dual-coding/)).
+
+**Matiz importante, citado, no ignorado:** un estudio de 2025 encontró que el efecto depende de que las imágenes sean **visualmente distintivas** entre sí (color, forma), no de ser "una imagen cualquiera" — comparando palabras distintivas contra imágenes en blanco y negro poco distintivas, el efecto desapareció o se invirtió ([Higdon et al. 2025](https://journals.sagepub.com/doi/10.1177/17470218241235520)). **Implicación directa para Motor 1.0:** los iconos de archetype no pueden ser variaciones sutiles del mismo estilo (ej. 10 siluetas genéricas de jugadora con distinto gesto) — tienen que ser **claramente distintos entre sí** en forma y color, no solo en detalle, o se pierde el beneficio cognitivo real.
+
+### 20.2. Precedente directo en la industria del videojuego deportivo (encontrado hoy)
+
+NBA 2K, el juego de baloncesto más jugado del mundo, introdujo en su edición más reciente (2K26) una función literalmente llamada **"Scouting Report"** dentro de su sistema de creación de jugador, que muestra insignias (badges) visuales por atributo/arquetipo y avisa de puntos débiles ([NBA 2K26 MyPLAYER Builder](https://nba.2k.com/2k26/courtside-report/myplayer-builder/)). El sistema de insignias por niveles (bronce/plata/oro/HOF) es un precedente de cómo comunicar intensidad (equivalente a "destacado" vs. "élite" de la sección 10.1) con un símbolo visual en vez de solo texto.
+
+### 20.3. Propuesta concreta para Motor 1.0
+
+1. **Un icono fijo y único por `archetypeKey`** (los 10 de la sección 14.3), diseñado para ser distinguible por silueta y color sin necesidad de leer la etiqueta — nunca reutilizar la misma forma base con solo el color cambiado (rompe la distintividad que exige el hallazgo de 20.1).
+2. **Icono + palabra siempre juntos, nunca icono solo** — el estudio clásico de Paivio muestra que la combinación (76%) supera tanto a la imagen sola como a la palabra sola — el icono acelera el reconocimiento, la palabra fija el concepto exacto sin ambigüedad.
+3. **Insignia de intensidad con forma propia para "destacado"/"élite"** (sección 10.1), inspirado en el sistema de tiers de NBA 2K — no un texto "P85"/"P95" sino un símbolo (ej. un borde o relieve distinto) que se reconoce de un vistazo, igual que un jugador de 2K reconoce una insignia de oro sin leer el número exacto detrás.
+4. **Repetición consistente entre módulos**: si el mismo `archetypeKey` aparece en U Scout, en un futuro cruce con U Stats, o en cualquier otro sitio de U Core, debe usar exactamente el mismo icono siempre — el efecto de "mera exposición" (familiaridad por repetición) solo funciona si el símbolo no cambia entre pantallas.
+
+### 20.4. Lo que dejo pendiente, con honestidad
+
+`[PENDIENTE]` El diseño real de los 10 iconos es trabajo de diseño visual (Figma), no algo que se resuelva en un documento de especificación — lo que aporto aquí es el principio validado (por qué funciona, qué lo hace fallar si se hace mal) y la lista exacta de 10 conceptos a iconografiar (sección 14.3), no los iconos en sí.
