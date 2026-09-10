@@ -91,3 +91,27 @@ Empezar por la Fase 0 (deduplicar wellness) en una sesión separada, medir el
 resultado, y decidir si seguir con la Fase 1 después. Las fases 2 y 3 son
 opcionales y solo valen la pena si Schedule.tsx sigue siendo difícil de tocar
 después de las primeras dos.
+
+---
+
+## Feedback de producto de Pablo — 2026-09-10
+
+### 1. Falta opción de borrar una sesión ya creada, editándola — ✅ IMPLEMENTADO 2026-09-10
+
+**Hecho, verificado con `npm run check` (exit 0), no probado aún visualmente en producción.** Cambios:
+- `client/src/components/SessionCreateDialog.tsx`: nueva prop opcional `onDelete?: () => void`; cuando `isEditing && onDelete`, aparece un botón cuadrado con icono de papelera (`Trash2`, estilo `destructive`) en el footer, entre "Cerrar" y "Guardar".
+- `client/src/pages/core/Schedule.tsx`: nuevo estado `editingSessionEvent` (guarda el `ScheduleEvent` completo al entrar en edición, `startEditing()`). El `onDelete` que se pasa al diálogo cierra el formulario de edición y reutiliza el diálogo de confirmación + `deleteEventMut` **ya existentes** (`cancelTarget` / `setCancelTarget`) — mismo flujo que ya usaba el menú "More" de Today's Timeline, sin mutación nueva ni diálogo de confirmación nuevo.
+- Cero cambios en el drag-and-drop, cero cambios de layout, cero campos nuevos en Supabase.
+
+**`[PENDIENTE]`** Probar visualmente en producción (o local) antes de darlo por cerrado del todo — el `npm run check` limpio confirma que compila y tipa bien, no que el botón se vea/comporte como se espera en pantalla.
+
+### 2. Drag-and-drop en desktop — comportamiento deseado (idea de producto, NO implementado, sin tocar)
+Propuesta de Pablo para el grid del Planner en desktop al arrastrar una sesión:
+
+- **Arrastrar a otra franja horaria/día:** mostrar un mini popup con dos opciones — **Copiar** o **Mover**. Si elige Copiar, a continuación debe poder elegir a qué otra hora se copia.
+- **Arrastrar dentro de la misma franja horaria** (p.ej. mismo slot, otro día de la semana): mismo popup — Copiar o Mover.
+- **Arrastrar fuera del cuadro del Planner (fuera del grid):** debe aparecer un icono de papelera en rojo como zona de soltar, indicando que se va a eliminar la sesión si se suelta ahí.
+
+**Contexto técnico ya en memoria:** el drag-and-drop actual usa HTML5 nativo (`onDragOver`/`onDrop`) y ya está probado con Playwright (`e2e/06-planner-crud.spec.ts`, mover con drag-and-drop está verificado como funcional para el caso simple de mover). Esta propuesta añade: (a) diferenciar copiar vs. mover con un popup intermedio, y (b) una zona de soltar fuera del grid para borrar. Ninguna de las dos existe hoy — es una idea de producto nueva, no un bug.
+
+`[PENDIENTE]` Todo — no se ha mirado el código del drag-and-drop de `Schedule.tsx` para esta propuesta, no se ha diseñado el mini popup, no se ha valorado el esfuerzo. Queda para una sesión de trabajo dedicada a Schedule, separada de la auditoría de Stats/Scout en curso.
