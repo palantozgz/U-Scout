@@ -84,7 +84,47 @@ Esto es lo que pides explícitamente ("incluir estadísticas relevantes si las h
 
 `[PENDIENTE]` Este roadmap es una propuesta de orden lógico, no una estimación de tiempo — falta que Pablo lo valide o lo reordene según prioridad real.
 
-## 9. Preguntas abiertas para Pablo (no las respondo yo, son de producto)
+## 10. Lógica de detección de estadísticas destacadas para Slide 1 (nueva, con datos reales)
+
+> Esto responde directamente al encargo: "qué destacar en el primer slide que, si es modo sencillo, además será el único". Nada de umbrales inventados — son percentiles reales calculados con SQL contra `pbp_player_game_stats` de toda la WCBA (236 jugadoras, ≥8 partidos, temporada actual).
+
+### 10.1. Tabla de percentiles reales de liga (VERIFICADO por SQL, 2026-09-10)
+
+| Métrica | P50 (mediana liga) | P85 ("destacado") | P95 ("élite") | Muestra |
+|---|---|---|---|---|
+| PPG | 5,85 | 14,13 | 17,78 | 236 jugadoras |
+| RPG | 2,52 | 5,53 | 8,85 | 236 |
+| APG | 1,44 | 2,82 | 4,36 | 236 |
+| SPG | 0,74 | 1,45 | — | 236 |
+| BPG | 0,09 | 0,41 | — | 236 |
+| TOV/partido | 1,30 | 2,17 (p85, más alto = peor) | — | 236 |
+| 3P% | 31,3% | 38,6% | 43,9% | 122 (≥30 intentos) |
+| eFG% | 49,2% | 56,2% | — | 173 (≥50 tiros) |
+| TS% | 53,0% | 60,6% | 64,8% | 173 (≥50 tiros) |
+
+**Regla base propuesta:** P85 = "destacado" (chip visible en el informe), P95 = "élite" (chip con énfasis visual extra, ej. color/borde distinto). Por debajo de P85, la métrica no se muestra como destacado — evita ruido de datos mediocres disfrazados de highlight.
+
+### 10.2. Límite real, dicho sin rodeos: esto NO está ajustado por posición todavía
+
+Estos percentiles son de **toda la liga junta** (bases, aleros y pívots mezclados). Comparar el RPG de una base contra el de una pívot con el mismo corte es injusto — una base con 5,5 rebotes es un dato muchísimo más raro/destacable que una pívot con 5,5. **`[PENDIENTE]`**, y en mi opinión obligatorio antes de dar esto por bueno: recalcular esta misma tabla separada por posición (`position` ya existe en `PlayerInput`/scouting profile, y las stats de U Stats deberían tener posición vía roster). Sin este ajuste, el motor podría destacar cosas triviales para pívots (rebotes) e ignorar cosas genuinamente raras para bases (una base con muchos rebotes es más scouteable que un pívot con los mismos).
+
+### 10.3. Algoritmo de selección para Slide 1 (propuesta, a validar)
+
+1. Para cada métrica candidata con dato real disponible (requiere el vínculo `wcba_external_id` de la sección 5), calcular en qué percentil cae la jugadora dentro de su posición (una vez resuelto el punto 10.2).
+2. Descartar cualquier métrica por debajo de P85 — no es "destacada", no compite por el slide.
+3. De las que superan P85, ordenar por **cuánto superan el umbral**, no por un orden fijo de categoría (ej. no "siempre PPG antes que RPG") — una jugadora en P97 de robos es más notable que una en P86 de puntos, aunque puntos "suene" más importante.
+4. **Modo completo (3 slides):** mostrar hasta 3 chips destacados en Slide 1.
+ **Modo sencillo (1 slide único, backlog ya mencionado en memoria del proyecto):** mostrar **solo el más extremo** (el de percentil más alto) — en modo sencillo el espacio es más crítico, un solo dato contundente pesa más que tres flojos.
+5. Si ninguna métrica supera P85 (jugadora de rol, sin nada estadísticamente destacable), el motor no debe inventarse un chip — mejor sin chip que un chip forzado con un dato mediocre. En ese caso, el slide 1 se apoya solo en lo cualitativo del staff (archetype), sin apoyo numérico.
+6. El TOV alto NO es un "destacado" positivo — si aparece, debe ir marcado como aviso (ej. "pierde el balón con frecuencia"), nunca con el mismo estilo visual que un chip de fortaleza.
+
+### `[PENDIENTE]` de esta sección
+- Percentiles por posición (10.2), el paso más importante que falta.
+- USG%, PIE, ORTG/DRTG individual — no calculados aún con percentiles reales, aunque ya están verificados como fórmulas correctas en la auditoría de U Stats.
+- Validar con Pablo si 3 chips en modo completo es el número correcto, o prefiere menos/más.
+- Decidir el copy exacto de los chips (ej. "3P% 41% — top 15% de la liga" vs. algo más corto para móvil).
+
+## 11. Preguntas abiertas para Pablo (no las respondo yo, son de producto)
 
 1. ¿El vínculo a U Stats debe ser obligatorio para toda jugadora rival, o solo cuando sea de la WCBA (jugadoras extranjeras o de ligas no cubiertas no tendrían dato)?
 2. ¿Quieres que el motor nuevo mantenga los `key` exactos de v2.1/v4 donde coincidan en concepto (para no perder el historial de `report_overrides` ya existentes), o partir de cero con naming nuevo?
