@@ -337,3 +337,47 @@ Esto es el contrato de datos que Fase 0 tendría que fijar de verdad (con tipos 
 ### 14.4. Definición de "listo para empezar a construir"
 
 Con las secciones 1-14 de este documento, **la Fase 0 del roadmap (sección 8) ya tiene todo lo que necesita para arrancar**: modelo de datos (14.2), naming (14.3), qué conservar y qué cambiar (secciones 3-4, 13.2), y las decisiones de producto que antes bloqueaban el arranque (14.1). Lo único que sigue pendiente y no puedo resolver yo solo es el mapeo campo-por-campo de `PlayerEditor.tsx` (13.4) — requiere releer el archivo completo, que es trabajo mecánico de auditoría, no una decisión de producto; puedo hacerlo en la próxima tanda si quieres seguir antes de pasar a implementación real.
+
+---
+
+## 15. Mapeo campo-por-campo de `PlayerEditor.tsx` real y rediseño agresivo para minimizar tiempo del entrenador y margen de error
+
+> Pablo: "podemos cambiar todo absolutamente si está justificado para mejorar el scouting, la retención de la jugadora, y reducir el tiempo del entrenador y su margen de error al mínimo". Con ese mandato explícito, esta sección propone cambios de fondo, no solo cosméticos.
+
+### 15.1. Las 9 secciones reales del formulario, verificadas leéndolo (no asumidas)
+
+**[VERIFICADO]** `PlayerEditor.tsx`, líneas 584-1969, tiene exactamente estas 9 secciones visuales, en este orden fijo: Identidad → Perfil físico → Tiros libres/faltas → Manejo de balón → Post → ISO → PnR → Actividad sin balón → Spot-up. **Orden fijo, siempre las 9 visibles, sin importar si la jugadora tiene 1 situación relevante o 6.**
+
+### 15.2. El problema real, ahora que puedo decirlo sin rodeos
+
+Una jugadora de rol que solo tiene una amenaza real (ej. solo Spot-up) obliga hoy al staff a **abrir y decidir sobre 5 bloques de situación completos** (Post, ISO, PnR, Off-ball, Spot-up) para llegar al que importa, marcando "Nunca" en los otros 4 uno por uno. Esto es exactamente lo contrario de "minimizar el tiempo del entrenador" — el formulario cuesta lo mismo rellenar a una jugadora de rol que a una estrella completa, cuando debería costar mucho menos.
+
+### 15.3. Rediseño propuesto — selección primero, detalle después (cambio de fondo, justificado)
+
+**Paso 1, nuevo, no existe hoy:** una sola pantalla inicial de selección múltiple: "¿En cuáles de estas 11 situaciones es una amenaza real esta jugadora?" (las 11 de Synergy, sección 12.1), con máximo recomendado de 3-4 marcadas — si el staff marca más de 4, un aviso suave ("¿seguro? Pocas jugadoras son amenaza real en más de 3-4 situaciones") sin bloquear.
+
+**Paso 2:** solo se abren los bloques de detalle (Post/ISO/PnR/Off-ball/Spot-up) de las situaciones marcadas en el Paso 1. Las no marcadas se guardan automáticamente como frecuencia `"N"` (Nunca) sin que el staff tenga que confirmarlo campo a campo.
+
+**Impacto estimado, honesto sobre que es estimación mía, no medición real:** para una jugadora de rol (caso muy común, probablemente mayoritario dado que solo el P85 de la liga tiene métricas destacadas — sección 10.1), esto reduce el formulario de 9 secciones completas a **identidad + físico + tiros libres + 1-2 bloques de situación**, en vez de 9. `[PENDIENTE]` medir el tiempo real de rellenado antes/después una vez implementado — no hay forma de medir esto sin construirlo.
+
+### 15.4. Reducción de margen de error — autorrelleno desde Nivel 2 donde hay proxy real, no solo detección de discrepancia
+
+Esto va más allá de lo ya propuesto en 13.1 (que solo avisaba de discrepancias). Con el mandato de minimizar error, propongo **autorrellenar** (no solo avisar) los campos donde existe un proxy numérico real fiable, dejando que el staff lo corrija si discrepa de lo que ve en vídeo — nunca ocultar el campo, solo pre-rellenarlo:
+
+| Campo cualitativo hoy (Nivel 1) | Proxy real de U Stats (Nivel 2) | Justificación |
+|---|---|---|
+| `ftShooting` (1-5 a ojo) | FT% real con contracción bayesiana (sección 12.3) | Es literalmente el mismo concepto, medido en vez de estimado — cero motivo para pedirle al staff que lo adivine si el dato real existe |
+| `foulDrawing` (1-5 a ojo) | Tasa de FTA por posesión (`fta`/posesiones jugadas) | Proxy imperfecto (no mide "cómo" llega a la línea, solo cuánto) pero mucho mejor que una estimación subjetiva sin ningún dato |
+| `athleticism`, `physicalStrength` (1-5 a ojo) | **Ninguno — se queda 100% observación del staff.** No hay proxy numérico fiable en el PBP para esto (no hay datos de tracking físico) — no forzar un autorrelleno falso donde no hay dato real que lo sustente. |
+
+**Principio general que fijo aquí para Motor 1.0:** autorrellenar solo donde el proxy mide literalmente lo mismo o algo muy cercano al campo cualitativo (FT%, FTA rate) — nunca inventar un proxy débil solo por tener un número disponible. Esto es coherente con el principio ya establecido de `neverInfer`, extendido: ahora hay una tercera categoría explícita ("autorrellenable con proxy real, editable") además de "nunca inferible" y "calculado internamente".
+
+### 15.5. Retención de la jugadora — lo que cambia en la lectura, no solo en la captura
+
+Ya cubierto en gran parte por la Capa 0 autónoma (sección 13.3) y el hallazgo citado de que reducir un informe de 15 a ~4 páginas sube la retención de ~10% a >80% (sección 12.6). Añado un elemento nuevo aquí, justificado por el mismo mandato: **cada acción defensiva en Capa 1/2 debe emparejarse siempre con un "por qué" de una línea** (ej. no solo "fuerza a la izquierda", sino "fuerza a la izquierda — finaliza 61% mejor por derecha") cuando exista el dato de Nivel 2 que lo sustente. Esto no es un capricho: la práctica de coaching citada en 12.6 recomienda explícitamente emparejar cada tendencia con una respuesta específica, no solo listar tendencias sueltas — mejora la retención porque la jugadora entiende el "por qué", no solo el "qué".
+
+### 15.6. Resumen de cambios de fondo de esta sesión (todos justificados por el mandato de Pablo, ninguno cosmético)
+
+1. Flujo de captura de 2 pasos (selección → detalle) en vez de 9 secciones fijas siempre visibles — reduce tiempo real del staff.
+2. Autorrelleno editable desde Nivel 2 para `ftShooting` y `foulDrawing` — reduce margen de error, con límite explícito de cuándo NO hacerlo (`athleticism`/`physicalStrength`).
+3. Cada acción defensiva emparejada con un "por qué" citando dato real cuando exista — mejora retención de la jugadora, no solo comodidad del staff.
