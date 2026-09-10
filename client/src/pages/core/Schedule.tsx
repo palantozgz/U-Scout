@@ -660,12 +660,10 @@ export default function Schedule() {
       for (const s of tpl.sessions) {
         const day = new Date(selectedWeekStart);
         day.setDate(day.getDate() + s.dayIndex);
-        const hh = String(Math.floor(s.startMins / 60)).padStart(2, "0");
-        const mm = String(s.startMins % 60).padStart(2, "0");
         const yyyy = day.getFullYear();
         const mo = String(day.getMonth() + 1).padStart(2, "0");
         const dd = String(day.getDate()).padStart(2, "0");
-        const startsIso = new Date(`${yyyy}-${mo}-${dd}T${hh}:${mm}`).toISOString();
+        const startsIso = new Date(`${yyyy}-${mo}-${dd}T${minutesToHHMM(s.startMins)}`).toISOString();
         const endsIso =
           s.durationMins && s.durationMins > 0
             ? new Date(new Date(startsIso).getTime() + s.durationMins * 60000).toISOString()
@@ -3049,15 +3047,11 @@ export default function Schedule() {
                           <p className="text-xs text-muted-foreground">{t("schedule_template_preview_empty" as any)}</p>
                         ) : (
                           <div className="min-w-0 flex-1 space-y-1">
-                            {list.slice(0, 4).map((s, idx) => {
-                              const hh = String(Math.floor(s.startMins / 60)).padStart(2, "0");
-                              const mm = String(s.startMins % 60).padStart(2, "0");
-                              return (
-                                <p key={idx} className="text-xs font-semibold text-muted-foreground truncate">
-                                  {hh}:{mm} · {sessionDisplayTitle(s, t)}
-                                </p>
-                              );
-                            })}
+                            {list.slice(0, 4).map((s, idx) => (
+                              <p key={idx} className="text-xs font-semibold text-muted-foreground truncate">
+                                {minutesToHHMM(s.startMins)} · {sessionDisplayTitle(s, t)}
+                              </p>
+                            ))}
                             {list.length > 4 ? (
                               <p className="text-xs font-semibold text-muted-foreground">
                                 {t("schedule_template_preview_more" as any).replace("{count}", String(list.length - 4))}
@@ -3660,5 +3654,11 @@ function sessionDisplayTitle(
 function formatSlotHourRange(startHour: number, endHour: number): string {
   const fmt = (h: number) => `${String(h % 24).padStart(2, "0")}:00`;
   return `${fmt(startHour)}–${fmt(endHour)}`;
+}
+
+function minutesToHHMM(mins: number): string {
+  const hh = String(Math.floor(mins / 60)).padStart(2, "0");
+  const mm = String(mins % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
 }
 
