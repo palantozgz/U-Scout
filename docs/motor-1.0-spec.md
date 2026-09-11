@@ -301,6 +301,17 @@ type DefenseOutput = {
   confianza: "alta" | "media" | "baja";   // nuevo, no existía en v2.1/v4/mock-data
 };
 
+// CORREGIDO 2026-09-11: el motor NUNCA devuelve solo el ganador — siempre devuelve
+// el ganador + todos los candidatos rankeados por campo (arquitectura ya decidida
+// en abril 2026, ver sección 17.1). Sin esto, el entrenador no puede "reemplazar"
+// por un runner-up en la revisión — la app tendría que recalcular en el clic, lo
+// cual no es el diseño acordado.
+type OutputCandidato = { output: DefenseOutput; score: number; rank: number };
+type CampoConCandidatos = {
+  ganador: DefenseOutput;
+  candidatos: OutputCandidato[];   // incluye al ganador en rank 0, para poder diffear versiones (sección 17)
+};
+
 type QuietEdge = {
   output: DefenseOutput | StatConVolumen;
   motivo: "inesperado_para_posicion";     // el criterio, no solo percentil alto en abstracto
@@ -398,39 +409,60 @@ Ya cubierto en gran parte por la Capa 0 autónoma (sección 13.3) y el hallazgo 
 - **Diseño para uso con una mano y en condiciones de luz variable**: la jugadora puede leer esto en el pabellón, en el bus, con luz mala — tipografía grande y contraste alto en la Capa 0 en particular (misma fuente que arriba).
 - **Nada de gamificación genérica (rachas, insignias, tablas de clasificación).** Esto sí lo descarto explícitamente, aunque aparece mucho en la literatura de apps deportivas de fitness/consumo ([Fitness App UI Design](https://stormotion.io/blog/fitness-app-ux/)) — encaja con apps de motivación personal, no con un informe de scouting profesional de un club WCBA. Añadir insignias por "leer tu informe" trivializaría el tono serio que ya tiene el producto.
 
-### 16.3. Lo que SÍ propongo añadir, justificado, no visto en ningún lado todavía
+### 16.3. Lo que SÍ propongo añadir
 
-**Confirmación de lectura, visible solo para el staff (nuevo, no existe hoy).** Verificado en memoria: hoy el flujo de aprobación rastrea quién del staff aprobó qué, pero no hay ningún rastro de si la jugadora **leyó de verdad** su informe antes del partido. Dado que el propio diseño aprobado dice "bastante antes del día del partido", el coach necesita saber si eso realmente pasa — sin esto, no hay forma de saber si el modelo async individual está funcionando de verdad o si las jugadoras simplemente no lo abren. Propuesta concreta: marca de tiempo de "visto" al abrir la Capa 0 por primera vez, visible en un panel de staff (no visible para otras jugadoras, no es un ranking público — evita la presión social que sí generaría una tabla de "quien ha leído/quién no" compartida entre compañeras).
+**Confirmación de lectura, visible solo para el staff.** [CORREGIDO 2026-09-11] No es una función nueva que yo esté proponiendo desde cero — ya estaba diseñada, con más detalle del que yo aporté aquí la primera vez: la tabla `profile_views` (`id`, `playerId`, `userId`, `screenIndex`, `secondsSpent`, `completed`, `viewedAt`) rastrea, por pantalla/slide, cuánto tiempo pasó la jugadora y si la completó — no solo un "visto" binario como proponía antes. Esto es más útil de lo que yo había planteado: permite ver, por ejemplo, si abre el informe pero no llega a la Capa 2 (plan defensivo) antes del partido, que es justo el caso que más le importaría saber al staff. **Motor 1.0 debe reusar/extender `profile_views`, no inventar una marca de "visto" más simple.** Se mantiene el principio de que esto es visible solo para el staff, nunca como ranking público entre compañeras — eso sí es aportación mía, no estaba en el diseño original y sigue siendo válido añadirlo.
 
-**Recordatorio, no notificación insistente.** Una única notificación cuando el informe se publica, y como mucho un segundo recordatorio si sigue sin abrirse a X horas del partido (número exacto a decidir con Pablo, no lo invento yo) — nunca más de dos avisos. Empujar demasiado iría en contra de la idea de "herramienta seria", se sentiría como spam.
+**Recordatorio, no notificación insistente.** Una única notificación cuando el informe se publica, y como mucho un segundo recordatorio si sigue sin abrirse al día siguiente — nunca más de dos avisos (ventana horaria y trigger exactos ya resueltos por Pablo, sección 19).
 
 **Tono del texto: directo y de entrenador, no corporativo ni motivacional genérico.** Esto conecta con el hallazgo ya documentado de plantillas mezcladas inglés/español (sección 12.6/OUTPUT_CATALOG) — al unificar el idioma base, la ocasión es también para fijar un tono único: frases cortas, imperativas, sin relleno ("Fuerza a la izquierda", no "Se recomienda intentar forzar hacia el lado izquierdo cuando sea posible") — coincide con el estilo que ya usan las plantillas más logradas del catálogo actual (ej. "Cerrar el espacio").
 
+### 16.3b. Cuántos outputs ver realmente — esto YA estaba decidido con investigación propia, no era algo por decidir
+
+[AÑADIDO 2026-09-11, corrige un hueco] La decisión de "1 output por categoría a la jugadora, todo al entrenador" (base de la Capa 0 autónoma, sección 13.3) ya se resolvió en una sesión anterior con investigación real de carga cognitiva en deportistas, que no cité antes por no tenerla localizada: el límite de memoria de trabajo activa no son los 7±2 de Miller (1956), son **4±1 chunks** (Cowan, 2001), y **baja a 2-3 elementos bajo presión o carga cognitiva simultánea** — exactamente la situación de una jugadora recibiendo instrucciones antes de un partido. Esto confirma con más rigor del que yo había aportado la regla ya vigente de "máximo 2 AWARE" en la slide 3 actual, y la decisión de Capa 0 con un solo stat/quiet-edge en vez de varios — no es una preferencia de diseño mía, es un límite cognitivo medido.
+
 ### 16.4. Lo que NO sé y no voy a inventar
 
-`[PENDIENTE VALIDAR CON PABLO]`: el número exacto de horas antes del partido para el recordatorio, si la marca de "visto" debe mostrarse solo a nivel de equipo (agregado, "7 de 12 ya lo han abierto") o también individual por jugadora, y si a las jugadoras les parecería bien saber que el staff ve si lo han abierto (esto es una cuestión de cultura de equipo, no algo que yo pueda decidir sin conocer al grupo real).
+`[PENDIENTE VALIDAR CON PABLO]`: si la marca de "visto" (`profile_views`) debe mostrarse solo a nivel de equipo (agregado) o también individual por jugadora en el panel de staff — la tabla ya soporta ambas lecturas, es una decisión de UI, no técnica.
 
 ---
 
-## 17. Sistema de comparación y discrepancias entre entrenadores — diseño concreto
+## 17. Sistema de comparación y discrepancias entre entrenadores — CORREGIDO 2026-09-11 (versión anterior de esta sección estaba mal planteada, ver abajo)
 
-> Ya existía como principio en la memoria del proyecto ("Staff sees all versions; the app surfaces specific discrepancies") pero sin diseño concreto de cómo. Aquí lo desarrollo.
+> Esta arquitectura **ya estaba completamente diseñada** en sesiones de abril 2026 (encontrado vía `conversation_search` tras la corrección que pidió Pablo) — lo que sigue no es una propuesta mía, es documentación de una decisión ya tomada. Mi primera versión de esta sección (que decía que la discrepancia era entre observaciones/inputs de cada entrenador) **estaba equivocada en la base**, no solo en el detalle.
 
-### 17.1. Qué cuenta como discrepancia (definición explícita, no existía)
+### 17.0. El error que corrijo, dicho explícito
 
-Cuando dos o más entrenadores editan el mismo perfil de forma independiente (paso 1 del flujo de aprobación ya aprobado), una discrepancia es cualquiera de estas tres cosas, cada una con su propio tratamiento visual:
+La discrepancia **no es entre inputs distintos**. Cita literal de la sesión original: *"Dos entrenadores pueden tener los mismos inputs y aun así proponer reports distintos porque cada uno eligió runners-up diferentes o ocultó cosas distintas. La comparación ocurre a nivel de output aprobado, no de inputs."* Es decir: el punto de comparación es la **versión curada y aprobada** que cada entrenador propuso (paso 2 del flujo), no sus observaciones crudas de Nivel 1.
 
-1. **Discrepancia de Nivel 1 (observación subjetiva)**: dos entrenadores marcan frecuencias distintas para la misma situación (ej. uno dice ISO=Principal, otro dice ISO=Secundaria). Esto es legítimo desafío cualitativo, no un error — se muestra lado a lado, ninguno "gana" automáticamente.
-2. **Discrepancia de output final** (consecuencia de la anterior, o de cómo cada uno interpretó el motor): el `archetypeKey` o la acción `deny` ganadora difiere entre versiones. Esta es la más crítica para resolver antes de publicar — dos entrenadores no pueden mandar planes defensivos contradictorios a la vez.
-3. **Discrepancia Nivel 1 vs. Nivel 2** (nueva, sección 13.1): un entrenador concreto discrepa del dato real de U Stats. Distinta de las dos anteriores porque aquí uno de los dos lados es un dato objetivo, no otra opinión — se marca de forma visualmente distinta ("el dato real dice X, tu observación dice Y").
+### 17.1. El flujo de aprobación completo, ya diseñado (4 pasos, no 3 como resumía la memoria)
 
-### 17.2. Cómo se resuelve (añade al flujo ya aprobado, no lo sustituye)
+1. **Edición** — privada, cuando quiera cada entrenador.
+2. **Propuesta** — el entrenador genera el report desde sus inputs, lo **revisa** (puede elegir runners-up distintos al ganador del motor por campo, puede ocultar elementos), y lo aprueba → esa versión curada llega al staff como "su" versión. El motor, para esto, **siempre devuelve el output ganador MAS los candidatos rankeados con score** por cada campo tocable — no se pueden generar alternativas "al vuelo" en el clic, se calculan todas de una vez.
+3. **Staff ve todas las versiones propuestas**, la app detecta y señala discrepancias **específicas** entre ellas (qué campo exacto difiere, no un aviso genérico de "hay diferencias"), debaten.
+4. **Cualquiera aprueba** una versión final; con ≥1 aprobación, cualquiera puede publicarla a las jugadoras.
 
-El paso 3 ya aprobado ("staff ve todas las versiones, la app muestra discrepancias") se concreta así: vista de comparación campo a campo (side-by-side, no una lista de texto — el ojo detecta diferencias en columnas mucho más rápido que leyéndolas en prosa), con las discrepancias tipo 2 (output final contradictorio) bloqueando la publicación hasta que un entrenador con permiso elija explícitamente cuál versión prevalece — nunca un merge automático silencioso de dos opiniones contradictorias sobre baloncesto real.
+### 17.2. Qué se registra en cada evento de discrepancia/sustitución (ya diseñado)
 
-### 17.3. Conexión nueva con el sistema de confianza (sección 13.2)
+Cada vez que un entrenador reemplaza el output ganador por un runner-up, se captura: el output rechazado y su peso calculado, el output elegido y su posición en el ranking de candidatos, el perfil/inputs que generaron esa situación, y qué entrenador lo hizo (**no expuesto nominalmente en el panel global, solo como vector de patrón** — principio de privacidad interno al staff, distinto del principio de la línea de abajo). **Nunca se registra la identidad de la jugadora rival escouteada** en estas estadísticas — es dato sensible del equipo rival, no aporta nada al calibrado del motor.
 
-Esto no existía hasta ahora: si dos o más entrenadores coinciden de forma independiente en una observación de Nivel 1, eso en sí mismo es una señal de **confianza alta** para ese output — y si discrepan, confianza automáticamente **baja**, aunque cada uno por separado estuviera seguro. Es una forma barata de calibrar confianza sin necesitar más datos de U Stats: el acuerdo entre observadores humanos independientes es en sí una medida de fiabilidad, un principio estándar en metodología de scouting/evaluación (inter-rater agreement).
+**Añadido correctamente identificado en la propia sesión original (riesgo de sesgo de superviviencia):** no basta con registrar los reemplazos (`action: 'replace'`) y las ocultaciones (`action: 'hide'`) — si el entrenador acepta el output del motor tal cual, sin tocarlo, **eso también es señal** y hay que registrarlo (`action: 'approve_as_is'`). Si solo se capturan los fallos, el motor nunca aprende de sus aciertos, y la tasa de aceptación por arquetipo/campo es, según la propia sesión de diseño, "la métrica más valiosa para calibración".
+
+**Señal de diagnóstico ya identificada — el "score gap":** la distancia entre el score del output ganador y el del runner-up elegido como sustituto es en sí misma informativa. Gap pequeño = el motor está cerca, necesita solo calibración fina de pesos. Gap grande = desacuerdo editorial real o error de motor genuino. Por eso hay que guardar `original_score` y `replacement_score` en cada evento, no solo qué se eligió.
+
+### 17.3. Sistema de aprendizaje en 3 niveles — ya diseñado, pieza central que había omitido por completo
+
+**Nivel A — Soft learning por entrenador.** Si el mismo entrenador repite el mismo tipo de sustitución **3 veces** en perfiles/arquetipos similares, el motor ajusta automáticamente su configuración personal (`user_soft_config`: `userId`, `archetypePattern`, `field`, `adjustedValue`, `overrideCount`) para ese entrenador específicamente — y **se lo notifica siempre**, nunca en silencio (decisión explícita de Pablo: "se avisa, sí"). El aviso nombra el patrón exacto detectado, confirma que ya se aplicó, y da control explícito para revertirlo en Preferencias — transparencia sin fricción en el flujo normal.
+
+**Nivel B — Hard learning global, controlado por Pablo como admin.** Un panel agregado (no automático) muestra qué patrones de sustitución se repiten **entre múltiples entrenadores distintos**, por campo y arquetipo. Pablo decide manualmente cuáles de esos patrones promocionar al motor base ("hard"), de forma permanente para todos. Este es el mecanismo real de cómo Motor 1.0 mejora con el uso real, sin ser una caja negra que cambia sola — hay una persona validando cada cambio de fondo.
+
+**Nivel C — Sugerencias de reemplazo inteligentes.** Cuando un entrenador abre las alternativas de un campo, se ordenan por frecuencia de uso entre entrenadores de perfil similar (qué sustitución eligen otros para casos parecidos), no solo por el score bruto del motor.
+
+**Riesgo ya identificado y ya resuelto en el diseño original:** aplicar el soft learning de forma demasiado agresiva puede hacer que el motor converja hacia outputs cada vez más estrechos por entrenador, perdiendo cobertura de situaciones poco comunes. La solución ya decidida: el umbral de 3 repeticiones en arquetipos **distintos** (no solo el mismo jugador tres veces) actua de freno, y el hard learning nunca es automático, siempre pasa por decisión manual de Pablo.
+
+### 17.4. Fundamento académico ya investigado (no lo repito de cero, solo lo dejo referenciado)
+
+La sesión original ya identificó esto como "human-in-the-loop sobre candidatos rankeados", documentado en la literatura de sistemas de recomendación (ACM RecSys) como la arquitectura correcta cuando un algoritmo no puede capturar todo el juicio experto — aplicado aquí a scouting deportivo individual, un uso no visto antes según esa misma investigación. No he vuelto a verificar esa cita específica de ACM hoy (viene de una búsqueda de una sesión anterior, no de esta), lo marco para no hacerlo pasar por verificado en esta sesión.
 
 ---
 

@@ -16,6 +16,15 @@ Lo que sí existe, verificado:
 
 **Conclusión:** no hay "v3" en el código. La memoria del proyecto tampoco lo menciona (habla de "Motor v4 con ftShooting/foulDrawing wired a isoDanger"). Trato el encargo de documentar "motor v3" como referido al **motor de scouting individual defensivo actual = v2.1 (núcleo de reglas) + v4 (capa de ranking/salida que consume v2.1)**, que es lo único que existe y coincide en función (defensivo, individual) con lo pedido. Si Pablo se refería a algo distinto (quizás una versión intermedia que se borró al pasar de v2 a v4, o un nombre usado solo en conversación), que lo indique y lo corrijo — no voy a inventar un v3 que no está en el repo.
 
+### CORRECCIÓN (2026-09-11) — la conclusión de arriba estaba incompleta, no falsa
+
+**[VERIFICADO por `conversation_search` sobre conversaciones anteriores del proyecto, no encontrado antes por no haber buscado ahí]** "Motor v3" **sí existe** — como diseño teórico completo hecho en sesiones de abril 2026, nunca implementado en código (por eso el `grep` de arriba, correcto en sí mismo, no lo encontró). El núcleo del diseño v3: **reglas de cruce entre situaciones**, algo que v2.1 no hace (calcula cada situación de forma independiente). El cruce más importante ya diseñado: distinguir entre dos perfiles que v2.1 trata igual —
+
+- **"Star creator"** (isoFreq=P + pnrFreq=P + usage=primary): activa `selfCreation=high` → `force_early` como FORCE principal, máxima prioridad — busca tiro propio constantemente, hay que presionar desde el primer segundo.
+- **"Specialist creator"** (isoFreq=S + pnrFreq=S + isoEff=high + usage=secondary): mismo patrón superficial de frecuencias altas en ISO/PnR, pero **NO** activa `force_early` — el peligro no es que controle el reloj, es que convierte cuando le llega el balón en posición favorable. La instrucción correcta aquí es "no le des ritmo"/"cierra antes de que reciba en su zona", no presión de reloj.
+
+Esto viene de una validación directa de Pablo en esa sesión ("es principalmente correcto, especialmente si es jugador estrella, hay otros casos donde la eficiencia es alta pero la frecuencia media, significa que serán jugadores suplentes o especialistas"). **Motor 1.0 debería incorporar estas reglas de cruce ya diseñadas y nunca implementadas**, no reinventarlas ni tratarlas como si no existiera nada — es trabajo de diseño real que se quedó sin construir cuando el proyecto saltó de v2.1 a v4 en vez de a v3.
+
 ---
 
 ## 1. Producto y funcionalidades — inventario de páginas (arrancado)
