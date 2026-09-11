@@ -46,9 +46,17 @@ Esto es lo que pides explícitamente ("incluir estadísticas relevantes si las h
 
 **[VERIFICADO]** U Stats ingesta el PBP oficial de **las 18 franquicias de la WCBA** (competitionId=56), no solo el equipo de Pablo — está en `pbp_possessions`/`pbp_player_game_stats`, indexado por `player_external_id` (el ID oficial WCBA). Es decir: **si una jugadora rival que se está scouteando juega en la WCBA, sus estadísticas reales de la temporada (PPG, eFG%, TS%, TOV%, USG%, FT rate, ORTG/DRTG individual si se calculase) ya existen en la misma base de datos**, sin que el staff tenga que teclearlas de memoria.
 
-### 5.2. La pieza que falta para que esto funcione — verificado que NO existe hoy
+### 5.2. CORREGIDO 2026-09-11 — el vínculo YA existe, en forma básica, no hay que construirlo desde cero
 
-**[VERIFICADO]** Los registros de jugadora rival en U Scout (`PlayerEditor`, tablas de Scout) **no tienen hoy ningún campo `wcba_external_id` ni equivalente** (`grep` sin resultados en `PlayerEditor.tsx`, `Personnel.tsx`, `mock-data.ts`, `routes.ts`). Es decir: **hoy no hay forma de unir un perfil de scouting con su fila real de stats en U Stats** — son mundos separados aunque vivan en el mismo Supabase. Esto es el primer requisito técnico real de Motor 1.0 si se quiere esta integración: añadir ese campo de enlace y una forma (búsqueda por nombre/equipo, quizás autocompletado contra `stats_players`) de vincularlo al crear/editar una jugadora rival en Scout.
+**[VERIFICADO ahora contra código real, mi afirmación anterior era falsa]** Ya existe `GET /api/stats/player-link` en `server/routes.ts:2165-2196`, ya wireado en `client/src/pages/scout/MyScout.tsx` (componente `StatsMiniChip`, líneas 37-56). Funciona así: recibe un nombre, busca `sp.name_zh = name OR sp.name_en = name` en `stats_players`, y si encuentra coincidencia exacta devuelve `externalId` + PPG/RPG/APG (promedios de temporada, sin percentil, sin contracción bayesiana, sin ajuste por posición — una versión mínima, no lo que diseño en la sección 10). **No hay campo `wcba_external_id` guardado en la jugadora de Scout** porque no hace falta con este enfoque — el match es por nombre en caliente, cada vez que se pide.
+
+**Limitación real de este enfoque que no estaba escrita antes:** un match exacto de string por nombre es frágil — variantes de transliteración del chino, apodos, nombres compuestos, o una jugadora que el staff escribió con espaciado distinto, fallarían silenciosamente (`externalId: null`, sin aviso de "no se encontró", indistinguible de "esta jugadora no está en la WCBA"). Esto es búsqueda que había que hacer y no hice hasta que Pablo me paró a revisar de nuevo.
+
+**Lo que falta de verdad para llegar al diseño de la sección 10 (no es "construir el vínculo", es enriquecer el que ya existe):**
+1. Extender `player-link` con eFG%/TS%/USG%/TOV%/FT rate (hoy solo PPG/RPG/APG).
+2. Añadir percentil, contracción bayesiana (12.3) y ventana de recencia (12.4) al resultado.
+3. Mejorar el matching (fuzzy match o confirmación manual del staff cuando hay ambigüedad, en vez de fallo silencioso).
+4. Cablear el mismo chip en `PlayerEditor.tsx` (el editor de la jugadora rival) — hoy solo está en `MyScout.tsx`, no en el flujo de creación/edición donde más aportaría según lo que ya planificaba una sesión anterior del proyecto.
 
 ### 5.3. El límite real que hay que comunicar bien, para no prometer de más
 
@@ -225,7 +233,9 @@ En vez de un formulario plano de ~48 campos todos con el mismo peso aparente (el
 
 ### 13.3. SLIDES — repensado como capas progresivas, no slides fijas de 1/2/3
 
-El formato actual (3 slides fijas: ¿Quién es? / ¿Qué hará? / ¿Qué hago yo?) se reorganiza en **capas**, donde la primera capa es autónoma y suficiente por sí sola — diseño mobile-first real, no un resumen recortado de algo más largo:
+**[VERIFICADO por `conversation_search`, añadido 2026-09-11]** Esta idea de capas no es tan nueva como la presenté — ya existía el concepto "Basic/Deep": *"el motor produce output completo y el report filtra cuánto mostrar (Basic = máx 3 situaciones, Deep = detalle completo)"* (sesión de diseño de abril). Mi "Capa 0 autónoma para modo sencillo" es una extensión de esa idea ya validada, no una invención desde cero — lo nuevo de verdad que añado es que la Capa 0 combine identidad+stat+quiet edge+acción en una sola tarjeta en vez de ser "Basic" = una versión recortada del mismo slide 1.
+
+El formato actual (3 slides fijas: ¿Quién es? / ¿Qué hará? / ¿Qué hago yo? — spec exacta ya aprobada: slide 2 muestra "top 3 situaciones primarias", slide 3 "DENY/FORCE/ALLOW + máximo 2 AWARE") se reorganiza en **capas**, donde la primera capa es autónoma y suficiente por sí sola — diseño mobile-first real, no un resumen recortado de algo más largo:
 
 - **Capa 0 — siempre visible, única en "modo sencillo":** una sola tarjeta que combina identidad (archetype con nomenclatura Synergy) + el stat destacado real más extremo (sección 10.3, con shrinkage aplicado) + el output "quiet edge" (13.2) + **una sola** acción defensiva concreta (el `winner` de `deny`, no una lista). Es la respuesta condensada a las 6 preguntas de Hoop Mentality en una sola tarjeta.
 - **Capa 1 — modo completo:** mapa de situaciones ordenado por amenaza (equivalente al "¿Qué hará?" actual), ahora con el emparejamiento defensivo (pregunta 4 de 13.0, hueco nuevo a construir) si el club ya tiene asignado quién la marca.
