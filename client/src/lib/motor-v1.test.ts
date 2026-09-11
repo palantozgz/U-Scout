@@ -6,7 +6,6 @@
  */
 import { describe, expect, it } from "vitest";
 import { UScoutMotor } from "./motor-v2.1";
-import { generateMotorV4 } from "./motor-v4";
 import { ensamblarReporte, situacionesAmenaza } from "./motor-v1";
 import testProfilesRaw from "../../../scripts/test-profiles.json";
 
@@ -19,10 +18,6 @@ interface TestProfile {
 
 const profiles = testProfilesRaw as unknown as TestProfile[];
 const motor = new UScoutMotor();
-
-function legacyArchetypeKeyDe(profile: TestProfile): string {
-  return generateMotorV4(profile.inputs as any, profile.clubContext as any).identity.archetypeKey;
-}
 
 describe("motor-v1 — situacionesAmenaza: cap anti-inflación correcto (regresión del bug de clamp072)", () => {
   it("p001 (iso+pnr primarias): iso y pnr NO se capan (quedan en 1.00), post SÍ se capa a 0.72", () => {
@@ -93,7 +88,6 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
       const reporte = ensamblarReporte(profile.inputs as any, profile.clubContext as any, {
         jugadoraId: profile.id,
         modo: "completo",
-        legacyArchetypeKey: legacyArchetypeKeyDe(profile),
       });
       if (reporte.modo !== "completo") throw new Error("esperaba modo completo");
       const campos = [reporte.capa2.deny, reporte.capa2.force, reporte.capa2.allow].filter(
@@ -114,7 +108,6 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
     const reporte = ensamblarReporte(p003.inputs as any, p003.clubContext as any, {
       jugadoraId: p003.id,
       modo: "completo",
-      legacyArchetypeKey: legacyArchetypeKeyDe(p003),
     });
     if (reporte.modo !== "completo") throw new Error("esperaba modo completo");
     expect(reporte.capa2.force).toBeUndefined();
@@ -127,7 +120,6 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
       const reporte = ensamblarReporte(profile.inputs as any, profile.clubContext as any, {
         jugadoraId: profile.id,
         modo: "completo",
-        legacyArchetypeKey: legacyArchetypeKeyDe(profile),
       });
       if (reporte.modo !== "completo") throw new Error("esperaba modo completo");
       expect(reporte.capa2.aware.length, `[${profile.name}]`).toBeLessThanOrEqual(2);
@@ -139,7 +131,6 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
     const reporte = ensamblarReporte(p001.inputs as any, p001.clubContext as any, {
       jugadoraId: p001.id,
       modo: "completo",
-      legacyArchetypeKey: legacyArchetypeKeyDe(p001),
     });
     expect("accionPrincipal" in reporte).toBe(false);
   });
@@ -149,12 +140,10 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
     const sencillo = ensamblarReporte(p001.inputs as any, p001.clubContext as any, {
       jugadoraId: p001.id,
       modo: "sencillo",
-      legacyArchetypeKey: legacyArchetypeKeyDe(p001),
     });
     const completo = ensamblarReporte(p001.inputs as any, p001.clubContext as any, {
       jugadoraId: p001.id,
       modo: "completo",
-      legacyArchetypeKey: legacyArchetypeKeyDe(p001),
     });
     if (sencillo.modo !== "sencillo" || completo.modo !== "completo") {
       throw new Error("modos inesperados");
@@ -172,7 +161,6 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
       const reporte = ensamblarReporte(profile.inputs as any, profile.clubContext as any, {
         jugadoraId: profile.id,
         modo: "completo",
-        legacyArchetypeKey: legacyArchetypeKeyDe(profile),
       });
       expect(VALIDOS.has(reporte.identidad.archetypeKey), `[${profile.name}] -> ${reporte.identidad.archetypeKey}`).toBe(true);
     }
@@ -183,7 +171,6 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
     const reporte = ensamblarReporte(p001.inputs as any, p001.clubContext as any, {
       jugadoraId: p001.id,
       modo: "completo",
-      legacyArchetypeKey: legacyArchetypeKeyDe(p001),
     });
     expect((p001.inputs as any).hand).toBe("L");
     expect(reporte.identidad.manoDominante).toBe("I");
@@ -194,9 +181,63 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
     const reporte = ensamblarReporte(p001.inputs as any, p001.clubContext as any, {
       jugadoraId: p001.id,
       modo: "completo",
-      legacyArchetypeKey: legacyArchetypeKeyDe(p001),
     });
     if (reporte.modo !== "completo") throw new Error("esperaba modo completo");
     expect(reporte.capa3).toBeUndefined();
+  });
+});
+
+describe("motor-v1 — archetypeKey: diseño real sobre Synergy (El Arquitecto, 2026-09-11), no crosswalk legacy", () => {
+  const GRUPO_DE: Record<string, string> = {
+    armadora_creadora: "base", armadora_anotadora: "base", manejadora_secundaria: "base",
+    alero_penetradora: "alero", alero_tiradora: "alero", alero_movimiento: "alero",
+    interior_creadora: "interior", interior_poste: "interior",
+    interior_abridora: "interior", interior_finalizadora: "interior",
+  };
+
+  it("el archetypeKey SIEMPRE respeta el grupo de identidad.posicion -- el bug real que motivó el rediseño", () => {
+    for (const profile of profiles) {
+      const reporte = ensamblarReporte(profile.inputs as any, profile.clubContext as any, {
+        jugadoraId: profile.id,
+        modo: "completo",
+      });
+      const grupoEsperado = reporte.identidad.posicion;
+      const grupoReal = GRUPO_DE[reporte.identidad.archetypeKey];
+      expect(grupoReal, `[${profile.name}] archetypeKey=${reporte.identidad.archetypeKey} posicion=${grupoEsperado}`).toBe(grupoEsperado);
+    }
+  });
+
+  // Tabla de oro -- valores exactos verificados contra las señales reales de
+  // cada perfil (ver motor-v1-archetype.test.ts para el detalle del porqué
+  // de cada uno). Aquí se prueban a través de ensamblarReporte() completo,
+  // no solo la función detectarArchetype() aislada.
+  const CASOS: [string, string][] = [
+    ["p001", "armadora_anotadora"],   // Luka: pnrPri=SF + isoDec=F pesan más que vision=5
+    ["p002", "interior_creadora"],    // Jokic: gate de hub (vision=5, pnrPri=PF, pass_to_cutter)
+    ["p004", "interior_finalizadora"],// Giannis: interior que ataca PnR de frente, no armadora
+    ["p006", "interior_poste"],       // Embiid: sin señales de hub, post domina
+    ["p007", "armadora_creadora"],    // Haliburton: pnrPri=PF + dhoRole=giver
+    ["p009", "interior_creadora"],    // Draymond: gate de hub (vision=5, usage=role) -- el caso que
+                                       // ninguna situación por sí sola captaba (playmaking sin volumen)
+    ["p010", "alero_tiradora"],       // 3&D wing: caso base del grupo alero
+  ];
+
+  for (const [id, esperado] of CASOS) {
+    it(`${id} -> ${esperado} (verificado con señales reales, no aspiracional)`, () => {
+      const profile = profiles.find((p) => p.id === id)!;
+      const reporte = ensamblarReporte(profile.inputs as any, profile.clubContext as any, {
+        jugadoraId: profile.id,
+        modo: "completo",
+      });
+      expect(reporte.identidad.archetypeKey, profile.name).toBe(esperado);
+    });
+  }
+
+  it("es determinista: dos llamadas al mismo perfil dan el mismo archetypeKey", () => {
+    const p001 = profiles.find((p) => p.id === "p001")!;
+    const a = ensamblarReporte(p001.inputs as any, p001.clubContext as any, { jugadoraId: p001.id, modo: "completo" });
+    const b = ensamblarReporte(p001.inputs as any, p001.clubContext as any, { jugadoraId: p001.id, modo: "completo" });
+    if (a.modo !== "completo" || b.modo !== "completo") throw new Error("esperaba modo completo");
+    expect(a.identidad.archetypeKey).toBe(b.identidad.archetypeKey);
   });
 });

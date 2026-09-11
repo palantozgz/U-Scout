@@ -25,15 +25,13 @@
  *   (pnrRollMan/putback/offScreen/misc) no tienen campo propio y usan
  *   aproximación por score, ver `SITUACION_A_CAMPO_FRECUENCIA`.
  * - `manoDominante` real desde `EnrichedInputs.hand` (no hardcodeado).
+ * - `archetypeKey`: **CERRADO 2026-09-11**, ver `motor-v1-archetype.ts` — diseño
+ *   real sobre la taxonomía Synergy (grupo como restricción dura + agregación
+ *   por ejes funcionales), no un crosswalk desde `motor-v4.ts`. El crosswalk
+ *   provisional que había aquí antes producía `archetypeKey` fuera de grupo en
+ *   3 de los 10 perfiles reales — verificado antes de reemplazarlo, no después.
  *
  * ## Lo que este archivo NO resuelve todavía — deuda explícita, no oculta
- * - `archetypeKey`: NO hay todavía un algoritmo de detección de archetype
- *   diseñado directamente sobre la taxonomía Synergy nueva (14.3). Lo que hay
- *   aquí (`inferirArchetypeKeyProvisional`) es un CROSSWALK provisional desde
- *   los 9 archetypes ad-hoc de `motor-v4.ts` — explícitamente no es una
- *   decisión de producto validada, es un placeholder para que Fase 1 pueda
- *   producir un `ScoutingReportV1` completo mientras se diseña el algoritmo
- *   real. `[PENDIENTE VALIDAR CON PABLO]`.
  * - Capa 3 (`PlayerRealStats`, Nivel 2/U Stats): no wireado — es Fase 2
  *   (vínculo con U Stats), no Fase 1. `capa3` queda `undefined` siempre por
  *   ahora.
@@ -77,6 +75,7 @@ import type {
   IdentidadReporte,
 } from "./motor-v1-types";
 import { SOURCE_TO_SITUATION_PUBLICA } from "./motor-v1-source-map";
+import { detectarArchetype, senalesDesdeEnriched } from "./motor-v1-archetype";
 
 const motor = new UScoutMotor();
 
@@ -270,56 +269,13 @@ function slotsAware(rawOutputs: MotorOutput[]): CampoConCandidatos[] {
 }
 
 // ---------------------------------------------------------------------------------
-// archetypeKey -- CROSSWALK PROVISIONAL, no diseño nuevo. Ver cabecera del
-// archivo. [PENDIENTE VALIDAR CON PABLO] antes de tratar esto como definitivo.
+// archetypeKey -- CERRADO 2026-09-11: diseño real sobre la taxonomía Synergy,
+// delegado en El Arquitecto y verificado contra los 10 perfiles reales antes
+// de implementarlo (ver motor-v1-archetype.ts para el algoritmo completo y
+// spec 21.4 punto 1 para el razonamiento). Sustituye al crosswalk provisional
+// que tenía esta sección -- ya no depende de leer ningún archetype legacy de
+// motor-v4.ts, que es exactamente la deuda que quedaba abierta.
 // ---------------------------------------------------------------------------------
-
-function inferirArchetypeKeyProvisional(
-  legacyArchetype: string,
-  posicion: PosicionJugadora,
-): ArchetypeKey {
-  switch (legacyArchetype) {
-    case "archetype_pnr_orchestrator":
-      return "armadora_creadora"; // función de ball-handler, no depende de posición
-    case "archetype_post_scorer":
-      return "interior_poste";
-    case "archetype_stretch_big":
-      return "interior_abridora";
-    case "archetype_spot_up_shooter":
-      return "alero_tiradora";
-    case "archetype_iso_scorer":
-      return posicion === "base"
-        ? "armadora_anotadora"
-        : posicion === "alero"
-          ? "alero_penetradora"
-          : "interior_poste";
-    case "archetype_playmaker":
-      return posicion === "base"
-        ? "armadora_creadora"
-        : posicion === "alero"
-          ? "alero_movimiento"
-          : "interior_creadora";
-    case "archetype_transition_threat":
-      return posicion === "base"
-        ? "armadora_anotadora"
-        : posicion === "alero"
-          ? "alero_movimiento"
-          : "interior_finalizadora";
-    case "archetype_role_player":
-      return posicion === "base"
-        ? "manejadora_secundaria"
-        : posicion === "alero"
-          ? "alero_tiradora"
-          : "interior_finalizadora";
-    case "archetype_versatile":
-    default:
-      return posicion === "base"
-        ? "manejadora_secundaria"
-        : posicion === "alero"
-          ? "alero_movimiento"
-          : "interior_creadora";
-  }
-}
 
 // ---------------------------------------------------------------------------------
 // Ensamblado del reporte (spec 13.3, 14.2 bis)
@@ -328,11 +284,6 @@ function inferirArchetypeKeyProvisional(
 export interface EnsamblarReporteOpts {
   jugadoraId: string;
   modo: "sencillo" | "completo";
-  /** archetypeKey legacy de motor-v4 (`identity.archetypeKey`) -- input externo
-   *  porque motor-v1.ts no reimplementa la detección de archetype todavía (ver
-   *  cabecera). Quien llame a esta función hoy debe seguir corriendo
-   *  `generateMotorV4` en paralelo solo para obtener este valor. */
-  legacyArchetypeKey: string;
   wcbaExternalId?: string;
   emparejamientoDefensivo?: string;
 }
@@ -347,7 +298,15 @@ export function ensamblarReporte(
   const enriched = report.inputs as EnrichedInputs;
 
   const posicion = mapearPosicion((enriched as any).pos as Position);
-  const archetypeKey = inferirArchetypeKeyProvisional(opts.legacyArchetypeKey, posicion);
+  // Se calcula aquí (antes del branching de modo) porque detectarArchetype()
+  // también la necesita -- se reusa la misma lista en capa1 más abajo, nunca
+  // se recalcula dos veces.
+  const situaciones = situacionesAmenaza(report);
+  const archetypeKey = detectarArchetype(
+    situaciones,
+    posicion,
+    senalesDesdeEnriched(enriched),
+  ).key;
 
   const identidad: IdentidadReporte = {
     nombre: (enriched as any).name ?? "",
@@ -399,7 +358,7 @@ export function ensamblarReporte(
     emparejamientoDefensivo: opts.emparejamientoDefensivo,
     modo: "completo",
     capa1: {
-      situaciones: situacionesAmenaza(report),
+      situaciones,
       emparejamientoDefensivo: opts.emparejamientoDefensivo,
     },
     capa2: {
