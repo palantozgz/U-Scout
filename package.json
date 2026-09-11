@@ -13,9 +13,11 @@
     "build": "tsx scripts/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
+    "check:tests": "tsc -p tsconfig.tests.json --noEmit",
     "test": "vitest run",
     "i18n:regen-gender-bundles": "node scripts/regenerate-spanish-gender-bundles.mjs",
     "motor:test": "tsx scripts/test-motor.ts",
+    "motor:compare": "tsx scripts/compare-motors.ts",
     "db:push": "dotenv -e .env -- drizzle-kit push",
     "db:migrate": "dotenv -e .env -- drizzle-kit migrate"
   },

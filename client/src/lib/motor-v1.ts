@@ -227,6 +227,77 @@ function campoDesdeRawOutputs(
   return { ganador: candidatos[0].output, candidatos };
 }
 
+/**
+ * `allow` necesita tratamiento especial -- CORREGIDO 2026-09-11 (encontrado
+ * al escribir `scripts/compare-motors.ts` y correr los 13 perfiles reales por
+ * ambos motores): `campoDesdeRawOutputs` genérica solo mira outputs con
+ * `category === 'allow'` real, pero `motor-v4.ts::buildDefenseInstruction`
+ * (líneas ~293-343) tiene una segunda vía cuando NO hay ninguno: deriva un
+ * "allow" sintético a partir de la situación de `deny` MENOS amenazante
+ * (weight < 0.5), porque una jugadora sin ningún output `allow` explícito
+ * puede seguir teniendo una situación genuinamente de bajo riesgo que sí vale
+ * la pena "conceder". Verificado con datos reales: sin esto, 2 de los 13
+ * perfiles (Haliburton, un pívot abridor sintético) perdían un `allow` real
+ * que el legacy sí producía (`allow_iso`, `allow_post`).
+ */
+function campoAllow(rawOutputs: MotorOutput[], forceWinnerKey: OutputKey | undefined): CampoConCandidatos | undefined {
+  const directo = campoDesdeRawOutputs(rawOutputs, "allow");
+
+  // Suprimir keys inválidas (concatenación situationId+"allow_" de v2.1) o
+  // redundantes con una dirección que `force` ya cubre -- mismo criterio que
+  // motor-v4.ts.
+  const INVALID_ALLOW_KEYS = new Set([
+    "allow_iso_right", "allow_iso_left", "allow_iso_both",
+    "allow_pnr_ball", "allow_catch_shoot", "allow_transition",
+    "allow_off_ball", "allow_cut", "allow_floater", "allow_oreb", "allow_misc",
+  ]);
+  const FORCE_DIRECTION_KEYS = new Set(["force_direction", "force_weak_hand"]);
+
+  if (directo) {
+    const key = String(directo.ganador.key);
+    if (INVALID_ALLOW_KEYS.has(key)) return undefined;
+    if ((key === "allow_iso" || key === "allow_iso_both") && forceWinnerKey && FORCE_DIRECTION_KEYS.has(String(forceWinnerKey))) {
+      return undefined;
+    }
+    return directo;
+  }
+
+  // Sin ningún output 'allow' real -- derivar de la situación de deny menos
+  // amenazante, igual que motor-v4.ts.
+  if (forceWinnerKey && FORCE_DIRECTION_KEYS.has(String(forceWinnerKey))) return undefined;
+
+  const bucketToAllowKey = (bucket: string): string => {
+    switch (bucket) {
+      case "iso": return "allow_iso";
+      case "pnr": return "allow_pnr_mid_range";
+      case "screener": return "allow_post";
+      case "post": return "allow_post";
+      case "spot": return "allow_spot_three";
+      case "transition": return "allow_transition";
+      case "cut": return "allow_cut";
+      default: return "none";
+    }
+  };
+
+  const denyGenuinamenteBajo = rawOutputs
+    .filter((o) => o.category === "deny" && o.weight > 0 && o.weight < 0.5)
+    .sort((a, b) => a.weight - b.weight); // ascendente -- menos amenazante primero
+
+  if (denyGenuinamenteBajo.length === 0) return undefined;
+
+  const candidatos: OutputCandidato[] = denyGenuinamenteBajo
+    .map((o) => ({ ...o, key: bucketToAllowKey(V21_SOURCE_A_BUCKET(o.source)) }))
+    .filter((o) => o.key !== "none")
+    .map((o, i): OutputCandidato => ({
+      output: aDefenseOutput({ ...o, category: "allow", weight: Math.max(1 - o.weight, 0.3) }),
+      score: Math.max(1 - o.weight, 0.3),
+      rank: i,
+    }));
+
+  if (candidatos.length === 0) return undefined;
+  return { ganador: candidatos[0].output, candidatos };
+}
+
 /** Hasta 2 slots de aware, deduplicados por "mecanismo" (mismo criterio de
  *  motor-v4.ts buildAlerts) para no repetir dos avisos del mismo tipo. */
 function slotsAware(rawOutputs: MotorOutput[]): CampoConCandidatos[] {
@@ -328,7 +399,7 @@ export function ensamblarReporte(
 
   const deny = campoDesdeRawOutputs(rawOutputs, "deny");
   const force = campoDesdeRawOutputs(rawOutputs, "force");
-  const allow = campoDesdeRawOutputs(rawOutputs, "allow");
+  const allow = campoAllow(rawOutputs, force?.ganador.key);
   const awareSlots = slotsAware(rawOutputs);
 
   if (!deny) {

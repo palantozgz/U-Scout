@@ -101,6 +101,21 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
     }
   });
 
+  it("allow se deriva del deny menos amenazante cuando no hay ningún output allow real -- regresión de scripts/compare-motors.ts", () => {
+    // p007 (Haliburton): motor-v2.1 no genera ningún output category='allow'
+    // con weight>0 para este perfil, pero SÍ tiene una situación de deny
+    // genuinamente baja (iso) -- motor-v4 deriva 'allow_iso' de ahí; la
+    // primera versión de motor-v1 no lo hacía y perdía el allow entero.
+    const p007 = profiles.find((p) => p.id === "p007")!;
+    const reporte = ensamblarReporte(p007.inputs as any, p007.clubContext as any, {
+      jugadoraId: p007.id,
+      modo: "completo",
+    });
+    if (reporte.modo !== "completo") throw new Error("esperaba modo completo");
+    expect(reporte.capa2.allow).toBeDefined();
+    expect(reporte.capa2.allow?.ganador.key).toBe("allow_iso");
+  });
+
   it("force/allow son genuinamente opcionales -- verificado con los perfiles reales donde faltan (no un fallback disfrazado)", () => {
     // p003 (Steph Curry) no tiene force real en motor-v2.1 -- verificado
     // directamente contra rawOutputs antes de escribir este test.
