@@ -1,0 +1,202 @@
+/**
+ * Tests directos de `motor-v1.ts` — a diferencia de `motor-v1-acceptance.test.ts`
+ * (que caracteriza el comportamiento de los motores legacy como referencia),
+ * estos tests corren contra la implementación real de Motor 1.0 y deben seguir
+ * pasando según el núcleo de cálculo evolucione.
+ */
+import { describe, expect, it } from "vitest";
+import { UScoutMotor } from "./motor-v2.1";
+import { generateMotorV4 } from "./motor-v4";
+import { ensamblarReporte, situacionesAmenaza } from "./motor-v1";
+import testProfilesRaw from "../../../scripts/test-profiles.json";
+
+interface TestProfile {
+  id: string;
+  name: string;
+  inputs: Record<string, unknown>;
+  clubContext?: Record<string, unknown>;
+}
+
+const profiles = testProfilesRaw as unknown as TestProfile[];
+const motor = new UScoutMotor();
+
+function legacyArchetypeKeyDe(profile: TestProfile): string {
+  return generateMotorV4(profile.inputs as any, profile.clubContext as any).identity.archetypeKey;
+}
+
+describe("motor-v1 — situacionesAmenaza: cap anti-inflación correcto (regresión del bug de clamp072)", () => {
+  it("p001 (iso+pnr primarias): iso y pnr NO se capan (quedan en 1.00), post SÍ se capa a 0.72", () => {
+    const p001 = profiles.find((p) => p.id === "p001")!;
+    const report = motor.generateReport(p001.inputs as any, p001.clubContext as any);
+    const sits = situacionesAmenaza(report);
+
+    const iso = sits.find((s) => s.situacion === "iso");
+    const pnr = sits.find((s) => s.situacion === "pnrHandler");
+    const post = sits.find((s) => s.situacion === "post");
+
+    expect(iso?.score).toBe(1);
+    expect(pnr?.score).toBe(1);
+    expect(post?.score).toBe(0.72);
+  });
+
+  it("p004 (pnr+transition primarias): pnr y transition NO se capan, iso SÍ se capa a 0.72", () => {
+    const p004 = profiles.find((p) => p.id === "p004")!;
+    const report = motor.generateReport(p004.inputs as any, p004.clubContext as any);
+    const sits = situacionesAmenaza(report);
+
+    const pnr = sits.find((s) => s.situacion === "pnrHandler");
+    const transition = sits.find((s) => s.situacion === "transition");
+    const iso = sits.find((s) => s.situacion === "iso");
+
+    expect(pnr?.score).toBe(1);
+    expect(transition?.score).toBeCloseTo(0.95, 6);
+    expect(iso?.score).toBe(0.72);
+  });
+
+  it("p008 (0 primarias): 'transition' supera 0.72 libremente, sin ningún cap", () => {
+    const p008 = profiles.find((p) => p.id === "p008")!;
+    const report = motor.generateReport(p008.inputs as any, p008.clubContext as any);
+    const sits = situacionesAmenaza(report);
+    const transition = sits.find((s) => s.situacion === "transition");
+    expect(transition?.score).toBeGreaterThan(0.72);
+  });
+
+  it("p001: frecuenciaObservada es la REAL marcada por el staff (isoFreq/pnrFreq='P'), no una aproximación por score", () => {
+    const p001 = profiles.find((p) => p.id === "p001")!;
+    const report = motor.generateReport(p001.inputs as any, p001.clubContext as any);
+    const sits = situacionesAmenaza(report);
+    const iso = sits.find((s) => s.situacion === "iso");
+    const pnr = sits.find((s) => s.situacion === "pnrHandler");
+    const spotUp = sits.find((s) => s.situacion === "spotUp");
+    // iso/pnr son las 2 primarias reales del perfil -> "P" real, no aproximado.
+    expect(iso?.frecuenciaObservada).toBe("P");
+    expect(pnr?.frecuenciaObservada).toBe("P");
+    // spotUp: score=0.62 caería en "S" por la aproximación de score (>=0.5),
+    // pero el input real la marca "Rara" -> debe devolver "R", no "S".
+    expect(spotUp?.frecuenciaObservada).toBe("R");
+  });
+
+  it("las situaciones vienen ordenadas de mayor a menor score", () => {
+    for (const profile of profiles) {
+      const report = motor.generateReport(profile.inputs as any, profile.clubContext as any);
+      const sits = situacionesAmenaza(report);
+      for (let i = 1; i < sits.length; i++) {
+        expect(sits[i - 1].score, `[${profile.name}]`).toBeGreaterThanOrEqual(sits[i].score);
+      }
+    }
+  });
+});
+
+describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
+  it("modo completo: deny siempre tiene ganador + candidatos; force/allow, cuando existen, también (incluido el ganador en rank 0)", () => {
+    for (const profile of profiles) {
+      const reporte = ensamblarReporte(profile.inputs as any, profile.clubContext as any, {
+        jugadoraId: profile.id,
+        modo: "completo",
+        legacyArchetypeKey: legacyArchetypeKeyDe(profile),
+      });
+      if (reporte.modo !== "completo") throw new Error("esperaba modo completo");
+      const campos = [reporte.capa2.deny, reporte.capa2.force, reporte.capa2.allow].filter(
+        (c): c is NonNullable<typeof c> => c !== undefined,
+      );
+      for (const campo of campos) {
+        expect(campo.candidatos.length, `[${profile.name}]`).toBeGreaterThan(0);
+        expect(campo.candidatos[0].rank, `[${profile.name}]`).toBe(0);
+        expect(campo.candidatos[0].output.key, `[${profile.name}]`).toBe(campo.ganador.key);
+      }
+    }
+  });
+
+  it("force/allow son genuinamente opcionales -- verificado con los perfiles reales donde faltan (no un fallback disfrazado)", () => {
+    // p003 (Steph Curry) no tiene force real en motor-v2.1 -- verificado
+    // directamente contra rawOutputs antes de escribir este test.
+    const p003 = profiles.find((p) => p.id === "p003")!;
+    const reporte = ensamblarReporte(p003.inputs as any, p003.clubContext as any, {
+      jugadoraId: p003.id,
+      modo: "completo",
+      legacyArchetypeKey: legacyArchetypeKeyDe(p003),
+    });
+    if (reporte.modo !== "completo") throw new Error("esperaba modo completo");
+    expect(reporte.capa2.force).toBeUndefined();
+    // Y no se coló el fallback viejo (force === deny disfrazado):
+    expect(reporte.capa2.force).not.toEqual(reporte.capa2.deny);
+  });
+
+  it("modo completo: capa2.aware nunca tiene más de 2 slots", () => {
+    for (const profile of profiles) {
+      const reporte = ensamblarReporte(profile.inputs as any, profile.clubContext as any, {
+        jugadoraId: profile.id,
+        modo: "completo",
+        legacyArchetypeKey: legacyArchetypeKeyDe(profile),
+      });
+      if (reporte.modo !== "completo") throw new Error("esperaba modo completo");
+      expect(reporte.capa2.aware.length, `[${profile.name}]`).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("modo completo: identidad NUNCA lleva accionPrincipal (TypeScript ya lo garantiza; esto verifica en runtime)", () => {
+    const p001 = profiles.find((p) => p.id === "p001")!;
+    const reporte = ensamblarReporte(p001.inputs as any, p001.clubContext as any, {
+      jugadoraId: p001.id,
+      modo: "completo",
+      legacyArchetypeKey: legacyArchetypeKeyDe(p001),
+    });
+    expect("accionPrincipal" in reporte).toBe(false);
+  });
+
+  it("modo sencillo: SÍ lleva accionPrincipal, y es igual al ganador de deny en modo completo para el mismo perfil", () => {
+    const p001 = profiles.find((p) => p.id === "p001")!;
+    const sencillo = ensamblarReporte(p001.inputs as any, p001.clubContext as any, {
+      jugadoraId: p001.id,
+      modo: "sencillo",
+      legacyArchetypeKey: legacyArchetypeKeyDe(p001),
+    });
+    const completo = ensamblarReporte(p001.inputs as any, p001.clubContext as any, {
+      jugadoraId: p001.id,
+      modo: "completo",
+      legacyArchetypeKey: legacyArchetypeKeyDe(p001),
+    });
+    if (sencillo.modo !== "sencillo" || completo.modo !== "completo") {
+      throw new Error("modos inesperados");
+    }
+    expect(sencillo.accionPrincipal.ganador.key).toBe(completo.capa2.deny.ganador.key);
+  });
+
+  it("identidad.archetypeKey es siempre uno de los 10 valores del catálogo de 14.3", () => {
+    const VALIDOS = new Set([
+      "armadora_creadora", "armadora_anotadora", "manejadora_secundaria",
+      "alero_penetradora", "alero_tiradora", "alero_movimiento",
+      "interior_creadora", "interior_poste", "interior_abridora", "interior_finalizadora",
+    ]);
+    for (const profile of profiles) {
+      const reporte = ensamblarReporte(profile.inputs as any, profile.clubContext as any, {
+        jugadoraId: profile.id,
+        modo: "completo",
+        legacyArchetypeKey: legacyArchetypeKeyDe(profile),
+      });
+      expect(VALIDOS.has(reporte.identidad.archetypeKey), `[${profile.name}] -> ${reporte.identidad.archetypeKey}`).toBe(true);
+    }
+  });
+
+  it("identidad.manoDominante refleja EnrichedInputs.hand real (p001 es zurda -> 'I'), no un hardcode", () => {
+    const p001 = profiles.find((p) => p.id === "p001")!;
+    const reporte = ensamblarReporte(p001.inputs as any, p001.clubContext as any, {
+      jugadoraId: p001.id,
+      modo: "completo",
+      legacyArchetypeKey: legacyArchetypeKeyDe(p001),
+    });
+    expect((p001.inputs as any).hand).toBe("L");
+    expect(reporte.identidad.manoDominante).toBe("I");
+  });
+
+  it("capa3 queda undefined (Nivel 2 / U Stats es Fase 2, no Fase 1)", () => {
+    const p001 = profiles.find((p) => p.id === "p001")!;
+    const reporte = ensamblarReporte(p001.inputs as any, p001.clubContext as any, {
+      jugadoraId: p001.id,
+      modo: "completo",
+      legacyArchetypeKey: legacyArchetypeKeyDe(p001),
+    });
+    if (reporte.modo !== "completo") throw new Error("esperaba modo completo");
+    expect(reporte.capa3).toBeUndefined();
+  });
+});
