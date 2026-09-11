@@ -112,6 +112,18 @@ Páginas ya corregidas: Home, CoachHome, MyScout, FilmRoom, GamePlan.
   locale === "zh" ? "中文" : locale === "es" ? "Español" : "English"
   ```
 
+## Consulta de conversaciones anteriores del proyecto (todos los agentes: Director, El Arquitecto, El Aparejador)
+
+Claude Code **no tiene acceso** a las conversaciones anteriores del proyecto en claude.ai/Claude Desktop — esa búsqueda (`conversation_search`) solo existe ahí, no aquí. Es una limitación real, no un descuido: en la sesión del 2026-09-10/11 se rediseñó sin querer un sistema (discrepancias entre entrenadores) que ya estaba diseñado con más detalle en conversaciones de abril, porque no se buscó ahí antes.
+
+**Regla:** si vas a proponer o construir algo que "suena a que ya se pensó antes" — nombres de features ya establecidos (v2, v3, motor, discrepancias, aprobación, slides, arquetipos, etc.), decisiones de producto no triviales, o cualquier cosa donde te sorprendas pensando "esto seguramente ya se decidió de alguna forma" — **no lo diseñes desde cero**. En vez de eso:
+
+1. Para el trabajo ahí y escribe 1-3 preguntas de búsqueda concretas y específicas (pocas palabras, términos que probablemente aparecieron literalmente en la conversación original — no "discrepancias" a secas, mejor "sistema discrepancias entrenadores versiones aprobadas").
+2. Preséntaselas a Pablo así, literal: **"Antes de seguir, necesito que revises esto en Claude Desktop (proyecto U Core) y me pegues el resultado: [pregunta 1] / [pregunta 2]"**.
+3. Pablo las copia en una conversación de Claude Desktop dentro del proyecto, pega el resultado de vuelta aquí, y entonces sigues con eso incorporado.
+
+No lo hagas para dudas triviales o de implementación mecánica (eso ralentiza sin necesidad) — solo para decisiones de producto/arquitectura con riesgo real de que ya existan y las estés reinventando o contradiciendo.
+
 ## Cambios aplicados (todas las sesiones)
 
 ### App.tsx — mobile scroll fix
