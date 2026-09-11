@@ -782,6 +782,44 @@ interface PatronCalibracion {
 
 **[CERRADO 2026-09-11, investigado]** Verificado contra terminología real del baloncesto en español (no inventada): "ala-pívot" (con guion) es la forma recomendada en español para el PF ([Estandarte — Hablemos correctamente del baloncesto](https://www.estandarte.com/noticias/idioma-espanol/hablemos-correctamente-del-baloncesto_4258.html)), y el concepto de "stretch four" (un ala-pívot con tiro exterior, "abre" la defensa) es terminología real ya usada en medios de baloncesto en español. El prefijo `interior_` (en vez de separar ala-pívot/pívot como dos grupos distintos) también queda validado: los "Offensive Roles" de Synergy clasifican por **función**, no por posición nominal — un "Stretch big" puede ser PF o C, exactamente el mismo criterio "sin posición" que ya se adoptó para el agrupamiento de percentiles de 14.2 bis (decisión #2). La tabla se mantiene tal cual, ya no es una propuesta sin validar — el vocabulario usado (creadora/anotadora/tiradora/abridora/finalizadora) coincide con el uso real del español de baloncesto, no es una traducción literal forzada del inglés.
 
+### 14.3 bis. `archetypeModificador` — segunda dimensión excepcional para jugadoras modernas (El Arquitecto, 2026-09-12)
+
+> Encargo directo de Pablo: *"hablamos de que podríamos poner archetype y sub archetipe o archetipe y un adjetivo detrás... para definir a jugadores modernos. klay thompson no es base nunca. es alero. no genera ni sube la pelota ni apenas usa el dribbling."* La parte de Klay/SG ya está cerrada aparte (pregunta 2 de 21.7, corrección directa en `mapearPosicion()`). Esta sección es la segunda dimensión que pedía además.
+
+**Hallazgo antes de diseñar nada, verificado contra código real: esto ya se construyó una vez y ya se descartó por una razón escrita.** `motor-v4.ts:423-446` calcula un `archetypeCandidates`/sub-archetype como "la segunda situación con más score", y `ReportSlidesV1.tsx:381-385` lo renderiza hoy en producción como `"También: {label}"`. Es exactamente la construcción que el principio **P2** de 21.7 (el archetype debe añadir información que `SituacionAmenaza[]` no tenga ya) declara defectuosa — repetir la situación #2 con otro nombre no añade nada. El encargo de Pablo no era "recuperar eso", era resolver el hueco real que ese sistema viejo nunca resolvió.
+
+**El hueco es real, demostrado con datos, no hipotético.** Perfil real Steph Curry (`p003`): `archetypeKey = armadora_anotadora`, pero su situación #2 real es `offScreen 0.92` — anota corriendo sin balón, no con el bote, y en modo sencillo el informe entero ("armadora anotadora, ciérrale el triple") no lo dice en ningún sitio. Es el gemelo estructural de la queja de Pablo sobre Klay.
+
+**Diseño: catálogo cerrado de 2 valores, dispara por excepción.**
+
+```ts
+export type ModificadorArchetype = "de_movimiento" | "a_la_contra";
+```
+
+- `de_movimiento` — la amenaza nace **sin balón** (pantallas indirectas, curls, trail). Separa "anota" de "anota corriendo".
+- `a_la_contra` — la amenaza nace **antes de que se arme el ataque** (transición). Separa "finaliza" de "finaliza antes de que llegues".
+
+Un tercer candidato (`atacando_cierres`, gate `spotUpAction === 'pump'`) se descartó **por falta de cobertura, no por gusto**: `spotUpAction` es `null` en los 14 perfiles de test — una regla sin un solo caso verificado no entra al catálogo v1.
+
+**`3_y_D` queda fuera a propósito.** `PlayerInputs` (`motor-v2.1.ts`) no tiene ningún campo de observación defensiva — el perfil de test `p010` se llama literalmente "3-and-D wing" pero la "D" de su nombre es decorativa, el motor no puede derivarla de ningún dato real hoy. Prometer ese modificador sería prometer un dato que no se captura — es trabajo de Fase 4 (captura), no de este cierre.
+
+**Dónde se muestra:** fusionado en la etiqueta de archetype ("Alero tiradora de movimiento"), en **ambos modos** (mismo precedente que `statsDestacados`/`quietEdge`, decisión #3 de 14.2 bis) — nunca como chip visual propio, y **sin icono propio** (la iconografía de 20.3 se queda anclada a los 10 `archetypeKey`, para no convertir un pendiente de 10 iconos en uno de 40).
+
+**Cómo se calcula — cero campos nuevos, todo Nivel 1 ya existente en `SenalesArchetype`.** La invariante que evita repetir el error de `motor-v4.ts`: **un modificador nunca puede repetir la situación de la que ya nace `deny.ganador`** — verificable directamente con `DefenseOutput.situacionOrigen`. Consecuencia de secuenciación real en `motor-v1.ts::ensamblarReporte()`: `deny` se calcula antes que `identidad` (antes no era así), porque `detectarModificador()` necesita `deny.ganador.situacionOrigen`.
+
+**Validado contra los 14 perfiles reales (ejecutado, no estimado):** dispara en 3/14 (21%) — `p003` Curry y `p005` Klay dan `de_movimiento` (exactamente la familia de jugadores que Pablo nombró), `p004` Giannis da `a_la_contra`. Se suprime correctamente en 2 casos donde dispararía sin la invariante: `p008` Gobert (transición alta, pero `deny.ganador` ya nace de transición) y `p013` (señal de movimiento real, pero `archetypeKey` ya es `alero_movimiento`).
+
+**`archetypeConfianza` deja de descartarse.** `detectarArchetype()` (21.7) ya calculaba un margen de confianza que `ensamblarReporte()` tiraba (solo usaba `.key`). Ahora es un campo obligatorio de `IdentidadReporte`, **nunca mostrado a la jugadora** — alimenta el flujo de revisión del entrenador (17.1/17.3). Caso real: `p011` (pívot abridor sintético, híbrido roll/pop genuino) sale con `confianza: "baja"` — la respuesta correcta a un caso ambiguo es señalarlo para revisión humana, no inventar un adjetivo.
+
+**Contrato de tipos — aditivo, sin romper 14.2 bis.** `IdentidadReporte` gana `archetypeModificador?: ModificadorArchetype` (opcional, ausente es el caso normal) y `archetypeConfianza: "alta"|"media"|"baja"` (obligatorio). `archetypeKey` **no se toca** — sigue siendo un valor plano, no se anida en un objeto. Razón explícita: `PatronCalibracion.archetypeKey` (17.3, Nivel B de aprendizaje) agrega eventos de revisión por archetype; si el modificador entrase en esa clave, los buckets de calibración pasarían de 10 a ~30, destruyendo la potencia estadística que la decisión #2 de 14.2 bis ya protegió eligiendo 3 grupos de posición en vez de 5. **El modificador se queda deliberadamente fuera de la calibración.**
+
+**Pendiente, no bloqueante:** `ReportSlidesV1.tsx:381-385` (el "También: X" viejo) se retira cuando ese componente pase a consumir `motor-v1` (Fase 3) — mientras siga leyendo `motor-v4`, dejarlo como está es correcto, no hay dos sistemas conviviendo en producción. i18n (es/en/zh) de los 12 valores (10 `archetypeKey` + 2 `ModificadorArchetype`) queda pendiente — ninguno de los 10 `archetypeKey` tenía labels todavía tampoco (`reportTextRenderer.ts` traduce el namespace legacy `archetype_*`, no el nuevo), así que se hacen los 12 de una vez cuando toque esa migración, no antes.
+
+**`[A VALIDAR CON PABLO]`, ninguna bloqueante:**
+1. ¿`de_movimiento`/`a_la_contra` son los dos ejes correctos, o falta un tercero? La estructura aguanta 3-4 sin cambiar nada — lo que no aguanta es que disparen en más de ~35% de perfiles (bloqueado con test, sección 21).
+2. Umbral `offScreen >= 0.6`: con ese valor Klay (0.66) entra por poco; con 0.7 se cae y solo quedaría Curry. Decisión de sensibilidad de baloncesto, no técnica.
+3. Gobert suprimido por redundancia con la acción: si prefieres que la etiqueta sea descriptivamente completa aunque repita la acción, se quita una condición.
+
 ### 14.4. Definición de "listo para empezar a construir"
 
 Con las secciones 1-14 de este documento, **la Fase 0 del roadmap (sección 8) ya tiene todo lo que necesita para arrancar**: modelo de datos (14.2 bis, contrato de tipos cerrado), naming (14.3), qué conservar y qué cambiar (secciones 3-4, 13.2), y las decisiones de producto que antes bloqueaban el arranque (14.1).
