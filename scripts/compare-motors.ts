@@ -6,7 +6,7 @@
  * de dar una consolidación por definitiva (docs/motor-1.0-spec.md, sección
  * 21.5).
  *
- * Solo hay 13 perfiles disponibles hoy (scripts/test-profiles.json) — la
+ * Solo hay unos pocos perfiles disponibles hoy (scripts/test-profiles.json) — la
  * única jugadora real en la base de producción tiene `inputs: {}` (vacío,
  * verificado por SQL contra Supabase el 2026-09-12), así que no hay datos de
  * producción reales con los que comparar todavía. Este script queda listo
@@ -90,7 +90,7 @@ for (const p of profiles as any[]) {
 console.log(`\n${perfilesOk} perfiles procesados sin error, ${perfilesConError} con error.\n`);
 
 if (divergenciasReales.length === 0) {
-  console.log("✓ Sin divergencias reales: deny/force/allow.winner coinciden 100% entre motor-v1 y el legacy en los 13 perfiles.");
+  console.log(`✓ Sin divergencias reales: deny/force/allow.winner coinciden 100% entre motor-v1 y el legacy en los ${perfilesOk} perfiles.`);
 } else {
   console.log(`✗ ${divergenciasReales.length} divergencia(s) real(es) (deny/force/allow.winner) — revisar antes de migrar un consumidor:`);
   for (const d of divergenciasReales) {

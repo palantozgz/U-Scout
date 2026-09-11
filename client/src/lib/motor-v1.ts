@@ -105,8 +105,22 @@ function mapearSituacion(v21Bucket: string): SituacionSynergy {
   return SITUACION_A_SYNERGY[v21Bucket] ?? "misc";
 }
 
-function mapearPosicion(pos: Position): PosicionJugadora {
-  if (pos === "PG" || pos === "SG") return "base";
+/**
+ * CORREGIDO 2026-09-12 (feedback directo de Pablo, confirma la pregunta 2 de
+ * la spec 21.7): un SG **nunca** colapsa a "base" solo por la etiqueta de
+ * posición -- Klay Thompson es SG en los inputs y jamás sube el balón ni
+ * crea con el bote, es alero de verdad. `PG` siempre es `base` (por
+ * definición, un base es quien organiza); `SG` depende de si de verdad
+ * carga con el balón (usage real + isoFreq/pnrFreq observados por el staff)
+ * -- si no, es `alero`, igual que ya se trataba a `SF`.
+ */
+function mapearPosicion(pos: Position, enriched: EnrichedInputs): PosicionJugadora {
+  if (pos === "PG") return "base";
+  if (pos === "SG") {
+    const e = enriched as any;
+    const cargaOnBallReal = e.usage !== "role" && (e.isoFreq === "P" || e.isoFreq === "S" || e.pnrFreq === "P" || e.pnrFreq === "S");
+    return cargaOnBallReal ? "base" : "alero";
+  }
   if (pos === "SF") return "alero";
   return "interior"; // PF | C -- mismo criterio que 10.2 bis (función, no posición nominal)
 }
@@ -368,7 +382,7 @@ export function ensamblarReporte(
   const rawOutputs = report.rawOutputs ?? [];
   const enriched = report.inputs as EnrichedInputs;
 
-  const posicion = mapearPosicion((enriched as any).pos as Position);
+  const posicion = mapearPosicion((enriched as any).pos as Position, enriched);
   // Se calcula aquí (antes del branching de modo) porque detectarArchetype()
   // también la necesita -- se reusa la misma lista en capa1 más abajo, nunca
   // se recalcula dos veces.

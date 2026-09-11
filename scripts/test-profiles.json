@@ -504,5 +504,40 @@
       "ballHandling": null,
       "pressureResponse": null
     }
+  },
+  {
+    "id": "p014",
+    "name": "Base suplente sintetico — manejadora secundaria",
+    "note": "Sintetico (2026-09-12, correccion de mapearPosicion para SG): base de rotacion que reparte cuando le toca pero no es iniciadora primaria — cubre manejadora_secundaria, que se quedo sin perfil real al corregir que Klay Thompson (SG sin carga on-ball) ya no colapsa a base.",
+    "inputs": {
+      "pos": "PG",
+      "hand": "R",
+      "ath": 3,
+      "phys": 2,
+      "usage": "secondary",
+      "selfCreation": "low",
+      "isoFreq": "N",
+      "pnrFreq": "S",
+      "pnrEff": "medium",
+      "pnrPri": null,
+      "trapResponse": "pass",
+      "postFreq": "N",
+      "spotUpFreq": "S",
+      "deepRange": true,
+      "transFreq": "R",
+      "transRole": "fill",
+      "cutFreq": "R",
+      "cutType": "basket",
+      "orebThreat": "low",
+      "vision": 3,
+      "floater": "N",
+      "dhoFreq": "N",
+      "indirectFreq": "N",
+      "contactFinish": "neutral",
+      "offHandFinish": "capable",
+      "screenerAction": null,
+      "ballHandling": "good",
+      "pressureResponse": "escapes"
+    }
   }
 ]
