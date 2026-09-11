@@ -215,3 +215,70 @@ describe("archetypeKey — cobertura completa del catálogo de 14.3 vía perfile
     expect(faltantes, `archetypes sin ningún perfil de test: ${faltantes.join(", ")}`).toEqual([]);
   });
 });
+
+describe("archetypeModificador — segunda dimensión excepcional (spec 14.3 bis, El Arquitecto 2026-09-12)", () => {
+  it("p003 Curry (amenaza off-ball real, offScreen=0.92) -> de_movimiento", () => {
+    const p003 = profiles.find((p) => p.id === "p003")!;
+    const r = ensamblarReporte(p003.inputs as any, p003.clubContext as any, { jugadoraId: p003.id, modo: "completo" });
+    expect(r.identidad.archetypeModificador).toBe("de_movimiento");
+  });
+
+  it("p005 Klay -- el caso que motivó el encargo: alero_tiradora + de_movimiento", () => {
+    const p005 = profiles.find((p) => p.id === "p005")!;
+    const r = ensamblarReporte(p005.inputs as any, p005.clubContext as any, { jugadoraId: p005.id, modo: "completo" });
+    expect(r.identidad.archetypeKey).toBe("alero_tiradora");
+    expect(r.identidad.archetypeModificador).toBe("de_movimiento");
+  });
+
+  it("p004 Giannis (transition=0.95, transRole=fill/pusher, deny nace de pnrHandler) -> a_la_contra", () => {
+    const p004 = profiles.find((p) => p.id === "p004")!;
+    const r = ensamblarReporte(p004.inputs as any, p004.clubContext as any, { jugadoraId: p004.id, modo: "completo" });
+    expect(r.identidad.archetypeModificador).toBe("a_la_contra");
+  });
+
+  it("p008 Gobert: transición alta PERO deny.ganador ya nace de transición -> modificador suprimido (invariante anti-P2 más importante del diseño)", () => {
+    const p008 = profiles.find((p) => p.id === "p008")!;
+    const r = ensamblarReporte(p008.inputs as any, p008.clubContext as any, { jugadoraId: p008.id, modo: "completo" });
+    if (r.modo !== "completo") throw new Error("esperaba modo completo");
+    expect(r.capa2.deny.ganador.situacionOrigen).toBe("transition");
+    expect(r.identidad.archetypeModificador).toBeUndefined();
+  });
+
+  it("p013 (movement shooter sintético): señal de movimiento real, PERO archetypeKey ya es alero_movimiento -> modificador suprimido (anti-redundancia con la propia key)", () => {
+    const p013 = profiles.find((p) => p.id === "p013")!;
+    const r = ensamblarReporte(p013.inputs as any, p013.clubContext as any, { jugadoraId: p013.id, modo: "completo" });
+    expect(r.identidad.archetypeKey).toBe("alero_movimiento");
+    expect(r.identidad.archetypeModificador).toBeUndefined();
+  });
+
+  it("presupuesto cognitivo (spec 16.3b): el modificador dispara en como mucho un tercio de los perfiles -- si una regla futura lo dispara en más, este test debe fallar el build", () => {
+    let conModificador = 0;
+    for (const p of profiles) {
+      const r = ensamblarReporte(p.inputs as any, p.clubContext as any, { jugadoraId: p.id, modo: "completo" });
+      if (r.identidad.archetypeModificador) conModificador++;
+    }
+    expect(conModificador, `${conModificador}/${profiles.length} perfiles con modificador`).toBeLessThanOrEqual(Math.ceil(profiles.length / 3));
+  });
+
+  it("p011 (stretch five sintético, híbrido roll/pop genuino) -> archetypeConfianza 'baja', no un adjetivo inventado", () => {
+    const p011 = profiles.find((p) => p.id === "p011")!;
+    const r = ensamblarReporte(p011.inputs as any, p011.clubContext as any, { jugadoraId: p011.id, modo: "completo" });
+    expect(r.identidad.archetypeConfianza).toBe("baja");
+    expect(r.identidad.archetypeModificador).toBeUndefined();
+  });
+
+  it("es estrictamente aditivo: archetypeKey no cambia para ningún perfil frente a la tabla de oro ya verificada", () => {
+    // Mismos 7 casos ya fijados en el describe "diseño real sobre Synergy" de
+    // arriba -- si esto falla, el modificador rompió algo del cálculo base.
+    const ORO: [string, string][] = [
+      ["p001", "armadora_anotadora"], ["p002", "interior_creadora"],
+      ["p004", "interior_finalizadora"], ["p006", "interior_poste"],
+      ["p007", "armadora_creadora"], ["p009", "interior_creadora"], ["p010", "alero_tiradora"],
+    ];
+    for (const [id, esperado] of ORO) {
+      const p = profiles.find((x) => x.id === id)!;
+      const r = ensamblarReporte(p.inputs as any, p.clubContext as any, { jugadoraId: id, modo: "completo" });
+      expect(r.identidad.archetypeKey, id).toBe(esperado);
+    }
+  });
+});

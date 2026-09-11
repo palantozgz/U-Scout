@@ -42,6 +42,22 @@ export type ArchetypeKey =
   | "interior_creadora" | "interior_poste" | "interior_abridora" | "interior_finalizadora";
 
 /**
+ * Modificador excepcional de archetype (spec 14.3 bis, 2026-09-12) — segunda
+ * dimensión que Pablo pidió ("archetype + adjetivo para jugadores modernos"),
+ * diseñada por El Arquitecto. Deliberadamente cerrado a 2 valores, no
+ * genérico: cada uno cubre un eje que el `ArchetypeKey`/`SituacionAmenaza[]`
+ * no puede decir por sí solos (on-ball vs. off-ball; con el ataque montado
+ * vs. antes de que se monte). Dispara en ~21% de perfiles reales (3/14) — es
+ * la excepción, no el caso normal; ausente (`undefined`) es lo esperado la
+ * mayoría de las veces (límite de carga cognitiva, spec 16.3b).
+ *
+ * `3_y_D` NO está en este catálogo a propósito: `PlayerInputs`
+ * (`motor-v2.1.ts`) no tiene ningún campo de observación defensiva — sería
+ * una etiqueta que el motor no puede derivar de ningún dato real hoy.
+ */
+export type ModificadorArchetype = "de_movimiento" | "a_la_contra";
+
+/**
  * Naming nuevo de outputs individuales (deny/force/allow/aware). Branded string,
  * no `string` plano ni union literal todavía: el catálogo exacto (`OUTPUT_CATALOG`)
  * depende del mapeo campo-por-campo de spec 13.4/15.1, que sigue abierto. El brand
@@ -288,6 +304,24 @@ export interface StatDestacado {
 export interface IdentidadReporte extends IdentidadInput {
   /** Nivel 3, inferido — nunca input directo. */
   archetypeKey: ArchetypeKey;
+  /**
+   * Excepcional (spec 14.3 bis) — ausente es el caso normal (~79% de
+   * perfiles reales). Se renderiza SIEMPRE fusionado en la etiqueta de
+   * archetype ("Alero tiradora de movimiento"), nunca como chip/elemento
+   * visual propio — evita el error ya documentado de `motor-v4.ts`
+   * (`archetypeCandidates`/"También: X" en `ReportSlidesV1.tsx`, que
+   * repetía la situación top sin añadir información, exactamente lo que P2
+   * de 21.7 prohíbe).
+   */
+  archetypeModificador?: ModificadorArchetype;
+  /**
+   * Obligatorio, no opcional — `detectarArchetype()` ya lo calcula siempre;
+   * antes de esta sesión se descartaba (`motor-v1.ts`, solo se usaba `.key`).
+   * Alimenta el flujo de revisión del entrenador (17.1/17.3) — NUNCA se
+   * muestra a la jugadora ("confianza baja" no es información accionable
+   * para quien va a jugar el partido).
+   */
+  archetypeConfianza: "alta" | "media" | "baja";
   /** Presente en ambos modos (decisión #3): 0-3 en completo, 0-1 en sencillo
    *  (spec 10.3.4). */
   statsDestacados: StatDestacado[];

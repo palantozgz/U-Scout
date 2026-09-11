@@ -75,7 +75,7 @@ import type {
   IdentidadReporte,
 } from "./motor-v1-types";
 import { SOURCE_TO_SITUATION_PUBLICA } from "./motor-v1-source-map";
-import { detectarArchetype, senalesDesdeEnriched } from "./motor-v1-archetype";
+import { detectarArchetype, detectarModificador, senalesDesdeEnriched } from "./motor-v1-archetype";
 
 const motor = new UScoutMotor();
 
@@ -387,11 +387,29 @@ export function ensamblarReporte(
   // también la necesita -- se reusa la misma lista en capa1 más abajo, nunca
   // se recalcula dos veces.
   const situaciones = situacionesAmenaza(report);
-  const archetypeKey = detectarArchetype(
+  const senales = senalesDesdeEnriched(enriched);
+  const deteccion = detectarArchetype(situaciones, posicion, senales);
+
+  // deny se calcula ANTES de identidad -- detectarModificador() necesita
+  // deny.ganador.situacionOrigen para no repetir en la etiqueta lo que la
+  // acción principal ya dice (spec 14.3 bis, regla anti-P2 de El Arquitecto).
+  const deny = campoDesdeRawOutputs(rawOutputs, "deny");
+  const force = campoDesdeRawOutputs(rawOutputs, "force");
+  const allow = campoAllow(rawOutputs, force?.ganador.key);
+  const awareSlots = slotsAware(rawOutputs);
+
+  if (!deny) {
+    throw new Error(
+      `ensamblarReporte: no se pudo calcular 'deny' para jugadoraId=${opts.jugadoraId} -- el motor no generó ningún output deny con weight > 0.`,
+    );
+  }
+
+  const archetypeModificador = detectarModificador(
     situaciones,
-    posicion,
-    senalesDesdeEnriched(enriched),
-  ).key;
+    deteccion.key,
+    senales,
+    deny.ganador.situacionOrigen,
+  );
 
   const identidad: IdentidadReporte = {
     nombre: (enriched as any).name ?? "",
@@ -406,21 +424,12 @@ export function ensamblarReporte(
     numero: (enriched as any).number ?? "",
     fotoUrl: (enriched as any).imageUrl,
     esEstrella: (enriched as any).starPlayer ?? undefined,
-    archetypeKey,
+    archetypeKey: deteccion.key,
+    archetypeModificador,
+    archetypeConfianza: deteccion.confianza,
     statsDestacados: [], // Capa 3 / Nivel 2 no wireado todavía (Fase 2)
     quietEdge: undefined, // idem
   };
-
-  const deny = campoDesdeRawOutputs(rawOutputs, "deny");
-  const force = campoDesdeRawOutputs(rawOutputs, "force");
-  const allow = campoAllow(rawOutputs, force?.ganador.key);
-  const awareSlots = slotsAware(rawOutputs);
-
-  if (!deny) {
-    throw new Error(
-      `ensamblarReporte: no se pudo calcular 'deny' para jugadoraId=${opts.jugadoraId} -- el motor no generó ningún output deny con weight > 0.`,
-    );
-  }
 
   if (opts.modo === "sencillo") {
     const reporte: ReporteModoSencilloV1 = {

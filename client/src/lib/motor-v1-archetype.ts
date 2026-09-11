@@ -48,6 +48,7 @@
 
 import type {
   ArchetypeKey,
+  ModificadorArchetype,
   PosicionJugadora,
   SituacionAmenaza,
   SituacionSynergy,
@@ -315,4 +316,57 @@ export function detectarArchetype(
   if (posicion === "base") return detectarBase(s, senales);
   if (posicion === "interior") return detectarInterior(s, senales);
   return detectarAlero(s, senales);
+}
+
+// ---------------------------------------------------------------------------------
+// Modificador excepcional (spec 14.3 bis, 2026-09-12) -- segunda dimensión
+// que Pablo pidió ("archetype + adjetivo para jugadores modernos"), a partir
+// del caso real de Klay Thompson (alero que nunca sube el balón). Diseño de
+// El Arquitecto: cerrado a 2 valores, dispara solo por excepción (~21% de
+// perfiles reales), y NUNCA repite la situación de la que ya nace
+// `accionPrincipal`/`deny.ganador` -- esa es la regla que evita reproducir
+// el bug ya documentado de `motor-v4.ts` (P2, spec 21.7: un "sub-archetype"
+// que solo repite la segunda situación con más score no añade nada).
+// ---------------------------------------------------------------------------------
+
+/**
+ * Calcula el modificador excepcional, si aplica. Se llama DESPUÉS de conocer
+ * `deny.ganador.situacionOrigen` (por eso no vive dentro de `detectarArchetype`,
+ * que no tiene ese dato) -- ver `motor-v1.ts::ensamblarReporte`.
+ *
+ * Orden de precedencia fijo cuando ambas reglas calificarían: `de_movimiento`
+ * gana (cambia cómo se defiende de raíz -- perseguir por encima de pantallas
+ * vs. sentarte en el balón -- más que `a_la_contra`, que es una cuestión de
+ * ritmo). Como máximo 1 modificador; `undefined` es el resultado esperado la
+ * mayoría de las veces.
+ */
+export function detectarModificador(
+  situaciones: SituacionAmenaza[],
+  key: ArchetypeKey,
+  senales: SenalesArchetype,
+  denyOrigen: SituacionSynergy,
+): ModificadorArchetype | undefined {
+  const s = (sit: SituacionSynergy) => scoreDe(situaciones, sit);
+
+  // Regla 1 -- de_movimiento. La amenaza nace SIN balón (pantallas
+  // indirectas, curls, trail). Suprimida si `alero_movimiento` ya lo dice en
+  // la propia key, o si `deny.ganador` ya nace de offScreen (la acción
+  // principal ya lo comunica, repetirlo en la etiqueta es ruido).
+  const senalMovimiento =
+    s("offScreen") >= 0.6 ||
+    ((senales.indirectFreq === "P" || senales.indirectFreq === "S") && senales.cutType === "curl");
+  if (senalMovimiento && key !== "alero_movimiento" && denyOrigen !== "offScreen") {
+    return "de_movimiento";
+  }
+
+  // Regla 2 -- a_la_contra. La amenaza nace ANTES de que se arme el ataque.
+  // Suprimida si `deny.ganador` ya nace de transición (misma razón).
+  const senalContra =
+    s("transition") >= 0.85 &&
+    (senales.transRole === "rim_run" || senales.transRole === "leak" || senales.transRole === "trail");
+  if (senalContra && denyOrigen !== "transition") {
+    return "a_la_contra";
+  }
+
+  return undefined;
 }
