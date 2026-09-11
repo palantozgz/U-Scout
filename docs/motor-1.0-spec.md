@@ -365,9 +365,11 @@ Con las secciones 1-14 de este documento, **la Fase 0 del roadmap (sección 8) y
 
 > Pablo: "podemos cambiar todo absolutamente si está justificado para mejorar el scouting, la retención de la jugadora, y reducir el tiempo del entrenador y su margen de error al mínimo". Con ese mandato explícito, esta sección propone cambios de fondo, no solo cosméticos.
 
-### 15.1. Las 9 secciones reales del formulario, verificadas leéndolo (no asumidas)
+### 15.1. Las 9 secciones reales del formulario, verificadas leyéndolo (no asumidas)
 
 **[VERIFICADO]** `PlayerEditor.tsx`, líneas 584-1969, tiene exactamente estas 9 secciones visuales, en este orden fijo: Identidad → Perfil físico → Tiros libres/faltas → Manejo de balón → Post → ISO → PnR → Actividad sin balón → Spot-up. **Orden fijo, siempre las 9 visibles, sin importar si la jugadora tiene 1 situación relevante o 6.**
+
+**[VERIFICADO por `conversation_search`, 2026-09-11 — matiz importante que no tenía antes]** Estos ~48 campos **no son un primer borrador sin refinar** — ya pasaron por una ronda real de eliminación de redundancias con feedback de beta testers (ej. el bloque de PnR Handler se redujo de campos duplicados a 6 campos limpios: "Primary option/Weaker option" se eliminó por redundante con la dirección, "PnR handler finishing efficiency" se eliminó por redundante con la eficiencia general). También hay una distinción deliberada y ya corregida una vez: **ISO es estrictamente creación perimetral con bote; toda la creación interior (incluso "ISO desde el poste") va en la pestaña Post** — siguiendo la clasificación de Synergy. Mi propuesta de la sección 15.3 (seleccionar situaciones antes de abrir detalle) sigue siendo una mejora nueva y válida, pero no estoy "arreglando un formulario sin pulir" — estoy proponiendo una capa de flujo encima de campos que ya fueron depurados una vez.
 
 ### 15.2. El problema real, ahora que puedo decirlo sin rodeos
 
@@ -532,3 +534,9 @@ NBA 2K, el juego de baloncesto más jugado del mundo, introdujo en su edición m
 ### 20.4. Lo que dejo pendiente, con honestidad
 
 `[PENDIENTE]` El diseño real de los 10 iconos es trabajo de diseño visual (Figma), no algo que se resuelva en un documento de especificación — lo que aporto aquí es el principio validado (por qué funciona, qué lo hace fallar si se hace mal) y la lista exacta de 10 conceptos a iconografiar (sección 14.3), no los iconos en sí.
+
+**[VERIFICADO por `conversation_search`, 2026-09-11]** Esto no es solo mi criterio — es una regla de producto ya decidida y bloqueada: *"Iconos: diseño obligatorio en Figma antes de implementar. Nunca generar SVG de iconos directo."* Mi propuesta de esta sección cumple esa regla (nunca propongo generar los SVG yo), la cito aquí explícita para que quien retome esto en Claude Code no la pierda de vista.
+
+### 20.5. Deuda técnica conocida relacionada, encontrada en la misma búsqueda
+
+**[VERIFICADO por `conversation_search`]** Hay un problema ya identificado y todavía sin resolver, anterior a esta auditoría: `transitionRole` **legacy** en `mock-data.ts` — el motor sigue leyendo el campo viejo, pendiente de alinear con el campo nuevo. **[VERIFICADO ahora también contra código actual, 2026-09-11]** Sigue vigente: `transitionRole` (línea 139, tipo `"Pusher" | "Outlet" | "Rim Runner" | "Trailer"`) todavía se usa activamente (líneas 559, 973-982, 1947), y hay un comentario explícito en el propio código (línea 1092): `// Resolve legacy transitionRole field to new TransRoleEditor values` — confirma que el propio equipo ya sabía que es un campo legacy sin resolver del todo. El Arquitecto debería revisar esto al diseñar Fase 0 para no heredar el mismo campo doble en Motor 1.0.
