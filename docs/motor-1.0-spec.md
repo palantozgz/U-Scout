@@ -26,6 +26,8 @@ Un documento de especificación para que, en una sesión dedicada (probablemente
 
 - **El principio de "nunca inferir observación del scout"** (`INFERENCE_RULES.neverInfer` de v2.1): campos como dirección de ISO, hombro de post, tipo de corte — son observación pura del staff, un modelo estadístico no debe inventarlos. Motor 1.0 debe mantener esta distinción explícita entre "campo observado" y "campo inferido/calculado".
 - **La idea de un ranking por situación con un tope anti-inflación** (`calculateThreatScores()`: máximo por situación + cap a 0,72 si hay ≥2 situaciones primarias). La lógica es sólida, solo hay que llevarla a una única implementación.
+
+  **[CORREGIDO 2026-09-11, bug real encontrado al escribir los tests de Fase 1]** Esta frase daba por hecho que el cap ya está en ambos motores — es falso. `motor-v2.1.ts:871-909` (`calculateThreatScores`, privado) sí lo implementa. `motor-v4.ts:199-234` (`buildSituations`, la función que realmente calcula `situations` en la salida pública de v4) **no lo implementa en absoluto** — cero referencias a `primarySituations`/`manyPrimaries`/`0.72` en todo el archivo (verificado por grep exhaustivo). `buildSituations` consume `v21Report.rawOutputs` (los pesos SIN capar) y aplica su propio esquema, normalizar cada situación dividiendo por el peso máximo del perfil — un mecanismo completamente distinto, sin ninguna relación con el cap por multi-primaria. Es exactamente el tipo de divergencia entre motores que este documento existe para eliminar, y no estaba detectada hasta ahora. **Implicación para Fase 1:** el comportamiento de referencia correcto es el de `motor-v2.1.ts` (el que el propio Pablo validó como "lógica sólida"), no el de `motor-v4.ts` — los tests de Fase 1 deben afirmar el cap real, no el comportamiento actual de v4.
 - **Calibración contra literatura real cuando existe** — ya hay dos casos verificados en el código actual (peso de `cut` = 0,72 citando 1,58 PPP de Synergy EuroLeague; comentario "ISO is statistically one of the least efficient play types"). Motor 1.0 debe mantener y ampliar esta práctica — cada peso base debería, donde sea posible, tener un comentario de origen (dato real o "criterio de staff sin dato externo", explícito).
 - **El formato de informe de 3 slides** (¿Quién es? / ¿Qué hará? / ¿Qué hago yo?) — ya validado como decisión de producto en `u-scout-design-decisions.md`, no hay motivo para cambiarlo salvo que la UX de lectura (sección 6) sugiera algo mejor.
 - **El flujo de aprobación** (edición privada → coach revisa/aprueba → staff ve discrepancias → cualquier coach publica) — el proceso es bueno, el problema detectado era que dos motores generan `itemKey`s distintos para el mismo concepto. Con un solo motor, ese problema desaparece por construcción.
@@ -72,11 +74,15 @@ Esto es lo que pides explícitamente ("incluir estadísticas relevantes si las h
 
 ## 6. UX de captura (staff) — ideas a validar
 
+**[SUPERADO, ver 15.3]** Ambas ideas de esta sección quedaron formalizadas y ampliadas por el rediseño de la sección 15: "mostrar contexto de U Stats antes de los campos cualitativos" es hoy el Nivel 2 mostrado primero (13.1); "agrupación por situación con progreso visible" es hoy el flujo de 2 pasos selección→detalle (15.3), más concreto que la idea original. Se deja el texto original abajo por trazabilidad, ya no es un pendiente.
+
 `[PENDIENTE VALIDAR CON PABLO — esto es propuesta, no decisión]`
 - El editor actual tiene ~48 campos en un solo formulario largo (`PlayerEditor.tsx`, 1.969 líneas). Con el vínculo a U Stats de la sección 5, el formulario podría abrir mostrando el contexto real de la jugadora (equipo, minutos, stats de liga) antes de pedir los campos cualitativos — orienta al staff que scoutea a una jugadora que no conoce bien.
 - Posible agrupación por "situación" con progreso visible (ej. "ISO: 4/6 campos", "PnR: 0/8 campos") en vez de un formulario plano — reduce la sensación de formulario interminable. A validar si merece la pena frente a la complejidad de construirlo.
 
 ## 7. UX de lectura (jugadora) — ideas a validar
+
+**[SUPERADO, ver 10.3/13.2/14.2 bis]** "Añadir 1 dato cuantitativo por slide" es hoy el sistema completo de `statsDestacados`/chips (10.1-10.3 ter). "Máximo 2 AWARE" quedó fijado a nivel de tipo como tupla acotada en `capa2.aware` (14.2 bis, Nota 10). Se deja el texto original abajo por trazabilidad, ya no es un pendiente.
 
 `[PENDIENTE VALIDAR CON PABLO]`
 - El formato de 3 slides ya está aprobado y funciona — no tocarlo sin motivo. Lo que sí podría mejorar: cuando exista el vínculo a U Stats, añadir 1 dato cuantitativo de contexto por slide (ej. en la slide "¿Quién es?", un chip con "TS% 58% — top 20% de la liga" si el dato existe) — dota de credibilidad al informe sin sobrecargarlo.
@@ -116,6 +122,58 @@ Esto es lo que pides explícitamente ("incluir estadísticas relevantes si las h
 
 Estos percentiles son de **toda la liga junta** (bases, aleros y pívots mezclados). Comparar el RPG de una base contra el de una pívot con el mismo corte es injusto — una base con 5,5 rebotes es un dato muchísimo más raro/destacable que una pívot con 5,5. **`[PENDIENTE]`**, y en mi opinión obligatorio antes de dar esto por bueno: recalcular esta misma tabla separada por posición (`position` ya existe en `PlayerInput`/scouting profile, y las stats de U Stats deberían tener posición vía roster). Sin este ajuste, el motor podría destacar cosas triviales para pívots (rebotes) e ignorar cosas genuinamente raras para bases (una base con muchos rebotes es más scouteable que un pívot con los mismos).
 
+### 10.2 bis. Percentiles reales por posición — CERRADO (SQL verificado 2026-09-11, mismo método que 10.1)
+
+> El pendiente más crítico de la sección 10, y el marcado como prioridad #4 en 12.8, ya está resuelto contra datos reales — no es una propuesta, son percentiles calculados hoy contra `pbp_player_game_stats`/`stats_players` del proyecto Supabase "U Scout" (`ybpzvkkxcmwwxrrouyhm`), replicando exactamente la metodología de 10.1 (`season_id=2092`, todas las fases — regular + playoff, exactamente así se llega a las 236 jugadoras de 10.1 —, ≥8 partidos).
+
+**Mapeo de posición real (`stats_players.position`, texto en chino) a los 3 grupos de la decisión #2 de 14.2 bis:**
+
+| Posición real (WCBA) | Grupo |
+|---|---|
+| 后卫 (guardia), 得分后卫 (escolta) | `base` |
+| 前锋 (alero genérico), 小前锋 (alero puro) | `alero` |
+| 中锋 (pívot), 大前锋 (ala-pívot) | `interior` |
+
+**29 de las 236 jugadoras (12%) no tienen posición asignada en el roster** (`NULL` o `"-"`) — quedan fuera de la tabla por grupo, no se les puede aplicar percentil ajustado. Nota honesta: eso también significa que, para esas 29, Motor 1.0 no podrá mostrar `percentil` ajustado por posición (solo el `percentil` sin ajustar de 10.1, si acaso) — degradación elegante, no bloqueo, pero hay que decidir en Fase 1 qué mostrar en ese caso.
+
+**Tabla de percentiles por grupo (P50/P85/P95, redondeado a 1-2 decimales):**
+
+| Métrica | Grupo | n | P50 | P85 | P95 |
+|---|---|---|---|---|---|
+| PPG | base | 78 | 5,81 | 12,55 | 14,85 |
+| PPG | alero | 79 | 4,37 | 12,00 | 15,60 |
+| PPG | interior | 50 | 6,86 | 16,53 | 18,98 |
+| RPG | base | 78 | 1,89 | 3,57 | 5,01 |
+| RPG | alero | 79 | 2,42 | 3,90 | 6,83 |
+| RPG | interior | 50 | 3,62 | 8,03 | 10,42 |
+| APG | base | 78 | 2,02 | 4,23 | 5,26 |
+| APG | alero | 79 | 1,14 | 2,35 | 3,09 |
+| APG | interior | 50 | 0,97 | 1,98 | 2,85 |
+| SPG | base | 78 | 0,91 | 1,61 | — |
+| SPG | alero | 79 | 0,61 | 1,18 | — |
+| SPG | interior | 50 | 0,59 | 1,18 | — |
+| BPG | base | 78 | 0,05 | 0,18 | — |
+| BPG | alero | 79 | 0,09 | 0,28 | — |
+| BPG | interior | 50 | 0,25 | 0,74 | — |
+| TOV/partido | base | 78 | 1,51 | 2,52 | — |
+| TOV/partido | alero | 79 | 1,05 | 1,55 | — |
+| TOV/partido | interior | 50 | 1,38 | 2,28 | — |
+| 3P% | base | 48 (≥30 int.) | 31,1% | 37,9% | 41,3% |
+| 3P% | alero | 44 (≥30 int.) | 32,0% | 39,8% | 43,9% |
+| 3P% | interior | 18 (≥30 int.) | 30,5% | 39,8% | 44,5% |
+| eFG% | base | 56 (≥50 tiros) | 45,8% | 52,9% | — |
+| eFG% | alero | 55 (≥50 tiros) | 48,6% | 56,1% | — |
+| eFG% | interior | 38 (≥50 tiros) | 50,9% | 59,3% | — |
+| TS% | base | 56 (≥50 tiros) | 50,6% | 57,8% | 60,8% |
+| TS% | alero | 55 (≥50 tiros) | 51,8% | 60,5% | 63,7% |
+| TS% | interior | 38 (≥50 tiros) | 55,5% | 64,6% | 67,2% |
+
+**Validación concreta del problema que motivó esta sección:** una base con 5,5 rebotes por partido **supera el P95 de su grupo** (5,01) — sería "élite" para su posición. Una pívot con el mismo 5,5 RPG **ni siquiera alcanza el P85 de su grupo** (8,03) — sería un dato mediocre para una interior. Exactamente el caso que 10.2 predijo sin poder demostrarlo todavía; ahora está demostrado con datos reales.
+
+**Aviso de muestra pequeña, dicho sin rodeos:** `interior` en 3P% tiene solo 18 jugadoras que cumplen el filtro de ≥30 intentos — sigue siendo indicativo, pero es la celda con menos confianza de toda la tabla. La contracción bayesiana de 12.3 (ya parte del contrato de 14.2 bis vía `percentilAjustadoPorMuestra`) mitiga esto a nivel de jugadora individual, pero no arregla que el propio percentil de referencia del grupo se calcule sobre pocas observaciones.
+
+**Actualiza 12.8:** la prioridad #4 ("percentiles por posición, sigue siendo el pendiente más crítico de la parte de stats") queda resuelta.
+
 ### 10.3. Algoritmo de selección para Slide 1 (propuesta, a validar)
 
 1. Para cada métrica candidata con dato real disponible (requiere el vínculo `wcba_external_id` de la sección 5), calcular en qué percentil cae la jugadora dentro de su posición (una vez resuelto el punto 10.2).
@@ -126,11 +184,34 @@ Estos percentiles son de **toda la liga junta** (bases, aleros y pívots mezclad
 5. Si ninguna métrica supera P85 (jugadora de rol, sin nada estadísticamente destacable), el motor no debe inventarse un chip — mejor sin chip que un chip forzado con un dato mediocre. En ese caso, el slide 1 se apoya solo en lo cualitativo del staff (archetype), sin apoyo numérico.
 6. El TOV alto NO es un "destacado" positivo — si aparece, debe ir marcado como aviso (ej. "pierde el balón con frecuencia"), nunca con el mismo estilo visual que un chip de fortaleza.
 
+### 10.3 bis. USG% y PIE reales por posición — CERRADO (SQL verificado 2026-09-11); ORTG/DRTG individual, hallazgo importante
+
+> Antes de calcular nada, leí `server/routes.ts:2244-2338` para usar la fórmula **ya implementada y en producción**, no reinventarla — USG% y PIE tienen SQL real ahí (`/api/stats/player/:externalId`), replicado aquí carácter a carácter (mismos componentes: PIE = media por partido de `100 × (pts+fgm+ftm-fga-fta+dreb+0,5·oreb+ast+stl+0,5·blk-pf-tov) / suma_del_mismo_término_de_las_20_jugadoras_en_pista_ese_partido`; USG% = agregado de temporada `100 × Σ[(fga+0,44·fta+tov)·(min_equipo/5)] / Σ[min_jugadora·(fga_equipo+0,44·fta_equipo+tov_equipo)]`). Mismos 236 jugadoras/grupos que 10.2 bis.
+
+| Métrica | Grupo | n | P50 | P85 | P95 |
+|---|---|---|---|---|---|
+| PIE | base | 78 | 2,50 | 8,29 | 10,96 |
+| PIE | alero | 79 | 2,45 | 6,51 | 12,28 |
+| PIE | interior | 50 | 3,41 | 12,44 | 16,93 |
+| USG% | base | 78 | 18,1% | 24,5% | 28,9% |
+| USG% | alero | 79 | 15,9% | 21,1% | 31,6% |
+| USG% | interior | 50 | 19,7% | 28,6% | 32,1% |
+
+Los rangos de USG% (mediana ~16-20%, P95 ~29-32%) caen justo donde la literatura de baloncesto los sitúa para un quinteto real — buena señal de que la fórmula replicada del endpoint es correcta, no solo que "corrió sin error".
+
+**ORTG/DRTG individual — hallazgo, no cálculo.** Leyendo `server/routes.ts:2620-2673` (y confirmado por `auditoria-u-stats-completa.md`, sección 2.5): el `ortg`/`drtg` que existe hoy en el código **es de EQUIPO, no de jugadora individual** — se calcula como `100 × puntos_propios / posesiones_reales_del_equipo` contando filas de `pbp_possessions`. **No existe ningún ORTG/DRTG a nivel de jugadora individual implementado en el código actual**, pese a que 10.3 afirmaba que las fórmulas ya estaban "verificadas" — eso era cierto solo para USG%/PIE, no para ORTG/DRTG individual. La versión individual real (método Dean Oliver: puntos producidos individuales, %AST, paradas defensivas individuales) es sustancialmente más compleja que un ajuste de query — no la voy a improvisar aquí sin verificarla contra una referencia como hice con USG%/PIE, sería inventar una fórmula presentada como sólida sin serlo. **Queda fuera del alcance de Motor 1.0 hasta que se implemente y verifique en U Stats primero** — Motor 1.0 puede consumir ORTG/DRTG de *equipo* (ya existe) como contexto, pero no debe prometer una versión individual que no existe.
+
 ### `[PENDIENTE]` de esta sección
-- Percentiles por posición (10.2), el paso más importante que falta.
-- USG%, PIE, ORTG/DRTG individual — no calculados aún con percentiles reales, aunque ya están verificados como fórmulas correctas en la auditoría de U Stats.
-- Validar con Pablo si 3 chips en modo completo es el número correcto, o prefiere menos/más.
-- Decidir el copy exacto de los chips (ej. "3P% 41% — top 15% de la liga" vs. algo más corto para móvil).
+- ~~Percentiles por posición (10.2)~~ — **[CERRADO, ver 10.2 bis]**.
+- ~~USG%, PIE~~ — **[CERRADO, ver 10.3 bis]**. ORTG/DRTG individual **no existe en el código actual** (solo a nivel de equipo) — fuera de alcance de Motor 1.0 hasta que U Stats lo implemente, ver 10.3 bis.
+- ~~Validar si 3 chips en modo completo es el número correcto~~ — **[CERRADO, ver 10.3 ter]**.
+- ~~Decidir el copy exacto de los chips~~ — **[CERRADO, ver 10.3 ter]**.
+
+### 10.3 ter. Número de chips y copy exacto — CERRADO (investigado 2026-09-11)
+
+**Número de chips en modo completo → se mantiene 3, con respaldo, no cambia.** No encontré un número "mágico" específico para scouting deportivo (ni Hoop Mentality ni las guías de dashboards deportivos dan una cifra exacta — solo insisten en "conciso", [Hoop Mentality — 4 Scouting Report Examples](https://hoopmentality.com/blogs/basketball/examples-of-scouting-reports-basketball)). La referencia más sólida sigue siendo la ya citada en 16.3b: memoria de trabajo activa de **4±1 chunks** (Cowan, 2001), bajando a 2-3 bajo presión. 3 chips en modo completo (sin la presión de pre-partido que sí aplica a modo sencillo, donde ya se limita a 1) se queda dentro del rango de 4±1 con margen — no hace falta cambiarlo, la propuesta original ya estaba bien calibrada.
+
+**Copy de los chips → formato corto, sin comparación en el mismo chip.** Encontrado un estándar real de sistemas de diseño (no una opinión de blog): los componentes de tipo *chip* deben llevar **1-3 palabras, máximo 5** en su etiqueta — más largo reduce legibilidad y escaneabilidad ([Telerik Design System](https://www.telerik.com/design-system/docs/components/chip/usage/); [Vanilla Framework](https://vanillaframework.io/docs/patterns/chip/design-guidelines)). "3P% 41% — top 15% de la liga" son 6 palabras — excede el máximo recomendado. Decisión: el chip lleva solo **métrica + valor** ("TS% 61%", 2 "palabras" reales), y la comparación contra la liga ("top 15%") pasa a texto secundario visible al tocar/expandir el chip, no al mismo nivel visual — resuelve la disyuntiva que dejaba abierta la sección sin inventar una tercera opción: ambos formatos conviven, cada uno en su capa de detalle correcta.
 
 ## 11. Preguntas abiertas para Pablo (no las respondo yo, son de producto)
 
@@ -170,11 +251,11 @@ La práctica documentada de scouting a nivel de coaching (no solo NBA) usa como 
 
 ### 12.5. ⚙️ Idea a validar: nomenclatura de arquetipos estandarizada (Synergy Offensive Roles)
 
-Synergy tiene un sistema de "roles ofensivos" ya validado en la industria: Playmaking/Scoring/Secondary ball handler, Slashing/Spot-up/Dynamic-shooting wing, Playmaking/Post-up/Stretch/Rim-finishing big ([Synergy Player Comps / Insights Package](https://support.synergysports.com/support/solutions/articles/77000565958-insights-package)). Esto contrasta con el naming actual, ya detectado en la auditoría como inconsistente entre motores (`arch_isolation_driver` vs. `archetype_iso_scorer` para el mismo concepto). `[PENDIENTE VALIDAR CON PABLO]`: adoptar esta nomenclatura (o una traducción/adaptación) como el esquema oficial de archetypes de Motor 1.0 daría dos ventajas: (a) naming estable y único de una vez por todas, (b) terminología reconocible si algún día se compara con datos de Synergy externos.
+Synergy tiene un sistema de "roles ofensivos" ya validado en la industria: Playmaking/Scoring/Secondary ball handler, Slashing/Spot-up/Dynamic-shooting wing, Playmaking/Post-up/Stretch/Rim-finishing big ([Synergy Player Comps / Insights Package](https://support.synergysports.com/support/solutions/articles/77000565958-insights-package)). Esto contrasta con el naming actual, ya detectado en la auditoría como inconsistente entre motores (`arch_isolation_driver` vs. `archetype_iso_scorer` para el mismo concepto). **[CERRADO, ver 14.3]** adoptar esta nomenclatura (o una traducción/adaptación) como el esquema oficial de archetypes de Motor 1.0 daría dos ventajas: (a) naming estable y único de una vez por todas, (b) terminología reconocible si algún día se compara con datos de Synergy externos. La adaptación exacta al español, investigada y validada contra terminología real de baloncesto, vive en 14.3.
 
 ### 12.6. ✅ Validación del formato compacto, con un matiz
 
-La práctica de coaching real confirma que los informes de una página, centrados en lo más crítico, se retienen y usan mejor que los informes largos — varias fuentes independientes de coaching (no solo una) insisten en esto ([6 Scouting Report Essentials, Hoop Mentality](https://hoopmentality.com/blogs/basketball/scouting-report-essentials-every-high-school-coach-needs); [How to Scout Opponents](https://hoopmentality.com/blogs/basketball/how-to-scout-opponents-a-basketball-coachs-guide), que menciona un "framework de seis preguntas" por jugadora para entrega en una sola página). Esto **valida** el formato de 3 slides ya aprobado y la idea de "modo sencillo" de 1 slide que propuso Pablo. El matiz: el framework de "seis preguntas" es más granular que las 3 preguntas actuales de U Scout (¿Quién es? / ¿Qué hará? / ¿Qué hago yo?) — `[PENDIENTE]` no tengo el detalle exacto de esas seis preguntas (la fuente no las lista completas), valdría la pena buscarlo específicamente para ver si falta algo relevante en el formato actual de 3 preguntas antes de darlo por definitivo en Motor 1.0.
+La práctica de coaching real confirma que los informes de una página, centrados en lo más crítico, se retienen y usan mejor que los informes largos — varias fuentes independientes de coaching (no solo una) insisten en esto ([6 Scouting Report Essentials, Hoop Mentality](https://hoopmentality.com/blogs/basketball/scouting-report-essentials-every-high-school-coach-needs); [How to Scout Opponents](https://hoopmentality.com/blogs/basketball/how-to-scout-opponents-a-basketball-coachs-guide), que menciona un "framework de seis preguntas" por jugadora para entrega en una sola página). Esto **valida** el formato de 3 slides ya aprobado y la idea de "modo sencillo" de 1 slide que propuso Pablo. El matiz: el framework de "seis preguntas" es más granular que las 3 preguntas actuales de U Scout (¿Quién es? / ¿Qué hará? / ¿Qué hago yo?) — **[CERRADO, ver 13.0]** el detalle completo de las 6 preguntas se encontró en una búsqueda posterior de esta misma sesión y reorganizó buena parte del documento (identidad de mano dominante, zonas, acción principal, emparejamiento defensivo, señal de faltas, detalle no obvio) — el hueco real que reveló (emparejamiento defensivo, pregunta 4) ya está resuelto en 14.1.4.
 
 ### 12.7. Nota de humildad metodológica, citada, no inventada
 
@@ -185,7 +266,7 @@ Incluso Synergy —el estándar de oro con etiquetado humano por vídeo— tiene
 1. **Contracción bayesiana en vez de corte binario** para cualquier porcentaje mostrado como destacado (12.3) — la más importante técnicamente, evita mostrar datos falsos por poca muestra.
 2. **Ventana de recencia (10-15 partidos) junto a temporada completa** (12.4) — barata de añadir si ya existe el vínculo de datos de la sección 5.
 3. **Revisar criterio de calibración de pesos**: añadir "poder discriminante" junto a "PPP bruto" (12.2) — requiere más trabajo de análisis, no es trivial de calcular sin datos de tracking, pero vale la pena documentarlo como principio aunque se implemente de forma aproximada.
-4. **Percentiles por posición**, ya señalado en la sección 10.2 — sigue siendo el pendiente más crítico de la parte de stats.
+4. **Percentiles por posición**, ya señalado en la sección 10.2 — **[CERRADO 2026-09-11, ver 10.2 bis]** calculado contra datos reales de `pbp_player_game_stats`, ya no es un pendiente.
 5. **Nomenclatura de archetypes estándar** (12.5) — barata, mayormente una decisión de naming, a validar con Pablo.
 
 ---
@@ -250,7 +331,7 @@ Mi lectura, sin decidir por él: probablemente ambos objetivos coexisten bien si
 
 ### 13.4. Qué se propone recortar del modelo actual ("más ágil", como pide Pablo)
 
-Comparado contra el framework de 6 preguntas, hay campos del `PlayerEditor` actual (~48) que no alimentan ninguna de las 6 preguntas ni ningún output visible en las 4 capas de arriba — candidatos a revisar si de verdad hacen falta o son ruido heredado de iteraciones anteriores. `[PENDIENTE]`: no he hecho el mapeo campo-por-campo de los ~48 contra las 6 preguntas todavía (requiere releer `PlayerEditor.tsx` entero, que quedó pendiente en la auditoría original) — es el siguiente paso lógico antes de considerar esta sección cerrada.
+Comparado contra el framework de 6 preguntas, hay campos del `PlayerEditor` actual (~48) que no alimentan ninguna de las 6 preguntas ni ningún output visible en las 4 capas de arriba — candidatos a revisar si de verdad hacen falta o son ruido heredado de iteraciones anteriores. **[CERRADO, ver 15.7]** El mapeo campo-por-campo está hecho: 72 campos reales (no ~48), 67 mantener, 4 candidatos a recortar, 1 dudoso — con línea de código citada para cada veredicto.
 
 ### 13.5. Preguntas abiertas nuevas de esta sección (se suman a las de la sección 11)
 
@@ -274,6 +355,8 @@ Comparado contra el framework de 6 preguntas, hay campos del `PlayerEditor` actu
 6. **¿Agilidad del formulario vs. no perder campos ya usados?** → **Agilidad por defecto, pero con revelado progresivo, no borrado.** Ningún campo del `PlayerEditor` actual desaparece de la base de datos ni dejará de poder rellenarse — se reorganiza la UI para mostrar primero lo esencial (las 6 preguntas) y el resto queda en una sección "avanzado" plegada por defecto. Nadie pierde capacidad, se gana velocidad para el caso común.
 
 ### 14.2. Boceto del modelo de datos de Fase 0 (nivel de tipos, no código real — esto es lo que se implementaría)
+
+**[CERRADO 2026-09-11 — ver sección 14.2 bis]** Este boceto quedó superado: tras el conflicto de la 13.3 (Capa 0 vs. mecanismo de retención) y una revisión de El Arquitecto, el contrato de tipos definitivo de Fase 0 vive en 14.2 bis, con notas de justificación de cada cambio de forma. Se deja este boceto tal cual, sin editar, por trazabilidad.
 
 ```ts
 // NIVEL 1 — observación del staff. Igual de espíritu que PlayerInputs de v2.1,
@@ -344,6 +427,344 @@ type ScoutingReportV1 = {
 
 Esto es el contrato de datos que Fase 0 tendría que fijar de verdad (con tipos exactos, no este boceto) antes de escribir el núcleo de cálculo de Fase 1.
 
+### 14.2 bis. Contrato de tipos de Fase 0 — CERRADO (El Arquitecto + decisiones de producto, 2026-09-11)
+
+> Pablo resolvió primero el conflicto de la 13.3 (**Capa 0 con acción defensiva incluida, exclusiva de modo sencillo; modo completo mantiene el orden aprobado sin adelantar la acción**). Con esa decisión ya fijada, delegué en El Arquitecto el cierre del contrato de tipos del boceto de 14.2. El Arquitecto entregó el contrato completo más 3 preguntas genuinas de producto que no le correspondía decidir a él — las respondo yo aquí mismo (documentado, con investigación real donde aplica), a petición explícita de Pablo ("haz una propuesta tú... intenta tomar las decisiones que más encajen con lo que queremos facilitar como herramienta para un entrenador").
+
+#### Las 3 decisiones que cierran el contrato
+
+1. **¿Qué campos son "tocables" (candidatos rankeados) en el flujo de aprobación (17.1-17.2)?** → **Solo `deny`/`force`/`allow`/`accionPrincipal`.** `CampoConCandidatos` existe para resolver una competencia real entre outputs con score dentro del sistema deny/force/allow/aware (cap 0,72, sección 3) — ahí un entrenador puede legítimamente preferir el runner-up. `quietEdge` (sigue siendo opcional, basta con poder omitirlo) y `capa1.situaciones` (ranking transparente completo, no una elección entre alternativas) no son productos de esa competencia con score — envolverlos en candidatos completos sería trabajo de Fase 1 sin beneficio real para el entrenador, y más superficie que revisar en cada aprobación contradice el mandato de minimizar su tiempo (16.3b, límite de Cowan ya citado).
+2. **¿Taxonomía de posición para percentiles (10.2)?** → **3 grupos (Base/Alero/Interior), los mismos que `archetypeKey` (14.3), no 5 posiciones estilo NBA.** Investigado hoy: [Cleaning the Glass](https://cleaningtheglass.com/stats/guide/player_positions), referencia real de analítica NBA, usa 5 grupos híbridos (point/combo/wing/forward/big) — pero sobre muestras muchísimo mayores que la WCBA. Con los 236 jugadoras de la sección 10.1, 5 grupos dejarían buckets de ~47 jugadoras, y en métricas ya filtradas por volumen mínimo (ej. 3P%, solo 122 de 236 cualifican) el bucket real caería a 15-20 — insuficiente para que la contracción bayesiana de 12.3 tenga con qué trabajar. Con 3 grupos, cada bucket ronda ~79, casi el doble de muestra. Reusar la taxonomía de `archetypeKey` además evita mantener dos sistemas de clasificación por posición que puedan desincronizarse — menos superficie de error, mandato explícito del proyecto.
+3. **¿`statsDestacados`/`quietEdge` exclusivos de modo sencillo, igual que `accionPrincipal`?** → **No — se muestran igual en ambos modos; solo `accionPrincipal` es exclusiva de modo sencillo.** Las secciones 7 y 10.3.4 ya describían estos chips como mejora del formato de 3 slides ("modo completo") *antes* de que existiera el conflicto de la 13.3. La objeción de Pablo era específicamente sobre adelantar el plan defensivo, no sobre mostrar contexto estadístico — quitarle estos chips al modo completo restaría valor sin resolver el conflicto real que motivó la pregunta.
+
+#### Aclaración 2026-09-11 (al escribir los tests de aceptación de Fase 1): dónde vive de verdad el "máximo 2 AWARE"
+
+Escribir `client/src/lib/motor-v1-acceptance.test.ts` obligó a verificar esto contra código real, no solo contra la spec. Resultado, **no es un bug, es una precisión que faltaba**: el motor (`motor-v2.1.ts:499`, `maxOutputsPerCategory.aware = 5`) calcula **hasta 5** candidatos aware — `report.selected.aware` puede (y de hecho lo hace, verificado con el perfil "Luka Doncic" de `test-profiles.json`) devolver más de 2. El corte a 2 se aplica hoy en la capa de presentación (`ReportSlidesV1.tsx:268`, `finalReport.alerts.slice(0, 2)`), no dentro del cálculo del motor.
+
+**Esto no contradice `capa2.aware` en el contrato de tipos de arriba — lo confirma.** `capa2.aware` (tupla acotada a 2) representa el **reporte final ya curado**, no el pool crudo de candidatos — exactamente la misma filosofía que ya aplica a `deny`/`force`/`allow` (17.1: el motor calcula más candidatos de los que se muestran, la curación es un paso posterior). Implicación para Fase 1: el núcleo de cálculo debe exponer el pool completo de candidatos aware (hasta 5, como `CampoConCandidatos`, igual que deny/force/allow), y el corte a 2 debe vivir en el paso de ensamblado del reporte (`ScoutingReportV1`), nunca dentro del cálculo puro de outputs.
+
+`[PENDIENTE VALIDAR CON PABLO]`: las 3 son mi propuesta razonada, no una imposición — igual que el resto de la sección 14, a corregir si no encaja con tu criterio de producto.
+
+#### Contrato de tipos definitivo (reemplaza el boceto de 14.2)
+
+```ts
+// =====================================================================================
+// MOTOR 1.0 — CONTRATO DE DATOS DE FASE 0 (definitivo)
+// Sustituye el boceto de la sección 14.2. Cero código de producto — solo tipos y su
+// justificación. Cada cambio de forma respecto al boceto original está numerado y
+// explicado en las notas que siguen al bloque.
+// =====================================================================================
+
+// ---------------------------------------------------------------------------------
+// 0. PRIMITIVAS COMPARTIDAS
+// ---------------------------------------------------------------------------------
+
+/** Las 11 situaciones estándar de Synergy (12.1), verificado 1:1 sin huecos ni sobrantes:
+ *  iso=Isolation, pnrHandler=PnR Ball Handler, pnrRollMan=PnR Roll Man, post=Post-Up,
+ *  transition=Transition, spotUp=Spot-Up, handoff=Handoff, cut=Cut, offScreen=Off-Screen,
+ *  putback=Putback, misc=Miscellaneous. */
+type SituacionSynergy =
+  | "iso" | "pnrHandler" | "pnrRollMan" | "post" | "transition"
+  | "spotUp" | "handoff" | "cut" | "offScreen" | "putback" | "misc";
+
+/** Los 10 archetypeKey de 14.3 (Synergy Offensive Roles adaptado). Union literal,
+ *  no `string` — ver Nota 1. */
+type ArchetypeKey =
+  | "armadora_creadora" | "armadora_anotadora" | "manejadora_secundaria"
+  | "alero_penetradora" | "alero_tiradora" | "alero_movimiento"
+  | "interior_creadora" | "interior_poste" | "interior_abridora" | "interior_finalizadora";
+
+/** Naming nuevo de outputs (deny/force/allow/aware individuales), catálogo exacto
+ *  pendiente del mapeo de 13.4/15.1 (OUTPUT_CATALOG) — ver Nota 2. */
+type OutputKey = string & { readonly __brand: "OutputKey" };
+
+/** Posición de la jugadora — grupo de 3 (decisión #2 arriba: Base/Alero/Interior,
+ *  coherente con ArchetypeKey), no 5 posiciones NBA. */
+type PosicionJugadora = "base" | "alero" | "interior";
+
+type EscalaCualitativa = 1 | 2 | 3 | 4 | 5;
+
+// ---------------------------------------------------------------------------------
+// 1. NIVEL 1 — observación del staff (13.1). Nunca inferido, nunca calculado.
+// ---------------------------------------------------------------------------------
+
+/** Campo de Nivel 1 con procedencia explícita: observación pura del staff, o
+ *  autorrelleno editable desde un proxy real de Nivel 2 (15.4). Ver Nota 3. */
+type CampoNivel1<T> =
+  | { origen: "staff"; valor: T }
+  | { origen: "autorrelleno_proxy"; valor: T; proxyFuente: "ftPct" | "ftaRate"; editadoPorStaff: boolean };
+
+/** Sección "Perfil físico / Tiros libres" del formulario (15.1) — NO es por-situación,
+ *  por eso vive separada de StaffObservation. Ver Nota 3. */
+interface PerfilFisicoYTiros {
+  athleticism: CampoNivel1<EscalaCualitativa>;        // 15.4: SIN proxy, siempre origen "staff"
+  physicalStrength: CampoNivel1<EscalaCualitativa>;   // 15.4: SIN proxy, siempre origen "staff"
+  ftShooting: CampoNivel1<EscalaCualitativa>;         // 15.4: autorrellenable desde ftPct
+  foulDrawing: CampoNivel1<EscalaCualitativa>;        // 15.4: autorrellenable desde ftaRate
+  // Nota: TS no puede restringir "origen: autorrelleno_proxy" solo a ftShooting/foulDrawing
+  // sin 4 tipos casi idénticos — se documenta aquí y se valida en Fase 1 (test/assert).
+}
+
+/** Una entrada por cada una de las 11 situaciones (siempre las 11, incluso las no
+ *  marcadas en el paso 1 del flujo 15.3 — esas quedan con frecuencia "N" y
+ *  camposObservados: {}). */
+interface StaffObservation {
+  situacion: SituacionSynergy;
+  frecuencia: "P" | "S" | "R" | "N";          // Principal/Secundaria/Rara/Nunca
+  camposObservados: Record<string, unknown>;  // ~48 campos repartidos en Post/ISO/PnR/
+  // Off-ball/Spot-up (15.1) — catálogo exacto pendiente del mapeo campo-por-campo de
+  // 13.4/15.1 (auditoría mecánica, ya marcada pendiente en el propio documento — ver
+  // Nota 4, no bloquea Fase 0). Todo campo aquí es neverInfer puro (origen "staff"
+  // siempre) — a diferencia de PerfilFisicoYTiros, ningún campo por-situación tiene
+  // proxy de Nivel 2 (15.4 solo identifica ftShooting/foulDrawing, que NO son por-situación).
+}
+
+interface PlayerProfileV1Inputs {
+  version: "1.0";
+  jugadoraId: string;
+  identidad: IdentidadInput;
+  wcbaExternalId?: string;                    // vínculo opcional a U Stats (5.1-5.2, 14.1.1)
+  emparejamientoDefensivo?: string;           // id de jugadora propia (14.1.4)
+  perfilFisicoYTiros: PerfilFisicoYTiros;
+  situacionesSeleccionadas: SituacionSynergy[]; // paso 1 del flujo 15.3 (máx. recomendado 3-4,
+                                                 // aviso no bloqueante, no una restricción de tipo)
+  observaciones: StaffObservation[];          // siempre 11 entradas, ver comentario arriba
+  formaReciente?: "hot" | "cold" | "stable";
+  generadoOffline?: boolean;                  // 18.4
+  sincronizadoEn?: string;                    // ISO datetime, 18.2-18.3
+}
+
+interface IdentidadInput {
+  nombre: string;
+  posicion: PosicionJugadora;
+  alturaCm: number;
+  pesoKg: number;
+  manoDominante: "I" | "D" | "Ambidiestra";
+  numero: string;          // AÑADIDO 2026-09-11 (hallazgo 15.7.2) — string, no number:
+                            // verificado en mock-data.ts:316, dorsales no son puramente numéricos
+  fotoUrl?: string;         // AÑADIDO 2026-09-11 (hallazgo 15.7.2) — opcional: no toda
+                            // jugadora tendrá foto cargada (el tipo actual la exige, se relaja aquí)
+  esEstrella?: boolean;     // AÑADIDO 2026-09-11 (hallazgo 15.7.2) — verificado opcional/nullable
+                            // en mock-data.ts:90; afecta score real (motor-v2.1.ts:973, starMod=1.05)
+  // SIN archetypeKey aquí — el archetype es Nivel 3 (inferido), no un input directo.
+  // Ver Nota 5.
+}
+
+// ---------------------------------------------------------------------------------
+// 2. NIVEL 2 — dato real de U Stats (13.1, sección 5). Siempre con metadata, nunca "pelado".
+// ---------------------------------------------------------------------------------
+
+interface StatConVolumen {
+  valor: number;
+  percentil: number;                     // por posición (10.2, decisión #2): 3 grupos
+  percentilAjustadoPorMuestra: number;   // tras contracción bayesiana, 12.3
+  volumenIntentos: number;
+  ventana: "temporada" | "ultimos_12";   // 12.4
+}
+
+interface PlayerRealStats {
+  ppg: StatConVolumen; rpg: StatConVolumen; apg: StatConVolumen;
+  spg: StatConVolumen; bpg: StatConVolumen;          // NUEVO — estaban en la tabla de 10.1, faltaban en el boceto
+  fg3Pct: StatConVolumen; efgPct: StatConVolumen; tsPct: StatConVolumen;
+  usgPct: StatConVolumen; tovPct: StatConVolumen;
+  ftPct: StatConVolumen;    // NUEVO — requerido como proxy de ftShooting (15.4), faltaba en el boceto
+  ftaRate: StatConVolumen;  // NUEVO — requerido como proxy de foulDrawing (15.4), faltaba en el boceto
+}
+// Ver Nota 6 sobre tovPct vs. "TOV/partido" de la tabla 10.1.
+
+// ---------------------------------------------------------------------------------
+// 3. NIVEL 3 — inferido por el motor (13.1). Nunca observación directa.
+// ---------------------------------------------------------------------------------
+
+/** Detección de discrepancia Nivel 1 vs Nivel 2 (13.1) — el motor NUNCA autocorrige,
+ *  solo avisa. `soloAviso: true` fija esa garantía a nivel de tipo, no solo de comentario. */
+interface DiscrepanciaNivel1Nivel2 {
+  campoNivel1: string;              // ref. al campo observado, ej. "iso.frecuencia"
+  valorNivel1: unknown;
+  campoNivel2: keyof PlayerRealStats;
+  valorNivel2: StatConVolumen;
+  motivo: string;                   // texto generado, ej. "staff marcó ISO:Nunca pero USG% real está en P90"
+  soloAviso: true;
+}
+
+// ---------------------------------------------------------------------------------
+// 4. OUTPUTS — deny/force/allow/aware, con confianza y candidatos rankeados (13.2, 17.1)
+// ---------------------------------------------------------------------------------
+
+interface DefenseOutput {
+  key: OutputKey;
+  categoria: "deny" | "force" | "allow" | "aware";
+  situacionOrigen: SituacionSynergy;    // antes `string` — ahora reusa el union de 12.1
+  score: number;                        // 0..0.72, cap anti-inflación (sección 3)
+  confianza: "alta" | "media" | "baja"; // 13.2
+  porque?: string;                      // NUEVO — "por qué" de una línea citando Nivel 2 si existe (15.5)
+}
+
+interface OutputCandidato {
+  output: DefenseOutput;
+  score: number;
+  rank: number;                         // 0 = ganador
+}
+
+/** El motor NUNCA devuelve solo el ganador (17.1). Solo deny/force/allow/accionPrincipal
+ *  se envuelven así (decisión #1 arriba) — quietEdge y capa1.situaciones no. */
+interface CampoConCandidatos {
+  ganador: DefenseOutput;
+  candidatos: OutputCandidato[];        // incluye al ganador en rank 0
+}
+
+/** Ranking de amenaza por situación ("¿qué hará?", capa 1) — NO tocable (decisión #1),
+ *  NO es un DefenseOutput (eso es deny/force/allow/aware). Ver Nota 7. */
+interface SituacionAmenaza {
+  situacion: SituacionSynergy;
+  score: number;                        // 0..0.72, cap sección 3
+  frecuenciaObservada: "P" | "S" | "R" | "N";
+}
+
+/** Selección de "quiet edge" (13.2) — solo ocultable (decisión #1), sin candidatos
+ *  rankeados. Puede ser un output cualitativo o una métrica de Nivel 2. Ver Nota 8. */
+type QuietEdgeSeleccion =
+  | { tipo: "cualitativo"; output: DefenseOutput }
+  | { tipo: "estadistico"; campo: keyof PlayerRealStats; stat: StatConVolumen };
+
+interface QuietEdge {
+  seleccion: QuietEdgeSeleccion;
+  motivo: "inesperado_para_posicion";
+}
+
+/** Chip de stat destacado (10.1-10.3) — presente en ambos modos (decisión #3), igual
+ *  que QuietEdge, necesita saber qué métrica es, no solo el StatConVolumen suelto. */
+interface StatDestacado {
+  campo: keyof PlayerRealStats;
+  stat: StatConVolumen;
+  nivel: "destacado" | "elite";         // P85 / P95 (10.1)
+}
+
+// ---------------------------------------------------------------------------------
+// 5. REPORTE — exclusión modo sencillo / completo (13.3, 14.1.5). Ver Nota 9 — el
+//    cambio de forma más importante de este cierre.
+// ---------------------------------------------------------------------------------
+
+interface IdentidadReporte extends IdentidadInput {
+  archetypeKey: ArchetypeKey;           // Nivel 3, inferido — nunca input directo
+  statsDestacados: StatDestacado[];     // presente en ambos modos (decisión #3): 0-3 en
+                                         // completo, 0-1 en sencillo (10.3.4)
+  quietEdge?: QuietEdge;                // presente en ambos modos (decisión #3); ausente
+                                         // si no hay dato suficiente
+}
+
+interface ScoutingReportBaseV1 {
+  version: "1.0";
+  jugadoraId: string;
+  wcbaExternalId?: string;
+  identidad: IdentidadReporte;          // SIEMPRE primero, SIN acción, en ambos modos
+  emparejamientoDefensivo?: string;
+  generadoOffline?: boolean;
+  sincronizadoEn?: string;
+}
+
+/** Modo sencillo: identidad + accionPrincipal (el winner de deny). Es el ÚNICO campo
+ *  exclusivo de este modo (decisión #3) — la resolución del conflicto de 13.3 no afecta
+ *  a statsDestacados/quietEdge (esos ya existían en el formato de 3 slides, sección 7/10.3.4). */
+interface ReporteModoSencilloV1 extends ScoutingReportBaseV1 {
+  modo: "sencillo";
+  accionPrincipal: CampoConCandidatos;  // el "winner" de deny, con candidatos (17.1)
+}
+
+/** Modo completo: identidad (sin acción) → capa1 (qué hará) → capa2 (qué hago yo,
+ *  completo) → capa3 (stats). Orden fijo ya aprobado, SIN acción adelantada. */
+interface ReporteModoCompletoV1 extends ScoutingReportBaseV1 {
+  modo: "completo";
+  capa1: {
+    situaciones: SituacionAmenaza[];           // ordenado por amenaza, no tocable (decisión #1)
+    emparejamientoDefensivo?: string;          // eliminado el duplicado del boceto — vive en base
+  };
+  capa2: {
+    deny: CampoConCandidatos;
+    // force?/allow? CORREGIDO 2026-09-11 al implementar Fase 1 (ver sección 21.6):
+    // verificado contra los 10 perfiles reales de test-profiles.json que force
+    // falta en 4/10 y allow en 2/10 -- no es un caso raro. Forzar un fallback
+    // (ej. reusar deny) le mostraría al entrenador una recomendación que el
+    // motor nunca generó. deny se queda obligatorio porque en la práctica
+    // siempre hay al menos un output de deny con weight > 0.
+    force?: CampoConCandidatos;
+    allow?: CampoConCandidatos;
+    // NUEVO — el boceto original olvidaba "aware" pese a que 13.3/7 exigen máx. 2
+    // AWARE. Tupla en vez de array para acotar el límite cognitivo (16.3b, Cowan 4±1)
+    // a nivel de tipo, no solo de convención.
+    aware: [] | [CampoConCandidatos] | [CampoConCandidatos, CampoConCandidatos];
+  };
+  capa3?: PlayerRealStats;              // ausente si no hay vínculo Nivel 2 (14.1.1)
+}
+
+/** Unión discriminada por `modo` — ver Nota 9 para por qué esta forma y no otra. */
+type ScoutingReportV1 = ReporteModoSencilloV1 | ReporteModoCompletoV1;
+
+// ---------------------------------------------------------------------------------
+// 6. SOPORTE PARA EL FLUJO DE APROBACIÓN (17.1-17.2) — necesario para que el contrato
+//    respete decisiones ya cerradas, no bloqueante para el núcleo de cálculo de Fase 1.
+// ---------------------------------------------------------------------------------
+
+/** Identifica el campo tocable exacto (17.2: "qué campo exacto difiere"). Solo cubre
+ *  los 4 campos tocables de la decisión #1 — quietEdge/situaciones no aparecen aquí
+ *  porque no son sustituibles, solo ocultables a nivel de presentación. */
+type CampoTocable =
+  | { tipo: "deny" | "force" | "allow" | "accionPrincipal" }
+  | { tipo: "aware"; indice: 0 | 1 };
+
+type AccionRevision = "replace" | "hide" | "approve_as_is";  // nombres ya fijados, sin traducir (17.2)
+
+interface EventoRevisionCampo {
+  reportId: string;
+  campo: CampoTocable;
+  action: AccionRevision;                                          // nombre ya fijado (17.2)
+  original_score: number;                                          // nombre ya fijado (17.2)
+  replacement_score?: number;                                      // ausente si action === "hide"
+  outputOriginalKey: OutputKey;
+  outputElegidoKey?: OutputKey;                                    // ausente si action === "hide"
+  rankElegido?: number;                                            // ausente si action === "hide"
+  entrenadorId: string;   // NUNCA expuesto nominalmente en panel global — responsabilidad
+                           // de la capa de presentación, no de este tipo (17.2)
+  timestamp: string;      // ISO datetime
+  // Deliberadamente SIN jugadoraId/nombre de la jugadora rival — no se registra nunca
+  // en eventos de calibración (17.2).
+}
+
+/** Vista agregada para calibración (Nivel B de aprendizaje, 17.3) — por construcción
+ *  de tipo, no puede llevar identidad de jugadora ni entrenador nominal. */
+interface PatronCalibracion {
+  archetypeKey: ArchetypeKey;
+  campo: CampoTocable;
+  action: AccionRevision;
+  ocurrencias: number;
+  gapPromedio: number;      // original_score - replacement_score, promedio (17.2)
+}
+```
+
+#### Notas de justificación de El Arquitecto (por cada cambio de forma respecto al boceto de 14.2)
+
+**Nota 1 — `archetypeKey: ArchetypeKey` (union literal de 10) en vez de `string`.** La sección 14.3 ya fija los 10 valores exactos — dejarlo como `string` renuncia gratis a que TypeScript detecte un typo o un valor fuera de catálogo en tiempo de compilación.
+
+**Nota 2 — `DefenseOutput.key: OutputKey` (branded string) en vez de `key: string`.** No hay un catálogo cerrado de outputs todavía (depende del mapeo pendiente de 13.4/15.1). Un tipo *branded* impide mezclar por error un `SituacionSynergy` o un `ArchetypeKey` donde se espera un `OutputKey`, sin fingir que el catálogo ya está cerrado.
+
+**Nota 3 — `PerfilFisicoYTiros` como tipo separado de `StaffObservation`, con `CampoNivel1<T>`.** `athleticism`/`physicalStrength`/`ftShooting`/`foulDrawing` no son por-situación — son la sección "Perfil físico / Tiros libres" del formulario real (15.1), independiente de ISO/Post/PnR. `CampoNivel1<T>` hace explícita la distinción que pide 15.4: dos de los cuatro son autorrellenables-editables desde un proxy de Nivel 2, los otros dos nunca.
+
+**Nota 4 — `StaffObservation.camposObservados` se deja como `Record<string, unknown>`.** El mapeo campo-por-campo de los ~48 campos está pendiente y requiere releer `PlayerEditor.tsx` completo (13.4/15.1) — es auditoría mecánica, no decisión de arquitectura. Fase 1 puede tipar esto exhaustivamente en cuanto exista el mapeo.
+
+**Nota 5 — `archetypeKey` sale de `IdentidadInput` (Nivel 1) y solo existe en `IdentidadReporte` (Nivel 3).** El archetype se deriva del patrón de frecuencias observadas + posiblemente USG%/percentiles — nunca lo teclea el staff directamente, es un output del motor, no un input.
+
+**Nota 6 — `PlayerRealStats` gana `spg`, `bpg`, `ftPct`, `ftaRate`.** La tabla de 10.1 incluye SPG y BPG, ausentes en el boceto; `ftPct`/`ftaRate` son obligatorios para el autorrelleno de 15.4. Nota aparte, sin resolver aquí: la tabla 10.1 usa "TOV/partido" (conteo bruto) mientras el tipo usa `tovPct` (tasa normalizada) — son métricas distintas; recomendación de arquitectura es usar `tovPct` como canónico y recalcular 10.1 para esa métrica, pero es trabajo de datos ligado al pendiente de 10.2.
+
+**Nota 7 — `SituacionAmenaza` nuevo, `capa1.situaciones` deja de ser `DefenseOutput[]`.** `DefenseOutput.categoria` (deny/force/allow/aware) no tiene sentido para un ranking de amenaza por situación — confundir ambos conceptos habría obligado a rellenar `categoria` sin sentido o a adivinar por convención.
+
+**Nota 8 — `StatDestacado` y `QuietEdgeSeleccion` en vez de `StatConVolumen` suelto.** Un `StatConVolumen` aislado no dice qué métrica es (¿PPG? ¿TS%?) — esa información solo existe como clave dentro de `PlayerRealStats` y se perdía al extraer un valor suelto en el boceto original. Bug real de forma, no solo estilo.
+
+**Nota 9 — La exclusión modo sencillo/completo se resuelve con unión discriminada por `modo`.** Evaluadas 3 alternativas: (a) `capa0` opcional — descartada, no comunica por qué está ausente y no fuerza a manejar el caso; (b) dos tipos sin relación — descartada, duplicaría identidad sin necesidad; (c) unión discriminada con base compartida que nunca lleva acción, elegida — TypeScript fuerza a manejar ambas ramas explícitamente, es estructuralmente imposible que modo completo acceda a `accionPrincipal` por error de copy-paste.
+
+**Nota 10 — `capa2.aware` añadido, como tupla acotada.** El boceto omitía `aware` pese a que 13.3/7 exigen máximo 2. Tipado como tupla (no `[]` genérico) porque el límite está anclado al límite de Cowan (16.3b), no es preferencia de UI arbitraria.
+
+**Nota 11 — `deny`/`force`/`allow`/`accionPrincipal` pasan a `CampoConCandidatos`, no `DefenseOutput` suelto.** El boceto contradecía de raíz 17.1 ("el motor nunca devuelve solo el ganador") — sin candidatos en el propio tipo del reporte, el flujo de sustitución tendría que recalcular en el clic.
+
 ### 14.3. Mapa de naming propuesto: Synergy Offensive Roles → español, para archetypeKey
 
 | Synergy (inglés, estándar citado en 12.5) | `archetypeKey` propuesto |
@@ -359,11 +780,13 @@ Esto es el contrato de datos que Fase 0 tendría que fijar de verdad (con tipos 
 | Stretch big | `interior_abridora` |
 | Rim-finishing big | `interior_finalizadora` |
 
-`[PENDIENTE VALIDAR CON PABLO]`: la traducción/naming exacto es una decisión de producto y de tono de marca, esto es una primera propuesta razonable, no la última palabra.
+**[CERRADO 2026-09-11, investigado]** Verificado contra terminología real del baloncesto en español (no inventada): "ala-pívot" (con guion) es la forma recomendada en español para el PF ([Estandarte — Hablemos correctamente del baloncesto](https://www.estandarte.com/noticias/idioma-espanol/hablemos-correctamente-del-baloncesto_4258.html)), y el concepto de "stretch four" (un ala-pívot con tiro exterior, "abre" la defensa) es terminología real ya usada en medios de baloncesto en español. El prefijo `interior_` (en vez de separar ala-pívot/pívot como dos grupos distintos) también queda validado: los "Offensive Roles" de Synergy clasifican por **función**, no por posición nominal — un "Stretch big" puede ser PF o C, exactamente el mismo criterio "sin posición" que ya se adoptó para el agrupamiento de percentiles de 14.2 bis (decisión #2). La tabla se mantiene tal cual, ya no es una propuesta sin validar — el vocabulario usado (creadora/anotadora/tiradora/abridora/finalizadora) coincide con el uso real del español de baloncesto, no es una traducción literal forzada del inglés.
 
 ### 14.4. Definición de "listo para empezar a construir"
 
-Con las secciones 1-14 de este documento, **la Fase 0 del roadmap (sección 8) ya tiene todo lo que necesita para arrancar**: modelo de datos (14.2), naming (14.3), qué conservar y qué cambiar (secciones 3-4, 13.2), y las decisiones de producto que antes bloqueaban el arranque (14.1). Lo único que sigue pendiente y no puedo resolver yo solo es el mapeo campo-por-campo de `PlayerEditor.tsx` (13.4) — requiere releer el archivo completo, que es trabajo mecánico de auditoría, no una decisión de producto; puedo hacerlo en la próxima tanda si quieres seguir antes de pasar a implementación real.
+Con las secciones 1-14 de este documento, **la Fase 0 del roadmap (sección 8) ya tiene todo lo que necesita para arrancar**: modelo de datos (14.2 bis, contrato de tipos cerrado), naming (14.3), qué conservar y qué cambiar (secciones 3-4, 13.2), y las decisiones de producto que antes bloqueaban el arranque (14.1).
+
+**[CERRADO 2026-09-11]** El mapeo campo-por-campo de `PlayerEditor.tsx` (13.4), la única auditoría mecánica que quedaba pendiente, está hecho — ver sección 15.7. Los 2 hallazgos técnicos que dejó (campo `postPreferredBlock` sin UI, 3 campos de identidad sin tipo) ya están decididos y reflejados en el contrato — ver 15.7b. **No queda ningún pendiente que bloquee el arranque de Fase 0.** Sigue abierto, sin bloquear, solo el catálogo exacto de `OutputKey` (Nota 2 de 14.2 bis), que depende del mapeo de `OUTPUT_CATALOG` (13.4/15.1) y puede resolverse en paralelo a Fase 1 sin cambiar la forma del contrato.
 
 ---
 
@@ -411,6 +834,164 @@ Ya cubierto en gran parte por la Capa 0 autónoma (sección 13.3) y el hallazgo 
 2. Autorrelleno editable desde Nivel 2 para `ftShooting` y `foulDrawing` — reduce margen de error, con límite explícito de cuándo NO hacerlo (`athleticism`/`physicalStrength`).
 3. Cada acción defensiva emparejada con un "por qué" citando dato real cuando exista — mejora retención de la jugadora, no solo comodidad del staff.
 
+### 15.7. Mapeo campo-por-campo de `PlayerEditor.tsx` — cierre del pendiente de 13.4 (El Aparejador, 2026-09-11)
+
+> Auditoría de lectura completa (`PlayerEditor.tsx`, 1.969 líneas) verificada por grep exhaustivo contra `motor-v2.1.ts` (2.802 líneas) y `mock-data.ts` (2.359 líneas) completos — no muestreo. Sigue siendo trabajo mecánico, no decisión de producto; los recortes propuestos son candidatos para que Pablo apruebe o rechace, igual que el resto de la sección 15.
+
+**[CORREGIDO] El "~48" del documento no coincide con el código real.** Contando solo los 5 bloques situacionales (Post/ISO/PnR/Off-ball/Spot-up, la lectura literal del comentario en 14.2 bis) el número real es **54**. Contando el formulario completo (incluida Identidad, Perfil físico, Tiros libres, Manejo de balón, y una sub-sección **"Personalidad" que existe en el código pero no está entre las "9 secciones reales" que cita 15.1** — es un 10º bloque real) el total es **72 campos editables**.
+
+#### Tabla de mapeo completa
+
+Leyenda — Preguntas del framework (13.0): P1 Mano dominante, P2 Zonas preferidas, P3 Acción principal, P5 Señal de faltas, P6 Detalle no obvio. **P4 (Emparejamiento defensivo) no aparece en ninguna fila** — confirma que es un hueco real sin cubrir hoy, tal como ya decía 13.0/14.1.4, no un campo que haya que buscar en el formulario. Capas: C1 situaciones, C2 deny/force/allow/aware. Para los campos situacionales, C0 (modo sencillo) es indirecto — cualquier situación con score puede terminar siendo el `accionPrincipal` si es la que gana, no depende de un campo aislado.
+
+**Identidad (9 campos)**
+
+| Campo | Preguntas | Capas / uso | Veredicto | Nota |
+|---|---|---|---|---|
+| `imageUrl` | — | Identidad (display) | mantener | Sin tipo en 14.2 bis — ver hallazgo #2 |
+| `name` | — | Identidad, todas las capas | mantener | Cubierto por `IdentidadInput.nombre` |
+| `starPlayer` | — | C2 (`motor-v2.1.ts:973`, multiplicador `starMod = 1.05`) | mantener | Sin tipo en 14.2 bis — sí afecta score real, no es solo un badge |
+| `recentForm` | — | ninguna (0 consumidores fuera de `PlayerEditor.tsx`/`mock-data.ts`) | candidato_a_recortar | 12.4 propone un uso futuro (comparar contra Nivel 2) — puede que Pablo prefiera conservarlo a la espera |
+| `number` | — | Identidad (display) | mantener | Sin tipo en 14.2 bis |
+| `position` | P2, P3 (indirecto) | C1/C2 (`pos`, `usage`, `selfCreation`, reglas por posición) | mantener | Base del agrupamiento de 3 posiciones de la decisión #2 de 14.2 bis |
+| `height` | — | Identidad (`alturaCm`) | mantener | |
+| `weight` | — | Identidad (`pesoKg`) | mantener | |
+| `postDominantHand` | **P1** | C2 (`hand`, `offHandFinish`) | mantener | No determina el lado de poste preferido — eso lo hace `postPreferredBlock`, sin control de UI (hallazgo #1) |
+
+**Perfil físico (4 campos)**
+
+| Campo | Preguntas | Capas | Veredicto | Nota |
+|---|---|---|---|---|
+| `athleticism` | — | C2 (`orebThreat`, `contactFinish`, varios multiplicadores) | mantener | |
+| `physicalStrength` | — | C2 | mantener | |
+| `courtVision` | — | C2 (`trapResponse` cuando no hay observación directa) | mantener | |
+| `contactType` | **P5** | C2 (`contactFinish`) | mantener | |
+
+**Tiros libres / faltas (2 campos)**
+
+| Campo | Preguntas | Capas | Veredicto | Nota |
+|---|---|---|---|---|
+| `ftShooting` | **P5** | C2 (`mock-data.ts:1492,1533,2143`) | mantener | Proxy Nivel 2 (`ftPct`) ya definido en 15.4/14.2 bis |
+| `foulDrawing` | **P5** | C2 (`mock-data.ts:1493,1536,2143`) | mantener | Proxy Nivel 2 (`ftaRate`) ya definido |
+
+**Manejo de balón (2 campos)**
+
+| Campo | Preguntas | Capas | Veredicto | Nota |
+|---|---|---|---|---|
+| `motorBallHandling` | P3 | C2 (7 usos: `force_no_push`, allow rules, texto de debilidad) | mantener | |
+| `motorPressureResponse` | P3 | C2 (3 usos) | mantener | |
+
+**Personalidad (1 campo — sub-sección no listada entre las "9 secciones" de 15.1)**
+
+| Campo | Preguntas | Capas | Veredicto | Nota |
+|---|---|---|---|---|
+| `personality` | P6 (posible) | C2 (`clutch`/`freezes`/`selfish` modifican `personalityMod` y output) | mantener | La opción `"leader"` del array nunca se lee en ningún cálculo — hallazgo a nivel de opción, no de campo |
+
+**Post (8 campos)**
+
+| Campo | Preguntas | Capas | Veredicto | Nota |
+|---|---|---|---|---|
+| `postFrequency` | P3 | C1/C2 | mantener | |
+| `postProfile` | P2, P3 | C2 | mantener | |
+| `motorPostEntry` | P2, P3 | C2 (sinergia con `transRolePrimary` para `deny_duck_in`) | mantener | |
+| `motorPostEntrySecondary` | — | ninguna | candidato_a_recortar | Ni siquiera se pasa por `playerInputToMotorInputs` — se captura, se guarda, y ahí muere |
+| `postQuadrants` | **P2** | C2 (deriva `postMoves`) | mantener | Campo compuesto (4 cuadrantes en un solo estado) |
+| `highPostZones` | P2, P3 | C2 (`motor-v2.1.ts:1496`) | mantener | |
+| `motorPostEff` | P3 | C2 | mantener | |
+| `postDoubleTeamReaction` | P3 | C2 (`mock-data.ts:1765-1768`) | mantener | |
+
+**ISO (8 campos)**
+
+| Campo | Preguntas | Capas | Veredicto | Nota |
+|---|---|---|---|---|
+| `isoFrequency` | P3 | C1/C2 | mantener | |
+| `isoDominantDirection` | P1, P2, P3 | C2 | mantener | |
+| `isoDecision` | P3 | C2 (`scoringType`) | mantener | |
+| `isoInitiation` | P3 | C2 (`mock-data.ts:1792`) | mantener | |
+| `isoFinishLeft` | P1, P2 | C2 (`offHandFinish`) | mantener | |
+| `isoFinishRight` | P1, P2 | C2 | mantener | |
+| `isoOppositeFinish` | P1 | C2 (texto de fuerza direccional) | mantener | Campo compartido: un único estado mostrado en ISO o en PnR según cuál esté activa (mutuamente excluyente), no duplicado |
+| `motorIsoEff` | P3, P6 | C2 (amplifica ISO danger, define `deepRange`) | mantener | |
+
+**PnR (14 campos)**
+
+| Campo | Preguntas | Capas | Veredicto | Nota |
+|---|---|---|---|---|
+| `pnrFrequency` | P3 | C1/C2 | mantener | |
+| `pnrRole` | P3 | C2 | mantener | |
+| `pnrScoringPriority` | P3 | C2 (`pnrPri`) | mantener | |
+| `pnrReactionVsUnder` | P3 | C2 (`scoringType`, force outputs) | mantener | |
+| `pnrTiming` | P3 | C2 | mantener | |
+| `pnrFinishBallLeft` | P1, P2 | C2 | mantener | |
+| `pnrFinishBallRight` | P1, P2 | C2 | mantener | |
+| `pnrSnake` | P3, P6 | C2 (`motor-v2.1.ts:1178`) | mantener | |
+| `motorPnrEff` | P3 | C2 | mantener | |
+| `motorTrapResponse` | P3, P5 (posible) | C2 (múltiples outputs) | mantener | |
+| `pnrScreenTiming` | P3 | C2 (`slip`/`holds_long` weights) | mantener | |
+| `pnrScreenerAction` | P3 | C2 | mantener | |
+| `pnrScreenerActionSecondary` | P3 | C2 (texto `secVerb`, `mock-data.ts:1903-1904`) | mantener | |
+| `popRange` | P2 | C2 (`motor-v2.1.ts:2708`) | mantener | |
+
+**Off-ball / Actividad sin balón (17 campos)**
+
+| Campo | Preguntas | Capas | Veredicto | Nota |
+|---|---|---|---|---|
+| `transitionFrequency` | P3 | C1/C2 | mantener | |
+| `transRolePrimary` | P3 | C2 (sinergia `duck_in`+`rim_runner`, `orebThreat`+`rim_runner`) | mantener | |
+| `transSubPrimary` | P3, P6 | C2 (`applyTransSub`, peso ×1) | mantener | |
+| `transRoleSecondary` | — | ninguna directa (solo llave de UI para elegir la lista de `transSubSecondary`) | dudoso | Su valor nunca se lee para scoring, pero no es dato perdido — es una decisión de arquitectura de UI que no puedo resolver solo leyendo código |
+| `transSubSecondary` | P3, P6 | C2 (`applyTransSub`, peso ×0.65, `motor-v2.1.ts:1659`) | mantener | |
+| `transFinishing` | P3 | C2 (amortigua confianza de outputs de transición) | mantener | |
+| `backdoorFrequency` | P2, P3 | C2 (`cutFreq`/`cutType`) | mantener | |
+| `freeCutsFrequency` | P3 | C2 | mantener | |
+| `freeCutsType` | — | ninguna (`motor-v2.1.ts` nunca lo lee) | candidato_a_recortar | Posible fusión conceptual con `freeCutsFrequency`, pero no hay nada real que fusionar — el consumidor simplemente no existe |
+| `dunkerSpot` | P2, P3 | C2 (`motor-v2.1.ts:1473,1482`) | mantener | |
+| `indirectsFrequency` | P3 | C2 | mantener | |
+| `offBallRole` | P3 | C2 (`motor-v2.1.ts:1948,2064,2070`) | mantener | |
+| `offBallScreenPattern` | P3 | C2 (`motor-v2.1.ts:2048-2058`) | mantener | |
+| `offBallScreenPatternSecondary` | — | ninguna | candidato_a_recortar | El hallazgo más claro de la auditoría: ni siquiera está en el tipo `PlayerInput` — solo existe vía `(inputs as any)` en `PlayerEditor.tsx:1793-1800`. Cero consumidores. |
+| `offBallCutAction` | P2, P3 | C2 (`motor-v2.1.ts:1965`, determina `cutType`) | mantener | |
+| `offensiveReboundFrequency` | P3 | C2 (`orebThreat`) | mantener | |
+| `putbackQuality` | P3, P6 | C2 (`motor-v2.1.ts:2078`) | mantener | |
+
+**Spot-up (7 campos)**
+
+| Campo | Preguntas | Capas | Veredicto | Nota |
+|---|---|---|---|---|
+| `perimeterThreats` | P3 | C1/C2 (`spotUpFreq`) | mantener | |
+| `closeoutReaction` | P1, P3 | C2 (`spotUpAction`, fallback de `closeoutLeft`/`Right`) | mantener | |
+| `closeoutLeft` | P1, P2, P3 | C2 (`mock-data.ts:1827-1828,2106-2107`) | mantener | |
+| `closeoutRight` | P1, P2, P3 | C2 | mantener | |
+| `spotZones` | **P2** | C2 (múltiples usos) | mantener | |
+| `deepRange` | P2, P6 | C2 (16+ usos — de los campos derivados más consumidos) | mantener | |
+| `motorLongRange` | P2, P6 | C2 (determina `deepRange`) | mantener | |
+
+#### Resumen ejecutivo
+
+**72 campos reales editables en total** (54 si nos ceñimos a los 5 bloques situacionales de la cita literal de 14.2 bis). Veredictos: **67 mantener**, **4 candidato_a_recortar** (`recentForm`, `motorPostEntrySecondary`, `freeCutsType`, `offBallScreenPatternSecondary`), **1 dudoso** (`transRoleSecondary`) — todos verificados por grep exhaustivo, no por inspección superficial. Ninguno se recorta sin que Pablo lo apruebe (mismo patrón que el resto de la sección 15).
+
+#### Hallazgos inesperados
+
+1. **Bug real, no solo deuda de spec: `postPreferredBlock` no tiene forma de rellenarse.** El motor calcula `postShoulder` (defensa de poste por lado) a partir de `postPreferredBlock` (`mock-data.ts:836-840`), no de `postDominantHand` (que sí tiene UI). `postPreferredBlock` nunca aparece en `PlayerEditor.tsx` — se queda fijo en `"Any"` para toda jugadora, siempre. **Consecuencia: el output de defensa de poste por lado nunca puede describir un lado específico hoy**, aunque el staff marque claramente la mano dominante. Motor 1.0 debería o bien exponer este campo en el formulario, o eliminarlo y derivar `postShoulder` de `postDominantHand`/`postPreferredSide` — decisión de arquitectura para Fase 1, no puedo resolverla yo aquí.
+2. **3 campos con uso real en score/display no tienen sitio en el contrato de tipos de 14.2 bis:** `imageUrl`, `starPlayer` (multiplicador de score real, `motor-v2.1.ts:973`) y `number`. `IdentidadInput` solo cubre `nombre/posicion/alturaCm/pesoKg/manoDominante` — **[CERRADO, ver 15.7b]** añadidos como `numero`/`fotoUrl`/`esEstrella` al tipo `IdentidadInput` de 14.2 bis, con los tipos reales verificados contra el código (no `number`, sino `string`; opcionales donde el dato puede faltar).
+3. **`offBallScreenPatternSecondary` ni siquiera está en el tipo `PlayerInput`** — se captura vía `(inputs as any)`, cero validación de tipo, cero consumidor.
+4. **`spotZone` (legado singular) sigue vivo y se lee activamente** (`motor-v2.1.ts`, 6 usos como fallback) pero ya no es un campo independiente del formulario — la UI lo sincroniza automáticamente cada vez que se toca `spotZones` (`PlayerEditor.tsx:1888-1903`). Deuda de compatibilidad del mismo tipo que `transitionRole`, por eso no cuenta en el total de 72.
+5. **La sección "Personalidad" es un 10º bloque real** del formulario (accordion plegable, `PlayerEditor.tsx:1049-1073`) que 15.1 no incluyó entre las "9 secciones reales" verificadas.
+
+#### 15.7b. Decisiones de cierre sobre los 2 hallazgos técnicos abiertos (2026-09-11)
+
+> A petición de Pablo ("tú decides según lo más estándar y mejor para cumplir los objetivos"), verificados los tipos reales en el código antes de decidir — no se adivina.
+
+**Hallazgo 15.7.1 — `postPreferredBlock` sin UI.** → **Exponerlo en el formulario, no derivarlo de `postDominantHand`.** No es una preferencia de estilo: la propia sección 3 del documento cita explícitamente "hombro de post" como ejemplo del principio `neverInfer` — observación pura del staff que un modelo no debe inventar. Derivarlo de la mano dominante sería exactamente el tipo de inferencia que la sección 3 prohíbe (un poste diestra puede preferir entrar por el lado izquierdo según cómo la defienden, son conceptos distintos). Verificado el tipo real: `postPreferredBlock: "Left Block" | "Right Block" | "Any"` (`mock-data.ts:103`) — mismos 3 valores que ya usa el patrón de `DirectionTendency` en `isoDominantDirection` y otros campos de dirección. Propuesta concreta: añadir un control de 3 opciones al bloque "Post" del formulario, mismo patrón de UI ya usado para esos otros campos de dirección — campo Nivel 1 observado, entra en `camposObservados` de la situación `post`.
+
+**Hallazgo 15.7.2 — `imageUrl`/`starPlayer`/`number` sin tipo en 14.2 bis.** → **Añadidos a `IdentidadInput`** (ver bloque de tipos arriba, actualizado): `numero: string` (no `number` — verificado en `mock-data.ts:316`, los dorsales no son puramente numéricos en el código real), `fotoUrl?: string` (opcional — el tipo actual la exige pero no toda jugadora tendrá foto cargada, se relaja aquí), `esEstrella?: boolean` (verificado opcional/nullable en `mock-data.ts:90`, con efecto real de score confirmado en `motor-v2.1.ts:973`, `starMod = 1.05`).
+
+Con estas dos decisiones, no queda ningún pendiente técnico abierto de la auditoría de 15.7 — el contrato de tipos de 14.2 bis y el plan de captura de 15.3 ya reflejan ambos hallazgos.
+
+#### Corrección a la sección 20.5 — `transitionRole`
+
+**[CORREGIDO]** La sección 20.5 atribuye las líneas 559, 973-982 y 1947 a `PlayerEditor.tsx`. Verificado: `transitionRole` **no aparece ni una vez en `PlayerEditor.tsx`** — esas líneas son de `mock-data.ts` (`resolveTransRole()`, fallback cuando `transRolePrimary` no está seteado). El editor actual usa exclusivamente `transRolePrimary`/`transRoleSecondary`. Implicación para 14.2 bis: `transitionRole` no es uno de los 72 campos del formulario — sobrevive solo como fallback interno de compatibilidad para perfiles antiguos sin `transRolePrimary`. El motor nuevo puede resolverlo de una vez sin que afecte al mapeo campo-por-campo, tal como ya sugería el propio documento.
+
 ---
 
 ## 16. Presentación a la jugadora — cómo se lee el informe, no solo qué contiene
@@ -441,7 +1022,7 @@ Ya cubierto en gran parte por la Capa 0 autónoma (sección 13.3) y el hallazgo 
 
 ### 16.4. Lo que NO sé y no voy a inventar
 
-`[PENDIENTE VALIDAR CON PABLO]`: si la marca de "visto" (`profile_views`) debe mostrarse solo a nivel de equipo (agregado) o también individual por jugadora en el panel de staff — la tabla ya soporta ambas lecturas, es una decisión de UI, no técnica.
+**[CERRADO 2026-09-11]: individual por jugadora propia como vista principal, agregado de equipo como resumen secundario — no uno u otro.** El propio caso de uso ya citado arriba ("ver que abre el informe pero no llega a la Capa 2 antes del partido") es intrínsecamente individual — un entrenador que solo ve "70% del equipo ha visto el informe" no sabe a quién avisar antes del partido, y avisar es exactamente la acción que este dato debe habilitar. El agregado de equipo sigue teniendo valor como resumen rápido ("¿cuántas faltan?"), así que ambas vistas conviven: agregado como entrada, detalle individual como drill-down — nunca solo uno de los dos.
 
 ---
 
@@ -499,7 +1080,7 @@ TanStack Query (la librería ya usada en todo el proyecto) tiene soporte oficial
 ### 18.3. Disparadores de sincronización (los 3 que pide Pablo)
 
 1. **Al recuperar conexión** — evento de `onlineManager` de TanStack Query, disparo inmediato de `resumePausedMutations()`.
-2. **Cada cierto tiempo** — mientras la app está abierta y hay mutaciones pendientes, reintentar cada pocos minutos (no un número exacto propuesto aún, `[PENDIENTE]` decidir con Pablo, probablemente 3-5 min es razonable sin ser agresivo con batería/datos).
+2. **Cada cierto tiempo** — mientras la app está abierta y hay mutaciones pendientes, reintentar cada pocos minutos. **[CERRADO 2026-09-11]: 5 minutos.** No es un número mágico — es el punto medio del rango "3-5 min razonable" que ya se proponía, elegido hacia el extremo menos agresivo: el disparador 1 (recuperar conexión) y el 3 (reabrir app) ya cubren el caso común de vuelta a cobertura; este temporizador solo importa para el caso raro de "app abierta y en primer plano sin red durante minutos seguidos" (ej. avión con wifi intermitente) — no vale la pena gastar más batería/datos por ese caso raro con un intervalo más corto.
 3. **Al reabrir la app** — la app usa Capacitor para iOS; el plugin oficial `@capacitor/network` detecta el estado de conexión de forma más fiable que `navigator.onLine` del navegador dentro de un wrapper nativo — usarlo para disparar el intento de sync en el evento de "app vuelve a primer plano", no solo confiar en el evento web `online`.
 
 ### 18.4. Qué datos deben poder crearse/editarse offline
@@ -545,4 +1126,58 @@ NBA 2K, el juego de baloncesto más jugado del mundo, introdujo en su edición m
 
 ### 20.5. Deuda técnica conocida relacionada, encontrada en la misma búsqueda
 
-**[VERIFICADO por `conversation_search`]** Hay un problema ya identificado y todavía sin resolver, anterior a esta auditoría: `transitionRole` **legacy** en `mock-data.ts` — el motor sigue leyendo el campo viejo, pendiente de alinear con el campo nuevo. **[VERIFICADO ahora también contra código actual, 2026-09-11]** Sigue vigente: `transitionRole` (línea 139, tipo `"Pusher" | "Outlet" | "Rim Runner" | "Trailer"`) todavía se usa activamente (líneas 559, 973-982, 1947), y hay un comentario explícito en el propio código (línea 1092): `// Resolve legacy transitionRole field to new TransRoleEditor values` — confirma que el propio equipo ya sabía que es un campo legacy sin resolver del todo. El Arquitecto debería revisar esto al diseñar Fase 0 para no heredar el mismo campo doble en Motor 1.0.
+**[VERIFICADO por `conversation_search`]** Hay un problema ya identificado y todavía sin resolver, anterior a esta auditoría: `transitionRole` **legacy** en `mock-data.ts` — el motor sigue leyendo el campo viejo, pendiente de alinear con el campo nuevo. **[VERIFICADO ahora también contra código actual, 2026-09-11]** Sigue vigente: `transitionRole` (línea 139, tipo `"Pusher" | "Outlet" | "Rim Runner" | "Trailer"`) todavía se usa activamente, y hay un comentario explícito en el propio código (línea 1092): `// Resolve legacy transitionRole field to new TransRoleEditor values` — confirma que el propio equipo ya sabía que es un campo legacy sin resolver del todo. El Arquitecto debería revisar esto al diseñar Fase 0 para no heredar el mismo campo doble en Motor 1.0.
+
+**[CORREGIDO 2026-09-11, ver mapeo completo en 15.7]** Las líneas 559, 973-982, 1947 citadas arriba son de `mock-data.ts`, no de `PlayerEditor.tsx` como decía esta sección originalmente — `transitionRole` no aparece ni una vez en el editor real. Es un fallback interno de `mock-data.ts` para perfiles antiguos sin `transRolePrimary`, no un campo del formulario. No cambia la recomendación (el motor nuevo debe resolverlo de una vez), solo corrige dónde vive.
+
+---
+
+## 21. Fase 1 — estado real de avance (código, no solo spec), 2026-09-11
+
+> A partir de aquí ya hay código de producto real (`client/src/lib/motor-v1*.ts`), no solo especificación — es la primera sección del documento donde eso es cierto. Todo lo de abajo está verificado con `npm run check` (typecheck limpio contra el `tsconfig.json` real) y `npx vitest run` (suite completa), no solo "compila en mi cabeza".
+
+### 21.1. Archivos creados
+
+- [`client/src/lib/motor-v1-types.ts`](../client/src/lib/motor-v1-types.ts) — el contrato de tipos de 14.2 bis, transcrito literal, exportado.
+- [`client/src/lib/motor-v1-source-map.ts`](../client/src/lib/motor-v1-source-map.ts) — copia pública de `SOURCE_TO_SITUATION` de `motor-v2.1.ts` (privada allí), documentada como deuda técnica deliberada hasta que Fase 3 retire el motor legacy.
+- [`client/src/lib/motor-v1.ts`](../client/src/lib/motor-v1.ts) — el núcleo de cálculo en sí. Orquesta `motor-v2.1.ts` (reusa su lógica calibrada, sección 3) y produce `ScoutingReportV1` con la forma del contrato cerrado.
+- [`client/src/lib/motor-v1-acceptance.test.ts`](../client/src/lib/motor-v1-acceptance.test.ts) — tests de aceptación contra los motores legacy (referencia de comportamiento correcto mientras Motor 1.0 se termina).
+- [`client/src/lib/motor-v1.test.ts`](../client/src/lib/motor-v1.test.ts) — tests directos contra `motor-v1.ts`.
+
+**21 tests, todos verificados en verde** (`npx vitest run`: 46/46 en todo el proyecto, el único fallo — `capabilities.test.ts` — es preexistente y no relacionado, el mismo problema de `window` a nivel de módulo que ya denuncia la sección 4).
+
+### 21.2. Bug real encontrado (y corregido en la misma sesión) al escribir `motor-v1.ts`
+
+La primera versión de `motor-v1.ts` tenía una función `clamp072()` que forzaba **todo** score a un techo de 0.72 — incluidas las situaciones primarias, que deben quedar sin capar. Verificado contra datos reales antes de corregirlo: perfil "Luka Doncic" (iso+pnr primarias) debía dar `iso=1.00, pnr=1.00, post=0.72` y daba `iso=0.72, pnr=0.72, post=0.72`. Corregido, y bloqueado con test de regresión (`motor-v1.test.ts`, valores exactos verificados para p001 y p004). Se documenta aquí sin editar el rastro — es la misma disciplina de transparencia que ya pedía Pablo para el resto del documento, aplicada ahora también al código.
+
+### 21.3. Lo que YA funciona (verificado con datos reales, los 10 perfiles de `test-profiles.json`)
+
+- `situacionesAmenaza()`: ranking de situaciones con el cap anti-inflación real (el de `motor-v2.1.ts`, no el de `motor-v4.ts` — bug documentado en sección 3). Verificado con valores exactos, no solo "no truena".
+- `ensamblarReporte()`: produce `ReporteModoSencilloV1`/`ReporteModoCompletoV1` según el contrato — `accionPrincipal` solo existe en modo sencillo, verificado en runtime (`"accionPrincipal" in reporte === false` en modo completo).
+- `deny`/`force`/`allow` como `CampoConCandidatos` real (ganador + candidatos rankeados, ganador siempre en rank 0) — reutilizando la lógica de ranking por peso que ya existía en `motor-v4.ts` (`buildDefenseInstruction`), que resultó estar bien construida pese al bug de `buildSituations`.
+- `aware` como hasta 2 `CampoConCandidatos`, deduplicados por "mecanismo" (mismo criterio que ya usaba `motor-v4.ts`) — nunca más de 2, verificado en los 10 perfiles.
+- `archetypeKey` produce siempre uno de los 10 valores del catálogo de 14.3, verificado en los 10 perfiles — vía el crosswalk provisional (ver 21.4).
+
+### 21.4. Deuda explícita — lo que Fase 1 todavía NO resuelve, documentado en la cabecera de `motor-v1.ts` y aquí
+
+1. **`archetypeKey` es un crosswalk provisional, no un diseño nuevo.** `inferirArchetypeKeyProvisional()` traduce los 9 archetypes ad-hoc de `motor-v4.ts` a los 10 nuevos combinando con la posición (base/alero/interior). Funciona, produce siempre un valor válido, pero **no es la decisión de producto de cómo debería detectarse un archetype directamente sobre la taxonomía Synergy** — eso requiere diseño nuevo, no una traducción de lo viejo. `[PENDIENTE VALIDAR CON PABLO]`.
+2. **Capa 3 (Nivel 2 / U Stats) no está wireada.** `capa3` es siempre `undefined`. Es Fase 2 del roadmap (sección 8), no Fase 1 — correcto que falte todavía, no es un descuido.
+3. **`confianza` es una heurística provisional por score** (≥0.7 alta, 0.4-0.7 media, <0.4 baja) — el diseño real de 13.2 la ata a consistencia Nivel 1 + volumen de muestra Nivel 2, que no existe sin Capa 3. Se revisa cuando Fase 2 aterrice.
+4. **`porque` (15.5) siempre vacío** — misma razón que el punto 3.
+5. **El mapeo de `floater` a `misc`** (situación interna de v2.1 sin equivalente limpio en las 11 Synergy) es una decisión conservadora, no una certeza — revisar si hace falta más precisión.
+6. **`force`/`allow` tienen un fallback a `deny` cuando faltan** (en `ensamblarReporte()`, con un TODO explícito en el código) — `force` no debería faltar nunca en la práctica según la lógica de `motor-v2.1.ts`, pero `allow` sí puede faltar legítimamente (jugadora sin ninguna situación de bajo riesgo). `[PENDIENTE]` decidir si `capa2.allow` debería ser opcional en el contrato de 14.2 bis en vez de forzar este fallback.
+7. **El catálogo exacto de `OutputKey`** sigue sin cerrar (Nota 2 de 14.2 bis) — se usan las keys existentes de `motor-v2.1.ts` sin traducir al naming nuevo todavía.
+8. ~~`identidad.manoDominante` queda hardcodeada a `"D"`~~ — **[CERRADO]** corregido en la misma sesión: `postDominantHand` **no existe en `motor-v2.1.ts`** (es un campo de `mock-data.ts`, hallazgo al ir a mapearlo) — el dato real es `EnrichedInputs.hand` (`'R'|'L'`), ya cableado. Verificado con test de regresión (`motor-v1.test.ts`: p001 es zurda, `manoDominante` da `"I"`).
+9. ~~`frecuenciaObservada` era una aproximación por score, no el dato real~~ — **[CERRADO, parcial]** corregido para 7 de las 11 situaciones (las que tienen campo `*Freq` directo en `EnrichedInputs`: iso, pnrHandler, post, transition, spotUp, handoff, cut) — ahora usan la frecuencia real marcada por el staff, no una aproximación. Las otras 4 (pnrRollMan, putback, offScreen, misc) siguen con la aproximación por score porque no tienen un campo de frecuencia propio en el input actual — seguirá así hasta que exista uno. Verificado con test de regresión: perfil "Luka Doncic", `spotUp` daría `"S"` por aproximación de score pero el dato real es `"R"` (Rara) y el test confirma que devuelve `"R"`.
+
+### 21.5. Próximo paso lógico (no hecho en esta sesión, por presupuesto)
+
+Migrar un primer consumidor real (`QuickScout` o `PlayerEditor`) para que llame a `ensamblarReporte()` en paralelo al motor legacy y compare resultados en un entorno de prueba — el patrón de "correr ambos caminos y ver si diverge" que la propia auditoría original (`auditoria-u-scout-completa.md:228`) ya proponía como el paso barato antes de dar una consolidación por definitiva.
+
+### 21.6. Segundo bug real encontrado (y corregido) tras cerrar el contrato: `force`/`allow` NO son siempre presentes
+
+Al escribir tests más exigentes sobre `ensamblarReporte()`, apareció un fallback sospechoso que yo mismo había dejado en el código (`force ?? deny`, con un comentario propio diciendo "force nunca debería faltar en la práctica"). Verificado contra los 10 perfiles reales de `test-profiles.json` **antes de confiar en ese comentario**: `force` falta en **4 de 10** perfiles, `allow` en **2 de 10** — no es el caso raro que yo mismo había asumido sin comprobar.
+
+**Corregido:** el contrato de tipos (14.2 bis arriba, y `motor-v1-types.ts`) ahora marca `force`/`allow` como opcionales en `capa2` — `deny` se queda obligatorio porque sí es consistente en los 10 perfiles. El motor (`motor-v1.ts`) ya no rellena con un fallback a `deny` cuando faltan — los omite genuinamente. Bloqueado con test de regresión (`motor-v1.test.ts`: perfil "Steph Curry" no tiene `force`, verificado que el reporte lo refleja como `undefined`, no como una copia disfrazada de `deny`).
+
+**Por qué se documenta con el mismo detalle que el bug de `clamp072()` (21.2):** es la misma disciplina que Pablo pidió para el resto del documento — no ocultar que una decisión "cerrada" (el contrato de 14.2 bis se llamó "CERRADO" antes de escribir código real contra él) tenía un error de fondo. Cerrar un contrato sobre papel y verificarlo contra datos reales son dos pasos distintos, y este documento existe para no confundirlos.
