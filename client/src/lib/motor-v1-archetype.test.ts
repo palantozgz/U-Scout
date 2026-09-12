@@ -6,6 +6,7 @@
  * muestra real (`scripts/test-profiles.json`, p011-p013).
  */
 import { describe, expect, it } from "vitest";
+import { UScoutMotor } from "./motor-v2.1";
 import { detectarArchetype, type SenalesArchetype } from "./motor-v1-archetype";
 import { ensamblarReporte } from "./motor-v1";
 import type { ArchetypeKey, SituacionAmenaza } from "./motor-v1-types";
@@ -268,6 +269,23 @@ describe("archetypeModificador — segunda dimensión excepcional (spec 14.3 bis
     const r = ensamblarReporte(p013.inputs as any, p013.clubContext as any, { jugadoraId: p013.id, modo: "completo" });
     expect(r.identidad.archetypeKey).toBe("alero_movimiento");
     expect(r.identidad.archetypeModificador).toBeUndefined();
+  });
+
+  it("'vulnerable a la presión' NO es un tercer eje de modificador que falte -- ya lo cubre aware_pressure_vuln (spec 21.10, pregunta 1 cerrada)", () => {
+    // p020/p023 (ballHandling 'liability'/'limited', pressureResponse
+    // 'struggles') eran el candidato más fuerte a tercer eje de
+    // archetypeModificador. Verificado: el motor ya genera aware_pressure_vuln
+    // para ambos -- añadir un tercer modificador para lo mismo duplicaría una
+    // señal que el informe ya muestra por otra vía (el mismo error anti-P2
+    // que ya evitan los 2 modificadores existentes, aplicado ahora entre
+    // "archetype" y "aware" en vez de entre "archetype" y "situación").
+    const motor = new UScoutMotor();
+    for (const id of ["p020", "p023"]) {
+      const p = profiles.find((x) => x.id === id)!;
+      const report = motor.generateReport(p.inputs as any, p.clubContext as any);
+      const tieneAwarePressureVuln = (report.selected.aware ?? []).some((o: any) => o.key === "aware_pressure_vuln");
+      expect(tieneAwarePressureVuln, `[${p.name}] debería generar aware_pressure_vuln`).toBe(true);
+    }
   });
 
   it("presupuesto cognitivo (spec 16.3b): el modificador dispara en como mucho un tercio de los perfiles -- si una regla futura lo dispara en más, este test debe fallar el build", () => {

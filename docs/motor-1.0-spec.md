@@ -817,10 +817,7 @@ Un tercer candidato (`atacando_cierres`, gate `spotUpAction === 'pump'`) se desc
 
 **Pendiente, no bloqueante:** `ReportSlidesV1.tsx:381-385` (el "También: X" viejo) se retira cuando ese componente pase a consumir `motor-v1` (Fase 3) — mientras siga leyendo `motor-v4`, dejarlo como está es correcto, no hay dos sistemas conviviendo en producción. i18n (es/en/zh) de los 12 valores (10 `archetypeKey` + 2 `ModificadorArchetype`) queda pendiente — ninguno de los 10 `archetypeKey` tenía labels todavía tampoco (`reportTextRenderer.ts` traduce el namespace legacy `archetype_*`, no el nuevo), así que se hacen los 12 de una vez cuando toque esa migración, no antes.
 
-**`[A VALIDAR CON PABLO]`, ninguna bloqueante:**
-1. ¿`de_movimiento`/`a_la_contra` son los dos ejes correctos, o falta un tercero? La estructura aguanta 3-4 sin cambiar nada — lo que no aguanta es que disparen en más de ~35% de perfiles (bloqueado con test, sección 21).
-2. Umbral `offScreen >= 0.6`: con ese valor Klay (0.66) entra por poco; con 0.7 se cae y solo quedaría Curry. Decisión de sensibilidad de baloncesto, no técnica.
-3. Gobert suprimido por redundancia con la acción: si prefieres que la etiqueta sea descriptivamente completa aunque repita la acción, se quita una condición.
+**`[CERRADO 2026-09-12, ver 21.10]`** Las 3 preguntas de sensibilidad de baloncesto que quedaban aquí (¿tercer eje de modificador?, umbral `offScreen`, supresión de Gobert) están resueltas — decisión propia, a petición explícita de Pablo ("resuélvelas tú documentándote y analizando todo a fondo, haz test si lo necesitas"), con investigación real y verificación empírica contra los 24 perfiles, no solo criterio.
 
 ### 14.3 ter. Calibración contra metodología de scouting real y contra scouts publicados de las jugadoras concretas del fixture (2026-09-12)
 
@@ -1299,4 +1296,22 @@ Al correr `scripts/compare-motors.ts` (21.5) contra los 13 perfiles, aparecieron
 
 **Lo que sigue siendo trabajo de UI, no de este motor:** el copy exacto ("Defensa estándar del equipo" vs. otra redacción) y si el punto de color aparece también en un listado de roster — decisiones de la capa de presentación (Fase 3+), el dato ya está listo para consumirlas.
 
-Verificado tras ambas correcciones: `npm run check`/`check:tests` limpios, `npx vitest run` 91/91 (mismo fallo preexistente y no relacionado), `npm run motor:compare`: **0 divergencias reales en 24 perfiles**.
+Verificado tras ambas correcciones: `npm run check`/`check:tests` limpios, `npx vitest run` 92/92 (mismo fallo preexistente y no relacionado), `npm run motor:compare`: **0 divergencias reales en 24 perfiles**.
+
+### 21.10. Las 3 preguntas de sensibilidad de baloncesto de 14.3 bis, cerradas (2026-09-12)
+
+> A petición explícita de Pablo: "esas preguntas resuélvelas tú documentándote y analizando todo a fondo, haz test si lo necesitas. y continúa". Decisión propia, con investigación real y verificación empírica — no solo criterio sin comprobar.
+
+**Pregunta 2 (umbral `offScreen >= 0.6`) — CERRADO: se mantiene en 0.6.** Ya investigado en 14.3 ter: las fuentes describen el movimiento sin balón de Klay como un rasgo constante y definitorio ("constantly moving without the ball and coming around screens"), no marginal — subir a 0.7 lo excluiría, contradiciendo el consenso real de scouting sobre el jugador que motivó la propia feature. Sin cambios de código; se cierra la pregunta, no el valor.
+
+**Pregunta 3 (Gobert suprimido) — CERRADO: se mantiene la supresión.** Ya investigado en 14.3 ter: ningún scouting real de Gobert separa su finalización en el aro de su aporte en transición — son la misma idea en las fuentes ("finishing lobs efficiently and providing outlet passes that fueled Utah's transition game"). Forzar la etiqueta completa introduciría una distinción que ni las fuentes reales hacen. Sin cambios de código.
+
+**Pregunta 1 (¿falta un tercer eje de modificador?) — CERRADO: no, el catálogo se queda en 2, con una razón nueva y más sólida que "no encontré uno".**
+
+Dos pasos de análisis, no solo intuición:
+
+1. **Verificación empírica actualizada.** El 21% de disparo original (3/14) se calculó antes de añadir los 10 perfiles de `eval-motor-quality.ts` (21.9). Recalculado contra los 24 perfiles reales: **13% (3/24)** — el margen respecto al techo de ~35% (16.3b, Cowan) es aún mayor de lo que se pensaba. No hay presión de presupuesto cognitivo empujando a añadir un tercer eje.
+
+2. **El candidato más fuerte, probado contra datos reales, resultó ser redundante — no ausente.** El candidato de sensibilidad de baloncesto más obvio para un tercer eje es "vulnerable a la presión / manejo atacable" (exactamente lo que motivó los perfiles `p020`/`p023`, ambos con `ballHandling: 'liability'`/`'limited'` y `pressureResponse: 'struggles'`). Verificado ejecutando `motor.generateReport()` contra ambos: **ya generan `aware_pressure_vuln` con weight 0.80**, uno de los 2 slots de aware disponibles. Este hallazgo cambia la conclusión de fondo: no es que no exista un tercer eje calculable — es que el sistema **ya tiene** el mecanismo correcto para él, y no es el modificador de archetype. El propio framework de 6 preguntas (13.0) ya asigna esto a la pregunta 6 ("el detalle no obvio") y a `aware`/`quietEdge`, no al archetype (preguntas 1-3). Añadir un tercer modificador para "vulnerable a la presión" duplicaría una señal que el informe ya muestra por otra vía — exactamente el error anti-P2 que los 2 modificadores existentes se diseñaron para evitar, aplicado ahora al límite entre "archetype" y "aware" en vez de entre "archetype" y "situación".
+
+**Conclusión de arquitectura, no solo de calibración:** el catálogo de 2 modificadores no se queda en 2 por falta de ideas — se queda en 2 porque el trabajo de "capturar el matiz no obvio" ya tiene un dueño (`aware`, 2 slots) y duplicarlo en el archetype sería el mismo error que motivó el diseño original. El único candidato de tercer eje que sigue en pie ("clutch"/creación en momentos de alta dificultad, 14.3 ter) sigue bloqueado por falta de datos de shot-clock, no por falta de sitio en el catálogo — cuando ese dato exista (Fase 2+), la pregunta correcta será si encaja en `aware` o en un tercer modificador, no asumirlo de antemano.
