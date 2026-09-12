@@ -141,6 +141,18 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
     // Sin deny, tampoco hay archetypeModificador -- no hay situacionOrigen
     // contra la que comprobar la invariante anti-P2 de 14.3 bis.
     expect(reporte.identidad.archetypeModificador).toBeUndefined();
+    // Semáforo (21.9 bis): sin deny, nivelAmenaza es "estandar" (🟡), nunca
+    // silencio -- la Capa 0 debe mostrar "defensa estándar", no un hueco vacío.
+    expect(reporte.identidad.nivelAmenaza).toBe("estandar");
+  });
+
+  it("nivelAmenaza es 'alta' cuando SÍ hay deny -- p001 (iso/pnr primarias reales)", () => {
+    const p001 = profiles.find((p) => p.id === "p001")!;
+    const reporte = ensamblarReporte(p001.inputs as any, p001.clubContext as any, {
+      jugadoraId: p001.id,
+      modo: "completo",
+    });
+    expect(reporte.identidad.nivelAmenaza).toBe("alta");
   });
 
   it("modo sencillo: accionPrincipal también es opcional cuando no hay deny (p020)", () => {

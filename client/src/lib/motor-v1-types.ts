@@ -58,6 +58,19 @@ export type ArchetypeKey =
 export type ModificadorArchetype = "de_movimiento" | "a_la_contra";
 
 /**
+ * Semáforo de amenaza (spec 21.9 bis, 2026-09-12) — resuelve qué mostrar en
+ * Capa 0 cuando `deny` no existe (ninguna situación supera el peso mínimo
+ * de 0.35, ver 21.9). Investigado contra terminología real de banquillo:
+ * "Know Your Personnel" (KYP) — los entrenadores categorizan explícitamente
+ * jugadoras como amenaza ("shooters", cierre agresivo) o no-amenaza
+ * ("non-shooters", dejar espacio, no ayudar de más) — nunca es silencio,
+ * siempre es una instrucción activa distinta. `"alta"` ⟺ `deny` existe;
+ * `"estandar"` ⟺ no existe, la Capa 0 muestra "defensa estándar del equipo"
+ * (o equivalente) en vez de dejar el hueco vacío.
+ */
+export type NivelAmenaza = "alta" | "estandar";
+
+/**
  * Naming nuevo de outputs individuales (deny/force/allow/aware). Branded string,
  * no `string` plano ni union literal todavía: el catálogo exacto (`OUTPUT_CATALOG`)
  * depende del mapeo campo-por-campo de spec 13.4/15.1, que sigue abierto. El brand
@@ -322,6 +335,13 @@ export interface IdentidadReporte extends IdentidadInput {
    * para quien va a jugar el partido).
    */
   archetypeConfianza: "alta" | "media" | "baja";
+  /**
+   * Semáforo de amenaza (spec 21.9 bis) — `"alta"` (🔴) cuando `capa2.deny`/
+   * `accionPrincipal` existe, `"estandar"` (🟡) cuando no. Presente en ambos
+   * modos: útil también para un listado de roster con un punto de color por
+   * jugadora sin abrir cada informe, no solo para decidir el texto de Capa 0.
+   */
+  nivelAmenaza: NivelAmenaza;
   /** Presente en ambos modos (decisión #3): 0-3 en completo, 0-1 en sencillo
    *  (spec 10.3.4). */
   statsDestacados: StatDestacado[];

@@ -439,6 +439,11 @@ export function ensamblarReporte(
     archetypeKey: deteccion.key,
     archetypeModificador,
     archetypeConfianza: deteccion.confianza,
+    // Semáforo de amenaza (spec 21.9 bis) -- "alta" (🔴) si hay deny real,
+    // "estandar" (🟡) si no. Resuelve qué mostrar en Capa 0 cuando accionPrincipal
+    // está ausente: nunca silencio, "defensa estándar" con respaldo real de
+    // terminología de banquillo (KYP -- shooters vs. non-shooters, nunca "nada").
+    nivelAmenaza: deny ? "alta" : "estandar",
     statsDestacados: [], // Capa 3 / Nivel 2 no wireado todavía (Fase 2)
     quietEdge: undefined, // idem
   };
