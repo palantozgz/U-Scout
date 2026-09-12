@@ -348,8 +348,14 @@ export interface ScoutingReportBaseV1 {
  */
 export interface ReporteModoSencilloV1 extends ScoutingReportBaseV1 {
   modo: "sencillo";
-  /** El "winner" de deny, con candidatos (spec 17.1). */
-  accionPrincipal: CampoConCandidatos;
+  /**
+   * El "winner" de deny, con candidatos (spec 17.1). Opcional — CORREGIDO
+   * 2026-09-12: puede faltar si ninguna situación supera el peso mínimo que
+   * motor-v2.1.ts exige para que un deny "merezca" mostrarse (0.35, ver 21.9).
+   * `[PENDIENTE PRODUCTO]`: qué debe verse en Capa 0 en ese caso — no
+   * decidido aquí, ver nota en `motor-v1.ts::ensamblarReporte`.
+   */
+  accionPrincipal?: CampoConCandidatos;
 }
 
 /**
@@ -365,7 +371,14 @@ export interface ReporteModoCompletoV1 extends ScoutingReportBaseV1 {
     emparejamientoDefensivo?: string;
   };
   capa2: {
-    deny: CampoConCandidatos;
+    /**
+     * Opcional — CORREGIDO 2026-09-12: verificado con datos reales que
+     * motor-v2.1.ts exige `weight >= 0.35` para que un output de deny
+     * "merezca" mostrarse (línea 2457) — una jugadora de muy bajo impacto
+     * ofensivo puede no tener ninguna situación que lo supere, y el legacy
+     * correctamente no recomienda nada en ese caso (spec 21.9).
+     */
+    deny?: CampoConCandidatos;
     /**
      * `force`/`allow` opcionales — CORREGIDO 2026-09-11 al implementar Fase 1:
      * el boceto original (y el primer cierre de 14.2 bis) los daba por

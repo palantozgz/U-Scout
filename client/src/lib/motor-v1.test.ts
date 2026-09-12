@@ -130,6 +130,29 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
     expect(reporte.capa2.force).not.toEqual(reporte.capa2.deny);
   });
 
+  it("deny también es genuinamente opcional -- p020 (bajo impacto ofensivo), ningún output supera el peso mínimo 0.35", () => {
+    const p020 = profiles.find((p) => p.id === "p020")!;
+    const reporte = ensamblarReporte(p020.inputs as any, p020.clubContext as any, {
+      jugadoraId: p020.id,
+      modo: "completo",
+    });
+    if (reporte.modo !== "completo") throw new Error("esperaba modo completo");
+    expect(reporte.capa2.deny).toBeUndefined();
+    // Sin deny, tampoco hay archetypeModificador -- no hay situacionOrigen
+    // contra la que comprobar la invariante anti-P2 de 14.3 bis.
+    expect(reporte.identidad.archetypeModificador).toBeUndefined();
+  });
+
+  it("modo sencillo: accionPrincipal también es opcional cuando no hay deny (p020)", () => {
+    const p020 = profiles.find((p) => p.id === "p020")!;
+    const reporte = ensamblarReporte(p020.inputs as any, p020.clubContext as any, {
+      jugadoraId: p020.id,
+      modo: "sencillo",
+    });
+    if (reporte.modo !== "sencillo") throw new Error("esperaba modo sencillo");
+    expect(reporte.accionPrincipal).toBeUndefined();
+  });
+
   it("modo completo: capa2.aware nunca tiene más de 2 slots", () => {
     for (const profile of profiles) {
       const reporte = ensamblarReporte(profile.inputs as any, profile.clubContext as any, {
@@ -162,6 +185,9 @@ describe("motor-v1 — ensamblarReporte: forma del contrato (14.2 bis)", () => {
     });
     if (sencillo.modo !== "sencillo" || completo.modo !== "completo") {
       throw new Error("modos inesperados");
+    }
+    if (!sencillo.accionPrincipal || !completo.capa2.deny) {
+      throw new Error("p001 debería tener deny/accionPrincipal reales (iso/pnr primarias)");
     }
     expect(sencillo.accionPrincipal.ganador.key).toBe(completo.capa2.deny.ganador.key);
   });

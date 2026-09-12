@@ -17,6 +17,13 @@
  *   motores — motor-v1 reusa la misma lógica de ranking por peso que
  *   motor-v4 (sorted[0] sobre rawOutputs), así que una divergencia aquí es
  *   una regresión real, no una diferencia de diseño esperada.
+ *   EXCEPCIÓN CONOCIDA (spec 21.9, 2026-09-12): motor-v4.ts NUNCA aplica el
+ *   peso mínimo 0.35 que motor-v2.1.ts sí exige para que un deny "merezca"
+ *   mostrarse (mismo patrón que el bug del cap anti-inflación de sección 3
+ *   — motor-v4 vuelve a ignorar una regla de curación real de v2.1). Cuando
+ *   el ganador de deny de v4 tiene `score < 0.35`, motor-v1 correctamente no
+ *   produce ningún deny y v4 sí (con un valor que ni v2.1 consideraría
+ *   válido) — se excluye de "divergencias reales" y se reporta aparte.
  * - situaciones (scores): NO deben coincidir, y eso es correcto, no un bug.
  *   motor-v4 normaliza dividiendo por el máximo del perfil (sin cap
  *   anti-inflación, el bug documentado en spec sección 3); motor-v1 usa el
@@ -58,9 +65,18 @@ for (const p of profiles as any[]) {
     const norm = (k: string | undefined | null) => (!k || k === "none" ? SIN_GANADOR : k);
 
     const denyLegacy = norm(legacy.defense.deny.winner?.key);
-    const denyV1 = norm(reporte.capa2.deny.ganador.key);
-    if (denyLegacy !== denyV1) {
+    const denyV1 = norm(reporte.capa2.deny?.ganador.key);
+    // Excepción conocida (ver cabecera): motor-v4 nunca aplica el suelo 0.35
+    // de motor-v2.1.ts. Si el propio ganador de v4 no llegaría a ese suelo,
+    // la divergencia es esperada (motor-v1 correcto, v4 no), no se cuenta.
+    const denyLegacyScore = legacy.defense.deny.winner?.score ?? 0;
+    const denyBajoElSueloDeV21 = denyLegacyScore > 0 && denyLegacyScore < 0.35;
+    if (denyLegacy !== denyV1 && !denyBajoElSueloDeV21) {
       divergenciasReales.push({ perfil: p.name, campo: "deny.winner", legacy: denyLegacy, motorV1: denyV1 });
+    } else if (denyLegacy !== denyV1 && denyBajoElSueloDeV21) {
+      console.log(
+        `  (excepción conocida, spec 21.9) [${p.name}] deny.winner: v4="${denyLegacy}" (score ${denyLegacyScore.toFixed(3)}, bajo el suelo 0.35 de v2.1) vs motor-v1="${denyV1}"`,
+      );
     }
 
     const forceLegacy = norm(legacy.defense.force.winner?.key);

@@ -262,10 +262,19 @@ function detectarAlero(s: (sit: SituacionSynergy) => number, se: SenalesArchetyp
   // s.transition NO cuenta como penetración salvo transRole rim_run/leak --
   // verificado con datos reales (Klay Thompson: transition=0.91, transRole
   // 'trail', es tiradora en movimiento, no penetradora).
+  //
+  // CORREGIDO 2026-09-12: 'cutType === backdoor' vivía aquí, en penetradora.
+  // Bug real encontrado al añadir un perfil de cortadora pura sin balón a
+  // test-profiles.json (p019: cutFreq 'P', cutType 'backdoor', usage 'role',
+  // sin iso/pnr/post) -- salía alero_penetradora, que es lo contrario de lo
+  // que es. Un corte a la espalda del defensor es la acción sin balón por
+  // definición (explota que el defensor mira al balón, no un regate); un
+  // corte 'basket' (línea recta al aro, a menudo desde un drive) sí es
+  // penetración. Movido a `movimiento` de abajo.
   const penetradora =
     Math.max(
       s("iso"),
-      se.cutType === "basket" || se.cutType === "backdoor" ? s("cut") : 0,
+      se.cutType === "basket" ? s("cut") : 0,
       se.transRole === "rim_run" || se.transRole === "leak" ? s("transition") : 0,
       s("pnrHandler"),
     ) +
@@ -279,7 +288,11 @@ function detectarAlero(s: (sit: SituacionSynergy) => number, se: SenalesArchetyp
     (se.spotUpAction === "shoot" ? 0.1 : 0);
 
   const movimiento =
-    Math.max(s("offScreen"), s("handoff"), se.cutType === "curl" ? s("cut") : 0) +
+    Math.max(
+      s("offScreen"),
+      s("handoff"),
+      se.cutType === "curl" || se.cutType === "backdoor" ? s("cut") : 0,
+    ) +
     (se.indirectFreq === "P" ? 0.2 : se.indirectFreq === "S" ? 0.1 : 0) +
     (se.dhoRole === "receiver" || se.dhoRole === "both" ? 0.1 : 0) +
     (se.offBallCutAction === "curl" || se.offBallCutAction === "flare" ? 0.1 : 0) +

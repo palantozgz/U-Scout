@@ -226,9 +226,21 @@ export function situacionesAmenaza(report: MotorReport): SituacionAmenaza[] {
 function campoDesdeRawOutputs(
   rawOutputs: MotorOutput[],
   categoria: "deny" | "force" | "allow" | "aware",
+  /**
+   * Peso mínimo para que un output "merezca" mostrarse -- CORREGIDO
+   * 2026-09-12, mismo patrón que `campoAllow` (sección 21.8 de la spec):
+   * `motor-v2.1.ts::selectTopOutputs` (línea 2457) exige `weight >= 0.35`
+   * para `deny` específicamente -- por debajo de eso, ni siquiera el legacy
+   * lo considera una amenaza que valga la pena denegar. Bug real encontrado
+   * al añadir `p020` (jugadora de muy bajo impacto ofensivo) a
+   * `test-profiles.json`: sin este filtro, motor-v1 producía un `deny` con
+   * `deny_iso_space` (weight 0.208) donde el legacy correctamente no
+   * recomendaba nada -- inventando una amenaza que no existe de verdad.
+   */
+  pesoMinimo = 0,
 ): CampoConCandidatos | undefined {
   const sorted = rawOutputs
-    .filter((o) => o.category === categoria && o.weight > 0)
+    .filter((o) => o.category === categoria && o.weight >= Math.max(pesoMinimo, Number.EPSILON))
     .sort((a, b) => b.weight - a.weight);
   if (sorted.length === 0) return undefined;
 
@@ -393,23 +405,23 @@ export function ensamblarReporte(
   // deny se calcula ANTES de identidad -- detectarModificador() necesita
   // deny.ganador.situacionOrigen para no repetir en la etiqueta lo que la
   // acción principal ya dice (spec 14.3 bis, regla anti-P2 de El Arquitecto).
-  const deny = campoDesdeRawOutputs(rawOutputs, "deny");
+  const deny = campoDesdeRawOutputs(rawOutputs, "deny", 0.35);
   const force = campoDesdeRawOutputs(rawOutputs, "force");
   const allow = campoAllow(rawOutputs, force?.ganador.key);
   const awareSlots = slotsAware(rawOutputs);
 
-  if (!deny) {
-    throw new Error(
-      `ensamblarReporte: no se pudo calcular 'deny' para jugadoraId=${opts.jugadoraId} -- el motor no generó ningún output deny con weight > 0.`,
-    );
-  }
-
-  const archetypeModificador = detectarModificador(
-    situaciones,
-    deteccion.key,
-    senales,
-    deny.ganador.situacionOrigen,
-  );
+  // deny puede faltar legítimamente -- CORREGIDO 2026-09-12, mismo patrón que
+  // force/allow (spec 21.6): verificado con datos reales (p020, jugadora de
+  // muy bajo impacto ofensivo) que motor-v2.1.ts exige weight>=0.35 para que
+  // un deny "merezca" mostrarse (línea 2457) -- por debajo de eso, ni el
+  // legacy recomienda nada. Antes, esta función lanzaba un error asumiendo
+  // que deny siempre existe; era falso, igual que se asumió (mal) de
+  // force/allow en la sesión anterior.
+  const archetypeModificador = deny
+    ? detectarModificador(situaciones, deteccion.key, senales, deny.ganador.situacionOrigen)
+    : undefined; // sin deny, no hay situacionOrigen contra la que comparar -- la
+  // invariante anti-P2 (14.3 bis) no puede evaluarse; se omite el modificador
+  // en vez de arriesgar mostrar uno redundante sin poder comprobarlo.
 
   const identidad: IdentidadReporte = {
     nombre: (enriched as any).name ?? "",
@@ -439,7 +451,15 @@ export function ensamblarReporte(
       identidad,
       emparejamientoDefensivo: opts.emparejamientoDefensivo,
       modo: "sencillo",
-      accionPrincipal: deny,
+      // Opcional -- CORREGIDO 2026-09-12. Ausente cuando la jugadora no tiene
+      // ninguna situación que supere el umbral de "merece denegarse" (0.35).
+      // `[PENDIENTE PRODUCTO, NO TÉCNICO]`: qué debe mostrar la Capa 0 del
+      // modo sencillo en ese caso -- ¿nada en el lugar de la acción, ¿el
+      // ganador de allow con un framing distinto ("sin amenaza clara, deja
+      // jugar"), ¿un texto genérico? No lo decido aquí, es exactamente el
+      // tipo de decisión de UX de lectura que le corresponde a Pablo (spec
+      // sección 7). El tipo ya permite la ausencia; falta decidir el diseño.
+      ...(deny ? { accionPrincipal: deny } : {}),
     };
     return reporte;
   }
@@ -456,14 +476,13 @@ export function ensamblarReporte(
       emparejamientoDefensivo: opts.emparejamientoDefensivo,
     },
     capa2: {
-      deny,
-      // CORREGIDO 2026-09-11: la primera versión forzaba un fallback a `deny`
-      // cuando force/allow faltaban, asumiendo (mal) que era un caso raro.
-      // Verificado contra los 10 perfiles reales: force falta en 4/10, allow
-      // en 2/10 -- no es un caso raro, es una fracción real. `force`/`allow`
-      // son opcionales en el contrato (motor-v1-types.ts) precisamente por
-      // esto -- se omiten aquí cuando el motor no generó ningún output real,
-      // nunca se sustituyen por otro campo.
+      // CORREGIDO 2026-09-11/12: la primera versión forzaba un fallback a
+      // `deny` cuando force/allow faltaban, asumiendo (mal) que era un caso
+      // raro. Verificado contra los perfiles reales: force falta en varios,
+      // allow en otros, y (2026-09-12) el propio `deny` también puede faltar
+      // (p020). Ninguno se sustituye por otro campo -- son opcionales en el
+      // contrato (motor-v1-types.ts) precisamente por esto.
+      ...(deny ? { deny } : {}),
       ...(force ? { force } : {}),
       ...(allow ? { allow } : {}),
       aware:

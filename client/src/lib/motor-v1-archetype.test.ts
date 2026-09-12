@@ -146,6 +146,24 @@ describe("detectarArchetype — grupo ALERO", () => {
     const r = detectarArchetype([sit("offScreen", 0.8), sit("handoff", 0.6), sit("cut", 0.5)], "alero", senales);
     expect(r.key).toBe("alero_movimiento");
   });
+
+  it("cutType=backdoor sin iso/pnr/post -> alero_movimiento, NUNCA alero_penetradora -- bug real corregido 2026-09-12", () => {
+    // Un corte a la espalda del defensor (backdoor) es la acción sin balón
+    // por definición -- explota que el defensor mira al balón, no un regate.
+    // Reproduce test-profiles.json p019 (cortadora pura, usage:'role',
+    // sin iso/pnr/post): antes de esta corrección, 'backdoor' contaba como
+    // penetración y el perfil salía alero_penetradora, lo contrario de lo
+    // que es.
+    const senales: SenalesArchetype = { ...SENALES_VACIAS, cutType: "backdoor" };
+    const r = detectarArchetype([sit("cut", 0.73), sit("transition", 0.34)], "alero", senales);
+    expect(r.key).toBe("alero_movimiento");
+  });
+
+  it("cutType=basket SÍ cuenta como penetración (corte recto al aro, no backdoor)", () => {
+    const senales: SenalesArchetype = { ...SENALES_VACIAS, cutType: "basket", contactFinish: "seeks", ath: 5 };
+    const r = detectarArchetype([sit("cut", 0.73)], "alero", senales);
+    expect(r.key).toBe("alero_penetradora");
+  });
 });
 
 describe("detectarArchetype — propiedades generales", () => {
@@ -240,6 +258,7 @@ describe("archetypeModificador — segunda dimensión excepcional (spec 14.3 bis
     const p008 = profiles.find((p) => p.id === "p008")!;
     const r = ensamblarReporte(p008.inputs as any, p008.clubContext as any, { jugadoraId: p008.id, modo: "completo" });
     if (r.modo !== "completo") throw new Error("esperaba modo completo");
+    if (!r.capa2.deny) throw new Error("p008 debería tener deny real (transición alta)");
     expect(r.capa2.deny.ganador.situacionOrigen).toBe("transition");
     expect(r.identidad.archetypeModificador).toBeUndefined();
   });

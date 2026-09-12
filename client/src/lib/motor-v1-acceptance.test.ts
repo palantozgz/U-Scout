@@ -113,13 +113,14 @@ describe("Motor 1.0 — cap anti-inflación con multi-situación primaria (spec 
 describe("Motor 1.0 — el motor nunca devuelve solo el ganador (spec 17.1, tipo CampoConCandidatos en 14.2 bis)", () => {
   const motor = new UScoutMotor();
 
-  it("cada perfil produce un ganador de deny y una lista de candidatos calculada de antemano (runnersUp)", () => {
+  it("cuando hay un ganador de deny, la lista de candidatos ya está calculada de antemano (runnersUp)", () => {
+    // NO se exige que 'deny' exista siempre -- CORREGIDO 2026-09-12: p020
+    // (jugadora de muy bajo impacto ofensivo) prueba que motor-v2.1.ts
+    // correctamente no produce ningún deny cuando ninguna situación supera
+    // el peso mínimo de 0.35 (ver spec 21.9). Exigirlo aquí sería imponer
+    // una suposición ya demostrada falsa con datos reales.
     for (const profile of profiles) {
       const report = motor.generateReport(profile.inputs as any, profile.clubContext as any);
-      expect(
-        (report.selected.deny?.length ?? 0) > 0,
-        `[${profile.name}] debe existir un ganador de deny`,
-      ).toBe(true);
       // El contrato de Fase 0 (`CampoConCandidatos`) exige ganador + candidatos
       // en UNA sola estructura por campo. Hoy viven separados (`selected` vs.
       // `runnersUp`, sin indicar a qué campo pertenece cada runner-up) — Motor
@@ -130,6 +131,12 @@ describe("Motor 1.0 — el motor nunca devuelve solo el ganador (spec 17.1, tipo
         `[${profile.name}] runnersUp debe existir como array (aunque esté vacío)`,
       ).toBe(true);
     }
+  });
+
+  it("p020 (jugadora de muy bajo impacto): motor-v2.1 no produce ningún deny -- verificado, no asumido", () => {
+    const p020 = profiles.find((p) => p.id === "p020")!;
+    const report = motor.generateReport(p020.inputs as any, p020.clubContext as any);
+    expect(report.selected.deny?.length ?? 0).toBe(0);
   });
 });
 
