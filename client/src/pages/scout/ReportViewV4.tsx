@@ -6,6 +6,7 @@ import { useLocale } from "@/lib/i18n";
 import {
   useApprovalStatus,
   invalidatePlayerApprovalQueries,
+  serverOverridesToReportOverrides,
 } from "@/lib/approval-api";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/useAuth";
@@ -73,16 +74,13 @@ export default function ReportViewV4({
 
   const coachId = profile?.id ?? user?.id ?? "";
 
+  // CORREGIDO 2026-09-12 (picker de alternativas, spec 21.11): usaba un
+  // mapeo propio que colapsaba cualquier action distinta de "hide" a
+  // "approve_as_is" -- un "replace" real elegido en el picker se perdía
+  // aquí y nunca llegaba a aplicarse. serverOverridesToReportOverrides ya
+  // tiene el mapeo correcto (compartido, no duplicado).
   const myOverrides: ReportOverride[] = useMemo(() => {
-    return (approvalData?.overrides ?? [])
-      .filter((o) => o.coachId === coachId)
-      .map((o) => ({
-        playerId,
-        coachId: o.coachId,
-        slide: o.slide,
-        itemKey: o.itemKey,
-        action: o.action === "hide" ? "hide" : "approve_as_is",
-      }));
+    return serverOverridesToReportOverrides(approvalData?.overrides ?? [], playerId, coachId);
   }, [approvalData?.overrides, coachId, playerId]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);

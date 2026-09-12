@@ -16,7 +16,17 @@ export type ApprovalSlide =
 export interface ApprovalStatusPayload {
   approvals: Array<{ coachId: string; approvedAt: string }>;
   totalStaff: number;
-  overrides: Array<{ coachId: string; slide: string; itemKey: string; action: string }>;
+  overrides: Array<{
+    coachId: string;
+    slide: string;
+    itemKey: string;
+    action: string;
+    // Añadidos 2026-09-12 (picker de alternativas, spec motor-1.0 21.11) --
+    // solo presentes cuando action === "replace".
+    replacementValue?: string;
+    originalScore?: number;
+    replacementScore?: number;
+  }>;
   isPublished: boolean;
   hasDiscrepancy: boolean;
 }
@@ -39,7 +49,14 @@ export function useApprovalStatus(
   });
 }
 
-/** Map server rows to client ReportOverride (keep → replace without persisted replacement text). */
+/**
+ * Map server rows to client ReportOverride.
+ * CORREGIDO 2026-09-12 (picker de alternativas, spec 21.11): antes
+ * colapsaba cualquier action que no fuera "hide" a "approve_as_is" --
+ * un "replace" real (elegido en el picker) se perdía y `applyOverrides`
+ * nunca llegaba a aplicarlo. Ahora se pasa tal cual, con su
+ * replacementValue.
+ */
 export function serverOverridesToReportOverrides(
   rows: ApprovalStatusPayload["overrides"],
   playerId: string,
@@ -52,7 +69,13 @@ export function serverOverridesToReportOverrides(
       coachId: o.coachId,
       slide: o.slide,
       itemKey: o.itemKey,
-      action: o.action === "hide" ? "hide" : "approve_as_is",
+      action: (o.action === "hide" || o.action === "replace" ? o.action : "approve_as_is") as
+        | "hide"
+        | "replace"
+        | "approve_as_is",
+      replacementValue: o.action === "replace" ? o.replacementValue : undefined,
+      originalScore: o.originalScore,
+      replacementScore: o.replacementScore,
     }));
 }
 
@@ -104,10 +127,22 @@ export function useUnapproveReport(playerId: string) {
   });
 }
 
+export interface SetReportOverrideBody {
+  slide: ApprovalSlide;
+  itemKey: string;
+  action: "hide" | "keep" | "replace" | "approve_as_is";
+  /** Solo relevantes cuando action === "replace" (picker de alternativas, spec 21.11). */
+  replacementValue?: string;
+  originalScore?: number;
+  replacementScore?: number;
+  archetypeKey?: string;
+  locale?: "en" | "es" | "zh";
+}
+
 export function useSetReportOverride(playerId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { slide: ApprovalSlide; itemKey: string; action: "hide" | "keep" }) => {
+    mutationFn: async (body: SetReportOverrideBody) => {
       await apiRequest("POST", `/api/players/${encodeURIComponent(playerId)}/overrides`, body);
     },
     onSuccess: () => void invalidatePlayerApprovalQueries(qc, playerId),

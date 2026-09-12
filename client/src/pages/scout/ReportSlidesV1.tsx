@@ -26,6 +26,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { applyOverrides, type ReportOverride } from "@/lib/overrideEngine";
+import { useSetReportOverride, useDeleteReportOverride, type ApprovalSlide } from "@/lib/approval-api";
 
 const BasketballPlaceholderAvatar = lazy(() =>
   import("@/components/BasketballPlaceholderAvatar").then(m => ({
@@ -45,6 +46,15 @@ interface ActiveSheet {
   title: string;
   current: string;
   alternatives: { text: string; score: number }[];
+  /**
+   * Picker de alternativas (spec motor-1.0 sección 21.11) -- solo presente
+   * en los sheets de deny/force/allow (los únicos con datos suficientes:
+   * texto + score por candidato, ya renderizados por reportTextRenderer.ts).
+   * Ausente en los sheets de situaciones/archetype -- esos siguen siendo
+   * de solo lectura, el picker no se extendió ahí en esta pasada.
+   */
+  itemKey?: string;
+  originalScore?: number;
 }
 
 const TOTAL_SLIDES = 3;
@@ -68,6 +78,12 @@ export default function ReportSlidesV1({
   const { t, locale } = useLocale();
   const { user } = useAuth();
   const { data: player, isLoading } = usePlayer(playerId);
+  // Picker de alternativas (spec motor-1.0 sección 21.11) -- solo se usan
+  // cuando coachMode. El servidor infiere coachId de la sesión autenticada,
+  // no hace falta pasarlo aquí.
+  const setOverride = useSetReportOverride(playerId);
+  const deleteOverride = useDeleteReportOverride(playerId);
+  const [pickingIdx, setPickingIdx] = useState<number | null>(null);
   const displayName = player ? localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) : "";
   const clubQ = useClub({ enabled: Boolean(user) });
   const clubMotorCtx = useMemo(
@@ -178,6 +194,7 @@ export default function ReportSlidesV1({
     type: "deny" | "force" | "allow",
     current: string,
     alternatives: { instruction: string; score: number }[],
+    originalScore: number,
   ) {
     const labels = {
       deny:  { en: "DENY alternatives",  es: "Alternativas DENY",  zh: "封堵备选" },
@@ -188,6 +205,10 @@ export default function ReportSlidesV1({
       title: labels[type][locale],
       current,
       alternatives: alternatives.map((a) => ({ text: a.instruction, score: a.score })),
+      // itemKey sigue la misma convención que OverridePanel.tsx
+      // (toServerSlideAndItemKey) -- "deny.instruction" etc.
+      itemKey: `${type}.instruction`,
+      originalScore,
     });
   }
 
@@ -279,6 +300,47 @@ export default function ReportSlidesV1({
         ? [finalReport.defense.allow.instruction]
         : [],
   };
+
+  // Picker de alternativas (spec motor-1.0 sección 21.11) -- ¿hay ya un
+  // "replace" guardado para el campo que el sheet abierto representa?
+  const activeReplaceOverride = activeSheet?.itemKey
+    ? overrides?.find(
+        (o) => o.slide === "defense" && o.itemKey === activeSheet.itemKey && o.action === "replace",
+      )
+    : undefined;
+
+  async function pickAlternative(alt: { text: string; score: number }, idx: number) {
+    if (!activeSheet?.itemKey) return;
+    setPickingIdx(idx);
+    try {
+      await setOverride.mutateAsync({
+        slide: "defense" as ApprovalSlide,
+        itemKey: activeSheet.itemKey,
+        action: "replace",
+        replacementValue: alt.text,
+        originalScore: activeSheet.originalScore,
+        replacementScore: alt.score,
+        archetypeKey: motorOutput!.identity.archetypeKey,
+        locale: locale as "en" | "es" | "zh",
+      });
+    } catch (e) {
+      console.error("[ReportSlidesV1] pickAlternative failed", e);
+    } finally {
+      setPickingIdx(null);
+    }
+  }
+
+  async function restoreOriginal() {
+    if (!activeSheet?.itemKey) return;
+    setPickingIdx(-1);
+    try {
+      await deleteOverride.mutateAsync(activeSheet.itemKey);
+    } catch (e) {
+      console.error("[ReportSlidesV1] restoreOriginal failed", e);
+    } finally {
+      setPickingIdx(null);
+    }
+  }
 
   const SLIDE_LABELS = [
     es ? "¿Quién es?" : zh ? "她是谁？" : "Who is she?",
@@ -451,7 +513,7 @@ export default function ReportSlidesV1({
         {slide === 2 && (
           <div className="px-4 pt-6 pb-24 space-y-3 max-w-lg mx-auto">
             {defensivePlan.deny.length > 0 && (
-              <button type="button" onClick={() => openDefenseSheet("deny", defensivePlan.deny[0], finalReport.defense.deny.alternatives ?? [])}
+              <button type="button" onClick={() => openDefenseSheet("deny", defensivePlan.deny[0], finalReport.defense.deny.alternatives ?? [], motorOutput.defense.deny.winner.score)}
                 className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card active:bg-muted/40 transition-colors", DENY_CLASSES.border)}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={cn("w-2 h-2 rounded-full shrink-0", DENY_CLASSES.dot)} />
@@ -463,7 +525,7 @@ export default function ReportSlidesV1({
               </button>
             )}
             {defensivePlan.force.length > 0 && (
-              <button type="button" onClick={() => openDefenseSheet("force", defensivePlan.force[0], finalReport.defense.force.alternatives ?? [])}
+              <button type="button" onClick={() => openDefenseSheet("force", defensivePlan.force[0], finalReport.defense.force.alternatives ?? [], motorOutput.defense.force.winner.score)}
                 className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card active:bg-muted/40 transition-colors", FORCE_CLASSES.border)}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={cn("w-2 h-2 rounded-full shrink-0", FORCE_CLASSES.dot)} />
@@ -475,7 +537,7 @@ export default function ReportSlidesV1({
               </button>
             )}
             {defensivePlan.allow.length > 0 && (
-              <button type="button" onClick={() => openDefenseSheet("allow", defensivePlan.allow[0], finalReport.defense.allow.alternatives ?? [])}
+              <button type="button" onClick={() => openDefenseSheet("allow", defensivePlan.allow[0], finalReport.defense.allow.alternatives ?? [], motorOutput.defense.allow.winner.score)}
                 className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card active:bg-muted/40 transition-colors", ALLOW_CLASSES.border)}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={cn("w-2 h-2 rounded-full shrink-0", ALLOW_CLASSES.dot)} />
@@ -537,9 +599,23 @@ export default function ReportSlidesV1({
             <SheetTitle className="text-base font-black">{activeSheet?.title}</SheetTitle>
           </SheetHeader>
           <div className="mb-3">
-            <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-muted-foreground/60">
-              {es ? "Actual" : zh ? "当前" : "Current"}
-            </p>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/60">
+                {es ? "Actual" : zh ? "当前" : "Current"}
+              </p>
+              {coachMode && activeSheet?.itemKey && activeReplaceOverride && (
+                <button
+                  type="button"
+                  onClick={() => void restoreOriginal()}
+                  disabled={pickingIdx !== null}
+                  className="text-[10px] font-bold text-primary/80 underline disabled:opacity-40"
+                >
+                  {pickingIdx === -1
+                    ? (es ? "Restaurando…" : zh ? "恢复中…" : "Restoring…")
+                    : (es ? "Restaurar recomendación original" : zh ? "恢复引擎原始建议" : "Restore original recommendation")}
+                </button>
+              )}
+            </div>
             <p className="text-sm font-semibold text-foreground/80">{activeSheet?.current}</p>
           </div>
           {activeSheet && activeSheet.alternatives.length > 0 ? (
@@ -547,14 +623,60 @@ export default function ReportSlidesV1({
               <p className="mb-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground/50">
                 {es ? "Alternativas del motor" : zh ? "引擎备选" : "Engine alternatives"}
               </p>
-              {activeSheet.alternatives.map((alt, idx) => (
-                <div key={idx} className="rounded-xl border border-border/60 bg-card px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
+              {activeSheet.alternatives.map((alt, idx) => {
+                // Picker interactivo (spec 21.11): solo para deny/force/allow
+                // (activeSheet.itemKey presente) y solo en modo entrenador --
+                // la jugadora nunca puede reescribir su propio informe.
+                const puedeElegir = coachMode && Boolean(activeSheet.itemKey);
+                const yaElegida = activeReplaceOverride?.replacementValue === alt.text;
+                const eligiendoEsta = pickingIdx === idx;
+                const row = (
+                  <div
+                    className={cn(
+                      "flex items-start justify-between gap-3 rounded-xl border px-4 py-3 transition-colors",
+                      yaElegida
+                        ? "border-primary bg-primary/5"
+                        : "border-border/60 bg-card",
+                      puedeElegir && !yaElegida && "active:bg-muted/40",
+                    )}
+                  >
                     <p className="flex-1 text-sm leading-snug text-foreground/85">{alt.text}</p>
-                    <span className="shrink-0 text-xs font-black tabular-nums text-muted-foreground/50">{Math.round(alt.score * 100)}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-xs font-black tabular-nums text-muted-foreground/50">
+                        {Math.round(alt.score * 100)}
+                      </span>
+                      {puedeElegir && (
+                        <span
+                          className={cn(
+                            "text-[10px] font-bold uppercase tracking-wide",
+                            yaElegida ? "text-primary" : "text-muted-foreground/50",
+                          )}
+                        >
+                          {eligiendoEsta
+                            ? "…"
+                            : yaElegida
+                              ? (es ? "Elegida ✓" : zh ? "已选 ✓" : "Chosen ✓")
+                              : (es ? "Elegir esta" : zh ? "选择此项" : "Choose this")}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+                if (!puedeElegir || yaElegida) {
+                  return <div key={idx}>{row}</div>;
+                }
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => void pickAlternative(alt, idx)}
+                    disabled={pickingIdx !== null}
+                    className="block w-full text-left disabled:opacity-60"
+                  >
+                    {row}
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <p className="py-4 text-center text-sm text-muted-foreground/50">

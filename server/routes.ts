@@ -136,17 +136,36 @@ const reportOverrideBodySchema = z.object({
     "alerts",
   ]),
   itemKey: z.string().min(1),
-  action: z.enum(["hide", "keep"]),
+  // "replace"/"approve_as_is" añadidos 2026-09-12 (picker de alternativas,
+  // spec motor-1.0 sección 21.11) -- antes solo hide/keep, sin forma de
+  // elegir un candidato distinto al ganador del motor.
+  action: z.enum(["hide", "keep", "replace", "approve_as_is"]),
+  // Solo se validan/usan cuando action === "replace".
+  replacementValue: z.string().min(1).optional(),
+  originalScore: z.number().min(0).max(1).optional(),
+  replacementScore: z.number().min(0).max(1).optional(),
+  archetypeKey: z.string().optional(),
+  locale: z.enum(["en", "es", "zh"]).optional(),
 });
 
 function computeHasDiscrepancy(
-  overrides: Array<{ coachId: string; slide: string; itemKey: string; action: string }>,
+  overrides: Array<{
+    coachId: string;
+    slide: string;
+    itemKey: string;
+    action: string;
+    replacementValue?: string;
+  }>,
 ): boolean {
   const byKey = new Map<string, Map<string, string>>();
   for (const o of overrides) {
     const k = `${o.slide}\0${o.itemKey}`;
     if (!byKey.has(k)) byKey.set(k, new Map());
-    byKey.get(k)!.set(o.coachId, o.action);
+    // CORREGIDO 2026-09-12: antes solo comparaba `action` -- dos entrenadores
+    // con action:"replace" pero eligiendo alternativas DISTINTAS (replacementValue
+    // distinto) no se detectaban como discrepancia. Ahora la clave de
+    // comparación incluye el valor elegido cuando existe.
+    byKey.get(k)!.set(o.coachId, o.replacementValue ? `${o.action}\0${o.replacementValue}` : o.action);
   }
   for (const m of Array.from(byKey.values())) {
     if (m.size < 2) continue;
@@ -457,6 +476,11 @@ export async function registerRoutes(
         slide: o.slide,
         itemKey: o.itemKey,
         action: o.action,
+        // Añadidos 2026-09-12 (picker de alternativas) -- sin esto,
+        // ReportSlidesV1 no puede aplicar un override de tipo "replace".
+        replacementValue: o.replacementValue ?? undefined,
+        originalScore: o.originalScore ?? undefined,
+        replacementScore: o.replacementScore ?? undefined,
       }));
 
       res.json({
@@ -511,6 +535,12 @@ export async function registerRoutes(
           slide: o.slide,
           itemKey: o.itemKey,
           action: o.action,
+          // Expuestos 2026-09-12 (picker de alternativas) -- el frontend los
+          // necesita para mostrar "ya elegiste esta alternativa" al reabrir
+          // el sheet, no solo para guardar.
+          replacementValue: o.replacementValue ?? undefined,
+          originalScore: o.originalScore ?? undefined,
+          replacementScore: o.replacementScore ?? undefined,
         }));
       res.json(mine);
     } catch (err) {
@@ -533,6 +563,11 @@ export async function registerRoutes(
         slide: parsed.data.slide,
         itemKey: parsed.data.itemKey,
         action: parsed.data.action,
+        replacementValue: parsed.data.replacementValue,
+        originalScore: parsed.data.originalScore,
+        replacementScore: parsed.data.replacementScore,
+        archetypeKey: parsed.data.archetypeKey,
+        locale: parsed.data.locale,
       });
       res.status(204).send();
     } catch (err) {
@@ -722,6 +757,7 @@ export async function registerRoutes(
               slide: o.slide,
               itemKey: o.itemKey,
               action: o.action,
+              replacementValue: o.replacementValue ?? undefined,
             }));
             approvalStatus = {
               approvals: approvalRows.map((a) => ({

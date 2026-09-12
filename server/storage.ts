@@ -156,7 +156,14 @@ export interface IStorage {
     coachId: string;
     slide: string;
     itemKey: string;
-    action: "hide" | "keep";
+    action: "hide" | "keep" | "replace" | "approve_as_is";
+    // Solo relevantes cuando action === "replace" -- picker de alternativas,
+    // spec motor-1.0 sección 21.11.
+    replacementValue?: string;
+    originalScore?: number;
+    replacementScore?: number;
+    archetypeKey?: string;
+    locale?: string;
   }): Promise<void>;
   deleteReportOverride(playerId: string, coachId: string, itemKey: string): Promise<void>;
   publishPlayerReport(playerId: string, publishedBy: string): Promise<Player | undefined>;
@@ -828,9 +835,34 @@ export class DatabaseStorage implements IStorage {
     coachId: string;
     slide: string;
     itemKey: string;
-    action: "hide" | "keep";
+    action: "hide" | "keep" | "replace" | "approve_as_is";
+    replacementValue?: string;
+    originalScore?: number;
+    replacementScore?: number;
+    archetypeKey?: string;
+    locale?: string;
   }): Promise<void> {
     const now = new Date();
+    // Campos de "replace" -- si la acción no es "replace", se guardan como
+    // null explícito (no se conserva un valor viejo de una acción anterior
+    // sobre el mismo itemKey, ej. si el entrenador vuelve a "keep" después
+    // de haber elegido una alternativa).
+    const replaceFields =
+      row.action === "replace"
+        ? {
+            replacementValue: row.replacementValue ?? null,
+            originalScore: row.originalScore ?? null,
+            replacementScore: row.replacementScore ?? null,
+            archetypeKey: row.archetypeKey ?? null,
+            locale: row.locale ?? null,
+          }
+        : {
+            replacementValue: null,
+            originalScore: null,
+            replacementScore: null,
+            archetypeKey: row.archetypeKey ?? null,
+            locale: row.locale ?? null,
+          };
     const [existing] = await db
       .select()
       .from(reportOverrides)
@@ -845,7 +877,7 @@ export class DatabaseStorage implements IStorage {
     if (existing) {
       await db
         .update(reportOverrides)
-        .set({ action: row.action, createdAt: now })
+        .set({ action: row.action, createdAt: now, ...replaceFields })
         .where(eq(reportOverrides.id, existing.id));
     } else {
       await db.insert(reportOverrides).values({
@@ -854,6 +886,7 @@ export class DatabaseStorage implements IStorage {
         slide: row.slide,
         itemKey: row.itemKey,
         action: row.action,
+        ...replaceFields,
       });
     }
   }

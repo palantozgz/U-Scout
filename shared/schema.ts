@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, timestamp, unique, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, jsonb, timestamp, unique, boolean, integer, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -217,6 +217,18 @@ export const reportOverrides = pgTable(
     itemKey: text("item_key").notNull(),
     action: varchar("action", { length: 16 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // Columnas añadidas 2026-09-12 (picker de alternativas, spec motor-1.0
+    // sección 21.11) -- ya existían en la tabla real de Supabase, declaradas
+    // aquí para que Drizzle pueda leerlas/escribirlas. Solo se usan cuando
+    // action === "replace": el texto ya renderizado de la alternativa elegida
+    // y los scores del ganador original vs. el sustituto (spec 17.2, "score
+    // gap" -- señal de diagnóstico para calibración futura).
+    replacementValue: text("replacement_value"),
+    originalScore: numeric("original_score", { mode: "number" }),
+    replacementScore: numeric("replacement_score", { mode: "number" }),
+    archetypeKey: text("archetype_key"),
+    locale: varchar("locale", { length: 8 }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
   },
   (table) => [
     unique("report_overrides_player_coach_slide_item").on(
