@@ -158,6 +158,11 @@ export const clubMembers = pgTable(
     position: text("position").notNull().default(""),
     /** Operations badge: grants additional staff capabilities (e.g., wellness ops). */
     operationsAccess: boolean("operations_access").notNull().default(false),
+    /** Publish badge (spec motor-1.0 sección 25.1/26): permite publicar
+     *  informes de scouting a las jugadoras (POST /players/:id/game-plan)
+     *  sin ser head_coach/master. Delegable por head_coach, igual patrón
+     *  que operationsAccess. */
+    reportPublishAccess: boolean("report_publish_access").notNull().default(false),
     status: varchar("status", { length: 16 }).notNull().default("active"),
     invitedEmail: text("invited_email"),
     joinedAt: timestamp("joined_at", { withTimezone: true }),

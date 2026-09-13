@@ -1,7 +1,7 @@
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList, Dumbbell, X, ChevronRight } from "lucide-react";
+import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList, Dumbbell, Send, X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +38,7 @@ import { apiRequest } from "@/lib/queryClient";
 type Translate = ReturnType<typeof useLocale>["t"];
 import { useAuth } from "@/lib/useAuth";
 import { useCapabilities, type ClubMembership } from "@/lib/capabilities";
-import { canBanMember, canRemoveMember, canToggleOperationsAccess, type ClubActorRole } from "@/lib/clubMemberPermissions";
+import { canBanMember, canRemoveMember, canToggleOperationsAccess, canToggleReportPublishAccess, type ClubActorRole } from "@/lib/clubMemberPermissions";
 import {
   useClub,
   usePatchClub,
@@ -46,6 +46,7 @@ import {
   useDeleteClubMember,
   useBanClubMember,
   useSetClubMemberOperationsAccess,
+  useSetClubMemberReportPublishAccess,
   useRevokeClubInvitation,
   useClubStats,
   clubStatsQueryKey,
@@ -332,6 +333,7 @@ export default function ClubManagement() {
   const delMember = useDeleteClubMember();
   const banMut = useBanClubMember();
   const opsMut = useSetClubMemberOperationsAccess();
+  const publishMut = useSetClubMemberReportPublishAccess();
   const revokeInv = useRevokeClubInvitation();
   const statsQ = useClubStats({ enabled: activeTab === "stats" });
 
@@ -1137,6 +1139,7 @@ export default function ClubManagement() {
                           delMember={delMember}
                           banMut={banMut}
                           opsMut={opsMut}
+                          publishMut={publishMut}
                         />
                       ))}
                     </div>
@@ -1183,6 +1186,7 @@ export default function ClubManagement() {
                         delMember={delMember}
                         banMut={banMut}
                         opsMut={opsMut}
+                        publishMut={publishMut}
                       />
                     ));
                   })()}
@@ -1388,6 +1392,7 @@ function MemberRow({
   delMember,
   banMut,
   opsMut,
+  publishMut,
 }: {
   m: ClubMemberDto;
   variant: "staff" | "player";
@@ -1400,6 +1405,7 @@ function MemberRow({
   delMember: ReturnType<typeof useDeleteClubMember>;
   banMut: ReturnType<typeof useBanClubMember>;
   opsMut: ReturnType<typeof useSetClubMemberOperationsAccess>;
+  publishMut: ReturnType<typeof useSetClubMemberReportPublishAccess>;
 }) {
   const isOwner = m.userId === clubOwnerId && m.role === "head_coach";
   const isSelf = m.userId === profileId;
@@ -1408,6 +1414,8 @@ function MemberRow({
   const canBan = canBanMember({ meRole, targetRole: m.role, isOwner, isSelf });
   const canOps = canToggleOperationsAccess({ meRole, targetRole: m.role, isOwner, isSelf });
   const opsEnabled = Boolean(m.operationsAccess) && m.role === "coach";
+  const canPublish = canToggleReportPublishAccess({ meRole, targetRole: m.role, isOwner, isSelf });
+  const publishEnabled = Boolean(m.reportPublishAccess) && m.role === "coach";
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [banConfirmOpen, setBanConfirmOpen] = useState(false);
 
@@ -1442,6 +1450,12 @@ function MemberRow({
             <Badge variant="outline" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] font-black uppercase tracking-wide">
               <Dumbbell className="w-3 h-3" />
               PREP
+            </Badge>
+          ) : null}
+          {m.role === "coach" && publishEnabled ? (
+            <Badge variant="outline" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] font-black uppercase tracking-wide">
+              <Send className="w-3 h-3" />
+              {t("club_publish_access_badge")}
             </Badge>
           ) : null}
           <Badge variant={banned ? "destructive" : "outline"} className="text-[10px] font-bold uppercase">
@@ -1483,6 +1497,33 @@ function MemberRow({
                   }}
                 >
                   {opsEnabled ? t("club_ops_access_remove") : t("club_ops_access_grant")}
+                </DropdownMenuItem>
+              ) : null}
+              {canPublish ? (
+                <DropdownMenuItem
+                  className="font-medium"
+                  onSelect={() => {
+                    const next = !publishEnabled;
+                    publishMut.mutate(
+                      { id: m.id, reportPublishAccess: next },
+                      {
+                        onSuccess: () => {
+                          toast({ description: next ? t("club_publish_access_grant") : t("club_publish_access_remove") });
+                        },
+                        onError: (err) => {
+                          toast({
+                            description:
+                              typeof (err as any)?.message === "string"
+                                ? (err as any).message
+                                : t("schedule_edit_error"),
+                            variant: "destructive" as any,
+                          });
+                        },
+                      },
+                    );
+                  }}
+                >
+                  {publishEnabled ? t("club_publish_access_remove") : t("club_publish_access_grant")}
                 </DropdownMenuItem>
               ) : null}
               {!isSelf ? (
@@ -1540,6 +1581,35 @@ function MemberRow({
                 }}
               >
                 {opsEnabled ? t("club_ops_access_remove") : t("club_ops_access_grant")}
+              </Button>
+            ) : null}
+            {canPublish ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={publishMut.isPending}
+                onClick={() => {
+                  const next = !publishEnabled;
+                  publishMut.mutate(
+                    { id: m.id, reportPublishAccess: next },
+                    {
+                      onSuccess: () => {
+                        toast({ description: next ? t("club_publish_access_grant") : t("club_publish_access_remove") });
+                      },
+                      onError: (err) => {
+                        toast({
+                          description:
+                            typeof (err as any)?.message === "string"
+                              ? (err as any).message
+                              : t("schedule_edit_error"),
+                          variant: "destructive" as any,
+                        });
+                      },
+                    },
+                  );
+                }}
+              >
+                {publishEnabled ? t("club_publish_access_remove") : t("club_publish_access_grant")}
               </Button>
             ) : null}
             <Button

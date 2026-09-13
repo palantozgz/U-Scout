@@ -32,6 +32,19 @@ export function canToggleOperationsAccess(args: MemberPermissionArgs): boolean {
   return false;
 }
 
+/** Permiso delegable de publicación (spec motor-1.0 sección 25.1/26) --
+ *  mismas reglas exactas que canToggleOperationsAccess: solo head_coach/
+ *  master pueden dar/quitar el badge, nunca sobre sí mismos ni sobre otro
+ *  head_coach. */
+export function canToggleReportPublishAccess(args: MemberPermissionArgs): boolean {
+  if (!args.meRole) return false;
+  if (args.isOwner) return false;
+  if (args.isSelf) return false;
+  if (args.meRole === "master") return true;
+  if (args.meRole === "head_coach") return args.targetRole === "coach";
+  return false;
+}
+
 export function canPromoteMember(_args: MemberPermissionArgs): boolean {
   // Not implemented in UI yet.
   return false;

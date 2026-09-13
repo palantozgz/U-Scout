@@ -1541,3 +1541,36 @@ Es decir: las dos rutas (la migrada a Motor 1.0 y la del motor viejo) respetan e
 - El tercer motor (`generateProfile()`/`Profile.tsx`) sigue vivo y sin auditar. Retirarlo, migrarlo, o dejarlo así sigue siendo una decisión de alcance (Fase 3 del roadmap) — no tocado en esta pasada, el hueco de seguridad que sí era claramente "consecuente con los objetivos" arreglar ya está cerrado independientemente de qué motor calcule el contenido.
 
 Verificado: `npm run check` limpio (sin tests de servidor en este proyecto — ningún archivo `*.test.ts` bajo `server/`, verificado por `find`; la verificación aquí es por lectura cuidadosa + comprobación directa del esquema real, no por test automatizado).
+
+## 26. Limpieza de arqueología + gate de publicación real + permiso delegable — cerrado (2026-09-14)
+
+> Pablo, respuesta directa a la sección 25: *"eliminaremos todo la arqueológica de código que no sea necesaria... sobre cuántos entrenadores son necesarios para aprobar un informe, uno... cíñete a las especificaciones... U Scout en 'My Club' [debería tener] un botón para que este último paso lo haga solo el head coach o pueda dar permisos a otros coaches."* Delegado en El Arquitecto el inventario y el diseño antes de tocar código (mismo patrón que 21.7/23/24).
+
+### 26.1. Hallazgo central de El Arquitecto — el botón real de publicar no es el que la spec asumía
+
+**[VERIFICADO]** `POST /api/players/:id/publish` (`server/routes.ts`) ya implementaba correctamente el gate de ≥1 aprobación (spec 17.1 paso 4) — pero **nada de la UI lo llama** (`usePublishReport()` está definido, cero usos). **El botón real que un entrenador pulsa ("→ Game Plan" en `FilmRoom.tsx`) llama a `POST /api/players/:id/game-plan`**, que hace la auto-asignación masiva a todas las jugadoras del club y **no comprobaba ni aprobación ni permiso**. Corrección de precisión sobre la sección 25.1: el endpoint a arreglar no era `/report-assignments` (sin callers reales), era `/game-plan`.
+
+**[VERIFICADO]** `ReportViewV4.tsx` (que la sección 25 podía leerse como código sospechoso) **no es arqueología** — es el wrapper real de revisión de coach (`/coach/scout/:id/review`), enlazado desde 5 pantallas reales. No se toca.
+
+### 26.2. Gate de aprobación + permiso, implementado
+
+- `POST /api/players/:id/game-plan` y `POST /api/report-assignments` (este último sin callers hoy, arreglado igual por disciplina — si algún día se cablea, no debe reabrir el hueco) ahora exigen: **≥1 aprobación registrada** (mismo chequeo que ya tenía `/publish`, copiado literal) **y** permiso de club para publicar.
+- Permiso nuevo, delegable — `reportPublishAccess` en `club_members`, **mismo patrón exacto que `operationsAccess`** (ya construido y en producción para "quién gestiona Personnel/Wellness/Schedule"): columna nueva (migración `0005`, aplicada directamente contra Supabase de producción — `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, aditiva, sin downtime), `canToggleReportPublishAccess()` (`clubMemberPermissions.ts`, solo head_coach/master delegan, nunca sobre sí mismos ni sobre otro head_coach), `canPublishReports` en `capabilities.ts` (head_coach/master siempre; coach solo con el badge), endpoint `PATCH /api/club/members/:id/report-publish-access`, hook `useSetClubMemberReportPublishAccess()`.
+- UI en `ClubManagement.tsx` ("Mi Club"): segundo toggle junto al badge "PREP" (preparador físico) ya existente, con su propio badge "PUBLICAR"/"PUBLISH"/"发布权限" — mismo componente `MemberRow`, mismo patrón visual.
+- `FilmRoom.tsx::handlePublish()`: antes fallaba en silencio (solo rollback optimista). Ahora distingue el mensaje real ("hace falta ≥1 aprobación" / "no tienes permiso, pídeselo al head coach") en vez de un fallo mudo.
+
+**Explícitamente sin tocar:** el flujo de 4 pasos de la sección 17 (edición → propuesta → discrepancias → ≥1 aprobación → publicación) no se rediseña, solo se cierra el cableado que faltaba. `/unpublish` (retirar un informe ya publicado) se queda restringido a head_coach/master a propósito — no se extendió al nuevo permiso delegable, es una acción más destructiva que publicar y no fue lo que se pidió.
+
+### 26.3. Limpieza de arqueología — plan de El Arquitecto, ejecutado por bloques
+
+**Bloque B, ya hecho (riesgo cero, verificado con grep antes de borrar cada uno):**
+- `client/src/pages/scout/Dashboard.tsx` (`CoachDashboard`) — cero importadores en todo el repo.
+- `overrideEngine.ts::applyOverrides()` (legacy, no la V1) — cero callers.
+- Prefetch muerto de `@/lib/motor-v4` en `useHomeData.ts`.
+
+**Bloque C (`Profile.tsx`) y Bloque D (`QuickScout.tsx`/`PlayerEditor.tsx`/`generateProfile()`), pendientes, plan ya cerrado por El Arquitecto, no ejecutados en esta pasada:**
+- `Profile.tsx` (1173 líneas): recomendación decidida es **retirar, no reescribir** — `/player/:id` puede montar `ReportSlidesV1` directamente (mismo patrón que `/player/report/:id`), y `/coach/player/:id/profile` (sin enlaces reales) se elimina sin más. Pendiente `[A VALIDAR CON PABLO]` menor: si las hojas de alternativas de deny/force/allow/situación deben ocultarse del todo en modo jugadora (hoy son visibles-pero-no-elegibles también en `ReportSlidesV1`, comportamiento a confirmar que es el deseado antes de dar la migración por completamente cerrada).
+- `generateProfile()`/`isoDanger` de `mock-data.ts`: **no es un preview en vivo** (corrección real de El Arquitecto sobre la premisa inicial) — se persiste en cada guardado (`QuickScout.tsx`, `PlayerEditor.tsx` ×2) y lo leen 2 pantallas más (`MyScout.tsx::hasRealArchetype`, la tarjeta de `ScoutDesktop.tsx`). Requiere migrar esos 2 lectores primero (a un criterio basado en `inputs`/a `ensamblarReporte()`+`motor-v1-archetype`, mismo patrón que el semáforo de `Personnel.tsx`, spec 23.9) antes de poder quitar los 3 puntos de guardado.
+- `motor-v4.ts`/`motor-v2.1.ts`/`reportTextRenderer.ts` (legacy): **no son arqueología retirable todavía** — `motor-v2.1.ts` es el núcleo calibrado que `motor-v1.ts` sigue usando en tiempo de ejecución (spec sección 3, no se toca nunca); `motor-v4.ts`/`reportTextRenderer.ts` (legacy) siguen como referencia de aceptación en 2 archivos de test (`motor-v1-acceptance.test.ts`, `closeoutThreat.test.ts`) y `reportTextRendererV1.ts` reutiliza ~600 líneas de sus helpers a propósito (spec 23.7) — retirarlos exige separar esos helpers a un archivo compartido nuevo primero. Fase 3 real.
+
+Verificado (Bloque A + B, lo implementado hoy): `npm run check`/`check:tests` limpios, `npx vitest run` 205/205. Migración `0005` aplicada y confirmada contra el esquema real de Supabase antes de escribir código contra ella.

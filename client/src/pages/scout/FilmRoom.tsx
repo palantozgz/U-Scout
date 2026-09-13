@@ -8,6 +8,7 @@ import { useApprovalStatus } from "@/lib/approval-api";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 import type { PlayerProfile } from "@/lib/mock-data";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -263,6 +264,30 @@ export default function FilmRoom() {
       // Rollback on error
       qc.invalidateQueries({ queryKey: ["/api/film-room"] });
       console.error("publish failed", err);
+      // CORREGIDO 2026-09-14 (spec motor-1.0 sección 25.1/26): el servidor
+      // ahora puede rechazar la publicación por falta de aprobación (≥1
+      // entrenador) o por falta de permiso de club -- antes fallaba en
+      // silencio, solo con el rollback optimista. Mensaje específico en vez
+      // de un fallo mudo.
+      const raw = err instanceof Error ? err.message : String(err);
+      const noApproval = raw.includes("coach approval is required");
+      const noPermission = raw.includes("don't have permission to publish");
+      toast({
+        description: noApproval
+          ? (es
+              ? "Hace falta al menos una aprobación de un entrenador antes de publicar."
+              : zh
+                ? "发布前需要至少一位教练的批准。"
+                : "At least one coach approval is required before publishing.")
+          : noPermission
+            ? (es
+                ? "No tienes permiso para publicar informes -- pídeselo al head coach en Mi Club."
+                : zh
+                  ? "你没有发布报告的权限 -- 请在“我的俱乐部”中向主教练申请。"
+                  : "You don't have permission to publish reports -- ask your head coach in My Club.")
+            : (es ? "No se pudo publicar el informe." : zh ? "无法发布报告。" : "Could not publish the report."),
+        variant: "destructive" as any,
+      });
     } finally {
       setPublishingId(null);
       // Background refresh to sync real state

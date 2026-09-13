@@ -11,6 +11,10 @@ export type ClubMembership = {
   isOwner?: boolean;
   /** Operations badge for coaches (granted by head coach). */
   operationsAccess?: boolean;
+  /** Publish badge for coaches (granted by head coach) -- spec motor-1.0
+   *  sección 25.1/26: permite publicar informes de scouting a las
+   *  jugadoras sin ser head_coach/master. */
+  reportPublishAccess?: boolean;
 };
 
 export type Capabilities = {
@@ -37,6 +41,9 @@ export type Capabilities = {
   canViewStats: boolean;
   /** Can view Mi Club / club management entry point. head_coach + master only. */
   canViewClubManagement: boolean;
+  /** Can publish scouting reports to players (spec motor-1.0 25.1/26).
+   *  head_coach/master siempre; coach solo con reportPublishAccess delegado. */
+  canPublishReports: boolean;
 };
 
 export type CoachBadges = {
@@ -118,6 +125,11 @@ export function computeCapabilities(input: {
 
   const canCreateCanonical = effectiveRole === "master" || effectiveRole === "head_coach";
 
+  const canPublishReports =
+    effectiveRole === "master" ||
+    effectiveRole === "head_coach" ||
+    (effectiveRole === "coach" && Boolean(m?.reportPublishAccess) && m?.status === "active");
+
   const canManageWellness = staffRole === "head_coach" || isPhysicalTrainer || hasOperationsAccess;
 
   return {
@@ -136,6 +148,7 @@ export function computeCapabilities(input: {
     canManageWellness,
     canViewStats,
     canViewClubManagement,
+    canPublishReports,
   };
 }
 

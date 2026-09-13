@@ -38,6 +38,7 @@ export interface ClubMemberDto {
   jerseyNumber: string;
   position: string;
   operationsAccess?: boolean;
+  reportPublishAccess?: boolean;
   status: string;
   invitedEmail: string | null;
   joinedAt: string | null;
@@ -266,6 +267,60 @@ export function useSetClubMemberOperationsAccess() {
     },
     onSettled: () => {
       // Always refetch to ensure server is source of truth.
+      void qc.invalidateQueries({ queryKey: clubQueryKey });
+    },
+  });
+}
+
+export function useSetClubMemberReportPublishAccess() {
+  const qc = useQueryClient();
+  const key = useClubQueryKeyExact();
+  return useMutation({
+    mutationFn: async (args: { id: string; reportPublishAccess: boolean }) => {
+      const res = await apiRequest(
+        "PATCH",
+        `/api/club/members/${encodeURIComponent(args.id)}/report-publish-access`,
+        { reportPublishAccess: args.reportPublishAccess },
+      );
+      const text = await res.text().catch(() => "");
+      if (!text || text.trim().length === 0) {
+        throw new Error(`Empty response from server (${res.status} ${res.url})`);
+      }
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        const ct = res.headers.get("content-type") ?? "unknown";
+        throw new Error(
+          `Non-JSON response (${res.status} ${res.url}) [${ct}]: ${text.slice(0, 180)}`,
+        );
+      }
+      if (parsed?.ok !== true || !parsed?.member) {
+        throw new Error(
+          typeof parsed?.error === "string"
+            ? parsed.error + (typeof parsed?.detail === "string" ? `: ${parsed.detail}` : "")
+            : "Unexpected response from server",
+        );
+      }
+      return parsed.member as ClubMemberDto;
+    },
+    onMutate: async (args) => {
+      await qc.cancelQueries({ queryKey: clubQueryKey });
+      const prev = qc.getQueryData<ClubPayload>(key);
+      if (prev) {
+        qc.setQueryData<ClubPayload>(key, {
+          ...prev,
+          members: prev.members.map((m) =>
+            m.id === args.id ? { ...m, reportPublishAccess: args.reportPublishAccess } : m,
+          ),
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _args, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev);
+    },
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: clubQueryKey });
     },
   });

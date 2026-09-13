@@ -810,6 +810,30 @@ export async function registerRoutes(
       const player = await storage.getPlayer(playerId);
       if (!player) return res.status(404).json({ error: "Player not found" });
 
+      // CORREGIDO 2026-09-14 (spec motor-1.0 sección 25/25.1/26, hallazgo real
+      // + respuesta directa de Pablo). Este es el botón que de verdad publica
+      // el informe a TODAS las jugadoras del club (auto-asigna más abajo) --
+      // hasta ahora no comprobaba ni aprobación ni permiso. El gate de ≥1
+      // aprobación ya existía, correcto, en /publish (líneas 609-612) pero
+      // nada de la UI llama a ese endpoint -- este es el real, así que el
+      // gate va aquí, copiado literal.
+      const approvals = await storage.listReportApprovalsForPlayer(playerId);
+      if (approvals.length < 1) {
+        return res.status(400).json({ error: "At least one coach approval is required" });
+      }
+      // Permiso de club: head_coach/master siempre pueden; un coach normal
+      // necesita el badge delegable reportPublishAccess (spec 26, mismo
+      // patrón que operationsAccess).
+      if (!isHeadCoachOrMaster(req)) {
+        const club = await storage.getClubForUser(req.user!.id);
+        const membership = club
+          ? await storage.getClubMemberByClubAndUser(club.id, req.user!.id)
+          : null;
+        if (!membership?.reportPublishAccess) {
+          return res.status(403).json({ error: "You don't have permission to publish reports" });
+        }
+      }
+
       // Publish via existing flow
       await storage.publishPlayerReport(playerId, req.user!.id);
       // Clear scout versions (merge complete)
@@ -949,6 +973,23 @@ export async function registerRoutes(
       const { userId, playerId } = parsed.data;
       const player = await storage.getPlayer(playerId);
       if (!player) return res.status(404).json({ error: "Player not found" });
+      // CORREGIDO 2026-09-14 (spec 25.1/26) -- por disciplina, mismo gate que
+      // /game-plan (el endpoint real de publicación hoy): este endpoint no
+      // tiene ningún caller de cliente todavía, pero si algún día se cablea
+      // no debe reabrir el hueco de aprobación/permiso ya cerrado ahí.
+      const approvals = await storage.listReportApprovalsForPlayer(playerId);
+      if (approvals.length < 1) {
+        return res.status(400).json({ error: "At least one coach approval is required" });
+      }
+      if (!isHeadCoachOrMaster(req)) {
+        const club = await storage.getClubForUser(req.user!.id);
+        const membership = club
+          ? await storage.getClubMemberByClubAndUser(club.id, req.user!.id)
+          : null;
+        if (!membership?.reportPublishAccess) {
+          return res.status(403).json({ error: "You don't have permission to publish reports" });
+        }
+      }
       const created = await storage.createScoutingReportAssignment({
         userId,
         playerId,
@@ -1273,6 +1314,7 @@ export async function registerRoutes(
             jerseyNumber: m.jerseyNumber,
             position: m.position,
             operationsAccess: Boolean(m.operationsAccess),
+            reportPublishAccess: Boolean(m.reportPublishAccess),
             status: m.status,
             invitedEmail: m.invitedEmail,
             joinedAt: m.joinedAt ? m.joinedAt.toISOString() : null,
@@ -1324,6 +1366,39 @@ export async function registerRoutes(
       // include a tiny debug hint in dev; still safe for prod
       const msg = err instanceof Error ? err.message : String(err);
       return res.status(500).json({ error: "Failed to update operations access", detail: msg });
+    }
+  });
+
+  // Permiso delegable de publicación (spec motor-1.0 sección 25.1/26,
+  // respuesta directa de Pablo: "que U Scout en My Club tenga un botón para
+  // que este último paso lo haga solo el head coach o pueda dar permisos a
+  // otros coaches del club para hacerlo"). Mismo patrón exacto que
+  // operations-access de arriba -- head_coach/master delegan, nunca sobre
+  // sí mismos ni sobre otro head_coach (ver canToggleReportPublishAccess en
+  // el cliente, mismo criterio que canToggleOperationsAccess).
+  app.patch("/api/club/members/:id/report-publish-access", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id as string;
+      const parsed = z
+        .object({ reportPublishAccess: z.boolean() })
+        .safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", detail: parsed.error.flatten() });
+      }
+      const member = await storage.getClubMemberById(id);
+      if (!member) return res.status(404).json({ error: "Member not found" });
+      if (!(await userCanManageClub(req, member.clubId))) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      if (member.role !== "coach") {
+        return res.status(400).json({ error: "Report publish access can only be set for coaches" });
+      }
+      const updated = await storage.updateClubMemberReportPublishAccess(id, parsed.data.reportPublishAccess);
+      if (!updated) return res.status(500).json({ error: "Update failed" });
+      return res.status(200).json({ ok: true, member: updated });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return res.status(500).json({ error: "Failed to update report publish access", detail: msg });
     }
   });
 
