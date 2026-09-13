@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, Eye, CornerRightDown } from "lucide-react";
 import { computeCloseoutThreatV1, type CloseoutThreatReport } from "@/lib/closeoutThreat";
-import { usePlayerWcbaLink, usePlayerDetail, type PlayerDetail } from "@/lib/stats-api";
+import { usePlayerWcbaLink, useNivel2Context } from "@/lib/stats-api";
 import { ensamblarReporteParaTexto } from "@/lib/motor-v1";
-import type { ReporteModoCompletoV1 } from "@/lib/motor-v1-types";
+import { enriquecerReporteConNivel2 } from "@/lib/motor-v1-stats";
+import type { ReporteModoCompletoV1, StatDestacado, QuietEdge } from "@/lib/motor-v1-types";
 import type { EnrichedInputs } from "@/lib/motor-v2.1";
 import { SITUATION_ICONS } from "@/lib/motor-icons";
 import {
@@ -173,11 +174,32 @@ export default function ReportSlidesV1({
     });
   }, [player, clubMotorCtx, playerId]);
 
-  const completo: { reporte: ReporteModoCompletoV1; enrichedInputs: EnrichedInputs } | null = useMemo(() => {
+  const completoBase: { reporte: ReporteModoCompletoV1; enrichedInputs: EnrichedInputs } | null = useMemo(() => {
     if (!assembled) return null;
     if (assembled.reporte.modo !== "completo") return null; // no debería pasar, ver arriba
     return { reporte: assembled.reporte, enrichedInputs: assembled.enrichedInputs };
   }, [assembled]);
+
+  // Motor 1.0, Fase 2 (spec 24) -- vínculo a U Stats real de la jugadora.
+  // Sigue resolviéndose por nombre en caliente (5.2, sin wcbaExternalId
+  // guardado todavía) -- solo la fuente de contexto cambió: antes
+  // `usePlayerDetail` alimentaba un `StatsStrip` crudo por fuera de
+  // motor-v1 (hallazgo de 24.1); ahora `useNivel2Context` alimenta
+  // `enriquecerReporteConNivel2()`, que rellena `capa3`/`statsDestacados`/
+  // `quietEdge` dentro del propio reporte -- un solo sistema de Nivel 2,
+  // decisión directa de Pablo (spec 24, "cablear capa3 y retirar StatsStrip").
+  const wcbaLinkQ = usePlayerWcbaLink(player?.name);
+  const nivel2Q = useNivel2Context(wcbaLinkQ.data?.externalId ?? null);
+
+  const completo: { reporte: ReporteModoCompletoV1; enrichedInputs: EnrichedInputs } | null = useMemo(() => {
+    if (!completoBase) return null;
+    // Sin vínculo a WCBA (jugadora no encontrada, o WCBA todavía sin
+    // terminar de cargar): el reporte vuelve tal cual, sin Nivel 2 --
+    // `enriquecerReporteConNivel2` ya maneja `undefined` como "sin cambios"
+    // (spec 24, contexto opcional, nunca obligatorio).
+    const reporte = enriquecerReporteConNivel2(completoBase.reporte, nivel2Q.data, 3);
+    return { reporte, enrichedInputs: completoBase.enrichedInputs };
+  }, [completoBase, nivel2Q.data]);
 
   const ctx: RenderContext = { locale, gender };
 
@@ -192,13 +214,11 @@ export default function ReportSlidesV1({
     return asCompleto(applyOverridesV1(report, overrides));
   }, [report, overrides]);
 
-  // ── Slide sencillo: semaforo de cierre + stats WCBA de apoyo ──────────────
+  // ── Slide sencillo: semaforo de cierre ─────────────────────────────────────
   const closeoutReport: CloseoutThreatReport | null = useMemo(() => {
     if (!completo) return null;
     return computeCloseoutThreatV1(completo.enrichedInputs, completo.reporte.capa1.situaciones);
   }, [completo]);
-  const wcbaLinkQ = usePlayerWcbaLink(player?.name);
-  const wcbaDetailQ = usePlayerDetail(wcbaLinkQ.data?.externalId ?? null);
 
   const situationRunnersUp = useMemo(() => {
     if (!completo || !report) return [];
@@ -419,8 +439,9 @@ export default function ReportSlidesV1({
             photo={photo}
             finalReport={finalReport}
             closeoutReport={closeoutReport}
-            wcbaPlayer={wcbaDetailQ.data?.player ?? null}
-            wcbaLoading={wcbaLinkQ.isLoading || (Boolean(wcbaLinkQ.data?.externalId) && wcbaDetailQ.isLoading)}
+            statsDestacados={completo.reporte.identidad.statsDestacados.slice(0, 1)}
+            quietEdge={completo.reporte.identidad.quietEdge}
+            locale={locale}
             es={es}
             zh={zh}
           />
@@ -488,6 +509,9 @@ export default function ReportSlidesV1({
                 <p className="text-sm font-semibold text-foreground leading-snug">{finalReport.identity.threat}</p>
               </div>
             )}
+
+            <StatsDestacadosRow statsDestacados={completo.reporte.identidad.statsDestacados} locale={locale} />
+            <QuietEdgeCallout quietEdge={completo.reporte.identidad.quietEdge} locale={locale} />
 
             {showSwipeHint && (
               <p className="text-center text-xs text-muted-foreground/50 font-medium pt-2">
@@ -865,38 +889,89 @@ function CloseoutBadge(props: { report: CloseoutThreatReport; es: boolean; zh: b
   );
 }
 
-function StatCell(props: { value: string; label: string }) {
+// CORREGIDO 2026-09-14 (spec 24, decisión directa de Pablo): reemplaza
+// StatsStrip (PPG/3P%/FT Rate/TS% crudos, sin percentil, por fuera de
+// motor-v1). Formato de chip según 10.3 ter -- 1-3 palabras, solo
+// métrica+valor; la comparación contra la liga ("P85 en su posición") va en
+// texto secundario visible siempre debajo, no oculta tras un tap (más simple
+// que un sheet propio, y 10.3 ter no exige que esté oculta, solo que no
+// compita visualmente con el valor principal).
+const STAT_LABELS: Record<string, { en: string; es: string; zh: string }> = {
+  ppg: { en: "PPG", es: "PPG", zh: "场均得分" },
+  rpg: { en: "RPG", es: "RPG", zh: "场均篮板" },
+  apg: { en: "APG", es: "APG", zh: "场均助攻" },
+  spg: { en: "SPG", es: "SPG", zh: "场均抢断" },
+  bpg: { en: "BPG", es: "BPG", zh: "场均盖帽" },
+  fg3Pct: { en: "3P%", es: "3P%", zh: "三分命中率" },
+  efgPct: { en: "eFG%", es: "eFG%", zh: "有效命中率" },
+  tsPct: { en: "TS%", es: "TS%", zh: "真实命中率" },
+  usgPct: { en: "USG%", es: "USG%", zh: "使用率" },
+};
+
+function statValueText(campo: string, valor: number): string {
+  if (campo === "ppg" || campo === "rpg" || campo === "apg" || campo === "spg" || campo === "bpg") {
+    return valor.toFixed(1);
+  }
+  return `${valor.toFixed(0)}%`;
+}
+
+function StatChip(props: { stat: StatDestacado; locale: "en" | "es" | "zh" }) {
+  const { stat, locale } = props;
+  const label = STAT_LABELS[stat.campo as string]?.[locale] ?? String(stat.campo);
+  const es = locale === "es";
+  const zh = locale === "zh";
   return (
-    <div className="text-center">
-      <p className="text-base font-black text-foreground tabular-nums">{props.value}</p>
-      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">{props.label}</p>
+    <div
+      className={cn(
+        "rounded-xl border px-3 py-2 min-w-[76px]",
+        stat.nivel === "elite" ? "border-primary/40 bg-primary/5" : "border-border bg-card",
+      )}
+    >
+      <p className="text-sm font-black text-foreground tabular-nums leading-tight">
+        {label} {statValueText(stat.campo as string, stat.stat.valor)}
+      </p>
+      <p className="text-[9px] font-semibold text-muted-foreground/70 leading-tight mt-0.5">
+        {stat.nivel === "elite"
+          ? (es ? "Élite" : zh ? "顶尖" : "Elite")
+          : (es ? "Destacado" : zh ? "突出" : "Standout")}
+        {" · "}
+        {es ? `top ${Math.max(1, Math.round(100 - stat.stat.percentilAjustadoPorMuestra))}%` : zh ? `前${Math.max(1, Math.round(100 - stat.stat.percentilAjustadoPorMuestra))}%` : `top ${Math.max(1, Math.round(100 - stat.stat.percentilAjustadoPorMuestra))}%`}
+      </p>
     </div>
   );
 }
 
-function StatsStrip(props: {
-  wcbaPlayer: PlayerDetail | null;
-  loading: boolean;
-  es: boolean;
-  zh: boolean;
-}) {
-  const { wcbaPlayer, loading, es, zh } = props;
-  // Sin placeholder mientras carga, y sin nada si no hay match WCBA — mejor no
-  // decir nada que inventar un dato que no existe (mismo criterio que insufficient_data).
-  if (loading || !wcbaPlayer) return null;
+function StatsDestacadosRow(props: { statsDestacados: StatDestacado[]; locale: "en" | "es" | "zh" }) {
+  if (props.statsDestacados.length === 0) return null;
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
-        {es ? "Stats WCBA (temporada)" : zh ? "WCBA数据（本赛季）" : "WCBA stats (season)"}
+    <div className="flex flex-wrap gap-2">
+      {props.statsDestacados.map((s) => (
+        <StatChip key={String(s.campo)} stat={s} locale={props.locale} />
+      ))}
+    </div>
+  );
+}
+
+function QuietEdgeCallout(props: { quietEdge: QuietEdge | undefined; locale: "en" | "es" | "zh" }) {
+  const { quietEdge, locale } = props;
+  if (!quietEdge || quietEdge.seleccion.tipo !== "estadistico") return null; // solo tipo estadistico existe hoy (spec 24.3)
+  const { campo, stat } = quietEdge.seleccion;
+  const label = STAT_LABELS[campo as string]?.[locale] ?? String(campo);
+  const es = locale === "es";
+  const zh = locale === "zh";
+  return (
+    <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 px-4 py-3">
+      <p className="text-[10px] font-black uppercase tracking-widest text-primary/70 mb-1">
+        {es ? "Dato inesperado" : zh ? "反常数据" : "Unexpected for her position"}
       </p>
-      <div className="grid grid-cols-4 gap-2">
-        <StatCell value={wcbaPlayer.ppg.toFixed(1)} label="PPG" />
-        <StatCell value={wcbaPlayer.fg3Pct != null ? `${wcbaPlayer.fg3Pct.toFixed(0)}%` : "—"} label="3P%" />
-        <StatCell value={wcbaPlayer.ftRate != null ? wcbaPlayer.ftRate.toFixed(2) : "—"} label="FT Rate" />
-        <StatCell value={wcbaPlayer.tsPct != null ? `${wcbaPlayer.tsPct.toFixed(0)}%` : "—"} label="TS%" />
-      </div>
-      <p className="mt-2 text-[10px] text-muted-foreground/60">
-        {es ? `${wcbaPlayer.games} partidos jugados` : zh ? `已出场 ${wcbaPlayer.games} 场` : `${wcbaPlayer.games} games played`}
+      <p className="text-sm font-semibold text-foreground leading-snug">
+        {label} {statValueText(campo as string, stat.valor)}
+        {" — "}
+        {es
+          ? "poco común para su posición."
+          : zh
+            ? "对她的位置来说并不常见。"
+            : "uncommon for her position."}
       </p>
     </div>
   );
@@ -907,12 +982,13 @@ function SimpleReportSlide(props: {
   photo: boolean;
   finalReport: RenderedCompletoV1 | null;
   closeoutReport: CloseoutThreatReport | null;
-  wcbaPlayer: PlayerDetail | null;
-  wcbaLoading: boolean;
+  statsDestacados: StatDestacado[];
+  quietEdge: QuietEdge | undefined;
+  locale: "en" | "es" | "zh";
   es: boolean;
   zh: boolean;
 }) {
-  const { player, photo, finalReport, closeoutReport, wcbaPlayer, wcbaLoading, es, zh } = props;
+  const { player, photo, finalReport, closeoutReport, statsDestacados, quietEdge, locale, es, zh } = props;
   const displayName = localName(player.name, (player as any).nameEn ?? (player as any).name_en, zh ? "zh" : es ? "es" : "en");
   if (!finalReport) return null;
   const topSituation = finalReport.situations[0];
@@ -974,7 +1050,8 @@ function SimpleReportSlide(props: {
 
       {closeoutReport && <CloseoutBadge report={closeoutReport} es={es} zh={zh} />}
 
-      <StatsStrip wcbaPlayer={wcbaPlayer} loading={wcbaLoading} es={es} zh={zh} />
+      <StatsDestacadosRow statsDestacados={statsDestacados} locale={locale} />
+      <QuietEdgeCallout quietEdge={quietEdge} locale={locale} />
     </div>
   );
 }

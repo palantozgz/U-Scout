@@ -1479,3 +1479,17 @@ Implementados los 2 primeros pasos de 24.2 completos, más el 3º (el módulo pu
 **Deliberadamente NO hecho en esta pasada — marcado `[A VALIDAR CON PABLO]`, no producto todavía:** `ReportSlidesV1.tsx` no llama a `useNivel2Context()`/`enriquecerReporteConNivel2()` — no se muestra `capa3`/`statsDestacados`/`quietEdge`/`porque` en ninguna pantalla real todavía, y no se ha decidido si `StatsStrip` (el vínculo a U Stats que `ReportSlidesV1.tsx` ya tenía por fuera de motor-v1, hallazgo de 24.1) se retira o coexiste. Backend y módulo puro están completos, probados, y no cambian nada de lo que un entrenador ve hoy — cero riesgo de producción en este commit, a diferencia de PR-B (23.8).
 
 Verificado: `npm run check`/`check:tests` limpios, `npx vitest run` 205/205 reales (mismo fallo preexistente no relacionado), `npm run motor:compare` 0 divergencias (esta fase no toca cálculo puro de motor-v1.ts).
+
+### 24.6. Integración en UI — cerrado (2026-09-14)
+
+Pablo eligió la opción recomendada: cablear `capa3` en `ReportSlidesV1.tsx` y retirar `StatsStrip`. Implementado:
+
+- `usePlayerWcbaLink` (resuelve nombre → `externalId`, sin cambios) + `useNivel2Context(externalId)` reemplazan a `usePlayerDetail`. `enriquecerReporteConNivel2()` se aplica sobre el reporte ya ensamblado, antes de `renderReportV1()` — si no hay vínculo WCBA (o todavía está cargando), el reporte vuelve exactamente igual, sin capa3 (Nivel 2 es contexto opcional, nunca obligatorio, spec 5.1).
+- `StatsStrip` (PPG/3P%/FT Rate/TS% crudos) retirado, sustituido por `StatsDestacadosRow` (chips "{métrica} {valor}", formato de 10.3 ter — 1-3 palabras, solo métrica+valor, con "top X% / Destacado / Élite" como texto secundario siempre visible debajo, no oculto tras un tap) y `QuietEdgeCallout` (el dato inesperado para su posición, con marco punteado distinto). Presentes en Slide 0 (hasta 3 chips) y en modo sencillo (1 chip, el más extremo — `statsDestacados` ya viene ordenado por percentil descendente, `.slice(0,1)` basta).
+- **`quietEdge` usa la posición REAL de la jugadora** (`identidad.posicion`, base/alero/interior de motor-v1) para la tabla de "atípico", no el `posicionGrupo` del contexto de Nivel 2 — son conceptualmente el mismo valor en producción (ambos vienen del mismo mapeo de posición), pero la separación de responsabilidades es correcta: la comparación estadística usa el grupo de percentiles, "qué es raro para su posición" usa la posición del contrato de identidad.
+
+**Verificación manual, no solo tests:** inspección con 3 perfiles reales del fixture (Luka/base, Klay/alero, Draymond/interior) contra un contexto de Nivel 2 sintético — confirmó que Draymond (interior) con 41% en triples sale correctamente como quiet edge ("dato inesperado para un interior"), que Klay (apg ya destacado) NO repite apg como quiet edge (principio anti-P2), y que `porque` se omite limpiamente (`undefined`, no un texto forzado) cuando la `situacionOrigen` del output no tiene proxy de Nivel 2 razonable (ej. `pnrRollMan`).
+
+Verificado: `npm run check`/`check:tests` limpios, `npx vitest run` 205/205, `npm run motor:compare` 0 divergencias.
+
+**Fase 2 cerrada de punta a punta:** SQL → endpoint → módulo puro → UI real, con `StatsStrip` retirado. `porque`/`confianza` real se calculan y ya llegan a `capa2.deny/force/allow.ganador`, pero **no se muestran todavía en ningún sitio de la UI** (el picker de alternativas y las tarjetas de deny/force/allow siguen mostrando solo `instruction`) — pendiente explícito, pequeño, no bloqueante, para una pasada futura.
