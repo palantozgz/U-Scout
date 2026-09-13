@@ -223,7 +223,7 @@ export default function Settings() {
                   {t("dev_role_preview_staff")}
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] md:text-sm text-muted-foreground">
                 {t("dev_role_preview_note")}
               </p>
             </div>

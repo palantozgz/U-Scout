@@ -560,7 +560,7 @@ export default function ClubManagement() {
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background pb-16 md:pb-0">
+    <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => setLocation("/coach")} className="-ml-2 shrink-0">
           <ArrowLeft className="w-5 h-5 text-foreground" />
@@ -577,7 +577,7 @@ export default function ClubManagement() {
         {!hintDismissed ? (
           <div className="mb-4 rounded-2xl border border-border bg-card p-4">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-[11px] font-semibold text-muted-foreground">
+              <p className="text-[11px] md:text-sm font-semibold text-muted-foreground">
                 {t("onboarding_staff_club_hint" as any)}
               </p>
               <button
@@ -677,7 +677,7 @@ export default function ClubManagement() {
                                 type="button"
                                 size="sm"
                                 variant="secondary"
-                                className="h-8 w-full px-1 text-[10px] font-bold leading-tight"
+                                className="h-8 w-full px-1 text-[10px] md:text-xs font-bold leading-tight"
                               >
                                 {t("club_logo_manage")}
                               </Button>
@@ -704,7 +704,7 @@ export default function ClubManagement() {
                             type="button"
                             size="sm"
                             variant="secondary"
-                            className="h-8 w-full px-1 text-[10px] font-bold leading-tight"
+                            className="h-8 w-full px-1 text-[10px] md:text-xs font-bold leading-tight"
                             onClick={() => logoFileRef.current?.click()}
                           >
                             {t("club_logo_upload")}
@@ -712,7 +712,7 @@ export default function ClubManagement() {
                         ))}
                     </div>
                     <div className="min-w-0 w-full space-y-1">
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_name_label")}</p>
+                      <p className="text-[11px] md:text-sm font-bold uppercase tracking-widest text-muted-foreground">{t("club_name_label")}</p>
                       {canEditBranding ? (
                         <Input
                           value={clubNameDraft}
@@ -731,7 +731,7 @@ export default function ClubManagement() {
                 </section>
 
                 <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t("club_ctx_section")}</p>
+                  <p className="text-[11px] md:text-sm font-bold uppercase tracking-widest text-muted-foreground">{t("club_ctx_section")}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">{t("club_ctx_hint")}</p>
                   {!canEditClubContext && (
                     <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-primary/40 pl-3">
@@ -878,7 +878,7 @@ export default function ClubManagement() {
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
+                      <p className="text-[10px] md:text-xs text-muted-foreground/60 leading-relaxed">
                         {locale === "zh"
                           ? "教练和球员仍可随时切换视图。这只是默认选项。"
                           : locale === "es"
@@ -890,7 +890,7 @@ export default function ClubManagement() {
                 </section>
 
                 <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <p className="text-[11px] md:text-sm font-bold uppercase tracking-widest text-muted-foreground">
                     {locale === "zh" ? "日历同步" : locale === "es" ? "Sincronización de calendario" : "Calendar sync"}
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
@@ -913,7 +913,7 @@ export default function ClubManagement() {
                 </section>
 
                 <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <p className="text-[11px] md:text-sm font-bold uppercase tracking-widest text-muted-foreground">
                     {locale === "zh" ? "模块" : locale === "es" ? "Módulos" : "Modules"}
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
@@ -958,7 +958,7 @@ export default function ClubManagement() {
                         <div key={mod.key} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-3 py-2.5">
                           <div className="min-w-0">
                             <p className="text-sm font-bold text-foreground truncate">{mod.label}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{mod.sub}</p>
+                            <p className="text-[11px] md:text-sm text-muted-foreground truncate">{mod.sub}</p>
                           </div>
                           <Switch
                             checked={!isDisabled}
@@ -975,7 +975,7 @@ export default function ClubManagement() {
                       );
                     })}
                   </div>
-                  <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
+                  <p className="text-[10px] md:text-xs text-muted-foreground/60 leading-relaxed">
                     {locale === "zh"
                       ? "作为主教练，你始终能看到所有模块。"
                       : locale === "es"
@@ -1001,7 +1001,7 @@ export default function ClubManagement() {
                   return (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/60">
+                        <p className="text-[11px] md:text-sm font-black uppercase tracking-wider text-muted-foreground/60">
                           {locale === "zh" ? "赛程" : locale === "es" ? "Calendario de liga" : "League schedule"}
                         </p>
                         {canEditClubContext && (
@@ -1074,7 +1074,7 @@ export default function ClubManagement() {
                       )}
                       {upcoming.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                          <p className="text-[11px] md:text-sm font-bold uppercase tracking-widest text-muted-foreground">
                             {locale === "es" ? "Próximos" : locale === "zh" ? "即将到来" : "Upcoming"}
                           </p>
                           {upcoming.map((m: any, i: number) => (
@@ -1094,7 +1094,7 @@ export default function ClubManagement() {
                       )}
                       {past.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground opacity-50">
+                          <p className="text-[11px] md:text-sm font-bold uppercase tracking-widest text-muted-foreground opacity-50">
                             {locale === "es" ? "Jugados" : locale === "zh" ? "已完成" : "Past"}
                           </p>
                           {past.map((m: any) => (
@@ -1122,7 +1122,7 @@ export default function ClubManagement() {
                   const roster = q.data?.members?.filter((m) => m.role === "player" && m.status === "active") ?? [];
                   return roster.length > 0 ? (
                     <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-2">
-                      <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/60">
+                      <p className="text-[11px] md:text-sm font-black uppercase tracking-wider text-muted-foreground/60">
                         {locale === "zh" ? "球员名单" : locale === "es" ? "Jugadoras del club" : "Club players"}
                       </p>
                       {roster.map((m) => (
@@ -1216,7 +1216,7 @@ export default function ClubManagement() {
                       {(q.data.pendingInvitations ?? []).map((inv) => (
                         <li key={inv.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
                           <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="secondary" className="text-[10px] font-bold uppercase">
+                            <Badge variant="secondary" className="text-[10px] md:text-xs font-bold uppercase">
                               {roleLabel(inv.role)}
                             </Badge>
                             {inv.invitedEmail && (
@@ -1228,7 +1228,7 @@ export default function ClubManagement() {
                             const daysLeft = Math.ceil(expiresMs / (1000 * 60 * 60 * 24));
                             const urgent = daysLeft <= 2;
                             return (
-                              <p className={`text-[11px] ${urgent ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted-foreground"}`}>
+                              <p className={`text-[11px] md:text-sm ${urgent ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted-foreground"}`}>
                                 {t("team_mgmt_inv_expires")}: {formatWhen(inv.expiresAt, locale)}
                                 {urgent && daysLeft > 0 ? ` · ${daysLeft}d` : urgent ? " · Hoy" : ""}
                               </p>
@@ -1436,29 +1436,29 @@ function MemberRow({
         )}
         <div className="flex flex-wrap gap-2">
           {m.role === "head_coach" ? (
-            <Badge variant="secondary" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] font-black uppercase tracking-wide">
+            <Badge variant="secondary" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] md:text-xs font-black uppercase tracking-wide">
               <ShieldCheck className="w-3 h-3" />
               {t("role_head_coach")}
             </Badge>
           ) : (
-            <Badge variant="secondary" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] font-black uppercase tracking-wide">
+            <Badge variant="secondary" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] md:text-xs font-black uppercase tracking-wide">
               <Users className="w-3 h-3" />
               {t("role_coach")}
             </Badge>
           )}
           {m.role === "coach" && opsEnabled ? (
-            <Badge variant="outline" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] font-black uppercase tracking-wide">
+            <Badge variant="outline" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] md:text-xs font-black uppercase tracking-wide">
               <Dumbbell className="w-3 h-3" />
               PREP
             </Badge>
           ) : null}
           {m.role === "coach" && publishEnabled ? (
-            <Badge variant="outline" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] font-black uppercase tracking-wide">
+            <Badge variant="outline" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] md:text-xs font-black uppercase tracking-wide">
               <Send className="w-3 h-3" />
               {t("club_publish_access_badge")}
             </Badge>
           ) : null}
-          <Badge variant={banned ? "destructive" : "outline"} className="text-[10px] font-bold uppercase">
+          <Badge variant={banned ? "destructive" : "outline"} className="text-[10px] md:text-xs font-bold uppercase">
             {banned ? t("club_status_banned") : t("club_status_active")}
           </Badge>
         </div>

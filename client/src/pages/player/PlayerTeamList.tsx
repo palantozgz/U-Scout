@@ -35,11 +35,11 @@ export default function PlayerTeamList() {
     : "Your coaching staff will publish reports here before the game";
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background text-foreground pb-16 md:pb-0">
+    <div className="flex flex-col h-[100dvh] bg-background text-foreground pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* Logo */}
       <div className="flex flex-col items-center pt-5 pb-4 gap-1.5">
         <UScoutLogo size={100} animated={false} />
-        <span className="text-[11px] tracking-[0.2em] uppercase opacity-40 font-medium">
+        <span className="text-[11px] md:text-sm tracking-[0.2em] uppercase opacity-40 font-medium">
           {tagline}
         </span>
       </div>
@@ -105,7 +105,7 @@ export default function PlayerTeamList() {
                 <span className="text-2xl shrink-0">{row.team.logo}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-black text-sm text-foreground truncate">{row.team.name}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <p className="text-[11px] md:text-sm text-muted-foreground mt-0.5">
                     <span className="font-bold text-foreground">{row.totalReports}</span>{" "}
                     {es ? "informes" : zh ? "份报告" : "reports"}
                     {pendingCount > 0 && (
@@ -118,7 +118,7 @@ export default function PlayerTeamList() {
                   </p>
                 </div>
                 {pendingCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-black flex items-center justify-center shrink-0">
+                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] md:text-xs font-black flex items-center justify-center shrink-0">
                     {pendingCount}
                   </span>
                 )}

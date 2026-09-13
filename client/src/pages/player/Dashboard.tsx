@@ -42,7 +42,7 @@ export function PlayerTeamView() {
   const { team, players } = data;
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background text-foreground pb-16 md:pb-0">
+    <div className="flex flex-col h-[100dvh] overflow-hidden bg-background text-foreground pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       <header className="sticky top-0 z-10 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
         <Button
           variant="ghost"
@@ -56,7 +56,7 @@ export function PlayerTeamView() {
         <h1 className="text-base font-black tracking-tight uppercase truncate">{team.name}</h1>
       </header>
 
-      <main className="flex-1 px-3 pb-10 pt-4 max-w-5xl mx-auto w-full">
+      <main className="flex-1 overflow-y-auto min-h-0 px-3 pb-10 pt-4 max-w-5xl mx-auto w-full">
         {players.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-sm text-muted-foreground">
@@ -109,13 +109,13 @@ export function PlayerTeamView() {
                     <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
 
                     {/* Jersey number */}
-                    <span className="absolute top-2 right-2 min-w-[1.75rem] h-6 flex items-center justify-center px-1.5 text-[11px] font-black text-foreground bg-background/80 border border-border rounded-md backdrop-blur-sm">
+                    <span className="absolute top-2 right-2 min-w-[1.75rem] h-6 flex items-center justify-center px-1.5 text-[11px] md:text-sm font-black text-foreground bg-background/80 border border-border rounded-md backdrop-blur-sm">
                       {p.number || "—"}
                     </span>
 
                     {/* View status badge */}
                     <span className={cn(
-                      "absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-black border",
+                      "absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-black border",
                       badgeConfig.cls,
                     )}>
                       {badgeConfig.label}
@@ -128,7 +128,7 @@ export function PlayerTeamView() {
                       {p.name || "—"}
                     </p>
                     {p.position && (
-                      <p className="text-[11px] font-bold text-primary uppercase tracking-wider mt-0.5 truncate">
+                      <p className="text-[11px] md:text-sm font-bold text-primary uppercase tracking-wider mt-0.5 truncate">
                         {p.position}
                       </p>
                     )}

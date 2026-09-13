@@ -1698,3 +1698,33 @@ Respuesta directa de Pablo a la pregunta pendiente desde la sección 26.3 (¿deb
 **Implementado**: las 3 tarjetas ahora son interactivas (`<button>`, abren el sheet de alternativas) solo en `coachMode`; en modo jugadora son de solo lectura (`<div>`, sin `onClick`, sin afordancia de tap) — lo único que ve es la instrucción final aprobada y su "porqué" corto, ya visibles en la propia tarjeta. Nunca llega a abrirse el sheet, nunca ve una puntuación ni una opción descartada.
 
 Verificado: `npm run check` limpio, `npx vitest run` 13/13 archivos, 212/212 pruebas. Smoke test del build sin errores de consola.
+
+## 34. Auditoría UI/UX completa iOS + desktop — entrenadores y jugadoras, más allá del pipeline de informes (2026-09-14)
+
+Encargo de Pablo: *"revisa que la UI y UX de los entrenadores y jugadoras encaje para iOS y el modo desktop, y ya de paso continua."* Más amplio que la sección 28 (que solo cubrió el pipeline de informes/aprobación) — esta auditoría cubre el resto de la app: shell de navegación, todas las pantallas de entrenador, todas las de jugadora.
+
+### 34.1. Correcciones de alcance encontradas por El Arquitecto antes de nada (verificado por lectura real, no asumido)
+
+- **`Stats.tsx` y `Playbook.tsx` NO son placeholders** — llevaban documentados como tal en CLAUDE.md y en el propio encargo, pero son 4761 y 1494 líneas respectivamente, en producción real. CLAUDE.md corregido. Existe un `Stats.tsx.bak` (907 líneas), probablemente el placeholder real anterior — candidato a limpieza, no investigado a fondo.
+- **`ScoutDesktop.tsx` es código muerto** desde el commit `b09c640` (2026-05-21, Pablo Muñoz) — sustituido por `CoachHome.tsx` como pantalla real de `/scout` en desktop. Pese a eso, las secciones 28/30/32 de esta spec invirtieron trabajo real migrando su `ReportPreview` a motor-v1 sin que nadie notara que el archivo no se renderiza para ningún usuario. Ese trabajo sigue siendo código válido (por si se revive), solo invisible en producción hoy — decisión abierta, ver 34.3.
+
+### 34.2. Implementado (mecánico, bajo riesgo)
+
+- **[CRÍTICO] `client/src/pages/player/Dashboard.tsx`** (`PlayerTeamView`, `/player/team/:teamId` — pantalla real de jugadora): sin `overflow-y-auto`/`min-h-0` en absoluto en todo el árbol de contenedores — con un roster rival largo, las tarjetas por debajo del pliegue quedaban inalcanzables, no solo difíciles de alcanzar (mismo mecanismo exacto que el hallazgo crítico de `ReportSlidesV1.tsx` en la sección 28). Corregido.
+- **[IMPORTANTE] `client/src/pages/player/PlayerHomeSettingsStub.tsx`**: mismo mecanismo de riesgo — `min-h-[100dvh]` sin scroll real, subpágina real de ajustes (alcanzable desde `ModuleHeader.tsx`, `PlayerHome.tsx`, `PlayerTeamList.tsx`, `ModulePage.tsx`), no estaba en la lista de excepciones de CLAUDE.md. Corregido.
+- **`h-screen` → `h-[100dvh]`**: `ModulePage.tsx`, `CoachHome.tsx`, `HomeDesktop.tsx`, `HomeMobile.tsx`, `Playbook.tsx` (x2) — 5 pantallas que el propio changelog de CLAUDE.md daba por corregidas desde antes, sin serlo realmente.
+- **`min-h-0` añadido**: `Stats.tsx` (panel de ficha de equipo).
+- **Safe-area estandarizado**: 10 pantallas (`Personnel.tsx` x2, `ClubManagement.tsx`, `MyScout.tsx` x2, `FilmRoom.tsx`, `QuickScout.tsx`, `PlayerTeamList.tsx`, `GamePlan.tsx` x2) usaban `pb-16 md:pb-0` (64px fijo) sin sumar `env(safe-area-inset-bottom)`, inconsistente con `ModuleNav.tsx` (que sí lo suma a su propia altura) — en un iPhone con home indicator el hueco real reservado se quedaba corto. Estandarizado a `pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0`.
+- **Tipografía desktop**: barrido de **~205 instancias** de `text-[8-11px]` sin `md:text-xs`/`md:text-sm` en `Personnel.tsx` (24), `ClubManagement.tsx` (21), `PlayerEditor.tsx` (17), `Stats.tsx` (119), `GamePlan.tsx` (5), `QuickScout.tsx` (4), `WellnessStandalone.tsx` (4), `PlayerHome.tsx` (3), `PlayerTeamList.tsx` (3), `Dashboard.tsx` (3), `Settings.tsx` (1). Aplicado con script verificado (className planos + literales dentro de `cn()`/template strings), spot-check manual del diff antes de dar por bueno. **2 excepciones dejadas a propósito**: `PlayerEditor.tsx:142` (etiqueta de texto dentro de un `<svg>` pequeño del diagrama de zonas de poste — agrandar la fuente sin escalar el diagrama entero se vería desproporcionado) y `Stats.tsx:3045` (ya resuelto vía una variable JS `isDesktop`, no vía `md:` — patrón distinto, ya correcto).
+- **`ModuleHeader.tsx`**: botón de ajustes de ~36px a ~44pt de objetivo táctil.
+- **`ModuleNav.tsx`**: el rol en el sidebar desktop (`hidden lg:block`, nunca visible en mobile) tenía `text-[10px]` fijo sin sentido tener un `md:` — subido directo a `text-xs`.
+- **`CLAUDE.md` corregido**: tabla de estado de módulos (Stats/Playbook activos, no placeholders), changelog de "Layout scroll fix" (ModulePage/Playbook no estaban realmente corregidos), pendientes #1/#2 (obsoletos, Stats/Playbook no son placeholders), #3 (resuelto para Home, sigue abierto solo para Schedule/planner), #4 (ya resuelto, CoachHome sí tiene densidad real), #7/#8 (acotados con evidencia concreta, siguen como decisión de Pablo), #15 (corregido), nuevo #9 (ScoutDesktop código muerto).
+
+### 34.3. Decisiones de diseño real — necesitan validación de Pablo, no tocadas
+
+1. **`PlayerEditor.tsx` en desktop**: no es una columna estrecha (no tiene `max-w-*`) — el problema real es que sus `grid grid-cols-2` se estiran al ancho completo de una pantalla de 27", campos desproporcionados. ¿Limitar el ancho (`max-w-3xl/4xl` centrado, simple) o rediseño a sidebar de 9 secciones + panel (arquitectura nueva)?
+2. **`ScoutDesktop.tsx`**: ¿revivir como experiencia desktop real de `/scout` (hoy es literalmente el mismo `CoachHome` que en mobile), o borrar del todo el código fantasma?
+3. **`ModuleHeader.tsx` en desktop**: el logo crece (56px→88px) en vez de compactarse, wordmark/tagline se quedan minúsculos fijos independientemente del tamaño de pantalla. ¿Comprimir el header en desktop para liberar esas filas a contenido real?
+4. **`Schedule.tsx` modo planner en desktop**: panel lateral apagado a propósito, columna centrada con margen lateral vacío — pendiente #3 de CLAUDE.md sigue vigente aquí específicamente.
+
+Verificado: `npm run check` limpio, `npx vitest run` 13/13 archivos, 212/212 pruebas. Smoke test del build sin errores de consola.

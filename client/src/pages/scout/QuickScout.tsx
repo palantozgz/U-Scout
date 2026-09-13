@@ -470,7 +470,7 @@ export default function QuickScout({ playerId }: Props) {
                 }))} />
             ))}
             {w.postMoves.length >= 3 && (
-              <p className="col-span-2 text-[11px] text-muted-foreground text-center">
+              <p className="col-span-2 text-[11px] md:text-sm text-muted-foreground text-center">
                 {es ? "Máx. 3 movimientos" : zh ? "最多3个动作" : "Max 3 moves"}
               </p>
             )}
@@ -619,7 +619,7 @@ export default function QuickScout({ playerId }: Props) {
   const total = totalSteps(w.situation);
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background pb-16 md:pb-0">
+    <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
         <button type="button" onClick={goBack} className="-ml-1 p-1 rounded-lg text-muted-foreground hover:text-foreground">
@@ -629,7 +629,7 @@ export default function QuickScout({ playerId }: Props) {
           <h1 className="text-base font-black text-foreground tracking-tight truncate">
             {player?.name || (es ? "Nueva ficha" : zh ? "新建档案" : "New profile")}
           </h1>
-          <p className="text-[10px] text-muted-foreground font-semibold">
+          <p className="text-[10px] md:text-xs text-muted-foreground font-semibold">
             {es ? "Inicio rápido" : zh ? "快速开始" : "Quick start"}
             {w.situation && ` · ${stepLabels[w.situation][step]}`}
           </p>
@@ -637,7 +637,7 @@ export default function QuickScout({ playerId }: Props) {
         <button
           type="button"
           onClick={() => setLocation(`/coach/player/${playerId}`)}
-          className="text-[11px] font-bold text-muted-foreground hover:text-foreground whitespace-nowrap"
+          className="text-[11px] md:text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap"
         >
           {es ? "Editor completo →" : zh ? "完整编辑器 →" : "Full editor →"}
         </button>
@@ -647,7 +647,7 @@ export default function QuickScout({ playerId }: Props) {
         {/* Progress */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/60">
+            <p className="text-[11px] md:text-sm font-black uppercase tracking-wider text-muted-foreground/60">
               {es ? `Paso ${step + 1} de ${total}` : zh ? `第${step + 1}步，共${total}步` : `Step ${step + 1} of ${total}`}
             </p>
           </div>

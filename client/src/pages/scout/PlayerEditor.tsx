@@ -415,7 +415,7 @@ function HalfCourtDiagram({ dominant, locale }: { dominant?: "Right" | "Left"; l
     : "Top view — player's back to the baseline";
   return (
     <div className="rounded-xl border border-border bg-slate-50 p-3 space-y-2">
-      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground text-center">{topViewLabel}</p>
+      <p className="text-[11px] md:text-sm font-bold uppercase tracking-widest text-muted-foreground text-center">{topViewLabel}</p>
       <svg viewBox="0 0 240 175" className="w-full max-w-xs mx-auto block" xmlns="http://www.w3.org/2000/svg">
         <rect x="10" y="18" width="220" height="140" fill="none" stroke="#94a3b8" strokeWidth="1.5" rx="3"/>
         <rect x="70" y="60" width="100" height="88" fill="none" stroke="#94a3b8" strokeWidth="1.2"/>
@@ -447,7 +447,7 @@ function HalfCourtDiagram({ dominant, locale }: { dominant?: "Right" | "Left"; l
         </defs>
       </svg>
       {dominant && (
-        <p className="text-[11px] text-center font-semibold mt-1">
+        <p className="text-[11px] md:text-sm text-center font-semibold mt-1">
           <span className={dominant === "Right" ? "text-red-500" : "text-blue-500"}>
             ★ {dominant} {t("hand_dominant")} — {t("prefers")} {dominant === "Right" ? t("right_block") : t("left_block")} ({t("attacks_middle")})
           </span>
@@ -502,7 +502,7 @@ function PostQuadrantSelector({ value, onChange, dominantHand, locale }: {
           return (
             <div key={q.key} className={`rounded-xl border p-2.5 space-y-2 transition-all ${borderColor}`}>
               <div className="flex items-center justify-between gap-1">
-                <p className={`text-[11px] font-bold leading-tight ${labelColor}`}>{q.label}{isStrongSide && dominantHand && <span className="ml-1">★</span>}</p>
+                <p className={`text-[11px] md:text-sm font-bold leading-tight ${labelColor}`}>{q.label}{isStrongSide && dominantHand && <span className="ml-1">★</span>}</p>
                 {current && <button type="button" onClick={() => updateQ(q.key, null)} className="text-muted-foreground hover:text-red-400 shrink-0"><X className="w-3 h-3" /></button>}
               </div>
               <Select value={current?.moveName ?? "none"} onValueChange={v => updateQ(q.key, v === "none" || v.startsWith("—") ? null : v)}>
@@ -512,12 +512,12 @@ function PostQuadrantSelector({ value, onChange, dominantHand, locale }: {
                 <SelectContent className="z-[100] max-h-64">
                   <SelectItem value="none"><span className="text-muted-foreground text-xs">{t("not_observed")}</span></SelectItem>
                   {moves.map(move => move.startsWith("—") ? (
-                    <div key={move} className="px-2 py-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground border-t border-slate-100 mt-1 pt-2">Pass options</div>
+                    <div key={move} className="px-2 py-1 text-[11px] md:text-sm font-bold uppercase tracking-widest text-muted-foreground border-t border-slate-100 mt-1 pt-2">Pass options</div>
                   ) : (
                     <SelectItem key={move} value={move}>
                       <div className="flex flex-col py-0.5">
                         <span className="font-semibold text-xs">{move}</span>
-                        {MOVE_DESC[move] && <span className="text-[10px] text-muted-foreground leading-tight">{MOVE_DESC[move]}</span>}
+                        {MOVE_DESC[move] && <span className="text-[10px] md:text-xs text-muted-foreground leading-tight">{MOVE_DESC[move]}</span>}
                       </div>
                     </SelectItem>
                   ))}
@@ -751,7 +751,7 @@ export default function PlayerEditor() {
           <div className="flex flex-col items-center gap-1 animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-card/90 backdrop-blur-md rounded-2xl px-6 py-4 shadow-2xl border border-white/10 flex flex-col items-center gap-2">
               <span className="text-4xl font-black italic text-white dark:text-slate-900 leading-none tracking-tighter">U</span>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 dark:text-slate-900/60">{t("editor_inputs_saved")}</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-white/60 dark:text-slate-900/60">{t("editor_inputs_saved")}</span>
             </div>
           </div>
         </div>
@@ -815,24 +815,24 @@ export default function PlayerEditor() {
       <main className="flex-1 p-4 pb-24 overflow-y-auto min-h-0">
         <Tabs defaultValue="context" className="w-full">
           <TabsList className="grid w-full grid-cols-6 mb-6 p-1 bg-slate-200/60 dark:bg-slate-800/60 rounded-xl shadow-inner">
-            <TabsTrigger value="context" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-foreground">
+            <TabsTrigger value="context" className="rounded-lg text-[10px] md:text-xs sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-foreground">
               <Info className="w-3 h-3 sm:w-4 sm:h-4 md:mr-1" /><span className="hidden md:inline">{t("tab_context")}</span>
             </TabsTrigger>
-            <TabsTrigger value="post" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-400">
+            <TabsTrigger value="post" className="rounded-lg text-[10px] md:text-xs sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-400">
               <svg className="w-3 h-3 sm:w-4 sm:h-4 md:mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M12 2v20"/><path d="M9 10h6"/><path d="M9 14h6"/></svg>
               <span className="hidden md:inline">{t("tab_post")}</span>
             </TabsTrigger>
-            <TabsTrigger value="iso" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-orange-600 dark:data-[state=active]:text-orange-400">
+            <TabsTrigger value="iso" className="rounded-lg text-[10px] md:text-xs sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-orange-600 dark:data-[state=active]:text-orange-400">
               <Flame className="w-3 h-3 sm:w-4 sm:h-4 md:mr-1" /><span className="hidden md:inline">{t("tab_iso")}</span>
             </TabsTrigger>
-            <TabsTrigger value="pnr" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">
+            <TabsTrigger value="pnr" className="rounded-lg text-[10px] md:text-xs sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">
               <Zap className="w-3 h-3 sm:w-4 sm:h-4 md:mr-1" /><span className="hidden md:inline">{t("tab_pnr")}</span>
             </TabsTrigger>
-            <TabsTrigger value="offball" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400">
+            <TabsTrigger value="offball" className="rounded-lg text-[10px] md:text-xs sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400">
               <Target className="w-3 h-3 sm:w-4 sm:h-4 md:mr-1" /><span className="hidden md:inline">{t("tab_offball")}</span>
             </TabsTrigger>
-            <TabsTrigger value="spot" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-pink-600 dark:data-[state=active]:text-pink-400">
-              <span className="text-[11px] sm:text-xs font-black md:mr-1 text-pink-500">3</span>
+            <TabsTrigger value="spot" className="rounded-lg text-[10px] md:text-xs sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-pink-600 dark:data-[state=active]:text-pink-400">
+              <span className="text-[11px] md:text-sm sm:text-xs font-black md:mr-1 text-pink-500">3</span>
               <span className="hidden md:inline">{t("tab_spot")}</span>
             </TabsTrigger>
           </TabsList>
@@ -859,13 +859,13 @@ export default function PlayerEditor() {
                       className={`shrink-0 flex flex-col items-center justify-center gap-0.5 h-11 w-14 rounded-lg border transition-colors ${inputs.starPlayer === true ? "border-amber-400/60 bg-amber-500/15 text-amber-500" : "border-border text-muted-foreground bg-background hover:border-amber-300 hover:text-amber-400"}`}
                       onClick={() => ui("starPlayer", inputs.starPlayer !== true)} aria-label={t("editor.star_player")} aria-pressed={inputs.starPlayer === true}>
                       <Star className={`w-4 h-4 ${inputs.starPlayer === true ? "fill-amber-400 text-amber-400" : "fill-none"}`} strokeWidth={inputs.starPlayer === true ? 0 : 1.5} />
-                      <span className="text-[11px] font-bold leading-none">{inputs.starPlayer === true ? t("editor.star_player_badge_label") : t("star")}</span>
+                      <span className="text-[11px] md:text-sm font-bold leading-none">{inputs.starPlayer === true ? t("editor.star_player_badge_label") : t("star")}</span>
                     </button>
                   </div>
                   {/* Caption siempre debajo, mismo ancho */}
                   <div id="star-caption" className={`flex items-center gap-2 px-3 py-2 border-t text-xs transition-colors ${inputs.starPlayer === true ? "border-amber-400/25 bg-amber-500/[0.08]" : "border-border bg-slate-100/60 dark:bg-slate-900/50"}`}>
                     <Star className={`w-3 h-3 shrink-0 ${inputs.starPlayer === true ? "fill-amber-400 text-amber-400" : "text-muted-foreground fill-none"}`} strokeWidth={inputs.starPlayer === true ? 0 : 1.5} aria-hidden />
-                    <span className={`text-[11px] ${inputs.starPlayer === true ? "text-amber-700 dark:text-amber-300 font-semibold" : "text-muted-foreground"}`}>{t("editor.star_player_limit_note")}</span>
+                    <span className={`text-[11px] md:text-sm ${inputs.starPlayer === true ? "text-amber-700 dark:text-amber-300 font-semibold" : "text-muted-foreground"}`}>{t("editor.star_player_limit_note")}</span>
                     <Tooltip text={`${t("editor.star_player_hint")}\n\n${t("editor.star_player_limit_note")}`} />
                   </div>
                 </div>
@@ -1153,7 +1153,7 @@ export default function PlayerEditor() {
                         const v = hz[zone] ?? null;
                         return (
                           <div key={zone} className="rounded-xl border border-purple-200/60 dark:border-purple-900/50 bg-purple-50/40 dark:bg-purple-950/20 p-2.5 space-y-2">
-                            <Label className="text-[11px] font-bold uppercase tracking-wide text-purple-700 dark:text-purple-300">{t(labelKey as never)}</Label>
+                            <Label className="text-[11px] md:text-sm font-bold uppercase tracking-wide text-purple-700 dark:text-purple-300">{t(labelKey as never)}</Label>
                             <Select value={v ?? "__none__"} onValueChange={val => { const next: HighPostZonesMotor = { ...(inputs.highPostZones ?? {}) }; if (val === "__none__") delete next[zone]; else next[zone] = val as HighPostAction; ui("highPostZones", Object.keys(next).length ? next : {}); }}>
                               <SelectTrigger className="h-10 rounded-xl bg-background text-xs"><SelectValue placeholder={t("not_observed")} /></SelectTrigger>
                               <SelectContent>

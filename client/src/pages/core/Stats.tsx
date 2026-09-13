@@ -281,7 +281,7 @@ function CompactRosterList({
   const rows = players.filter((p) => p.games > 0 && (p.nameEn?.trim() || p.nameZh?.trim()));
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      <div className="grid grid-cols-[0.45fr_1.4fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+      <div className="grid grid-cols-[0.45fr_1.4fr_0.55fr_0.55fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-[10px] md:text-xs font-black uppercase tracking-wider text-muted-foreground">
         <span className="text-center">#</span>
         <span>{es ? "Jugadora" : zh ? "球员" : "Player"}</span>
         <span className="text-right">PPG</span>
@@ -934,7 +934,7 @@ export default function Stats() {
             {!canUsePlayerUX && showCoachDash && nextMatch && (
               <div className="rounded-xl border border-border bg-card p-4 space-y-3 -mt-2">
                 <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
-                  <p className="text-[9px] font-black uppercase tracking-wider text-blue-500 mb-1">
+                  <p className="text-[9px] md:text-xs font-black uppercase tracking-wider text-blue-500 mb-1">
                     {es ? "Próximo rival" : zh ? "下场对手" : "Next opponent"}
                   </p>
                   {rivalStanding?.teamExternalId ? (
@@ -963,7 +963,7 @@ export default function Stats() {
                     )}
                   </div>
                   {rivalStanding?.eFGPct != null && (
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
                       eFG%{" "}
                       <span className="font-black text-foreground">
                         {num(rivalStanding.eFGPct).toFixed(1)}
@@ -988,7 +988,7 @@ export default function Stats() {
                     <button
                       type="button"
                       onClick={() => setTeamSheetId(String(rivalStanding.teamExternalId))}
-                      className="text-[11px] font-bold text-primary mt-2 hover:underline"
+                      className="text-[11px] md:text-sm font-bold text-primary mt-2 hover:underline"
                     >
                       {es ? "Ver análisis completo →" : zh ? "查看完整分析 →" : "View full analysis →"}
                     </button>
@@ -997,7 +997,7 @@ export default function Stats() {
 
                 {ownL5 && (
                   <div className="rounded-xl border border-border bg-muted/20 p-3">
-                    <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+                    <p className="text-[9px] md:text-xs font-black uppercase tracking-wider text-muted-foreground mb-1">
                       {es ? "Nuestro registro" : zh ? "我方战绩" : "Our record"}
                     </p>
                     <p className="text-lg font-black text-foreground">
@@ -1021,7 +1021,7 @@ export default function Stats() {
                       </p>
                     )}
                     {ownL5.eFGPct != null && (
-                      <p className="text-[10px] text-muted-foreground mt-1">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
                         eFG% <span className="font-black text-foreground">{num(ownL5.eFGPct).toFixed(1)}</span>
                       </p>
                     )}
@@ -1142,7 +1142,7 @@ export default function Stats() {
                                 {row.streak != null && row.streak !== 0 && (
                                   <p
                                     className={cn(
-                                      "text-[9px] font-black",
+                                      "text-[9px] md:text-xs font-black",
                                       row.streak > 0
                                         ? "text-green-600 dark:text-green-400"
                                         : "text-destructive",
@@ -1250,7 +1250,7 @@ export default function Stats() {
                   onClick={() => setPlayerSheetId(myExternalId)}
                   className="w-full rounded-2xl border border-primary/30 bg-primary/5 p-4 text-left hover:bg-primary/10 transition-colors active:opacity-80 touch-manipulation"
                 >
-                  <p className="text-[10px] font-black uppercase tracking-wider text-primary mb-1">
+                  <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-primary mb-1">
                     {es ? "Mis estadísticas" : zh ? "我的数据" : "My stats"}
                   </p>
                   <p className="text-base font-black text-foreground">
@@ -1295,7 +1295,7 @@ export default function Stats() {
                         type="button"
                         onClick={() => setJugadorasDisplayMode("list")}
                         className={cn(
-                          "px-2 py-1 rounded-md text-[10px] font-black transition-colors",
+                          "px-2 py-1 rounded-md text-[10px] md:text-xs font-black transition-colors",
                           jugadorasDisplayMode === "list"
                             ? "bg-card shadow-sm text-foreground"
                             : "text-muted-foreground hover:text-foreground",
@@ -1307,7 +1307,7 @@ export default function Stats() {
                         type="button"
                         onClick={() => setJugadorasDisplayMode("bubble")}
                         className={cn(
-                          "px-2 py-1 rounded-md text-[10px] font-black transition-colors",
+                          "px-2 py-1 rounded-md text-[10px] md:text-xs font-black transition-colors",
                           jugadorasDisplayMode === "bubble"
                             ? "bg-card shadow-sm text-foreground"
                             : "text-muted-foreground hover:text-foreground",
@@ -1320,7 +1320,7 @@ export default function Stats() {
                     <button
                       type="button"
                       onClick={() => { setComparatorInitialA(null); setComparatorOpen(true); }}
-                      className="h-7 px-2.5 rounded-lg border border-border bg-card text-[10px] font-black text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors shrink-0"
+                      className="h-7 px-2.5 rounded-lg border border-border bg-card text-[10px] md:text-xs font-black text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors shrink-0"
                     >
                       {es ? "≈ Comparar" : zh ? "≈ 对比" : "≈ Compare"}
                     </button>
@@ -1340,7 +1340,7 @@ export default function Stats() {
                       type="button"
                       onClick={() => setJugadorasPos(val)}
                       className={cn(
-                        "flex-1 rounded-lg py-1.5 text-[11px] font-black transition-colors",
+                        "flex-1 rounded-lg py-1.5 text-[11px] md:text-sm font-black transition-colors",
                         jugadorasPos === val
                           ? "bg-card shadow-sm text-foreground"
                           : "text-muted-foreground hover:text-foreground",
@@ -1399,14 +1399,14 @@ export default function Stats() {
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
                   <div className="grid grid-cols-[2fr_0.5fr_0.7fr_0.7fr_0.7fr] gap-0 border-b border-border bg-muted/30 px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground">
                     <span className="text-left">{L.colPlayer}</span>
-                    <span className="text-right text-[11px]">{L.colG}</span>
+                    <span className="text-right text-[11px] md:text-sm">{L.colG}</span>
                     {(["ppg", "rpg", "apg"] as const).map((k) => (
                       <button
                         key={k}
                         type="button"
                         onClick={() => handleJugadorasSortClick(k)}
                         className={cn(
-                          "text-right font-black uppercase tracking-wider text-[11px] touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                          "text-right font-black uppercase tracking-wider text-[11px] md:text-sm touch-manipulation flex items-center justify-end gap-0.5 w-full",
                           jugadorasSort === k ? "text-primary" : "text-muted-foreground",
                         )}
                       >
@@ -1462,10 +1462,10 @@ export default function Stats() {
                             </p>
                           </div>
                         </div>
-                        <p className="text-[11px] font-black text-foreground tabular-nums text-right">{p.games}</p>
-                        <p className="text-[11px] font-black text-foreground tabular-nums text-right">{num(p.ppg).toFixed(1)}</p>
-                        <p className="text-[11px] font-black text-foreground tabular-nums text-right">{num(p.rpg).toFixed(1)}</p>
-                        <p className="text-[11px] font-black text-foreground tabular-nums text-right">{num(p.apg).toFixed(1)}</p>
+                        <p className="text-[11px] md:text-sm font-black text-foreground tabular-nums text-right">{p.games}</p>
+                        <p className="text-[11px] md:text-sm font-black text-foreground tabular-nums text-right">{num(p.ppg).toFixed(1)}</p>
+                        <p className="text-[11px] md:text-sm font-black text-foreground tabular-nums text-right">{num(p.rpg).toFixed(1)}</p>
+                        <p className="text-[11px] md:text-sm font-black text-foreground tabular-nums text-right">{num(p.apg).toFixed(1)}</p>
                       </button>
                     );
                   })}
@@ -1614,7 +1614,7 @@ export default function Stats() {
               }[]
             ).map(({ key, label, state, set, placeholder, step }) => (
               <div key={key} className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                <label className="text-[10px] md:text-xs font-black uppercase tracking-wider text-muted-foreground">
                   {label}
                 </label>
                 <input
@@ -2333,7 +2333,7 @@ function AdvChip({
 
   return (
     <div title={title} className="rounded-xl border border-border bg-card px-2.5 py-2.5 space-y-1.5 cursor-help">
-      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">{label}</p>
+      <p className="text-[9px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/60">{label}</p>
       <p className="text-sm font-black text-foreground tabular-nums">{fmt(value)}</p>
       {pct != null && (
         <div className="h-1 rounded-full bg-muted/50 overflow-hidden">
@@ -2347,7 +2347,7 @@ function AdvChip({
 function SplitStat({ label, val }: { label: string; val: number }) {
   return (
     <div className="flex items-center justify-between">
-      <p className="text-[9px] font-black uppercase tracking-wide text-muted-foreground/50">{label}</p>
+      <p className="text-[9px] md:text-xs font-black uppercase tracking-wide text-muted-foreground/50">{label}</p>
       <p className="text-xs font-black tabular-nums text-foreground">{val.toFixed(1)}</p>
     </div>
   );
@@ -2457,7 +2457,7 @@ function StatsDesktopPanel(props: {
         {/* Placeholder */}
         <div className="flex flex-col items-center gap-2 py-3 text-center">
           <BarChart3 className="w-7 h-7 text-muted-foreground/35" aria-hidden />
-          <p className="text-[11px] font-semibold text-muted-foreground/60">
+          <p className="text-[11px] md:text-sm font-semibold text-muted-foreground/60">
             {es ? "Selecciona un equipo o jugadora" : zh ? "选择球队或球员" : "Select a team or player"}
           </p>
         </div>
@@ -2466,10 +2466,10 @@ function StatsDesktopPanel(props: {
         {factors.length > 0 && (
           <div>
             <div className="flex items-baseline justify-between mb-2">
-              <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground/50">
+              <p className="text-[9px] md:text-xs font-black tracking-[2px] uppercase text-muted-foreground/50">
                 {es ? "4 Factores · Media de liga" : zh ? "四因素·联赛均值" : "4 Factors · League avg"}
               </p>
-              <p className="text-[8px] text-muted-foreground/35 italic">
+              <p className="text-[8px] md:text-xs text-muted-foreground/35 italic">
                 {es ? "Dean Oliver 2004" : zh ? "Oliver理论" : "Dean Oliver 2004"}
               </p>
             </div>
@@ -2488,10 +2488,10 @@ function StatsDesktopPanel(props: {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between">
-                      <span className="text-[10px] text-muted-foreground/70 truncate">{f.desc}</span>
+                      <span className="text-[10px] md:text-xs text-muted-foreground/70 truncate">{f.desc}</span>
                       <div className="flex items-baseline gap-1 shrink-0 ml-2">
                         <span className="text-[12px] font-black tabular-nums text-foreground">{f.value}</span>
-                        <span className="text-[8px] font-bold text-muted-foreground/40">{f.label}</span>
+                        <span className="text-[8px] md:text-xs font-bold text-muted-foreground/40">{f.label}</span>
                       </div>
                     </div>
                     <div className="mt-0.5 h-0.5 bg-muted/30 rounded-full overflow-hidden">
@@ -2510,7 +2510,7 @@ function StatsDesktopPanel(props: {
         {/* Ratings secundarios */}
         {ratings.length > 0 && (
           <div>
-            <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground/50 mb-1.5">
+            <p className="text-[9px] md:text-xs font-black tracking-[2px] uppercase text-muted-foreground/50 mb-1.5">
               {es ? "Contexto de liga" : zh ? "联赛背景" : "League context"}
             </p>
             <div className="grid grid-cols-2 gap-1.5">
@@ -2520,8 +2520,8 @@ function StatsDesktopPanel(props: {
                   className="flex flex-col items-center justify-center px-2 py-2 rounded-lg bg-muted/15 border border-border/20"
                 >
                   <span className="text-[13px] font-black tabular-nums text-foreground">{r.value}</span>
-                  <span className="text-[8px] font-bold text-muted-foreground/50 mt-0.5">{r.label}</span>
-                  <span className="text-[8px] text-muted-foreground/40 text-center leading-tight mt-0.5">
+                  <span className="text-[8px] md:text-xs font-bold text-muted-foreground/50 mt-0.5">{r.label}</span>
+                  <span className="text-[8px] md:text-xs text-muted-foreground/40 text-center leading-tight mt-0.5">
                     {r.desc}
                   </span>
                 </div>
@@ -2532,11 +2532,11 @@ function StatsDesktopPanel(props: {
 
         {topStandings.length > 0 && (
           <div>
-            <p className="text-[9px] font-black tracking-[2px] uppercase text-muted-foreground/50 mb-1.5">
+            <p className="text-[9px] md:text-xs font-black tracking-[2px] uppercase text-muted-foreground/50 mb-1.5">
               {es ? "Clasificación" : zh ? "排名" : "Standings"}
             </p>
             <div className="rounded-xl border border-border/30 overflow-hidden">
-              <div className="grid grid-cols-[0.35fr_1fr_0.55fr_0.45fr] gap-1 px-2.5 py-1.5 border-b border-border/30 bg-muted/15 text-[8px] font-black uppercase tracking-wider text-muted-foreground/55">
+              <div className="grid grid-cols-[0.35fr_1fr_0.55fr_0.45fr] gap-1 px-2.5 py-1.5 border-b border-border/30 bg-muted/15 text-[8px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/55">
                 <span className="text-center">#</span>
                 <span>{es ? "Equipo" : zh ? "球队" : "Team"}</span>
                 <span className="text-right">{es ? "V-D" : zh ? "胜-负" : "W-L"}</span>
@@ -2551,7 +2551,7 @@ function StatsDesktopPanel(props: {
                 return (
                   <div
                     key={String(row.teamExternalId)}
-                    className="grid grid-cols-[0.35fr_1fr_0.55fr_0.45fr] gap-1 items-center px-2.5 py-1.5 border-b border-border/20 last:border-b-0 text-[11px]"
+                    className="grid grid-cols-[0.35fr_1fr_0.55fr_0.45fr] gap-1 items-center px-2.5 py-1.5 border-b border-border/20 last:border-b-0 text-[11px] md:text-sm"
                   >
                     <span className="text-center font-black tabular-nums text-muted-foreground">{row.rank}</span>
                     <span className="font-bold text-foreground truncate">
@@ -2951,24 +2951,24 @@ function StatsPlayerSheet({
           </p>
           <div className="flex items-center gap-1.5 flex-wrap">
             {player?.jerseyNumber != null && player.jerseyNumber !== "" && (
-              <span className="text-[10px] text-muted-foreground font-bold">#{player.jerseyNumber}</span>
+              <span className="text-[10px] md:text-xs text-muted-foreground font-bold">#{player.jerseyNumber}</span>
             )}
             {pickName(player?.teamName, player?.teamNameEn, locale) &&
               (onTeamTap && player?.teamExternalId ? (
                 <button
                   type="button"
                   onClick={() => onTeamTap(String(player.teamExternalId))}
-                  className="text-[10px] text-primary font-bold hover:underline truncate max-w-[90px]"
+                  className="text-[10px] md:text-xs text-primary font-bold hover:underline truncate max-w-[90px]"
                 >
                   {pickName(player.teamName, player.teamNameEn, locale)}
                 </button>
               ) : (
-                <span className="text-[10px] text-muted-foreground font-bold truncate max-w-[90px]">
+                <span className="text-[10px] md:text-xs text-muted-foreground font-bold truncate max-w-[90px]">
                   {pickName(player?.teamName, player?.teamNameEn, locale)}
                 </span>
               ))}
             {pos && (
-              <span className="text-[8px] font-black uppercase tracking-wide bg-primary/10 border border-primary/25 text-primary px-1.5 py-0.5 rounded-full">
+              <span className="text-[8px] md:text-xs font-black uppercase tracking-wide bg-primary/10 border border-primary/25 text-primary px-1.5 py-0.5 rounded-full">
                 {pos}
               </span>
             )}
@@ -2981,12 +2981,12 @@ function StatsPlayerSheet({
             </p>
           )}
           {advStats?.isHot && (
-            <p className="text-[9px] font-black text-amber-500">
+            <p className="text-[9px] md:text-xs font-black text-amber-500">
               {es ? "🔥 Racha" : zh ? "🔥 热手" : "🔥 Hot"}
             </p>
           )}
           {advStats?.isCold && (
-            <p className="text-[9px] font-black text-blue-400">
+            <p className="text-[9px] md:text-xs font-black text-blue-400">
               {es ? "❄️ Baja" : zh ? "❄️ 低迷" : "❄️ Cold"}
             </p>
           )}
@@ -3019,7 +3019,7 @@ function StatsPlayerSheet({
                 isDesktop ? "p-3" : "p-2",
               )}
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground/60 mb-1 self-start px-1">
+              <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.12em] text-muted-foreground/60 mb-1 self-start px-1">
                 {es ? "Perfil visual" : zh ? "视觉概况" : "Visual profile"}
               </p>
               <StatsRadar
@@ -3072,10 +3072,10 @@ function StatsPlayerSheet({
                   {bar.key === "3P%" && tpaVolumeLabel && (
                     <div className="flex items-center gap-1 mt-0.5">
                       <div className={cn("h-1.5 w-6 rounded-full bg-gradient-to-r shrink-0", tpaVolumeLabel.gradient)} />
-                      <span className="text-[8px] font-bold text-muted-foreground/50">
+                      <span className="text-[8px] md:text-xs font-bold text-muted-foreground/50">
                         {es ? "Intentos de 3:" : zh ? "三分出手:" : "3s attempted:"}
                       </span>
-                      <span className={cn("text-[8px] font-black", tpaVolumeLabel.text)}>
+                      <span className={cn("text-[8px] md:text-xs font-black", tpaVolumeLabel.text)}>
                         {tpaVolumeLabel.adv}
                       </span>
                     </div>
@@ -3084,14 +3084,14 @@ function StatsPlayerSheet({
               ))}
               {vsPills.length > 0 && (
                 <div className="flex items-center gap-1.5 pt-1 mt-0.5 border-t border-border/50 flex-wrap">
-                  <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground/65">
+                  <span className="text-[9px] md:text-xs font-bold uppercase tracking-wide text-muted-foreground/65">
                     {L.vsLeague}
                   </span>
                   {vsPills.map((p) => (
                     <span
                       key={p.label}
                       className={cn(
-                        "text-[9px] font-black px-1.5 py-0.5 rounded border",
+                        "text-[9px] md:text-xs font-black px-1.5 py-0.5 rounded border",
                         p.up
                           ? "bg-emerald-500/12 text-emerald-500 border-emerald-500/20"
                           : "bg-red-500/10 text-red-400 border-red-500/18",
@@ -3121,7 +3121,7 @@ function StatsPlayerSheet({
                 >
                   {v}
                 </p>
-                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/70 mt-1">
+                <p className="text-[11px] md:text-sm font-black uppercase tracking-widest text-muted-foreground/70 mt-1">
                   {l}
                 </p>
               </div>
@@ -3143,7 +3143,7 @@ function StatsPlayerSheet({
                 >
                   {v}
                 </p>
-                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/70 mt-1">
+                <p className="text-[11px] md:text-sm font-black uppercase tracking-widest text-muted-foreground/70 mt-1">
                   {l}
                 </p>
               </div>
@@ -3153,7 +3153,7 @@ function StatsPlayerSheet({
           {/* Home / Away */}
           {(player.homeSplit || player.awaySplit) && (
             <div className="border-b border-border">
-              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-muted-foreground/60 px-4 pt-3 pb-1">
+              <p className="text-[11px] md:text-sm font-black uppercase tracking-[0.12em] text-muted-foreground/60 px-4 pt-3 pb-1">
                 {es ? "Casa / Fuera" : zh ? "主场 / 客场" : "Home / Away"}
               </p>
               <div className="grid grid-cols-2 gap-px bg-border">
@@ -3170,7 +3170,7 @@ function StatsPlayerSheet({
                   },
                 ].map(({ split, label, color }) => (
                   <div key={label} className="bg-card px-4 py-3">
-                    <p className={cn("text-[8px] font-black uppercase tracking-wide mb-2", color)}>{label}</p>
+                    <p className={cn("text-[8px] md:text-xs font-black uppercase tracking-wide mb-2", color)}>{label}</p>
                     {split ? (
                       <div className="space-y-1.5">
                         {[
@@ -3179,7 +3179,7 @@ function StatsPlayerSheet({
                           { k: "APG", v: split.ast },
                         ].map(({ k, v }) => (
                           <div key={k} className="flex justify-between">
-                            <span className="text-[10px] font-black uppercase text-muted-foreground/65">{k}</span>
+                            <span className="text-[10px] md:text-xs font-black uppercase text-muted-foreground/65">{k}</span>
                             <span
                               className={cn(
                                 "font-black tabular-nums",
@@ -3192,7 +3192,7 @@ function StatsPlayerSheet({
                         ))}
                       </div>
                     ) : (
-                      <p className="text-[9px] text-muted-foreground/40">—</p>
+                      <p className="text-[9px] md:text-xs text-muted-foreground/40">—</p>
                     )}
                   </div>
                 ))}
@@ -3214,7 +3214,7 @@ function StatsPlayerSheet({
                 type="button"
                 onClick={() => setDeepTab(t)}
                 className={cn(
-                  "flex-1 py-3 text-[11px] font-black uppercase tracking-wider transition-all border-b-2",
+                  "flex-1 py-3 text-[11px] md:text-sm font-black uppercase tracking-wider transition-all border-b-2",
                   deepTab === t
                     ? "text-primary border-primary bg-primary/5"
                     : "text-muted-foreground/50 border-transparent hover:text-muted-foreground hover:bg-muted/20",
@@ -3240,16 +3240,16 @@ function StatsPlayerSheet({
                   return (
                     <div className="rounded-xl border border-border bg-card p-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">
+                        <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/70">
                           {es ? "Forma reciente · L5" : zh ? "近5场" : "Recent form · L5"}
                         </p>
                         {advStats.isHot && (
-                          <span className="text-[9px] font-black text-amber-500">
+                          <span className="text-[9px] md:text-xs font-black text-amber-500">
                             🔥 {es ? "En racha" : zh ? "状态火热" : "Hot"}
                           </span>
                         )}
                         {advStats.isCold && (
-                          <span className="text-[9px] font-black text-blue-400">
+                          <span className="text-[9px] md:text-xs font-black text-blue-400">
                             ❄️ {es ? "Bajón" : zh ? "低迷" : "Cold"}
                           </span>
                         )}
@@ -3275,7 +3275,7 @@ function StatsPlayerSheet({
                         ))}
                       </div>
                       {advStats.last5Avg != null && (
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-[10px] md:text-xs text-muted-foreground">
                           {es ? "Media L5" : zh ? "近5场均值" : "L5 avg"}:{" "}
                           <span className="font-black text-foreground">
                             {advStats.last5Avg.toFixed(1)} PTS
@@ -3325,7 +3325,7 @@ function StatsPlayerSheet({
               )}
 
               <div className="rounded-xl border border-border bg-card p-3 space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">
+                <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/70">
                   {L.onOffTitle}
                 </p>
                 {onOffQ.isLoading && (
@@ -3379,45 +3379,45 @@ function StatsPlayerSheet({
 
               {advStats && (
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60 mb-2">
+                  <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/60 mb-2">
                     {es ? "Perfil de temporada" : zh ? "赛季概况" : "Season profile"}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-xl border border-border bg-muted/10 p-3">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
+                      <p className="text-[9px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
                         {es ? "Doble-dobles" : zh ? "两双" : "Double-doubles"}
                       </p>
                       <p className={cn("font-black tabular-nums", isDesktop ? "text-xl" : "text-lg")}>{advStats.dd}</p>
-                      <p className="text-[8px] text-muted-foreground/40 mt-1">
+                      <p className="text-[8px] md:text-xs text-muted-foreground/40 mt-1">
                         {es ? "≥10 en 2 categorías" : zh ? "2项达到两位数" : "10+ in 2 categories"}
                       </p>
                     </div>
                     <div className="rounded-xl border border-border bg-muted/10 p-3">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
+                      <p className="text-[9px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
                         {es ? "Triple-dobles" : zh ? "三双" : "Triple-doubles"}
                       </p>
                       <p className={cn("font-black tabular-nums", isDesktop ? "text-xl" : "text-lg")}>{advStats.td}</p>
-                      <p className="text-[8px] text-muted-foreground/40 mt-1">
+                      <p className="text-[8px] md:text-xs text-muted-foreground/40 mt-1">
                         {es ? "≥10 en 3 categorías" : zh ? "3项达到两位数" : "10+ in 3 categories"}
                       </p>
                     </div>
                     <div className="rounded-xl border border-border bg-muted/10 p-3">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
+                      <p className="text-[9px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
                         {es ? "Consistencia" : zh ? "稳定性" : "Consistency"}
                       </p>
                       <p className={cn("font-black tabular-nums", isDesktop ? "text-xl" : "text-lg")}>{advStats.stdDev.toFixed(1)}</p>
-                      <p className="text-[8px] text-muted-foreground/40 mt-1">
+                      <p className="text-[8px] md:text-xs text-muted-foreground/40 mt-1">
                         {es ? "Desv. típica en puntos — cuanto menor, más regular" : zh ? "得分标准差——越低越稳定" : "Scoring std dev — lower = more consistent"}
                       </p>
                     </div>
                     <div className="rounded-xl border border-border bg-muted/10 p-3">
-                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
+                      <p className="text-[9px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/55 mb-0.5">
                         {es ? "Impacto global" : zh ? "综合影响力" : "Player impact"}
                       </p>
                       <p className={cn("font-black tabular-nums", isDesktop ? "text-xl" : "text-lg")}>
                         {advStats.pie != null ? `${advStats.pie.toFixed(1)}%` : "—"}
                       </p>
-                      <p className="text-[8px] text-muted-foreground/40 mt-1">
+                      <p className="text-[8px] md:text-xs text-muted-foreground/40 mt-1">
                         {es ? "PIE — contribución al resultado del partido" : zh ? "PIE——对比赛结果的贡献度" : "PIE — contribution to game outcome"}
                       </p>
                     </div>
@@ -3426,7 +3426,7 @@ function StatsPlayerSheet({
               )}
               {advStats && (
                 <div>
-                  <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50 mb-2">
+                  <p className="text-[8px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/50 mb-2">
                     {es ? "Cuatro Factores vs Liga" : zh ? "四因素 vs 联赛均值" : "Four Factors vs League"}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
@@ -3464,7 +3464,7 @@ function StatsPlayerSheet({
                         val != null && lgVal != null ? (better ? val > lgVal : val < lgVal) : null;
                       return (
                         <div key={label} className="rounded-xl border border-border bg-muted/10 p-2.5">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/50">
+                          <p className="text-[9px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/50">
                             {label}
                           </p>
                           <p
@@ -3492,7 +3492,7 @@ function StatsPlayerSheet({
                                       : "bg-muted-foreground/40",
                                 )}
                               />
-                              <span className="text-[8px] text-muted-foreground">
+                              <span className="text-[8px] md:text-xs text-muted-foreground">
                                 {es ? "Liga" : zh ? "联赛" : "Lg"}: {fmt(lgVal)}
                               </span>
                             </div>
@@ -3504,7 +3504,7 @@ function StatsPlayerSheet({
                 </div>
               )}
               <div>
-                <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50 mb-2">
+                <p className="text-[8px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/50 mb-2">
                   {es ? "Más estadísticas" : zh ? "更多数据" : "More stats"}
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -3517,7 +3517,7 @@ function StatsPlayerSheet({
                     { l: "PIE", v: player.pie != null ? `${player.pie.toFixed(1)}%` : "—" },
                   ].map(({ l, v }) => (
                     <div key={l} className="rounded-xl border border-border bg-muted/10 p-2 text-center">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/70">
                         {l}
                       </p>
                       <p className={cn("font-black tabular-nums mt-0.5", isDesktop ? "text-base" : "text-sm")}>
@@ -3529,7 +3529,7 @@ function StatsPlayerSheet({
               </div>
               {isLandscape && (
                 <div className="rounded-xl border border-border bg-card p-3">
-                  <p className="text-[8px] font-black uppercase tracking-wider text-muted-foreground/50 mb-2">
+                  <p className="text-[8px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/50 mb-2">
                     Shot Zones
                   </p>
                   <div className="w-full max-w-[280px] mx-auto">
@@ -3551,7 +3551,7 @@ function StatsPlayerSheet({
               ) : (
                 <>
                   <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                    <div className="grid grid-cols-[0.5fr_1.15fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 border-b border-border bg-muted/30 pl-2.5 pr-3 py-2 text-[8px] font-black uppercase tracking-wider text-muted-foreground">
+                    <div className="grid grid-cols-[0.5fr_1.15fr_0.5fr_0.5fr_0.5fr_0.5fr] gap-0 border-b border-border bg-muted/30 pl-2.5 pr-3 py-2 text-[8px] md:text-xs font-black uppercase tracking-wider text-muted-foreground">
                       <button
                         type="button"
                         onClick={() => handleGameLogSortClick("date")}
@@ -3562,7 +3562,7 @@ function StatsPlayerSheet({
                       >
                         {es ? "Fecha" : zh ? "日期" : "Date"}
                         {gameLogSort === "date" && (
-                          <span className="text-[8px]">{gameLogSortDir === "desc" ? "▼" : "▲"}</span>
+                          <span className="text-[8px] md:text-xs">{gameLogSortDir === "desc" ? "▼" : "▲"}</span>
                         )}
                       </button>
                       <span>{L.rivalCol}</span>
@@ -3572,7 +3572,7 @@ function StatsPlayerSheet({
                           type="button"
                           onClick={() => handleGameLogSortClick(col)}
                           className={cn(
-                            "text-right font-black uppercase tracking-wider text-[8px] touch-manipulation flex items-center justify-end gap-0.5 w-full",
+                            "text-right font-black uppercase tracking-wider text-[8px] md:text-xs touch-manipulation flex items-center justify-end gap-0.5 w-full",
                             gameLogSort === col ? "text-primary" : "text-muted-foreground",
                           )}
                         >
@@ -3613,7 +3613,7 @@ function StatsPlayerSheet({
                           <div className="flex flex-col items-start gap-0.5 min-w-0">
                             <span
                               className={cn(
-                                "text-[9px] font-black w-5 h-5 rounded flex items-center justify-center shrink-0",
+                                "text-[9px] md:text-xs font-black w-5 h-5 rounded flex items-center justify-center shrink-0",
                                 isWin
                                   ? "bg-emerald-500/20 text-emerald-400"
                                   : isLoss
@@ -3623,11 +3623,11 @@ function StatsPlayerSheet({
                             >
                               {isWin ? "W" : isLoss ? "L" : "—"}
                             </span>
-                            <p className="font-bold text-muted-foreground/60 tabular-nums text-[9px]">{date}</p>
+                            <p className="font-bold text-muted-foreground/60 tabular-nums text-[9px] md:text-xs">{date}</p>
                           </div>
                           {/* vs/en Rival */}
                           <div className="min-w-0">
-                            <p className="font-bold text-foreground text-[11px] truncate">
+                            <p className="font-bold text-foreground text-[11px] md:text-sm truncate">
                               {g.isHome !== undefined
                                 ? g.isHome
                                   ? "vs"
@@ -3871,14 +3871,14 @@ function StatsTeamSheet({
           : "bg-muted-foreground/40";
     return (
       <div className={cn("rounded-xl border border-border bg-muted/20 p-2.5", center && "text-center")}>
-        <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">{label}</p>
+        <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-muted-foreground/60">{label}</p>
         <p className={cn("text-lg font-black tabular-nums mt-0.5", valColor)}>
           {val != null ? fmt(val) : "—"}
         </p>
         {lgVal != null && (
           <div className={cn("flex items-center gap-1 mt-1", center && "justify-center")}>
             <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dotColor)} />
-            <span className="text-[9px] text-muted-foreground">
+            <span className="text-[9px] md:text-xs text-muted-foreground">
               {L.lg}: {fmt(lgVal)}
             </span>
           </div>
@@ -3953,7 +3953,7 @@ function StatsTeamSheet({
             type="button"
             onClick={() => setActiveTab(t)}
             className={cn(
-              "flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors border-b-2",
+              "flex-1 py-2.5 text-[11px] md:text-sm font-black uppercase tracking-wide transition-colors border-b-2",
               activeTab === t
                 ? "text-primary border-primary"
                 : "text-muted-foreground border-transparent",
@@ -3967,7 +3967,7 @@ function StatsTeamSheet({
             type="button"
             onClick={() => setActiveTab("quintetos")}
             className={cn(
-              "flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors border-b-2",
+              "flex-1 py-2.5 text-[11px] md:text-sm font-black uppercase tracking-wide transition-colors border-b-2",
               activeTab === "quintetos"
                 ? "text-primary border-primary"
                 : "text-muted-foreground border-transparent",
@@ -3980,7 +3980,7 @@ function StatsTeamSheet({
           type="button"
           onClick={() => setActiveTab("roster")}
           className={cn(
-            "flex-1 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors border-b-2 flex items-center justify-center gap-1",
+            "flex-1 py-2.5 text-[11px] md:text-sm font-black uppercase tracking-wide transition-colors border-b-2 flex items-center justify-center gap-1",
             activeTab === "roster"
               ? "text-primary border-primary"
               : "text-muted-foreground border-transparent",
@@ -4003,11 +4003,11 @@ function StatsTeamSheet({
       )}
 
       {!isLoading && !isError && team && (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {activeTab === "ficha" && (
             <div className="px-4 py-4 space-y-4">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                <p className="text-[9px] md:text-xs font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
                   {L.efficiency}
                 </p>
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -4038,7 +4038,7 @@ function StatsTeamSheet({
                               : val.toFixed(1)
                             : "—"}
                         </p>
-                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mt-1">
+                        <p className="text-[8px] md:text-xs font-black uppercase tracking-widest text-muted-foreground/60 mt-1">
                           {lbl}
                         </p>
                       </div>
@@ -4049,7 +4049,7 @@ function StatsTeamSheet({
                       <p className="text-base font-black">
                         {team.wins}–{team.losses}
                       </p>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5">
+                      <p className="text-[8px] md:text-xs font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5">
                         {es ? "Récord" : zh ? "战绩" : "Record"}
                       </p>
                     </div>
@@ -4066,7 +4066,7 @@ function StatsTeamSheet({
                           >
                             {team.streak > 0 ? `W${team.streak}` : `L${Math.abs(team.streak)}`}
                           </p>
-                          <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5">
+                          <p className="text-[8px] md:text-xs font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5">
                             {es ? "Racha" : zh ? "连续" : "Streak"}
                           </p>
                         </>
@@ -4084,7 +4084,7 @@ function StatsTeamSheet({
                           />
                         ))}
                       </div>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">
+                      <p className="text-[8px] md:text-xs font-black uppercase tracking-widest text-muted-foreground/60">
                         L5
                       </p>
                     </div>
@@ -4097,7 +4097,7 @@ function StatsTeamSheet({
                 team.ftRate != null ||
                 team.orbPct != null) && (
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                  <p className="text-[9px] md:text-xs font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
                     {L.fourFactors}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
@@ -4134,13 +4134,13 @@ function StatsTeamSheet({
               )}
 
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                <p className="text-[9px] md:text-xs font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
                   {L.homeAway}
                 </p>
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
                   <div className="grid grid-cols-2 divide-x divide-border">
                     <div className="p-3">
-                      <p className="text-[9px] font-black uppercase tracking-wide text-green-600 dark:text-green-400 mb-1">
+                      <p className="text-[9px] md:text-xs font-black uppercase tracking-wide text-green-600 dark:text-green-400 mb-1">
                         🏠 {es ? "Casa" : zh ? "主场" : "Home"}
                       </p>
                       <p className="text-xl font-black">
@@ -4150,7 +4150,7 @@ function StatsTeamSheet({
                       </p>
                     </div>
                     <div className="p-3">
-                      <p className="text-[9px] font-black uppercase tracking-wide text-amber-500 mb-1">
+                      <p className="text-[9px] md:text-xs font-black uppercase tracking-wide text-amber-500 mb-1">
                         ✈️ {es ? "Fuera" : zh ? "客场" : "Away"}
                       </p>
                       <p className="text-xl font-black">
@@ -4161,7 +4161,7 @@ function StatsTeamSheet({
                     </div>
                   </div>
                   <div className="flex items-center justify-between px-4 py-2 border-t border-border">
-                    <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground/60">
+                    <p className="text-[10px] md:text-xs font-black uppercase tracking-wide text-muted-foreground/60">
                       L10
                     </p>
                     <p className="text-sm font-black">
@@ -4175,7 +4175,7 @@ function StatsTeamSheet({
 
               {l5.length > 0 && (
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                  <p className="text-[9px] md:text-xs font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
                     {L.form}
                   </p>
                   <div className="rounded-2xl border border-border bg-card p-3">
@@ -4197,7 +4197,7 @@ function StatsTeamSheet({
                             />
                             <p
                               className={cn(
-                                "text-[8px] font-black",
+                                "text-[8px] md:text-xs font-black",
                                 g.result === "W"
                                   ? "text-green-500"
                                   : "text-destructive/80",
@@ -4211,10 +4211,10 @@ function StatsTeamSheet({
                     </div>
                     {l5Avg && (
                       <div className="flex items-center justify-between pt-2 border-t border-border">
-                        <p className="text-[9px] text-muted-foreground/70">
+                        <p className="text-[9px] md:text-xs text-muted-foreground/70">
                           {es ? "Media L5" : zh ? "近5场均值" : "L5 Avg"}
                         </p>
-                        <p className="text-[11px] font-black">
+                        <p className="text-[11px] md:text-sm font-black">
                           PPG {l5Avg.pts.toFixed(1)} · OPPG {l5Avg.opp.toFixed(1)}
                         </p>
                       </div>
@@ -4229,7 +4229,7 @@ function StatsTeamSheet({
           {activeTab === "avanzado" && (
             <div className="px-4 py-4 space-y-4">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                <p className="text-[9px] md:text-xs font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
                   {L.perPossession}
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -4287,10 +4287,10 @@ function StatsTeamSheet({
 
               {paceQ.data && !paceQ.data.insufficient_data && (
                 <div className="px-4 py-3 border-t border-border/50">
-                  <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground mb-1">
+                  <p className="text-[10px] md:text-xs font-black tracking-widest uppercase text-muted-foreground mb-1">
                     {locale === "zh" ? "进攻节奏" : locale === "es" ? "Ritmo ofensivo" : "Offensive Pace"}
                   </p>
-                  <p className="text-[9px] text-muted-foreground/50 mb-3 leading-snug">
+                  <p className="text-[9px] md:text-xs text-muted-foreground/50 mb-3 leading-snug">
                     {locale === "es"
                       ? "Calculado desde posesiones PBP procesadas."
                       : locale === "zh"
@@ -4329,21 +4329,21 @@ function StatsTeamSheet({
                     <div key={row.label} className="mb-3">
                       <div className="flex items-baseline justify-between mb-1">
                         <div className="flex items-baseline gap-1.5">
-                          <span className="font-bold text-foreground text-[11px]">{row.label}</span>
-                          <span className="text-[9px] text-muted-foreground/50 font-mono">{row.sublabel}</span>
+                          <span className="font-bold text-foreground text-[11px] md:text-sm">{row.label}</span>
+                          <span className="text-[9px] md:text-xs text-muted-foreground/50 font-mono">{row.sublabel}</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                          <span className="font-black tabular-nums text-[11px]">
+                          <span className="font-black tabular-nums text-[11px] md:text-sm">
                             {row.pct?.toFixed(1)}%
                             {row.league != null && (
-                              <span className="text-muted-foreground font-normal ml-1 text-[9px]">
+                              <span className="text-muted-foreground font-normal ml-1 text-[9px] md:text-xs">
                                 ({locale === "zh" ? "联赛" : locale === "es" ? "liga" : "lg"} {row.league.toFixed(1)}%)
                               </span>
                             )}
                           </span>
                           {row.ppp != null && (
                             <span className={cn(
-                              "text-[10px] font-black tabular-nums px-1.5 py-0.5 rounded border",
+                              "text-[10px] md:text-xs font-black tabular-nums px-1.5 py-0.5 rounded border",
                               row.leaguePpp != null && row.ppp > row.leaguePpp
                                 ? "bg-emerald-500/12 text-emerald-500 border-emerald-500/20"
                                 : row.leaguePpp != null && row.ppp < row.leaguePpp
@@ -4368,7 +4368,7 @@ function StatsTeamSheet({
                       </div>
                     </div>
                   ))}
-                  <p className="text-[10px] text-muted-foreground mt-2">
+                  <p className="text-[10px] md:text-xs text-muted-foreground mt-2">
                     {locale === "zh"
                       ? `均 ${paceQ.data.avg_possession_time}s/攻`
                       : locale === "es"
@@ -4382,7 +4382,7 @@ function StatsTeamSheet({
               )}
               {paceQ.data?.insufficient_data && (
                 <div className="px-4 py-2 border-t border-border/50">
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[10px] md:text-xs text-muted-foreground">
                     {locale === "zh" ? "PBP数据不足" : locale === "es" ? "Datos PBP insuficientes para ritmo" : "Insufficient PBP data for pace"} (
                     {paceQ.data.possessions} pos.)
                   </p>
@@ -4390,7 +4390,7 @@ function StatsTeamSheet({
               )}
 
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                <p className="text-[9px] md:text-xs font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
                   {L.reboundsLabel}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -4427,7 +4427,7 @@ function StatsTeamSheet({
 
               {pointsByZone && (
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                  <p className="text-[9px] md:text-xs font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
                     {L.pointsZone}
                   </p>
                   <div className="rounded-2xl border border-border bg-card p-3">
@@ -4503,7 +4503,7 @@ function StatsTeamSheet({
                 </div>
               ) : (
                 <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                  <div className="grid grid-cols-[1.5fr_0.32fr_0.36fr_0.36fr_0.4fr_0.4fr_0.4fr_0.36fr] gap-0 px-3 py-2 border-b border-border bg-muted/20 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                  <div className="grid grid-cols-[1.5fr_0.32fr_0.36fr_0.36fr_0.4fr_0.4fr_0.4fr_0.36fr] gap-0 px-3 py-2 border-b border-border bg-muted/20 text-[9px] md:text-xs font-black uppercase tracking-wider text-muted-foreground">
                     <span>{L.colLineup}</span>
                     {(["g","min","poss","ortg","drtg","net","tov"] as const).map((col, idx) => {
                       const labels: Record<string, string> = { g: L.colG, min: "MIN", poss: L.colPoss, ortg: "ORTG", drtg: "DRTG", net: "NET", tov: "TOV%" };
@@ -4522,7 +4522,7 @@ function StatsTeamSheet({
                           )}
                         >
                           {labels[col]}
-                          {active && <span className="text-[8px]">{lineupSortDir === "desc" ? "↓" : "↑"}</span>}
+                          {active && <span className="text-[8px] md:text-xs">{lineupSortDir === "desc" ? "↓" : "↑"}</span>}
                         </button>
                       );
                     })}
@@ -4540,13 +4540,13 @@ function StatsTeamSheet({
                           i < topLineups.length - 1 && "border-b border-border/50",
                         )}
                       >
-                        <p className="text-[10px] font-bold text-foreground leading-snug truncate pr-1">
+                        <p className="text-[10px] md:text-xs font-bold text-foreground leading-snug truncate pr-1">
                           {locale === "zh"
                             ? lineupShortNames(row.playerNamesZh, locale)
                             : lineupShortNames(row.playerNamesEn, locale)}
                         </p>
                         <p className="text-right font-black tabular-nums text-foreground">{row.gamesPlayed}</p>
-                        <p className="text-right tabular-nums text-muted-foreground text-[10px]">{min}</p>
+                        <p className="text-right tabular-nums text-muted-foreground text-[10px] md:text-xs">{min}</p>
                         <p className="text-right font-black tabular-nums text-foreground">{poss}</p>
                         <p className="text-right font-black tabular-nums text-foreground">
                           {row.ortg != null ? row.ortg.toFixed(1) : fmtLineupRtg(row.offPpp)}
@@ -4570,7 +4570,7 @@ function StatsTeamSheet({
                             ? (netVal > 0 ? `+${netVal.toFixed(1)}` : netVal.toFixed(1))
                             : "—"}
                         </p>
-                        <p className="text-right font-black tabular-nums text-foreground text-[10px]">
+                        <p className="text-right font-black tabular-nums text-foreground text-[10px] md:text-xs">
                           {row.offPossessions >= 40 && row.tovPct != null
                             ? `${row.tovPct.toFixed(1)}%`
                             : "—"}
@@ -4601,12 +4601,12 @@ function StatsTeamSheet({
                         i < teamGameLog.length - 1 && "border-b border-border/50",
                       )}
                     >
-                      <p className="text-[10px] text-muted-foreground/70 w-10 shrink-0 tabular-nums">
+                      <p className="text-[10px] md:text-xs text-muted-foreground/70 w-10 shrink-0 tabular-nums">
                         {g.date.slice(5, 10)}
                       </p>
                       <div
                         className={cn(
-                          "w-[22px] h-[22px] rounded-md flex items-center justify-center text-[10px] font-black shrink-0",
+                          "w-[22px] h-[22px] rounded-md flex items-center justify-center text-[10px] md:text-xs font-black shrink-0",
                           g.result === "W"
                             ? "bg-green-500/15 text-green-600 dark:text-green-400"
                             : "bg-destructive/12 text-destructive",
@@ -4614,7 +4614,7 @@ function StatsTeamSheet({
                       >
                         {g.result}
                       </div>
-                      <p className="flex-1 text-[11px] font-bold truncate text-foreground">
+                      <p className="flex-1 text-[11px] md:text-sm font-bold truncate text-foreground">
                         {g.isHome
                           ? es
                             ? "vs"
@@ -4628,12 +4628,12 @@ function StatsTeamSheet({
                               : "@"}{" "}
                         {pickName(g.opponentName, g.opponentNameEn, locale)}
                       </p>
-                      <p className="text-[11px] font-black tabular-nums text-foreground">
+                      <p className="text-[11px] md:text-sm font-black tabular-nums text-foreground">
                         {g.teamScore}–{g.oppScore}
                       </p>
                       <p
                         className={cn(
-                          "text-[10px] font-black tabular-nums w-8 text-right shrink-0",
+                          "text-[10px] md:text-xs font-black tabular-nums w-8 text-right shrink-0",
                           g.margin > 0
                             ? "text-green-600 dark:text-green-400"
                             : "text-destructive",
@@ -4722,7 +4722,7 @@ function StatsTeamSheet({
                             <p className="text-xs text-muted-foreground/60 font-semibold">#{p.jerseyNumber}</p>
                           )}
                         </div>
-                        <p className="text-[9px] font-black uppercase tracking-wide text-muted-foreground/70 truncate">
+                        <p className="text-[9px] md:text-xs font-black uppercase tracking-wide text-muted-foreground/70 truncate">
                           {p.position ? translatePosition(p.position, locale) : "—"}
                         </p>
                         <p className="text-xs font-black text-foreground tabular-nums text-right">{p.games}</p>

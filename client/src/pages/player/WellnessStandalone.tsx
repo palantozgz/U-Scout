@@ -23,7 +23,7 @@ function WellnessRow(props: {
       <div className="min-w-0 flex-1 pt-1">
         <p className="text-sm font-black tracking-tight text-foreground">{props.label}</p>
         {props.tooltip && (
-          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{props.tooltip}</p>
+          <p className="text-[11px] md:text-sm text-muted-foreground mt-0.5 leading-snug">{props.tooltip}</p>
         )}
       </div>
       <ToggleGroup
@@ -96,7 +96,7 @@ export default function WellnessStandalone() {
         </button>
         <div>
           <h1 className="text-lg font-black tracking-tight">{t("schedule_tab_wellness")}</h1>
-          <p className="text-[11px] text-muted-foreground font-medium">
+          <p className="text-[11px] md:text-sm text-muted-foreground font-medium">
             {t("wellness_entry_date_label").replace("{date}", entryDate)}
           </p>
         </div>
@@ -143,8 +143,8 @@ export default function WellnessStandalone() {
                   return (
                     <div key={label}>
                       <div className="flex justify-between items-baseline mb-1">
-                        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
-                        <p className="text-sm font-black text-foreground tabular-nums">{value}<span className="text-[10px] font-normal text-muted-foreground">/5</span></p>
+                        <p className="text-[11px] md:text-sm font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
+                        <p className="text-sm font-black text-foreground tabular-nums">{value}<span className="text-[10px] md:text-xs font-normal text-muted-foreground">/5</span></p>
                       </div>
                       <div className="h-2 rounded-full bg-muted overflow-hidden">
                         <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />

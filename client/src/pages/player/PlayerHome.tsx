@@ -95,7 +95,7 @@ export default function PlayerHome() {
           </div>
         </div>
 
-       <p className="text-[11px] font-black tracking-widest uppercase text-muted-foreground px-1">
+       <p className="text-[11px] md:text-sm font-black tracking-widest uppercase text-muted-foreground px-1">
           {t("player_reports_section")}
         </p>
 
@@ -116,7 +116,7 @@ export default function PlayerHome() {
             </div>
             <div className="space-y-1.5">
               <p className="text-sm font-bold text-foreground">{t("player_no_reports")}</p>
-              <p className="text-[11px] text-muted-foreground leading-relaxed max-w-[220px] mx-auto">
+              <p className="text-[11px] md:text-sm text-muted-foreground leading-relaxed max-w-[220px] mx-auto">
                 {t("player_no_reports_sub")}
               </p>
             </div>
@@ -150,7 +150,7 @@ export default function PlayerHome() {
                 </div>
                 <div className="px-3 py-2.5">
                   <p className="font-extrabold text-sm text-foreground truncate">{r.opponentName || "—"}</p>
-                  <p className="text-[11px] font-bold text-primary uppercase tracking-wider mt-0.5 truncate">{r.opponentTeamName}</p>
+                  <p className="text-[11px] md:text-sm font-bold text-primary uppercase tracking-wider mt-0.5 truncate">{r.opponentTeamName}</p>
                 </div>
               </button>
             ))}

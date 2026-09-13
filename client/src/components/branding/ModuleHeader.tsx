@@ -118,7 +118,7 @@ export function ModuleHeader({ module, tagline, className }: ModuleHeaderProps) 
       <button
         type="button"
         onClick={() => setLocation(settingsHref)}
-        className="absolute top-3 right-0 p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-muted/40 transition-colors"
+        className="absolute top-2 right-0 p-3 rounded-lg text-muted-foreground hover:text-primary hover:bg-muted/40 transition-colors"
         aria-label="Settings"
         data-testid={`${module}-header-settings`}
       >

@@ -29,7 +29,7 @@ export default function PlayerHomeSettingsStub() {
   };
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background">
+    <div className="flex flex-col h-[100dvh] overflow-hidden bg-background">
       <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => setLocation("/home")} className="-ml-2">
           <ArrowLeft className="w-5 h-5 text-foreground" />
@@ -37,7 +37,7 @@ export default function PlayerHomeSettingsStub() {
         <h1 className="font-bold text-foreground">{t("player_settings_page_title")}</h1>
       </header>
 
-      <main className="flex-1 p-4 space-y-4 max-w-lg mx-auto w-full pb-10">
+      <main className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4 max-w-lg mx-auto w-full pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
         {previewRole ? (
           <div className="rounded-2xl border border-border bg-card p-4">
             <p className="text-sm font-bold text-foreground">{t("dev_preview_active_banner_title")}</p>

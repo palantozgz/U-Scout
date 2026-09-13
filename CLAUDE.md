@@ -99,8 +99,8 @@ Páginas ya corregidas: Home, CoachHome, MyScout, FilmRoom, GamePlan.
 | Home      | ✅ activo       | `/home`                 |
 | Schedule  | ✅ activo       | `/schedule`             |
 | Scout     | ✅ activo       | `/scout`, `/coach/*`    |
-| Stats     | 🚧 placeholder  | `/stats`                |
-| Playbook  | 🚧 placeholder  | `/playbook`             |
+| Stats     | ✅ activo       | `/stats`                |
+| Playbook  | ✅ activo       | `/playbook`             |
 | Player UX | ✅ activo       | `/player/*`             |
 
 ## i18n
@@ -137,7 +137,16 @@ No lo hagas para dudas triviales o de implementación mecánica (eso ralentiza s
 ### Layout scroll fix (todas las páginas con ModuleNav)
 - Outer div: `min-h-[100dvh]` → `h-[100dvh]`
 - Main: añadido `overflow-y-auto min-h-0`
-- Páginas corregidas: Home, CoachHome, Schedule, ModulePage, Playbook, FilmRoom, GamePlan, QuickScout, Personnel, MyScout, Settings, Dashboard (scout), PlayerHome, WellnessStandalone, Dashboard (player), ClubManagement, PlayerTeamList
+- Páginas corregidas (verificado real por auditoría 2026-09-14, no solo listado aquí de nombre — esta lista original tenía `ModulePage`/`Playbook` como "ya corregidas" cuando en realidad seguían con `h-screen`, corregido hoy): Home, CoachHome, Schedule, ModulePage, Playbook, FilmRoom, GamePlan, QuickScout, Personnel, MyScout, Settings, Dashboard (scout, código muerto — ver más abajo), PlayerHome, WellnessStandalone, Dashboard (player), ClubManagement, PlayerTeamList, PlayerHomeSettingsStub, Stats
+
+### Auditoría UI/UX iOS + desktop, entrenador y jugadora (2026-09-14, spec sección 34)
+- `Dashboard.tsx` (jugadora, `/player/team/:teamId`) tenía un hallazgo **crítico** real: sin `overflow-y-auto`/`min-h-0` en absoluto — con roster largo, tarjetas por debajo del pliegue quedaban inalcanzables, no solo difíciles de alcanzar. Corregido.
+- `h-screen` → `h-[100dvh]` en `ModulePage.tsx`, `CoachHome.tsx`, `HomeDesktop.tsx`, `HomeMobile.tsx`, `Playbook.tsx` (x2) — estas 5 pantallas nunca habían pasado por el fix real pese a estar listadas arriba como corregidas.
+- `PlayerHomeSettingsStub.tsx`: mismo patrón crítico que `Dashboard.tsx` (sin scroll real), corregido — no estaba en la lista de excepciones "páginas sin ModuleNav", es una subpágina real alcanzable desde el icono de ajustes.
+- Safe-area inconsistente: 10 pantallas usaban `pb-16 md:pb-0` (64px fijo) sin sumar `env(safe-area-inset-bottom)` — el nav mobile sí lo hace (`ModuleNav.tsx`), pero el hueco que cada página reserva no coincidía. Estandarizado a `pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0` en las 10.
+- Tipografía: barrido de ~205 instancias de `text-[8-11px]` sin variante `md:` en Personnel, ClubManagement, PlayerEditor, Stats, GamePlan, QuickScout, WellnessStandalone, PlayerHome, PlayerTeamList, Dashboard, Settings. 2 excepciones dejadas a propósito (documentadas en el código): una etiqueta SVG dentro de un diagrama pequeño (`PlayerEditor.tsx`, el gráfico de zonas de poste) y un caso en `Stats.tsx` que ya resolvía desktop vía una variable JS `isDesktop`, no vía `md:`.
+- `ModuleHeader.tsx`: botón de ajustes ampliado a ~44pt de objetivo táctil (antes ~36px).
+- `ModuleNav.tsx`: el rol del sidebar desktop (`hidden lg:block`, nunca se ve en mobile) tenía `text-[10px]` fijo — subido a `text-xs` directamente (no tenía sentido un `md:`, ya es contenido solo-desktop).
 
 ### Tipografía desktop (md:text-sm mínimo)
 - Home.tsx: todos los labels pequeños → `md:text-sm` o `md:text-xs`
@@ -166,16 +175,17 @@ No lo hagas para dudas triviales o de implementación mecánica (eso ralentiza s
 ## PENDIENTES — Próximas sesiones
 
 ### Alta prioridad
-1. **Stats module** — Placeholder vacío. Implementar: KPIs de temporada por jugador, filtros por equipo/período, gráficas de asistencia y wellness. Requiere definir qué datos expone el backend.
-2. **Playbook** — Placeholder vacío. Definir alcance MVP: ¿solo game plan viewer? ¿editor de jugadas?
-3. **Desktop content density** — Las páginas (Home, Scout, Schedule) tienen mucho espacio negro vacío en desktop. Problema de contenido/producto, no de CSS. Necesitan más info contextual real.
+1. ~~**Stats module**~~ — **CORREGIDO 2026-09-14**: NO es un placeholder, son 4761 líneas en producción (fichas, roster, eficiencia, comparador radar, bubble chart, game log). Este pendiente estaba obsoleto, descubierto por la auditoría de la sección 34. Existe un `Stats.tsx.bak` (907 líneas) que es probablemente el placeholder real que se sustituyó sin actualizar esta documentación — candidato a limpieza de arqueología, no investigado a fondo.
+2. ~~**Playbook**~~ — **CORREGIDO 2026-09-14**: NO es un placeholder, son 1494 líneas en producción (hub de 4 secciones, wizard de sistema defensivo, lector de planes, vista jugadora). Mismo caso que Stats — pendiente obsoleto.
+3. **Desktop content density** — Sigue vigente, pero más acotado de lo que decía este pendiente: `Home.tsx` (vía `HomeDesktop.tsx`) ya tiene layout de 2 columnas real, no es un hueco. Sigue abierto solo para `Schedule.tsx` en modo `staffView === "planner"` (el panel lateral se apaga a propósito ahí y queda una columna centrada con margen lateral vacío).
 
 ### Media prioridad
-4. **CoachHome desktop — densidad** — Las 3 NavCards (My Scout, Film Room, Game Plan) podrían mostrar: contador de pendientes, último acceso, estado rápido.
+4. ~~**CoachHome desktop — densidad**~~ — **CORREGIDO** (ya antes de la auditoría del 2026-09-14, sin fecha exacta): las 3 `AlertSlot` de `CoachHome.tsx` (líneas 271-290) ya muestran próximo partido, contador de pendientes y conflictos.
 5. **Notificaciones** — No existe sistema push/in-app. El coach avisa hoy por WhatsApp externo.
 6. **Onboarding flow** — `OnboardingFlow.tsx` no revisado para desktop.
-7. **PlayerEditor desktop** — `PlayerEditor.tsx` standalone, sin optimización desktop.
-8. **ModuleHeader en desktop** — Ocupa ~120px por página (logo + título). Considerar `md:hidden` o versión compacta.
+7. **PlayerEditor desktop** — **Acotado 2026-09-14**: confirmado que NO es una columna estrecha desperdiciando espacio lateral (el `main`/`Tabs` no tiene `max-w-*`, es ancho completo) — el problema real es lo contrario: los `grid grid-cols-2` de cada una de las 9 secciones se estiran al ancho total de una pantalla de 27", dando campos de formulario desproporcionados. Dos soluciones legítimas sin decidir: limitar el ancho (`max-w-3xl`/`max-w-4xl` centrado, cambio simple) o rediseñar a sidebar de navegación de secciones + panel de contenido (cambio de arquitectura). Decisión de Pablo pendiente.
+8. **ModuleHeader en desktop** — **Acotado 2026-09-14**: el objetivo táctil del botón de ajustes ya se corrigió (44pt). Sigue sin decidir el problema de fondo: el logo *crece* de 56px a 88px en desktop (más espacio, no menos) mientras wordmark/tagline se quedan fijos en 10-11px vía `style={{fontSize}}` inline (no son clases Tailwind, invisibles a cualquier grep de `text-[`). Decisión de Pablo pendiente: comprimir el header en desktop (`md:hidden` parcial o versión horizontal) para liberar esas filas a contenido real.
+9. **`ScoutDesktop.tsx` — código muerto descubierto 2026-09-14**: cero importadores reales en toda la app desde el commit `b09c640` (2026-05-21, Pablo Muñoz), que sustituyó esta vista de 2 columnas (lista + preview) por `CoachHome.tsx` como pantalla real de `/scout` en desktop. Pese a eso, las secciones 28/30/32 de esta spec (2026-09-14, mucho después) invirtieron trabajo real migrando `ScoutDesktop.tsx::ReportPreview` a motor-v1 sin que nadie notara que el archivo no se renderiza para ningún usuario. Decisión de Pablo pendiente: ¿revivir esa vista como la experiencia desktop real de `/scout` (hoy es literalmente el mismo `CoachHome` que en mobile), o borrarla del todo para no seguir invirtiendo en código fantasma?
 
 ### Baja prioridad / cosmético
 9. **ModCard "SOON" badge** — `text-[8px]` → `md:text-[10px]`
@@ -186,4 +196,4 @@ No lo hagas para dudas triviales o de implementación mecánica (eso ralentiza s
 
 ### Técnico
 14. **Icono Xcode** — Después de cada cambio de icono: eliminar app del dispositivo + Clean Build Folder + rebuild. El caché de iconos en iOS es agresivo.
-15. **Verificar tipografía en pages restantes** — Personnel, PlayerHome, Dashboard (player), WellnessStandalone — pueden tener labels pequeños sin corregir.
+15. ~~**Verificar tipografía en pages restantes**~~ — **CORREGIDO 2026-09-14** (auditoría sección 34): Personnel, PlayerHome, Dashboard (player), WellnessStandalone, y de paso ClubManagement, PlayerEditor, Stats, GamePlan, QuickScout, PlayerTeamList, Settings — ~205 instancias en total.

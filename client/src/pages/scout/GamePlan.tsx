@@ -56,7 +56,7 @@ export default function GamePlan() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-[100dvh] bg-background pb-16 md:pb-0">
+      <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
         <div className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
@@ -65,7 +65,7 @@ export default function GamePlan() {
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background pb-16 md:pb-0">
+    <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
         <button
           type="button"
@@ -167,7 +167,7 @@ export default function GamePlan() {
                       </p>
                       <div className="flex items-center gap-1 mt-0.5">
                         <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                        <span className="text-[10px] md:text-xs font-bold text-emerald-600 dark:text-emerald-400">
                           {es ? "Visible a jugadoras" : zh ? "球员可见" : "Visible to players"}
                         </span>
                       </div>
@@ -194,14 +194,14 @@ export default function GamePlan() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-10 px-3 text-[11px] rounded-lg"
+                            className="h-10 px-3 text-[11px] md:text-sm rounded-lg"
                             onClick={() => setConfirmRetireId(null)}
                           >
                             {es ? "Cancelar" : zh ? "取消" : "Cancel"}
                           </Button>
                           <Button
                             size="sm"
-                            className="h-10 px-3 text-[11px] font-bold rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                            className="h-10 px-3 text-[11px] md:text-sm font-bold rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                             disabled={isRetiring}
                             onClick={() => void handleRetire(player.id)}
                           >
@@ -213,13 +213,13 @@ export default function GamePlan() {
                         </div>
                       ) : (
                         <>
-                          <span className="text-[10px] text-muted-foreground/50 font-semibold">
+                          <span className="text-[10px] md:text-xs text-muted-foreground/50 font-semibold">
                             {es ? "Publicado al roster" : zh ? "已发布给球员" : "Published to roster"}
                           </span>
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-10 px-3 text-[11px] font-bold rounded-lg text-muted-foreground hover:text-destructive"
+                            className="h-10 px-3 text-[11px] md:text-sm font-bold rounded-lg text-muted-foreground hover:text-destructive"
                             onClick={() => setConfirmRetireId(player.id)}
                           >
                             <RotateCcw className="w-3 h-3 mr-1" />

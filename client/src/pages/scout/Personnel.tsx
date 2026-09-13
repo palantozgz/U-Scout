@@ -539,7 +539,7 @@ export default function Personnel() {
 
   if (teamsLoading) {
     return (
-      <div className="flex flex-col h-[100dvh] bg-background pb-16 md:pb-0">
+      <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
         <div className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
@@ -548,7 +548,7 @@ export default function Personnel() {
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background pb-16 md:pb-0">
+    <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 space-y-3 max-w-5xl mx-auto w-full">
         <div className="flex items-center gap-3 min-w-0">
           <button
@@ -629,7 +629,7 @@ export default function Personnel() {
             <Button
               size="sm"
               variant="ghost"
-              className="text-[11px] font-bold h-8 rounded-lg w-full justify-center text-destructive/60 hover:text-destructive hover:bg-destructive/5"
+              className="text-[11px] md:text-sm font-bold h-8 rounded-lg w-full justify-center text-destructive/60 hover:text-destructive hover:bg-destructive/5"
               onClick={() => {
                 setShowResetModal(true);
                 setResetConfirmText("");
@@ -645,10 +645,10 @@ export default function Personnel() {
 
         {!canCreateCanonical && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 space-y-1">
-            <p className="text-[11px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
+            <p className="text-[11px] md:text-sm font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
               {locale === "es" ? "Modo de consulta" : locale === "zh" ? "查看模式" : "View mode"}
             </p>
-            <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 leading-snug">
+            <p className="text-[11px] md:text-sm text-amber-700/80 dark:text-amber-400/80 leading-snug">
               {locale === "es"
                 ? "Puedes ver y editar fichas canónicas. Solo el head coach puede crear nuevas fichas oficiales."
                 : locale === "zh"
@@ -754,7 +754,7 @@ export default function Personnel() {
                 <p className="text-sm font-black text-foreground">
                   {locale === "es" ? "⬇ Importar equipo WCBA" : locale === "zh" ? "⬇ 导入WCBA球队" : "⬇ Import WCBA team"}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5">
                   {locale === "es"
                     ? "Solo importa nombre y dorsal. Los datos de scouting se añaden manualmente."
                     : locale === "zh"
@@ -774,10 +774,10 @@ export default function Personnel() {
             ) : (
               <>
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2 space-y-0.5">
-                  <p className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                  <p className="text-[10px] md:text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">
                     {locale === "es" ? "Temporada 2024-25" : locale === "zh" ? "2024-25赛季" : "Season 2024-25"}
                   </p>
-                  <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
+                  <p className="text-[10px] md:text-xs text-amber-700/80 dark:text-amber-400/80">
                     {locale === "es"
                       ? `Datos sincronizados · Los nombres se muestran en chino (nombres oficiales WCBA).`
                       : locale === "zh"
@@ -802,7 +802,7 @@ export default function Personnel() {
                 </select>
 
                 {importResult && (
-                  <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] font-semibold text-primary">
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] md:text-sm font-semibold text-primary">
                     {locale === "es"
                       ? `✓ ${importResult.created} jugadoras importadas, ${importResult.skipped} ya existían`
                       : locale === "zh"
@@ -833,10 +833,10 @@ export default function Personnel() {
 
         {importLeagueResult && (
           <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 space-y-0.5">
-            <p className="text-[11px] font-black text-primary">
+            <p className="text-[11px] md:text-sm font-black text-primary">
               {locale === "es" ? "✓ Liga importada" : locale === "zh" ? "✓ 联赛已导入" : "✓ League imported"}
             </p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] md:text-xs text-muted-foreground">
               {importLeagueResult.teamsCreated}{" "}
               {locale === "es" ? "equipos nuevos" : locale === "zh" ? "支新球队" : "teams created"}
               {" · "}
@@ -896,7 +896,7 @@ export default function Personnel() {
                           {localName(team.name, (team as any).nameEn ?? (team as any).name_en, locale)}
                         </p>
                         {isSystemTeam && (
-                          <p className="text-[10px] text-muted-foreground/50 leading-tight">
+                          <p className="text-[10px] md:text-xs text-muted-foreground/50 leading-tight">
                             {locale === "es"
                               ? "Contenedor — sin equipo asignado"
                               : locale === "zh"
@@ -957,11 +957,11 @@ export default function Personnel() {
                                   {localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) || "—"}
                                 </p>
                                 {isCanonical ? (
-                                  <span className="text-[11px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                  <span className="text-[11px] md:text-sm font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                                     {L.canonical}
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mt-0.5">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[11px] md:text-sm font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mt-0.5">
                                     ⚗ {L.sandboxLabel}
                                   </span>
                                 )}
@@ -983,7 +983,7 @@ export default function Personnel() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-7 px-2 text-[10px] font-bold rounded-lg border-primary/30 text-primary hover:bg-primary/5"
+                                    className="h-7 px-2 text-[10px] md:text-xs font-bold rounded-lg border-primary/30 text-primary hover:bg-primary/5"
                                     disabled={promotingId === player.id}
                                     onClick={() => handlePromote(player.id)}
                                     title={L.promoteTip}
@@ -991,14 +991,14 @@ export default function Personnel() {
                                     <Star className="w-3 h-3 mr-1" />
                                     {promotingId === player.id ? L.promoting : L.promoteLabel}
                                   </Button>
-                                  <p className="text-[11px] text-muted-foreground/60 max-w-[100px] text-right leading-tight">
+                                  <p className="text-[11px] md:text-sm text-muted-foreground/60 max-w-[100px] text-right leading-tight">
                                     {L.promoteTip}
                                   </p>
                                 </div>
                               )}
                               {Boolean((team as any).is_system) && canManageRoster && teams.filter(t => !Boolean((t as any).is_system)).length > 0 && (
                                 <select
-                                  className="h-7 rounded-lg border border-border bg-background text-[11px] px-2 font-semibold text-foreground"
+                                  className="h-7 rounded-lg border border-border bg-background text-[11px] md:text-sm px-2 font-semibold text-foreground"
                                   defaultValue=""
                                   onChange={async (e) => {
                                     const newTeamId = e.target.value;
@@ -1061,7 +1061,7 @@ export default function Personnel() {
               <p className="text-sm font-black text-foreground">
                 {locale === "es" ? "¿Borrar ficha?" : locale === "zh" ? "删除档案？" : "Delete profile?"}
               </p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] md:text-sm text-muted-foreground">
                 <span className="font-bold text-foreground">{deletePlayerInfo.playerName}</span>
                 {" — "}
                 {locale === "es" ? "esta acción no se puede deshacer." : locale === "zh" ? "此操作无法撤销。" : "this action cannot be undone."}
@@ -1070,10 +1070,10 @@ export default function Personnel() {
 
             {deletePlayerInfo.published && (
               <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-3 py-2.5 space-y-0.5">
-                <p className="text-[11px] font-black text-amber-700 dark:text-amber-400">
+                <p className="text-[11px] md:text-sm font-black text-amber-700 dark:text-amber-400">
                   ⚠ {locale === "es" ? "Informe publicado" : locale === "zh" ? "报告已发布" : "Published report"}
                 </p>
-                <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
+                <p className="text-[10px] md:text-xs text-amber-700/80 dark:text-amber-400/80">
                   {locale === "es"
                     ? "Esta ficha tiene un informe visible para las jugadoras. Al borrarla se retirará automáticamente del Game Plan."
                     : locale === "zh"
@@ -1119,7 +1119,7 @@ export default function Personnel() {
                   <p className="text-sm font-black text-foreground">
                     {locale === "es" ? "¿Borrar equipo?" : locale === "zh" ? "删除队伍？" : "Delete team?"}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[11px] md:text-sm text-muted-foreground">
                     <span className="font-bold text-foreground">{deleteTeamInfo.teamName}</span>
                     {" · "}
                     {deleteTeamInfo.playerCount}{" "}
@@ -1129,11 +1129,11 @@ export default function Personnel() {
 
                 {deleteTeamInfo.publishedCount > 0 && (
                   <div className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-3 py-2.5 space-y-0.5">
-                    <p className="text-[11px] font-black text-amber-700 dark:text-amber-400">
+                    <p className="text-[11px] md:text-sm font-black text-amber-700 dark:text-amber-400">
                       ⚠ {deleteTeamInfo.publishedCount}{" "}
                       {locale === "es" ? "informe(s) publicado(s)" : locale === "zh" ? "份报告已发布" : "published report(s)"}
                     </p>
-                    <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
+                    <p className="text-[10px] md:text-xs text-amber-700/80 dark:text-amber-400/80">
                       {locale === "es"
                         ? "Se retirarán automáticamente del Game Plan al confirmar."
                         : locale === "zh"
@@ -1145,7 +1145,7 @@ export default function Personnel() {
 
                 {deleteTeamInfo.playerCount > 0 ? (
                   <div className="space-y-2">
-                    <p className="text-[11px] font-semibold text-muted-foreground">
+                    <p className="text-[11px] md:text-sm font-semibold text-muted-foreground">
                       {locale === "es" ? "¿Qué hacemos con las jugadoras?" : locale === "zh" ? "如何处理球员？" : "What should happen to the players?"}
                     </p>
                     <Button
@@ -1193,10 +1193,10 @@ export default function Personnel() {
           <div className="w-full max-w-sm rounded-2xl border border-destructive/40 bg-card p-5 space-y-4 shadow-xl">
             <div className="space-y-1">
               <p className="text-sm font-black text-destructive">{L.resetTitle}</p>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">{L.resetDesc}</p>
+              <p className="text-[11px] md:text-sm text-muted-foreground leading-relaxed">{L.resetDesc}</p>
             </div>
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{L.resetPrompt}</p>
+              <p className="text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">{L.resetPrompt}</p>
               <Input
                 placeholder="CONFIRMAR"
                 value={resetConfirmText}

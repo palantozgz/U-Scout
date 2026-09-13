@@ -163,7 +163,7 @@ export function ModuleNav() {
             style={{ borderTop: "1px solid hsl(var(--border) / 0.3)" }}
           >
             <p className="text-xs font-semibold text-foreground truncate">{displayName}</p>
-            {roleStr && <p className="text-[10px] text-muted-foreground tracking-wide truncate">{roleStr}</p>}
+            {roleStr && <p className="text-xs text-muted-foreground tracking-wide truncate">{roleStr}</p>}
           </div>
         )}
       </nav>
