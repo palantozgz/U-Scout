@@ -399,8 +399,16 @@ export default function ReportSlidesV1({
 
   return (
     <div
-      className="flex flex-col bg-background"
-      style={{ minHeight: "100svh" }}
+      // CORREGIDO 2026-09-14 (hallazgo B.1 de la auditoría, spec 28): era
+      // `minHeight: "100svh"` sin altura acotada -- dentro del wrapper fijo
+      // `h-[100dvh] overflow-hidden` de App.tsx (sin overflow-y-auto en
+      // ningún ancestro intermedio), un contenedor flex sin altura definida
+      // no fuerza a <main> a un tamaño acotado: si una diapositiva +
+      // bottomBar (aprobación/OverridePanel en coachMode) supera el
+      // viewport, el excedente queda recortado e invisible, no scrolleable
+      // -- justo donde vive el botón de aprobar de la sección 27. Mismo
+      // patrón ya correcto en Profile.tsx (h-[100dvh] + overflow-hidden).
+      className="flex flex-col h-[100dvh] bg-background overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onPointerDown={handlePointerDown}
@@ -448,7 +456,7 @@ export default function ReportSlidesV1({
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto min-h-0">
         {simpleMode ? (
           <SimpleReportSlide
             player={player}
@@ -659,12 +667,12 @@ export default function ReportSlidesV1({
         arrowsVisible ? "opacity-100" : "opacity-0",
       )}>
         <button type="button" onClick={() => goTo(slide - 1)} disabled={!hasPrev}
-          className={cn("pointer-events-auto w-10 h-10 rounded-full bg-card/90 border border-border flex items-center justify-center shadow-md transition-opacity", hasPrev ? "opacity-100" : "opacity-0")}
+          className={cn("pointer-events-auto w-11 h-11 rounded-full bg-card/90 border border-border flex items-center justify-center shadow-md transition-opacity", hasPrev ? "opacity-100" : "opacity-0")}
           aria-label="Previous">
           <ChevronLeft className="w-5 h-5 text-foreground" />
         </button>
         <button type="button" onClick={() => goTo(slide + 1)} disabled={!hasNext}
-          className={cn("pointer-events-auto w-10 h-10 rounded-full bg-card/90 border border-border flex items-center justify-center shadow-md transition-opacity", hasNext ? "opacity-100" : "opacity-0")}
+          className={cn("pointer-events-auto w-11 h-11 rounded-full bg-card/90 border border-border flex items-center justify-center shadow-md transition-opacity", hasNext ? "opacity-100" : "opacity-0")}
           aria-label="Next">
           <ChevronRight className="w-5 h-5 text-foreground" />
         </button>

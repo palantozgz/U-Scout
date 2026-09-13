@@ -98,6 +98,30 @@ export default function MyScout() {
   const { data: teams = [] } = useTeams();
   const createPlayerMutation = useCreatePlayer();
 
+  // AÑADIDO 2026-09-14 (hallazgo D.1 de la auditoría, spec 28): MyScout era
+  // la única pantalla del pipeline de informes sin ninguna señal de en qué
+  // fase está una ficha (borrador privado / enviada a Film Room / aprobada)
+  // -- un coach solo lo descubría entrando al informe. El dato ya existe en
+  // /api/film-room (mismo shape que consume FilmRoom.tsx), solo faltaba
+  // pedirlo aquí también.
+  const { data: filmRoomData } = useQuery({
+    queryKey: ["/api/film-room"],
+    queryFn: async () => (await apiRequest("GET", "/api/film-room")).json() as Promise<{
+      players: Array<{
+        player: { id: string };
+        hasSubmittedMine: boolean;
+        isPublished: boolean;
+        approvalCount: number;
+      }>;
+    }>,
+    staleTime: 30_000,
+  });
+  const filmRoomByPlayerId = useMemo(() => {
+    const m = new Map<string, { hasSubmittedMine: boolean; isPublished: boolean; approvalCount: number }>();
+    for (const entry of filmRoomData?.players ?? []) m.set(entry.player.id, entry);
+    return m;
+  }, [filmRoomData]);
+
   const [showNewPlayer, setShowNewPlayer] = useState(false);
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
@@ -162,6 +186,9 @@ export default function MyScout() {
       viewReport: "View report",
       fillProfile: "Fill profile",
       playersCount: "{n} players",
+      phaseDraft: "Draft",
+      phaseSubmitted: "In Film Room",
+      phaseApproved: "Approved",
     },
     es: {
       title: "Mi Scout",
@@ -178,6 +205,9 @@ export default function MyScout() {
       viewReport: "Ver informe",
       fillProfile: "Completar ficha",
       playersCount: "{n} fichas",
+      phaseDraft: "Borrador",
+      phaseSubmitted: "En Sala de análisis",
+      phaseApproved: "Aprobado",
     },
     zh: {
       title: "我的报告",
@@ -194,6 +224,9 @@ export default function MyScout() {
       viewReport: "查看报告",
       fillProfile: "完善档案",
       playersCount: "{n} 名球员",
+      phaseDraft: "草稿",
+      phaseSubmitted: "已提交至集体分析",
+      phaseApproved: "已批准",
     },
   }[locale as "en" | "es" | "zh"] ?? {
     title: "My Scout", sub: "Your individual scouting reports", add: "+ Practice profile",
@@ -203,6 +236,9 @@ export default function MyScout() {
     officialBadge: "Official", editReport: "Edit report",
     viewReport: "View report", fillProfile: "Fill profile",
     playersCount: "{n} players",
+    phaseDraft: "Draft",
+    phaseSubmitted: "In Film Room",
+    phaseApproved: "Approved",
   };
 
   const handleCreate = () => {
@@ -379,6 +415,15 @@ export default function MyScout() {
                       const isCanonical =
                         (player as any).isCanonical ?? (player as any).is_canonical ?? false;
                       const hasReport = hasReportInputs(player);
+                      const filmRoomEntry = filmRoomByPlayerId.get(player.id);
+                      const phaseBadge =
+                        isCanonical && hasReport
+                          ? filmRoomEntry
+                            ? filmRoomEntry.approvalCount > 0
+                              ? { text: L.phaseApproved, className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" }
+                              : { text: L.phaseSubmitted, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" }
+                            : { text: L.phaseDraft, className: "bg-muted text-muted-foreground" }
+                          : null;
 
                       return (
                         <div
@@ -413,6 +458,11 @@ export default function MyScout() {
                                 {isCanonical && (
                                   <span className="text-[11px] md:text-xs font-black uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                                     {L.officialBadge}
+                                  </span>
+                                )}
+                                {phaseBadge && (
+                                  <span className={cn("text-[11px] md:text-xs font-black uppercase px-1.5 py-0.5 rounded-full", phaseBadge.className)}>
+                                    {phaseBadge.text}
                                   </span>
                                 )}
                               </div>

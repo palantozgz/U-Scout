@@ -1592,3 +1592,38 @@ Flujo real ahora completo: `FilmRoom.tsx` (lista, "Staff approved: N") → tocar
 **Hallazgo secundario, no bloqueante:** `npx vitest run` reporta 1 suite fallida (`capabilities.test.ts`, "window is not defined") — no relacionado con este cambio ni con la sección 26: es un hueco preexistente de configuración de entorno (ningún `vitest.config`/docblock declara `jsdom`; ese archivo es el único test que importa transitivamente `useAuth.ts` → `queryClient.ts`, que toca `window` al cargar el módulo). Las 205 pruebas reales siguen pasando. Marcado para limpieza aparte, no corregido aquí para no mezclar con el fix urgente.
 
 Verificado: `npm run check`/`check:tests` limpios, `npx vitest run` 205/205 (aparte del hueco de entorno preexistente arriba).
+
+## 28. Auditoría desktop/iOS del pipeline de informes (3 fases: canónica → armonizada → aprobada) — El Arquitecto + implementado (2026-09-14)
+
+Encargo de Pablo: *"revisión y si es necesario diseño para desktop e iOS de los menús botones y todo el posible flujo del módulo STATS incluyendo esas tres fases de aprobado y armonización de los reports. desde lógica a UI/UX, todo el trabajo y revisión."*
+
+**Aclaración de alcance, verificada, no asumida:** en el vocabulario propio del proyecto (sección 24), "U Stats" es la integración de estadísticas reales dentro de los informes de scouting — no el placeholder `/stats` del roadmap (KPIs de temporada, sin relación). El Arquitecto confirmó por lectura de código que no hay ningún vínculo real entre `/stats` y el pipeline de informes. El encargo se interpretó y auditó como el pipeline completo de informes (edición → propuesta → armonización → aprobación → publicación → vista jugadora), no el placeholder.
+
+### 28.1. Hallazgos de la auditoría, por severidad
+
+**[CRÍTICO] `ReportSlidesV1.tsx` no seguía la regla de scroll del proyecto (CLAUDE.md) — riesgo real de que el propio botón de aprobar de la sección 27 quedara inalcanzable en un informe largo.** Su raíz usaba `style={{ minHeight: "100svh" }}` en vez de una altura acotada, montado dentro del wrapper fijo `h-[100dvh] overflow-hidden` de `App.tsx` sin ningún `overflow-y-auto` intermedio — si una diapositiva + `bottomBar` (aprobación/OverridePanel en `coachMode`, añadidos en la sección 27) superaba el viewport, el excedente quedaba recortado e invisible, no scrolleable. Comparación reveladora: `Profile.tsx` (el motor legacy que se va a retirar) sí tenía el patrón correcto — la pantalla nueva que lo sustituye tenía peor blindaje de scroll que la que reemplaza. Nunca detectado porque, como ya admite la spec repetidamente (21.5, 23.5, 23.8), el flujo completo no se había ejercitado con datos reales de producción en un dispositivo real.
+
+**[IMPORTANTE] `MyScout.tsx` (la pantalla que un coach revisa más a menudo) no tenía ninguna señal de en qué fase está un informe** — solo distinguía "sin rellenar" / "con datos", nunca borrador privado vs. enviado a Film Room vs. aprobado. El dato ya existía en el servidor (mismo shape que `/api/film-room`).
+
+**[IMPORTANTE] El toggle de `reportPublishAccess` en "Mi Club" (la función que Pablo pidió explícitamente en la sección 26) estaba enterrado en un menú de 3 puntos sin ninguna señal visible de que existiera antes de abrirlo** — el badge "PUBLICAR" solo aparecía después de concederse, nunca como pista previa.
+
+**[MENOR]** `/coach/scout/:id/preview` (`CoachScoutReportPreview`, `App.tsx`) sin ningún enlace real — mismo patrón exacto que el hallazgo ya cerrado de la sección 27. `PlayerEditor.tsx` con el mismo riesgo de scroll que el hallazgo crítico (mecanismo idéntico, menor probabilidad de manifestarse). Tipografía `text-[10-11px]` sin variante `md:` en `OverridePanel.tsx` (nunca pasó por el barrido de CLAUDE.md) y en partes de `FilmRoom.tsx` añadidas después de esa pasada (`DiscrepancyPanel`, "Staff aprobado"). Objetivos táctiles por debajo de 44pt en los pills HIDDEN/VISIBLE de `OverridePanel.tsx` y las flechas prev/next de `ReportSlidesV1.tsx`. `PlayerHome.tsx` usaba `h-screen` en vez de `h-[100dvh]` (inconsistente con el resto del proyecto). CLAUDE.md tenía las clases del wrapper de `App.tsx` desactualizadas (`md:pl-16 lg:pl-56` documentado vs. `md:pl-12 lg:pl-48` real).
+
+**Validado como correcto, no un hueco:** el layout ancho (`max-w-5xl mx-auto` consistente en `FilmRoom`/`GamePlan`/`MyScout`/`Personnel`), el badge de discrepancias ya visible en la fila colapsada de `FilmRoom.tsx` antes de expandir, y el `Lock` anti-sesgo que oculta el panel de discrepancias hasta que el propio coach entrega su versión (decisión de diseño intencional, no un bug).
+
+### 28.2. Implementado
+
+- **`ReportSlidesV1.tsx`**: raíz `style={{minHeight:"100svh"}}` → `h-[100dvh] overflow-hidden` (mismo patrón que `Profile.tsx`), `<main>` con `min-h-0` añadido. `PlayerEditor.tsx`: mismo `min-h-0` añadido a su `<main>`.
+- **`MyScout.tsx`**: nuevo badge de fase junto al nombre de cada jugadora canónica ("Borrador"/"En Sala de análisis"/"Aprobado"), alimentado por `/api/film-room` (mismo endpoint que ya usa `FilmRoom.tsx`, sin cambios de servidor). Nota: los informes ya publicados no aparecen en `MyScout.tsx` (se filtran antes, van a Game Plan), así que no hace falta un cuarto estado "Publicado" aquí.
+- **`ClubManagement.tsx`**: los toggles de `operationsAccess`/`reportPublishAccess` en la fila de staff pasan de `DropdownMenuItem` oculto a botones directos siempre visibles (mismo patrón que ya usaba la variante "player" de la fila) — el menú de 3 puntos queda solo para quitar/banear (acciones más destructivas, ocultarlas a propósito sigue teniendo sentido).
+- **`/coach/scout/:id/preview`** (`CoachScoutReportPreview`) retirado de `App.tsx` — sin enlaces reales, confirmado por grep antes de borrar.
+- **Tipografía**: `md:text-sm`/`md:text-xs` añadido en `OverridePanel.tsx` (toggle, títulos de sección, labels de item) y en `FilmRoom.tsx` (`DiscrepancyPanel`, badge de estado, "Staff aprobado").
+- **Objetivos táctiles**: pills HIDDEN/VISIBLE de `OverridePanel.tsx` envueltos en un botón de `min-h-11 min-w-11` (~44pt) sin cambiar el tamaño visual del pill; flechas prev/next de `ReportSlidesV1.tsx` de `w-10 h-10` a `w-11 h-11`.
+- **`PlayerHome.tsx`**: `h-screen` → `h-[100dvh]`, consistente con el resto del proyecto.
+- **`CLAUDE.md`**: clases del wrapper corregidas a las reales (`md:pl-12 lg:pl-48`, línea real ~459).
+
+**No tocado, deliberadamente:** el flujo de descubribilidad entre el picker de alternativas y el panel hide/keep (hallazgo menor D.5 de la auditoría, ya es el pendiente #12 conocido de CLAUDE.md — su causa raíz queda documentada aquí, no se rediseña en esta pasada). El matiz de copy sobre qué mide el denominador "M" en "Staff aprobado: N/M" (hallazgo D.3, validado como correcto, no un hueco de UI).
+
+**Pendiente de verificación visual real** (el hallazgo crítico se verificó por lectura de código y mecánica CSS de flexbox, no en un dispositivo real — ni El Arquitecto ni yo tenemos sesión autenticada de Supabase para ejercitar el flujo completo): confirmar en el simulador iOS o dispositivo real, con un informe largo en modo entrenador, que el scroll y el botón de aprobar son alcanzables.
+
+Verificado: `npm run check` limpio, `npx vitest run` 205/205 (aparte del hueco de entorno preexistente de `capabilities.test.ts`, sección 27). Smoke test del build en servidor de desarrollo: arranca sin errores de consola en la pantalla de login (no se pudo verificar el flujo autenticado — entrar con contraseña no está permitido).

@@ -221,22 +221,31 @@ export function OverridePanel({ playerId, coachId, locale, onOverrideChange }: O
     return (
       <div
         key={displayKey}
-        className="flex justify-between items-center py-2 border-b border-border/40 last:border-0"
+        className="flex justify-between items-center py-1 border-b border-border/40 last:border-0"
       >
-        <span className="text-[11px] font-semibold text-foreground truncate pr-2">
+        <span className="text-[11px] md:text-sm font-semibold text-foreground truncate pr-2">
           {formatItemLabel(displayKey, locale)}
         </span>
+        {/* AÑADIDO 2026-09-14 (hallazgo C.3 de la auditoría, spec 28): objetivo
+            táctil ampliado a ~44pt (antes px-2 py-0.5, muy por debajo del
+            mínimo recomendado en iOS) sin cambiar el tamaño visual del pill. */}
         <button
           type="button"
           disabled={busy || !coachId}
           onClick={() => onPillTap(displayKey)}
           className={[
-            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold transition-opacity",
-            isHidden ? "bg-muted text-muted-foreground/50" : "bg-emerald-500/15 text-emerald-600",
+            "shrink-0 flex items-center justify-center min-h-11 min-w-11 px-2 py-0.5 transition-opacity",
             busy ? "opacity-50 pointer-events-none" : "",
           ].join(" ")}
         >
-          {isHidden ? "HIDDEN" : "VISIBLE"}
+          <span
+            className={[
+              "rounded-full px-2 py-0.5 text-[10px] md:text-xs font-bold",
+              isHidden ? "bg-muted text-muted-foreground/50" : "bg-emerald-500/15 text-emerald-600",
+            ].join(" ")}
+          >
+            {isHidden ? "HIDDEN" : "VISIBLE"}
+          </span>
         </button>
       </div>
     );
@@ -247,26 +256,26 @@ export function OverridePanel({ playerId, coachId, locale, onOverrideChange }: O
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="w-full bg-muted/40 rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wider text-left text-foreground"
+        className="w-full bg-muted/40 rounded-xl px-3 py-2 text-[11px] md:text-sm font-black uppercase tracking-wider text-left text-foreground"
       >
         {toggleLabel}
       </button>
       {expanded && (
         <div className="rounded-xl border border-border/60 bg-card/50 px-3 py-2 space-y-3">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+            <p className="text-[11px] md:text-sm font-black uppercase tracking-wider text-muted-foreground mb-1">
               {sectionTitles.situations}
             </p>
             {(["situation.0", "situation.1", "situation.2"] as const).map((k) => row(k))}
           </div>
           <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+            <p className="text-[11px] md:text-sm font-black uppercase tracking-wider text-muted-foreground mb-1">
               {sectionTitles.defense}
             </p>
             {(["defense.deny", "defense.force", "defense.allow"] as const).map((k) => row(k))}
           </div>
           <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+            <p className="text-[11px] md:text-sm font-black uppercase tracking-wider text-muted-foreground mb-1">
               {sectionTitles.alerts}
             </p>
             {(["alert.0", "alert.1"] as const).map((k) => row(k))}

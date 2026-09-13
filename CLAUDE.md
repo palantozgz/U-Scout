@@ -37,8 +37,8 @@ Páginas sin ModuleNav (Login, Join, JoinClub, OnboardingFlow): pueden usar `min
 
 ### App.tsx wrapper (desktop sidebar)
 ```tsx
-// línea ~369 en App.tsx
-<div className="h-[100dvh] bg-background md:pl-16 lg:pl-56 relative overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ...">
+// línea ~459 en App.tsx
+<div className="h-[100dvh] bg-background md:pl-12 lg:pl-48 relative overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ...">
 ```
 - **`h-[100dvh]` (NO `min-h`)** — crítico para que el wrapper no scrollee
 - **Sin `overflow-y-auto`** en el wrapper — el scroll va dentro de cada página

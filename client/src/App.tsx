@@ -63,19 +63,6 @@ function RootRedirect({ to }: { to: string }) {
   return null;
 }
 
-function CoachScoutReportPreview() {
-  const [, params] = useRoute("/coach/scout/:id/preview");
-  const [, setLocation] = useLocation();
-  const id = params?.id;
-  if (!id) return null;
-  return (
-    <ReportSlidesV1
-      playerId={id}
-      onBack={() => setLocation("/coach/my-scout")}
-    />
-  );
-}
-
 function CoachScoutReportReview() {
   const [, params] = useRoute("/coach/scout/:id/review");
   const [, setLocation] = useLocation();
@@ -156,7 +143,6 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       <Route path="/coach/quick-scout/:id">
         {(params) => <QuickScout playerId={params.id ?? ""} />}
       </Route>
-      <Route path="/coach/scout/:id/preview" component={CoachScoutReportPreview} />
       <Route path="/coach/scout/:id/review" component={CoachScoutReportReview} />
       <Route path="/coach/club" component={ClubManagement} />
       <Route path="/coach/my-scout" component={MyScout} />

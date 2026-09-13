@@ -62,13 +62,13 @@ function DiscrepancyPanel({
               {uniqueActions.map((action) => (
                 <span
                   key={action}
-                  className="text-[10px] px-1.5 py-0.5 rounded-full border border-border font-semibold text-muted-foreground"
+                  className="text-[10px] md:text-xs px-1.5 py-0.5 rounded-full border border-border font-semibold text-muted-foreground"
                 >
                   {action}
                 </span>
               ))}
             </div>
-            <p className="text-[10px] text-muted-foreground/60">
+            <p className="text-[10px] md:text-xs text-muted-foreground/60">
               {v.coaches.length}{" "}
               {locale === "es" ? "coaches en conflicto" : locale === "zh" ? "教练有分歧" : "coaches disagree"}
             </p>
@@ -135,7 +135,7 @@ function FilmRoomCard({
             <p className="text-sm font-extrabold text-foreground truncate">
               {player.name || "—"}
             </p>
-            <span className={cn("inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider", statusColor)}>
+            <span className={cn("inline-flex items-center gap-1 text-[10px] md:text-xs font-black uppercase tracking-wider", statusColor)}>
               {statusIcon}
               {statusLabel}
             </span>
@@ -184,7 +184,7 @@ function FilmRoomCard({
 
           {/* Staff submissions summary */}
           {hasSubmittedMine && (
-            <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center justify-between text-[11px] md:text-sm">
               <span className="text-muted-foreground font-semibold">
                 {es ? "Staff aprobado:" : zh ? "已批准员工:" : "Staff approved:"}
               </span>

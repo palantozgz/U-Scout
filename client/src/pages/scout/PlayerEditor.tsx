@@ -799,7 +799,7 @@ export default function PlayerEditor() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 pb-24 overflow-y-auto">
+      <main className="flex-1 p-4 pb-24 overflow-y-auto min-h-0">
         <Tabs defaultValue="context" className="w-full">
           <TabsList className="grid w-full grid-cols-6 mb-6 p-1 bg-slate-200/60 dark:bg-slate-800/60 rounded-xl shadow-inner">
             <TabsTrigger value="context" className="rounded-lg text-[10px] sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-foreground">

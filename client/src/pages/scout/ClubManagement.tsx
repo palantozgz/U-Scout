@@ -1465,69 +1465,84 @@ function MemberRow({
       </div>
       {canManage && !(isSelf && isOwner) && (
         variant === "staff" ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-11 w-11 p-0" aria-label="More actions">
-                <MoreVertical className="w-4 h-4" />
+          // CORREGIDO 2026-09-14 (hallazgo D.2 de la auditoría, spec 28):
+          // ops/publish vivían solo dentro de este menú de 3 puntos, sin
+          // ninguna señal visible de que existieran antes de abrirlo -- el
+          // badge PREP/PUBLICAR solo aparecía *después* de concederse, nunca
+          // como pista de que la opción existe. Es justo la función que
+          // Pablo pidió explícitamente en la sección 26 ("un botón para...
+          // dar permisos a otros coaches"). Ahora son botones directos,
+          // siempre visibles, mismo patrón ya usado en la variante "player"
+          // de esta fila -- el menú de 3 puntos queda solo para
+          // quitar/banear (acciones más destructivas, ocultarlas a propósito
+          // sigue teniendo sentido).
+          <div className="flex flex-wrap gap-2 shrink-0 items-center">
+            {canOps ? (
+              <Button
+                variant={opsEnabled ? "default" : "outline"}
+                size="sm"
+                disabled={opsMut.isPending}
+                onClick={() => {
+                  const next = !opsEnabled;
+                  opsMut.mutate(
+                    { id: m.id, operationsAccess: next },
+                    {
+                      onSuccess: () => {
+                        toast({ description: next ? t("club_ops_access_grant") : t("club_ops_access_remove") });
+                      },
+                      onError: (err) => {
+                        toast({
+                          description:
+                            typeof (err as any)?.message === "string"
+                              ? (err as any).message
+                              : t("schedule_edit_error"),
+                          variant: "destructive" as any,
+                        });
+                      },
+                    },
+                  );
+                }}
+              >
+                {opsEnabled ? t("club_ops_access_remove") : t("club_ops_access_grant")}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[10rem]">
-              {canOps ? (
-                <DropdownMenuItem
-                  className="font-medium"
-                  onSelect={() => {
-                    const next = !opsEnabled;
-                    opsMut.mutate(
-                      { id: m.id, operationsAccess: next },
-                      {
-                        onSuccess: () => {
-                          toast({ description: next ? t("club_ops_access_grant") : t("club_ops_access_remove") });
-                        },
-                        onError: (err) => {
-                          toast({
-                            description:
-                              typeof (err as any)?.message === "string"
-                                ? (err as any).message
-                                : t("schedule_edit_error"),
-                            variant: "destructive" as any,
-                          });
-                        },
+            ) : null}
+            {canPublish ? (
+              <Button
+                variant={publishEnabled ? "default" : "outline"}
+                size="sm"
+                disabled={publishMut.isPending}
+                onClick={() => {
+                  const next = !publishEnabled;
+                  publishMut.mutate(
+                    { id: m.id, reportPublishAccess: next },
+                    {
+                      onSuccess: () => {
+                        toast({ description: next ? t("club_publish_access_grant") : t("club_publish_access_remove") });
                       },
-                    );
-                  }}
-                >
-                  {opsEnabled ? t("club_ops_access_remove") : t("club_ops_access_grant")}
-                </DropdownMenuItem>
-              ) : null}
-              {canPublish ? (
-                <DropdownMenuItem
-                  className="font-medium"
-                  onSelect={() => {
-                    const next = !publishEnabled;
-                    publishMut.mutate(
-                      { id: m.id, reportPublishAccess: next },
-                      {
-                        onSuccess: () => {
-                          toast({ description: next ? t("club_publish_access_grant") : t("club_publish_access_remove") });
-                        },
-                        onError: (err) => {
-                          toast({
-                            description:
-                              typeof (err as any)?.message === "string"
-                                ? (err as any).message
-                                : t("schedule_edit_error"),
-                            variant: "destructive" as any,
-                          });
-                        },
+                      onError: (err) => {
+                        toast({
+                          description:
+                            typeof (err as any)?.message === "string"
+                              ? (err as any).message
+                              : t("schedule_edit_error"),
+                          variant: "destructive" as any,
+                        });
                       },
-                    );
-                  }}
-                >
-                  {publishEnabled ? t("club_publish_access_remove") : t("club_publish_access_grant")}
-                </DropdownMenuItem>
-              ) : null}
-              {!isSelf ? (
-                <>
+                    },
+                  );
+                }}
+              >
+                {publishEnabled ? t("club_publish_access_remove") : t("club_publish_access_grant")}
+              </Button>
+            ) : null}
+            {!isSelf && (canRemove || canBan) ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 w-9 p-0" aria-label="More actions">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[10rem]">
                   <DropdownMenuItem
                     className={cn("font-medium", !canRemove && "opacity-50 pointer-events-none")}
                     onSelect={() => {
@@ -1548,10 +1563,10 @@ function MemberRow({
                       <span className={banned ? "opacity-60" : ""}>{t("club_ban")}</span>
                     </DropdownMenuItem>
                   ) : null}
-                </>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
         ) : (
           <div className="flex flex-wrap gap-2 shrink-0">
             {canOps ? (
