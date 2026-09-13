@@ -1341,3 +1341,45 @@ Es decir: el "diseño de abril" (edición → propuesta con runners-up → discr
 ### 22.3. Verificación
 
 `npm run check`/`check:tests` limpios, `npx vitest run` 93/93 (mismo fallo preexistente y no relacionado — no toca ningún archivo de esta sección). Sin test de integración end-to-end contra la base de datos real: la única jugadora real en producción tiene `inputs: {}` (spec 21.5), no hay datos con los que ejercitar el flujo completo hoy — la corrección queda verificada por tipos y por lectura cuidadosa del flujo de datos completo (backend→frontend→render), no por una prueba contra datos reales que no existen todavía.
+
+## 23. Plan de migración `ReportSlidesV1.tsx`: motor-v4 → motor-v1 (El Arquitecto, 2026-09-13)
+
+> Motor 1.0 está construido y verificado (93 tests, `motor:compare` 0 divergencias en 24 perfiles) pero nunca llega a un entrenador real: `ReportSlidesV1.tsx` — único consumidor de UI real (21.5) — sigue en `generateMotorV4()`. Delegado en El Arquitecto el plan de corte antes de tocar código, mismo patrón que 21.7.
+
+### 23.1. Hallazgo central, no documentado antes de este análisis
+
+`reportTextRenderer.ts` (la capa de texto que consume `ReportSlidesV1.tsx`) depende de dos cosas que `ScoutingReportV1` no tiene:
+1. **`EnrichedInputs` completo** (Nivel 3 legacy) — `motor-v1-types.ts` lo omite a propósito (decisión de 14.2 bis, separar Nivel 1/observación de Nivel 3/inferido), pero casi todas las funciones de `reportTextRenderer.ts` (`renderInstructionEN/ES/ZH`, `renderSituationDescription*`, `renderTagline`, `renderThreat`) lo leen campo a campo para generar el nivel de detalle actual del texto (ej. dirección de un force depende de `isoDir`).
+2. **`SituationId`** granular (16 valores con dirección/zona: `iso_right`, `post_high`, etc.) para las descripciones de situación (Slide 1) — `SituacionAmenaza.situacion` de motor-v1 solo tiene los 11 buckets Synergy, sin dirección/zona. Las funciones de descripción de situación no se pueden reapuntar con un cambio de firma — hay que reescribirlas.
+
+También falta un catálogo de labels para los 10 `ArchetypeKey` nuevos + fusión de `archetypeModificador` (hoy `renderIdentity()` solo conoce las 9 etiquetas viejas de `motor-v4.ts::situationToArchetype`).
+
+Lo que SÍ es reutilizable casi literal: las keys de deny/force/allow son el mismo string legacy en ambos motores (21.4#7), así que `renderInstructionEN/ES/ZH(key, ...)` sirve una vez resuelto el problema de `EnrichedInputs`.
+
+### 23.2. Alcance real, más pequeño de lo temido en un eje
+
+Verificado: `OverridePanel.tsx`, `overrideEngine.ts` y el backend de aprobación (sección 17/22) son **agnósticos al motor** — trabajan sobre `RenderedReport`/`itemKey` genéricos, no sobre `MotorV4Output`. La migración no los toca, siempre que el nuevo `RenderedReport` conserve los mismos `itemKey`s (`deny.instruction`, `situation.N`, etc.) para no invalidar overrides ya guardados en Supabase.
+
+`closeoutThreat.ts` sí depende de `EnrichedInputs` y de los prefijos de `SituationId` — mismo problema que el punto 1, más un mapeo de prefijos (`catch_shoot`/`off_ball` → `spotUp`/`offScreen`).
+
+### 23.3. Decisión de producto pendiente — **[PENDIENTE, pregunta directa a Pablo, no asumida]**
+
+¿`motor-v1.ts` expone `EnrichedInputs` como dato auxiliar fuera del contrato limpio de `ScoutingReportV1` (ej. una función `ensamblarReporteParaTexto()` que devuelve `{ reporte, enrichedInputs }`, documentada como deuda técnica deliberada, mismo patrón que `motor-v1-source-map.ts`), para no perder detalle de texto (ej. "Force left — contest every touch before they gather")? O se reescribe el catálogo de texto sin ese dato, aceptando un texto menos específico que el actual?
+
+Recomendación de El Arquitecto: la primera opción — la alternativa es un downgrade real de calidad de producto, no solo una refactorización, y es una decisión de producto (qué tan específico debe sonar el texto a un entrenador), no técnica.
+
+### 23.4. Estrategia de corte — decidida
+
+**Atómica, sin feature flag** (no existe infraestructura de flags en el repo, verificado — construir una solo para esto sería más riesgo que el propio corte) **pero en 2 PRs secuenciales** por gestión de riesgo de revisión, no por gradualismo en producción (un híbrido de dos motores en la misma pantalla contradice el objetivo de Motor 1.0, "una sola fuente de verdad"):
+- **PR-A**: nueva capa de texto (adaptación real de `reportTextRenderer.ts`) que consume `ScoutingReportV1` + el `EnrichedInputs` auxiliar (pendiente de 23.3) — verificable en aislamiento, sin tocar `ReportSlidesV1.tsx`.
+- **PR-B**: swap atómico en `ReportSlidesV1.tsx`/`closeoutThreat.ts` a motor-v1 usando la capa del PR-A. Incluye: eliminar (no migrar) el "También: X" de archetype (bug ya documentado en 21.7/22.2, candidato a retirarse aquí); implementar el copy activo de "defensa estándar" cuando `nivelAmenaza === "estandar"` (21.9 bis, diseñado pero nunca implementado en UI); opcionalmente extender el picker de alternativas (22.2) a `aware` ya que motor-v1 sí trae candidatos ahí.
+
+### 23.5. Riesgo explícito sin mitigación disponible
+
+No hay datos de producción reales (21.5: la única jugadora real tiene `inputs: {}`) — la única verificación posible antes de desplegar es automatizada (tests + `motor:compare`) más inspección manual contra los 24 perfiles sintéticos de `scripts/test-profiles.json`. Ningún entrenador real habrá visto el resultado con datos reales antes del despliegue. Recomendación de El Arquitecto: que Pablo revise personalmente 3-4 perfiles representativos (uno por grupo de posición) antes de dar por cerrada la migración.
+
+### 23.6. Deliberadamente fuera de esta migración
+
+Capa 3/Nivel 2 (Fase 2, no bloquea); `porque`/`confianza` real (siguen placeholder, 21.4); migrar `PlayerEditor.tsx` a `PlayerProfileV1Inputs` (no hace falta — `ensamblarReporte` acepta el mismo `PlayerInputs` legacy); retirar `motor-v4.ts`/`motor-v2.1.ts` del repo (Fase 3 completa — deben quedarse mientras `compare-motors.ts` los use como referencia de aceptación).
+
+**Siguiente paso real:** cerrar 23.3 con Pablo antes de que El Aparejador toque `reportTextRenderer.ts`.
