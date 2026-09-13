@@ -6,7 +6,8 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { useClub } from "@/lib/club-api";
 import { useCapabilities } from "@/lib/capabilities";
-import { useTeams, usePlayers, useCreatePlayer, useDeletePlayer, useCreateTeam, useDeleteTeam, createDefaultPlayer, type PlayerProfile, type Team } from "@/lib/mock-data";
+import { useTeams, usePlayers, useCreatePlayer, useDeletePlayer, useCreateTeam, useDeleteTeam, createDefaultPlayer, clubRowToMotorContext, playerInputToMotorInputs, type PlayerProfile, type Team } from "@/lib/mock-data";
+import { ensamblarReporte } from "@/lib/motor-v1";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { cn, isRealPhoto, localName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,34 @@ export default function Personnel() {
   const { data: allPlayers = [] } = usePlayers();
   const createPlayerMutation = useCreatePlayer();
   const deletePlayerMutation = useDeletePlayer();
+
+  // Semáforo de amenaza en el roster (spec motor-1.0 21.9 bis, "Fase 3+" en su
+  // momento -- ahora barato de hacer porque Motor 1.0 ya es la fuente real,
+  // spec 23). Un punto de color por jugadora sin tener que abrir cada informe.
+  // "sin_datos" (gris) es un tercer estado real, distinto de "estandar"
+  // (ámbar) -- una jugadora sin ninguna situación scouteada (inputs={}, el
+  // caso más común en producción hoy, spec 21.5) no es "sin amenaza", es
+  // "no hay nada que decir todavía" -- mismo criterio que insufficient_data
+  // en closeoutThreat.ts.
+  const clubMotorCtx = useMemo(() => clubRowToMotorContext(clubQ.data?.club), [clubQ.data?.club]);
+  const nivelAmenazaMap = useMemo(() => {
+    const map = new Map<string, "alta" | "estandar" | "sin_datos">();
+    for (const player of allPlayers) {
+      try {
+        const inp = (player as any).scoutingInputs ?? player.inputs;
+        const reporte = ensamblarReporte(playerInputToMotorInputs(inp), clubMotorCtx, {
+          jugadoraId: player.id,
+          modo: "completo",
+        });
+        const situaciones = reporte.modo === "completo" ? reporte.capa1.situaciones : [];
+        const tieneDatos = situaciones.some((s) => s.score > 0);
+        map.set(player.id, tieneDatos ? reporte.identidad.nivelAmenaza : "sin_datos");
+      } catch {
+        map.set(player.id, "sin_datos");
+      }
+    }
+    return map;
+  }, [allPlayers, clubMotorCtx]);
 
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
   const [showNewPlayer, setShowNewPlayer] = useState(false);
@@ -923,6 +952,7 @@ export default function Personnel() {
                             {/* Info */}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5">
+                                <AmenazaDot nivel={nivelAmenazaMap.get(player.id)} locale={locale} />
                                 <p className="text-sm font-extrabold text-foreground truncate">
                                   {localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) || "—"}
                                 </p>
@@ -1192,6 +1222,42 @@ export default function Personnel() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Semáforo de amenaza (spec motor-1.0 21.9 bis/23) -- un punto de color por
+ * jugadora en el listado de roster, sin tener que abrir cada informe.
+ * 🔴 alta (hay deny real) / 🟡 estandar (KYP, "defensa estándar del equipo",
+ * nunca silencio) / gris "sin datos" cuando la jugadora no tiene ninguna
+ * situación scouteada todavía -- distinto de "estandar", no confundir
+ * "sin amenaza" con "sin ficha".
+ */
+function AmenazaDot(props: { nivel: "alta" | "estandar" | "sin_datos" | undefined; locale: "en" | "es" | "zh" }) {
+  const { nivel, locale } = props;
+  if (!nivel) return null;
+  const es = locale === "es";
+  const zh = locale === "zh";
+  const config = {
+    alta: {
+      dot: "bg-red-500",
+      label: es ? "Amenaza real detectada" : zh ? "检测到明确威胁" : "Real threat detected",
+    },
+    estandar: {
+      dot: "bg-amber-400",
+      label: es ? "Sin amenaza clara — defensa estándar" : zh ? "无明确威胁 — 标准防守" : "No clear threat — standard defense",
+    },
+    sin_datos: {
+      dot: "bg-muted-foreground/25",
+      label: es ? "Sin ficha de scouting todavía" : zh ? "暂无侦察数据" : "Not scouted yet",
+    },
+  }[nivel];
+  return (
+    <span
+      className={cn("inline-block w-2 h-2 rounded-full shrink-0", config.dot)}
+      title={config.label}
+      aria-label={config.label}
+    />
   );
 }
 
