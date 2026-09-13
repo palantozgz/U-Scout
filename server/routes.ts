@@ -373,6 +373,19 @@ export async function registerRoutes(
     try {
       const player = await storage.getPlayer((req.params.id as string));
       if (!player) return res.status(404).json({ error: "Player not found" });
+      // CORREGIDO 2026-09-14 (spec motor-1.0 sección 25, hallazgo real):
+      // este endpoint no comprobaba nada por rol -- una jugadora autenticada
+      // podía pedir el scouting crudo de CUALQUIER id, con solo conocerlo
+      // (no expuesto por la navegación normal, que sí está scopeada por
+      // scoutingReportAssignments vía /api/player/team/:teamId, pero sí
+      // alcanzable manipulando la URL/red directamente -- clase IDOR). Un
+      // rol "player" solo puede leer jugadoras que un entrenador le asignó
+      // de verdad -- mismo helper que ya usa /api/player/views. Los demás
+      // roles (coach/head_coach/master) no cambian de comportamiento.
+      if (req.user!.role === "player") {
+        const allowed = await storage.userHasScoutingReportAssignment(req.user!.id, player.id);
+        if (!allowed) return res.status(403).json({ error: "Not assigned to this report" });
+      }
       res.json(player);
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch player" });

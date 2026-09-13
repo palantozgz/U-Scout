@@ -1519,3 +1519,25 @@ Verificado: `npm run check`/`check:tests` limpios, `npx vitest run` 205/205, `np
 - Qué se supone que pase con `Profile.tsx` en el roadmap — ¿se retira y todo pasa por `ReportSlidesV1`, se migra su lógica, o se mantiene como una vista distinta a propósito?
 
 **No he tocado código de este hallazgo.** Es una decisión de producto y de seguridad de datos (qué ve una jugadora y cuándo) que le corresponde a Pablo, no una que deba asumir yo — mismo criterio que motivó preguntar por el conflicto de la sección 13.3 al principio de esta fase.
+
+### 25.1. Investigado a fondo y cerrado el hueco real de autorización (2026-09-14)
+
+> Pablo: *"haz lo más consecuente para los objetivos que queremos"*. No es una respuesta a las preguntas de arriba (siguen sin decidir) — es un mandato a usar criterio propio. Se investigó más a fondo antes de tocar nada, y se encontró que la situación real es menos grave de lo que el hallazgo inicial sugería en un eje, y hay un hueco real y concreto en otro.
+
+**[VERIFICADO] El acceso SÍ está scopeado por `scoutingReportAssignments` en las dos rutas de navegación real, no es un browse-anything abierto:**
+- `/player` → equipo → roster usa `usePlayerTeamDetail()` → `GET /api/player/team/:teamId` → `storage.listAssignedPlayersInTeamForUser()` — solo jugadoras con asignación real.
+- `/player/reports` usa `usePlayerHome()` → `GET /api/player/home` → `storage.listScoutingReportsForUser()` — mismo concepto de asignación.
+
+Es decir: las dos rutas (la migrada a Motor 1.0 y la del motor viejo) respetan el mismo gate de asignación a nivel de navegación — el problema no era "cualquier jugadora ve cualquier informe navegando la app".
+
+**[VERIFICADO] El hueco real es más pequeño y más concreto: `GET /api/players/:id` (el endpoint que `usePlayer()` llama de verdad para traer los datos completos, usado tanto por `ReportSlidesV1.tsx` como por `Profile.tsx`) no comprobaba la asignación en absoluto** — clase IDOR: alcanzable solo manipulando la URL/red directamente con el id de una jugadora no asignada (no expuesto por ningún botón/link real de la navegación normal), pero real. **Corregido**: cuando `req.user.role === "player"`, se exige `storage.userHasScoutingReportAssignment()` (el mismo helper que ya usaba `/api/player/views` desde antes) — 403 si no está asignada. Coach/head_coach/master sin cambios.
+
+**Verificado antes de tocar el endpoint, no asumido:**
+- Los 4 consumidores reales de `usePlayer()` (`ReportSlidesV1.tsx`, `ReportViewV4.tsx`, `Profile.tsx`, `PlayerEditor.tsx`) revisados uno a uno — ninguno rompe: `PlayerEditor.tsx` es de uso exclusivo de coach; `ReportViewV4.tsx` con `mode="player"` no tiene ninguna ruta real en `App.tsx` que lo monte así (dead prop, no se usa hoy); `ReportSlidesV1.tsx`/`Profile.tsx` son exactamente los dos casos que ya pasan por el gate de asignación en la navegación normal.
+- `scouting_report_assignments` (columnas `user_id`/`player_id`/`created_by`/`created_at`) y `users.role` (`"coach"`/`"player"`/`"master"`, exacto) verificados contra el esquema real de Supabase antes de escribir la condición.
+
+**Lo que se deja explícitamente sin decidir, sigue siendo de Pablo:**
+- `POST /api/report-assignments` (el endpoint con el que un coach comparte un informe) no exige ningún estado de aprobación/publicación antes de poder asignar — un solo entrenador puede compartir un borrador sin pasar por discrepancias/aprobación multi-entrenador (sección 17.1). Si esto debe cambiar (exigir aprobación antes de poder asignar) es una decisión de flujo de trabajo real, no una que se pueda inferir del código — no tocado.
+- El tercer motor (`generateProfile()`/`Profile.tsx`) sigue vivo y sin auditar. Retirarlo, migrarlo, o dejarlo así sigue siendo una decisión de alcance (Fase 3 del roadmap) — no tocado en esta pasada, el hueco de seguridad que sí era claramente "consecuente con los objetivos" arreglar ya está cerrado independientemente de qué motor calcule el contenido.
+
+Verificado: `npm run check` limpio (sin tests de servidor en este proyecto — ningún archivo `*.test.ts` bajo `server/`, verificado por `find`; la verificación aquí es por lectura cuidadosa + comprobación directa del esquema real, no por test automatizado).
