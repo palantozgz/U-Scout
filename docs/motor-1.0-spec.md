@@ -1686,3 +1686,15 @@ Respuesta directa de Pablo a la pregunta abierta de la sección 30 (chips de arq
 Quedan fuera de alcance, explícitamente NO tocados en esta pasada (ver spec 26.3, sigue vigente): `motor-v4.ts`/`motor-v2.1.ts`/`reportTextRenderer.ts` (legacy) — `motor-v2.1.ts` es el núcleo calibrado que `motor-v1.ts` sigue usando en tiempo de ejecución, nunca se retira; `motor-v4.ts`/`reportTextRenderer.ts` siguen como referencia de aceptación en 2 archivos de test y `reportTextRendererV1.ts` reutiliza ~600 líneas de sus helpers a propósito — retirarlos exige separar esos helpers a un archivo compartido nuevo primero, Fase 3 real, no parte de este bloque.
 
 Verificado: `npm run check` limpio, `npx vitest run` **13/13 archivos, 212/212 pruebas**. Smoke test del build sin errores de consola.
+
+## 33. Cerrada la pregunta abierta de la sección 26.3 — la jugadora nunca ve alternativas del motor (2026-09-14)
+
+Respuesta directa de Pablo a la pregunta pendiente desde la sección 26.3 (¿deben ocultarse del todo las hojas de alternativas deny/force/allow en modo jugadora, o quedarse visibles-pero-no-elegibles como hasta ahora?):
+
+> *"eso no tiene sentido alguno. la jugadora solo ve la opcion que hemos aprobado. debe de ser un report categorico, sencillo, sintetizado y que de confianza. absoluto."*
+
+**[VERIFICADO antes de asumir alcance] Solo `ReportSlidesV1.tsx` (slide 2, modo "completo") tenía este hueco.** `SimpleReportSlide` (el "Resumen rápido", modo por defecto) ya mostraba únicamente la instrucción de `deny` como texto plano, sin sheet, sin alternativas — ya cumplía el criterio. El problema estaba solo en las 3 tarjetas deny/force/allow de la vista completa: eran `<button>` para cualquiera (jugadora incluida), abrían el mismo sheet con el listado "Alternativas del motor" (con puntuaciones) que el entrenador usa para el picker — la jugadora no podía elegir ninguna, pero sí las veía todas.
+
+**Implementado**: las 3 tarjetas ahora son interactivas (`<button>`, abren el sheet de alternativas) solo en `coachMode`; en modo jugadora son de solo lectura (`<div>`, sin `onClick`, sin afordancia de tap) — lo único que ve es la instrucción final aprobada y su "porqué" corto, ya visibles en la propia tarjeta. Nunca llega a abrirse el sheet, nunca ve una puntuación ni una opción descartada.
+
+Verificado: `npm run check` limpio, `npx vitest run` 13/13 archivos, 212/212 pruebas. Smoke test del build sin errores de consola.

@@ -338,6 +338,10 @@ export default function ReportSlidesV1({
     force: finalReport.defense.force?.instruction ? [finalReport.defense.force.instruction] : [],
     allow: finalReport.defense.allow?.instruction ? [finalReport.defense.allow.instruction] : [],
   };
+  // AÑADIDO 2026-09-14 (spec 26.3/33): las tarjetas deny/force/allow solo son
+  // interactivas (abren el picker de alternativas) en coachMode -- en modo
+  // jugadora son de solo lectura, sin afordancia de tap.
+  const CardTag = coachMode ? "button" : "div";
 
   // Motor 1.0, Fase 2 (spec 24.6, pendiente cerrado 2026-09-14) -- `porque`
   // (15.5) ya se calcula desde que capa3 llegó a producción, pero no se
@@ -585,9 +589,19 @@ export default function ReportSlidesV1({
         {/* SLIDE 2: ¿Qué hago yo? */}
         {slide === 2 && (
           <div className="px-4 pt-6 pb-24 space-y-3 max-w-lg mx-auto">
+            {/* CORREGIDO 2026-09-14 (spec 26.3/33, decisión directa de Pablo):
+                "la jugadora solo ve la opción que hemos aprobado. debe ser un
+                report categórico, sencillo, sintetizado y que dé confianza
+                absoluta" -- las tarjetas deny/force/allow abrían el picker de
+                alternativas del motor (con puntuaciones) para cualquiera,
+                jugadora incluida, aunque no pudiera elegir ninguna. Ahora solo
+                se abre en coachMode; en modo jugadora la tarjeta es de solo
+                lectura (sin onClick, sin CardTag interactivo) -- lo que ve es
+                lo que ya está en la propia tarjeta, nada más detrás. */}
             {defensivePlan.deny.length > 0 ? (
-              <button type="button" onClick={() => openDefenseSheet("deny", defensivePlan.deny[0], finalReport.defense.deny?.alternatives ?? [], completo.reporte.capa2.deny?.ganador.score ?? 0)}
-                className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card active:bg-muted/40 transition-colors", DENY_CLASSES.border)}>
+              <CardTag type={coachMode ? "button" : undefined}
+                onClick={coachMode ? () => openDefenseSheet("deny", defensivePlan.deny[0], finalReport.defense.deny?.alternatives ?? [], completo.reporte.capa2.deny?.ganador.score ?? 0) : undefined}
+                className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card transition-colors", coachMode && "active:bg-muted/40", DENY_CLASSES.border)}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={cn("w-2 h-2 rounded-full shrink-0", DENY_CLASSES.dot)} />
                   <p className={cn("text-[10px] font-black uppercase tracking-widest", DENY_CLASSES.text)}>
@@ -598,7 +612,7 @@ export default function ReportSlidesV1({
                 {porqueDelGanador("deny") && (
                   <p className="mt-1.5 text-xs text-muted-foreground/70 italic">{porqueDelGanador("deny")}</p>
                 )}
-              </button>
+              </CardTag>
             ) : (
               // CORREGIDO 2026-09-13 (spec 21.9 bis/23.4#4): antes, sin deny,
               // esta sección desaparecía en silencio. El semáforo "estandar"
@@ -614,8 +628,9 @@ export default function ReportSlidesV1({
               </div>
             )}
             {defensivePlan.force.length > 0 && (
-              <button type="button" onClick={() => openDefenseSheet("force", defensivePlan.force[0], finalReport.defense.force?.alternatives ?? [], completo.reporte.capa2.force?.ganador.score ?? 0)}
-                className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card active:bg-muted/40 transition-colors", FORCE_CLASSES.border)}>
+              <CardTag type={coachMode ? "button" : undefined}
+                onClick={coachMode ? () => openDefenseSheet("force", defensivePlan.force[0], finalReport.defense.force?.alternatives ?? [], completo.reporte.capa2.force?.ganador.score ?? 0) : undefined}
+                className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card transition-colors", coachMode && "active:bg-muted/40", FORCE_CLASSES.border)}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={cn("w-2 h-2 rounded-full shrink-0", FORCE_CLASSES.dot)} />
                   <p className={cn("text-[10px] font-black uppercase tracking-widest", FORCE_CLASSES.text)}>
@@ -626,11 +641,12 @@ export default function ReportSlidesV1({
                 {porqueDelGanador("force") && (
                   <p className="mt-1.5 text-xs text-muted-foreground/70 italic">{porqueDelGanador("force")}</p>
                 )}
-              </button>
+              </CardTag>
             )}
             {defensivePlan.allow.length > 0 && (
-              <button type="button" onClick={() => openDefenseSheet("allow", defensivePlan.allow[0], finalReport.defense.allow?.alternatives ?? [], completo.reporte.capa2.allow?.ganador.score ?? 0)}
-                className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card active:bg-muted/40 transition-colors", ALLOW_CLASSES.border)}>
+              <CardTag type={coachMode ? "button" : undefined}
+                onClick={coachMode ? () => openDefenseSheet("allow", defensivePlan.allow[0], finalReport.defense.allow?.alternatives ?? [], completo.reporte.capa2.allow?.ganador.score ?? 0) : undefined}
+                className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card transition-colors", coachMode && "active:bg-muted/40", ALLOW_CLASSES.border)}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={cn("w-2 h-2 rounded-full shrink-0", ALLOW_CLASSES.dot)} />
                   <p className={cn("text-[10px] font-black uppercase tracking-widest", ALLOW_CLASSES.text)}>
@@ -641,7 +657,7 @@ export default function ReportSlidesV1({
                 {porqueDelGanador("allow") && (
                   <p className="mt-1.5 text-xs text-muted-foreground/70 italic">{porqueDelGanador("allow")}</p>
                 )}
-              </button>
+              </CardTag>
             )}
             {topAlerts.length > 0 && (
               <div className="space-y-2 pt-1">
