@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/sheet";
 import { applyOverridesV1, type ReportOverride } from "@/lib/overrideEngine";
 import { useSetReportOverride, useDeleteReportOverride, type ApprovalSlide } from "@/lib/approval-api";
+import { useRecordPlayerSlideView } from "@/lib/player-home";
 
 const BasketballPlaceholderAvatar = lazy(() =>
   import("@/components/BasketballPlaceholderAvatar").then(m => ({
@@ -103,6 +104,7 @@ export default function ReportSlidesV1({
   // no hace falta pasarlo aquí.
   const setOverride = useSetReportOverride(playerId);
   const deleteOverride = useDeleteReportOverride(playerId);
+  const recordSlideView = useRecordPlayerSlideView();
   const [pickingIdx, setPickingIdx] = useState<number | null>(null);
   const displayName = player ? localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) : "";
   const clubQ = useClub({ enabled: Boolean(user) });
@@ -143,17 +145,20 @@ export default function ReportSlidesV1({
     } catch {}
   }, []);
 
+  // CORREGIDO 2026-09-14 (Bloque C, spec 26.3/28): era un `fetch` crudo que
+  // duplicaba lo que ya hacía `useRecordPlayerSlideView` (player-home.ts) sin
+  // su `onSuccess` -- que invalida las queries `player-teams`/`player-team`
+  // de las que depende `unseenCount` en `PlayerTeamList.tsx`. Con el fetch
+  // crudo, el badge de "pendientes" no se refrescaba en el momento tras ver
+  // una diapositiva, solo en el siguiente refetch natural. Usando el hook ya
+  // construido (antes solo vivía en el `Profile.tsx` retirado) se restaura
+  // esa invalidación.
   useEffect(() => {
     if (coachMode) return;
     if (!user) return;
     if (!playerId) return;
-    void fetch("/api/player/views", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerId, slideIndex: slide }),
-    }).catch(() => {
-      // ignore
-    });
+    recordSlideView.mutate({ playerId, slideIndex: slide });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slide, coachMode, playerId, user]);
 
   function showArrows() {

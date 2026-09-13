@@ -48,7 +48,6 @@ const WellnessStandalone = lazy(() => import("@/pages/player/WellnessStandalone"
 const PlayerTeamView = lazy(() =>
   import("@/pages/player/Dashboard").then(m => ({ default: m.PlayerTeamView })),
 );
-const PlayerProfileViewer = lazy(() => import("@/pages/player/Profile"));
 const UCoreHome = lazy(preloadHome);
 const UCoreScout = lazy(preloadScoutModule);
 const UCoreSchedule = lazy(preloadScheduleModule);
@@ -102,6 +101,36 @@ function PlayerReportV4Route() {
   );
 }
 
+// AÑADIDO 2026-09-14 (Bloque C, spec 26.3/28) -- retira Profile.tsx (motor
+// legacy generateProfile(), sin auditar) de la ruta /player/:id, que es a
+// donde navega /player/reports (PlayerHome.tsx). Mismo patrón exacto que
+// PlayerReportV4Route arriba -- ambas rutas jugadora convergen ahora en el
+// mismo motor-v1/ReportSlidesV1, cierra el hallazgo de la sección 25 (dos
+// rutas jugadora, dos motores distintos).
+function PlayerOpponentReportRoute() {
+  const [, params] = useRoute("/player/:id");
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const id = params?.id;
+
+  const { data: overrides } = useQuery({
+    queryKey: ["/api/players", id, "overrides"],
+    queryFn: async () =>
+      (await apiRequest("GET", `/api/players/${id}/overrides`)).json() as Promise<ReportOverride[]>,
+    enabled: Boolean(id) && Boolean(user),
+    staleTime: 60_000,
+  });
+
+  if (!id) return null;
+  return (
+    <ReportSlidesV1
+      playerId={id}
+      onBack={() => setLocation("/player/reports")}
+      overrides={overrides ?? []}
+    />
+  );
+}
+
 function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
   return (
     <Suspense
@@ -138,7 +167,6 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       </Route>
 
       {/* Coach Mode — specific paths before /coach */}
-      <Route path="/coach/player/:id/profile" component={PlayerProfileViewer} />
       <Route path="/coach/player/:id" component={PlayerEditor} />
       <Route path="/coach/quick-scout/:id">
         {(params) => <QuickScout playerId={params.id ?? ""} />}
@@ -164,7 +192,7 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       </Route>
       <Route path="/player/team/:teamId" component={PlayerTeamView} />
       <Route path="/player/report/:id" component={PlayerReportV4Route} />
-      <Route path="/player/:id" component={PlayerProfileViewer} />
+      <Route path="/player/:id" component={PlayerOpponentReportRoute} />
       <Route path="/player" component={PlayerTeamList} />
 
       <Route component={NotFound} />

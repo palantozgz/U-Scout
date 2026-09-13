@@ -1627,3 +1627,19 @@ Encargo de Pablo: *"revisión y si es necesario diseño para desktop e iOS de lo
 **Pendiente de verificación visual real** (el hallazgo crítico se verificó por lectura de código y mecánica CSS de flexbox, no en un dispositivo real — ni El Arquitecto ni yo tenemos sesión autenticada de Supabase para ejercitar el flujo completo): confirmar en el simulador iOS o dispositivo real, con un informe largo en modo entrenador, que el scroll y el botón de aprobar son alcanzables.
 
 Verificado: `npm run check` limpio, `npx vitest run` 205/205 (aparte del hueco de entorno preexistente de `capabilities.test.ts`, sección 27). Smoke test del build en servidor de desarrollo: arranca sin errores de consola en la pantalla de login (no se pudo verificar el flujo autenticado — entrar con contraseña no está permitido).
+
+## 29. Bloque C cerrado — `Profile.tsx` retirado, las dos rutas jugadora convergen en motor-v1 (2026-09-14)
+
+Continuación directa del plan de limpieza ya cerrado en la sección 26.3. El hallazgo de la sección 25 (dos rutas jugadora — `/player/reports` y `/player`→`/player/team/:id` — a dos motores distintos) queda cerrado: ambas usan ahora `ReportSlidesV1.tsx`/motor-v1.
+
+- `/player/:id` (a donde navega `PlayerHome.tsx` desde `/player/reports`) monta ahora `PlayerOpponentReportRoute` (`App.tsx`), mismo patrón exacto que `PlayerReportV4Route` ya usado en `/player/report/:id` — mismo componente, mismos `overrides`, `onBack` a `/player/reports`.
+- `/coach/player/:id/profile` retirado de `App.tsx` — confirmado sin ningún enlace real antes de borrar (mismo criterio que el Bloque B/hallazgo de la sección 27).
+- `Profile.tsx` (1173 líneas, motor legacy `generateProfile()`/`clubRowToMotorContext`, sin auditar) eliminado por completo — confirmado cero importadores restantes tras quitar las dos rutas.
+- Huérfanos directos de `Profile.tsx`, confirmados sin otros importadores antes de borrar, eliminados en el mismo commit: `components/ApprovalBar.tsx` (ya sin ningún uso real desde que la sección 27 movió el botón de aprobar a `ReportViewV4.tsx`) y `lib/translateMotorOutput.ts` (función de un solo uso, exclusiva de `Profile.tsx`).
+- **Corrección real encontrada al limpiar, no solo borrado mecánico**: `ReportSlidesV1.tsx` marcaba vista de diapositiva con un `fetch` crudo a `/api/player/views`, duplicando sin su `onSuccess` lo que ya hacía `useRecordPlayerSlideView()` (`player-home.ts`, antes solo usado por el `Profile.tsx` retirado) — ese `onSuccess` invalida las queries `player-teams`/`player-team`, de las que depende `unseenCount` en `PlayerTeamList.tsx`. Con el fetch crudo, el badge de "pendientes" no se refrescaba al momento tras ver una diapositiva, solo en el siguiente refetch natural — un hueco menor pero real, presente desde la migración PR-A/PR-B (sección 23), nunca antes detectado. Corregido: `ReportSlidesV1.tsx` usa ahora el hook en vez del fetch crudo.
+
+**Sigue abierto, no resuelto aquí — `[A VALIDAR CON PABLO]` de la sección 26.3**: si las hojas de alternativas deny/force/allow/situación deben ocultarse del todo en modo jugadora, en vez de visibles-pero-no-elegibles como hoy. No bloqueaba este bloque porque `/player/report/:id` ya tenía exactamente este mismo comportamiento en producción desde antes — converger `/player/:id` al mismo componente no cambia ese comportamiento, solo lo hace consistente entre las dos rutas.
+
+**Bloque D (migrar los 2 lectores reales de `generateProfile()` -- `MyScout.tsx::hasRealArchetype`, tarjeta de `ScoutDesktop.tsx` -- antes de poder quitar sus 3 puntos de guardado en `QuickScout.tsx`/`PlayerEditor.tsx`) sigue pendiente, no tocado en esta pasada** — `generateProfile()`/`isoDanger` de `mock-data.ts` no se tocan todavía, sus otros llamadores siguen vivos.
+
+Verificado: `npm run check` limpio, `npx vitest run` 205/205 (mismo hueco preexistente de `capabilities.test.ts`, sección 27, sin relación). Smoke test del build sin errores de consola en la pantalla de login.
