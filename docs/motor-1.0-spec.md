@@ -1643,3 +1643,17 @@ Continuación directa del plan de limpieza ya cerrado en la sección 26.3. El ha
 **Bloque D (migrar los 2 lectores reales de `generateProfile()` -- `MyScout.tsx::hasRealArchetype`, tarjeta de `ScoutDesktop.tsx` -- antes de poder quitar sus 3 puntos de guardado en `QuickScout.tsx`/`PlayerEditor.tsx`) sigue pendiente, no tocado en esta pasada** — `generateProfile()`/`isoDanger` de `mock-data.ts` no se tocan todavía, sus otros llamadores siguen vivos.
 
 Verificado: `npm run check` limpio, `npx vitest run` 205/205 (mismo hueco preexistente de `capabilities.test.ts`, sección 27, sin relación). Smoke test del build sin errores de consola en la pantalla de login.
+
+## 30. Bloque D — los 2 lectores reales de `generateProfile()` migrados a motor-v1; los 3 puntos de guardado deliberadamente NO retirados todavía (2026-09-14)
+
+Continuación del plan de El Arquitecto (26.3): antes de poder quitar los 3 puntos donde `QuickScout.tsx`/`PlayerEditor.tsx` llaman a `generateProfile()` (motor legacy) al guardar, había que migrar primero a sus 2 lectores reales para que no se rompieran al quedarse con datos obsoletos.
+
+**Migrado:**
+- **`MyScout.tsx::hasReportInputs`**: dependía de `player.archetype` (persistido por `generateProfile()`). Ahora ensambla con motor-v1 (`ensamblarReporte`) y comprueba si alguna situación real tiene `score > 0` — mismo criterio exacto que el semáforo de `Personnel.tsx` (spec 23.9).
+- **`ScoutDesktop.tsx::ReportPreview`** (tarjeta de vista previa del informe en el panel derecho): `hasReport` y el bloque "Defensa principal" (antes `defensivePlan.defender/forzar/concede`, campos persistidos) ahora usan el informe real de motor-v1 (`ensamblarReporteParaTexto` + `renderReportV1`, mismo contrato que ya renderiza `ReportSlidesV1.tsx` — `defense.deny/force/allow.instruction`).
+
+**Deliberadamente NO migrado, y por tanto los 3 puntos de guardado (`QuickScout.tsx:272-273`, `PlayerEditor.tsx:656,684-686`) tampoco se retiran todavía:** los chips "Arquetipo"/"Características clave" (`archetype`/`subArchetype`/`keyTraits`) de `ScoutDesktop.tsx` siguen leyendo los campos persistidos por `generateProfile()`. No tienen un equivalente 1:1 en motor-v1 hoy — eso es exactamente el trabajo todavía sin empezar de "iconografía de arquetipos" (sección 20 del roadmap). Inventar ese mapeo yo mismo sería una decisión de producto (qué debería decir el chip, qué conceptos de motor-v1 corresponden a "key traits") que no me corresponde asumir solo — mismo criterio aplicado toda la sesión. Como esos 3 campos siguen teniendo un lector real sin migrar, quitar quien los escribe rompería silenciosamente ese lector para cualquier jugadora nueva o reeditada a partir de ahora.
+
+**Pregunta abierta para Pablo, no resuelta aquí:** ¿qué hacer con los chips de arquetipo/rasgos clave de `ScoutDesktop.tsx` — se abordan como parte del trabajo de iconografía de arquetipos (sección 20, dándoles un mapeo real desde motor-v1), o se simplifican/retiran de esa tarjeta para poder cerrar `generateProfile()` del todo? Cualquiera de las dos respuestas desbloquea terminar el Bloque D; sin ella, `generateProfile()`/`isoDanger`/`mock-data.ts` siguen vivos a propósito.
+
+Verificado: `npm run check` limpio, `npx vitest run` 205/205 (mismo hueco preexistente de `capabilities.test.ts`). Smoke test del build sin errores de consola.

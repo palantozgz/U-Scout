@@ -6,31 +6,22 @@ import { ArrowLeft, Star, ChevronRight, Pencil } from "lucide-react";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
-import { usePlayers, useTeams, useCreatePlayer, createDefaultPlayer, type PlayerProfile } from "@/lib/mock-data";
+import {
+  usePlayers,
+  useTeams,
+  useCreatePlayer,
+  createDefaultPlayer,
+  clubRowToMotorContext,
+  playerInputToMotorInputs,
+  type PlayerProfile,
+} from "@/lib/mock-data";
+import { useClub } from "@/lib/club-api";
+import { ensamblarReporte } from "@/lib/motor-v1";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { cn, isRealPhoto, localName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
-
-function hasReportInputs(player: PlayerProfile): boolean {
-  // "arch_role_player" = internal ID (createDefaultPlayer)
-  // "Role Player"      = text stored in DB when importing WCBA players via Personnel
-  const DEFAULT_ARCHS = new Set(["arch_role_player", "Role Player", ""]);
-  const hasRealArchetype = !!player.archetype && !DEFAULT_ARCHS.has(player.archetype);
-
-  const inp = (player as any).inputs ?? (player as any).scoutingInputs;
-  if (!inp || typeof inp !== "object") return hasRealArchetype;
-  const i = inp as Record<string, unknown>;
-  const hasPrimarySituation =
-    i.isoFrequency === "Primary" ||
-    i.pnrFrequency === "Primary" ||
-    i.postFrequency === "Primary" ||
-    i.transitionFrequency === "Primary" ||
-    i.indirectsFrequency === "Primary";
-
-  return hasRealArchetype || hasPrimarySituation;
-}
 
 function useStatsLink(playerName: string, enabled: boolean) {
   return useQuery({
@@ -97,6 +88,35 @@ export default function MyScout() {
   const { data: allPlayers = [], isLoading } = usePlayers();
   const { data: teams = [] } = useTeams();
   const createPlayerMutation = useCreatePlayer();
+  const clubQ = useClub({ enabled: Boolean(profile) });
+
+  // CORREGIDO 2026-09-14 (Bloque D, spec 26.3/29): antes dependía de
+  // player.archetype, un campo persistido por generateProfile() (motor
+  // legacy retirado en el Bloque C) en cada guardado -- una vez se quiten
+  // sus puntos de guardado (Bloque D siguiente), ese campo dejaría de
+  // actualizarse y este chequeo empezaría a mentir. Mismo criterio real ya
+  // usado por el semáforo de Personnel.tsx (spec 23.9): ensamblar con
+  // motor-v1 y comprobar si alguna situación tiene score > 0 -- "sin_datos"
+  // es un estado real, no la ausencia de un campo derivado.
+  const clubMotorCtx = useMemo(() => clubRowToMotorContext(clubQ.data?.club), [clubQ.data?.club]);
+  const hasReportMap = useMemo(() => {
+    const m = new Map<string, boolean>();
+    for (const player of allPlayers) {
+      try {
+        const inp = (player as any).scoutingInputs ?? player.inputs;
+        const reporte = ensamblarReporte(playerInputToMotorInputs(inp), clubMotorCtx, {
+          jugadoraId: player.id,
+          modo: "completo",
+        });
+        const situaciones = reporte.modo === "completo" ? reporte.capa1.situaciones : [];
+        m.set(player.id, situaciones.some((s) => s.score > 0));
+      } catch {
+        m.set(player.id, false);
+      }
+    }
+    return m;
+  }, [allPlayers, clubMotorCtx]);
+  const hasReportInputs = (player: PlayerProfile): boolean => hasReportMap.get(player.id) ?? false;
 
   // AÑADIDO 2026-09-14 (hallazgo D.1 de la auditoría, spec 28): MyScout era
   // la única pantalla del pipeline de informes sin ninguna señal de en qué

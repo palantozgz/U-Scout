@@ -3,7 +3,18 @@ import { useLocation } from "wouter";
 import { cn, localName, isRealPhoto } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n";
 import { Search, Star, ChevronRight, ExternalLink } from "lucide-react";
-import { usePlayers, useTeams, type PlayerProfile } from "@/lib/mock-data";
+import {
+  usePlayers,
+  useTeams,
+  clubRowToMotorContext,
+  playerInputToMotorInputs,
+  type PlayerProfile,
+  type ClubContext,
+} from "@/lib/mock-data";
+import { useClub } from "@/lib/club-api";
+import { ensamblarReporteParaTexto } from "@/lib/motor-v1";
+import { renderReportV1 } from "@/lib/reportTextRendererV1";
+import type { RenderContext } from "@/lib/reportTextRenderer";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { ModuleNav } from "./ModuleNav";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
@@ -83,14 +94,23 @@ function PlayerRow({
 
 // ── Report preview ────────────────────────────────────────────
 function ReportPreview({
-  player, teamName, locale, onOpen,
+  player, teamName, locale, gender, clubMotorCtx, onOpen,
 }: {
-  player: PlayerProfile; teamName: string; locale: string; onOpen: () => void;
+  player: PlayerProfile; teamName: string; locale: string; gender: "f" | "m" | "n";
+  clubMotorCtx: ClubContext | undefined; onOpen: () => void;
 }) {
   const name = localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) || "—";
   const isCanonical = (player as any).isCanonical ?? (player as any).is_canonical ?? false;
   const img = player.imageUrl;
-  const { archetype, subArchetype, keyTraits, defensivePlan, inputs } = player;
+  // AÑADIDO 2026-09-14 (Bloque D, spec 26.3/29): `archetype`/`subArchetype`/
+  // `keyTraits` siguen leyéndose del campo persistido por generateProfile()
+  // (motor legacy) a propósito -- no tienen todavía un equivalente 1:1 en
+  // motor-v1 (eso es justo el trabajo pendiente de "iconografía de
+  // arquetipos", spec sección 20, sin empezar). Migrarlos aquí sin ese
+  // trabajo sería inventar un mapeo de producto que no me corresponde
+  // decidir solo. `defensivePlan`/`hasReport` sí tienen un equivalente
+  // directo y ya se migraron abajo.
+  const { archetype, subArchetype, keyTraits, inputs } = player;
 
   const L = locale === "zh"
     ? { archetype: "打法类型", traits: "关键特征", attrs: "身体属性", plan: "防守策略", forzar: "施压", concede: "让步", notes: "教练备注", open: "查看完整报告" }
@@ -104,7 +124,36 @@ function ReportPreview({
   const ft    = typeof inputs?.ftShooting      === "number" ? inputs.ftShooting      : 3;
   const foul  = typeof inputs?.foulDrawing     === "number" ? inputs.foulDrawing     : 2;
 
-  const hasReport = Boolean(archetype || (keyTraits?.length ?? 0) > 0 || defensivePlan?.defender?.length);
+  // CORREGIDO 2026-09-14 (Bloque D, spec 26.3/29): `defensivePlan.defender/
+  // forzar/concede` eran campos persistidos por generateProfile() (motor
+  // legacy) -- reemplazados por el plan defensivo real de motor-v1
+  // (deny/force/allow, mismo contrato que ya renderiza ReportSlidesV1.tsx).
+  // También reemplaza el criterio de `hasReport`, que dependía de
+  // `archetype` (mismo problema que `hasReportInputs` en MyScout.tsx: una
+  // vez se quiten los puntos de guardado de generateProfile(), ese campo
+  // dejaría de actualizarse) -- ahora se basa en si el motor real encuentra
+  // alguna situación con datos.
+  const rendered = useMemo(() => {
+    const inp = (player as any).scoutingInputs ?? player.inputs;
+    const assembled = ensamblarReporteParaTexto(playerInputToMotorInputs(inp), clubMotorCtx, {
+      jugadoraId: player.id,
+      modo: "completo",
+    });
+    if (assembled.reporte.modo !== "completo") return null;
+    const tieneDatos = assembled.reporte.capa1.situaciones.some((s) => s.score > 0);
+    if (!tieneDatos) return null;
+    const ctx: RenderContext = { locale: locale as "en" | "es" | "zh", gender };
+    const r = renderReportV1(assembled.reporte, assembled.enrichedInputs, ctx);
+    return r && r.modo === "completo" ? r : null;
+  }, [player, clubMotorCtx, locale, gender]);
+
+  const defensePlanV1 = {
+    deny: rendered?.defense.deny?.instruction ? [rendered.defense.deny.instruction] : [],
+    force: rendered?.defense.force?.instruction ? [rendered.defense.force.instruction] : [],
+    allow: rendered?.defense.allow?.instruction ? [rendered.defense.allow.instruction] : [],
+  };
+
+  const hasReport = Boolean(rendered);
 
   return (
     <div className="flex flex-col h-full">
@@ -177,24 +226,24 @@ function ReportPreview({
             </div>
           )}
 
-          {/* Defensive plan */}
-          {(defensivePlan?.defender?.length ?? 0) > 0 && (
+          {/* Defensive plan -- motor-v1 real (deny/force/allow), spec 29 */}
+          {defensePlanV1.deny.length > 0 && (
             <div>
               <p className="text-[10px] font-medium tracking-[1.5px] uppercase text-muted-foreground/70 mb-2">{L.plan}</p>
               <div className="flex flex-col gap-2">
-                {defensivePlan.defender?.slice(0, 2).map((line, i) => (
+                {defensePlanV1.deny.map((line, i) => (
                   <div key={i} className="rounded-xl bg-card border border-border/30 p-3">
                     <p className="text-[10px] font-medium tracking-[1.5px] uppercase text-primary mb-1">{L.plan}</p>
                     <p className="text-[12px] font-medium text-foreground leading-snug">{line}</p>
                   </div>
                 ))}
-                {defensivePlan.forzar?.slice(0, 1).map((line, i) => (
+                {defensePlanV1.force.map((line, i) => (
                   <div key={i} className="rounded-xl bg-card border border-border/30 p-3">
                     <p className="text-[10px] font-medium tracking-[1.5px] uppercase text-amber-500 mb-1">{L.forzar}</p>
                     <p className="text-[12px] font-medium text-foreground leading-snug">{line}</p>
                   </div>
                 ))}
-                {defensivePlan.concede?.slice(0, 1).map((line, i) => (
+                {defensePlanV1.allow.map((line, i) => (
                   <div key={i} className="rounded-xl bg-card border border-border/30 p-3">
                     <p className="text-[10px] font-medium tracking-[1.5px] uppercase text-emerald-500 mb-1">{L.concede}</p>
                     <p className="text-[12px] font-medium text-foreground leading-snug">{line}</p>
@@ -227,6 +276,10 @@ export default function ScoutDesktop() {
   const { data: teams = [] } = useTeams();
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const clubQ = useClub({ enabled: true });
+  const clubMotorCtx = useMemo(() => clubRowToMotorContext(clubQ.data?.club), [clubQ.data?.club]);
+  const clubGender = clubQ.data?.club?.gender;
+  const gender: "f" | "m" | "n" = clubGender === "F" ? "f" : clubGender === "M" ? "m" : "n";
 
   const L = locale === "zh"
     ? { search: "搜索球员…", count: (n: number) => `${n} 名球员` }
@@ -313,6 +366,8 @@ export default function ScoutDesktop() {
               player={selectedPlayer}
               teamName={getTeamName(selectedPlayer.teamId)}
               locale={locale}
+              gender={gender}
+              clubMotorCtx={clubMotorCtx}
               onOpen={() => setLocation(`/coach/scout/${selectedPlayer.id}/review`)}
             />
           ) : (
