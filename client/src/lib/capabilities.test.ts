@@ -40,7 +40,17 @@ describe("computeCapabilities", () => {
     expect(c.canInviteMembers).toBe(false);
     expect(c.canSeeAdminActions).toBe(false);
     expect(c.canEditClub).toBe(false);
-    expect(c.canCreateEvent).toBe(true); // coaches can still create sessions
+    // CORREGIDO 2026-09-14 (hueco de test-infra, spec 31): esta aserción
+    // decía `true` con el comentario "coaches can still create sessions" --
+    // contradecía tanto el propio código (`canCreateEvent` exige
+    // `hasOperationsAccess` para un coach raso, capabilities.ts) como el
+    // siguiente test de este mismo archivo (que sí distingue explícitamente
+    // "coach CON operationsAccess" -> true) y el consumidor real
+    // (Schedule.tsx gatea crear/editar/arrastrar sesiones con este mismo
+    // campo). Nunca se detectó porque todo el archivo crasheaba al cargar
+    // (`window is not defined`) antes de que ninguna prueba llegara a
+    // ejecutarse -- 0 cobertura real de computeCapabilities hasta hoy.
+    expect(c.canCreateEvent).toBe(false);
   });
 
   it("coach with operationsAccess CANNOT manage/invite/edit club either", () => {

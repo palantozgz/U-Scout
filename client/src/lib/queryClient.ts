@@ -218,8 +218,16 @@ export async function flushOfflinePlayerMutations() {
   }
 }
 
-window.addEventListener("online", () => { flushOfflinePlayerMutations(); });
-if (navigator.onLine) { flushOfflinePlayerMutations(); }
+// CORREGIDO 2026-09-14 (hueco de test-infra, spec 31): tocaba `window` a
+// nivel de módulo sin guardia -- cualquier test que importara este archivo
+// transitivamente (p.ej. capabilities.test.ts vía useAuth.ts) reventaba con
+// "window is not defined" en el entorno `node` por defecto de vitest, sin
+// que ninguna de sus pruebas llegara siquiera a ejecutarse. Mismo patrón de
+// guardia ya usado en App.tsx (`typeof window !== "undefined"`).
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => { flushOfflinePlayerMutations(); });
+  if (navigator.onLine) { flushOfflinePlayerMutations(); }
+}
 
 export function clearAllLocalCache() {
   try { window.localStorage.removeItem("uscout-cache-v1"); } catch {}
