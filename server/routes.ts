@@ -3238,6 +3238,252 @@ export async function registerRoutes(
     }
   });
 
+  // ─── GET /api/stats/player-nivel2-context/:externalId ───────────────────────
+  // Motor 1.0, Fase 2 (spec 24, plan de El Arquitecto 2026-09-13). Devuelve el
+  // valor crudo de temporada de una jugadora real de WCBA + los breakpoints
+  // P50/P85/P95 de su grupo de posición (base/alero/interior, spec 10.2 bis) --
+  // la contracción bayesiana (12.3) y el percentil final se calculan en
+  // TypeScript puro en `motor-v1-stats.ts`, no aquí, para que ese cálculo sea
+  // testeable sin red (spec 4). Deliberadamente NO usa `/api/stats/
+  // player-percentiles` (endpoint existente, sección 24.1/24.2): ese endpoint
+  // ya tiene callers reales con semántica de match EXACTO de texto chino de
+  // posición (`client/src/pages/core/Stats.tsx`, `StatsRadar.tsx`) -- overlay
+  // arriba habría arriesgado ese flujo en producción por un beneficio que un
+  // endpoint nuevo consigue igual de bien sin tocarlo.
+  //
+  // Metodología verificada carácter a carácter contra las tablas ya cerradas
+  // de 10.2 bis/10.3 bis por SQL directo contra Supabase antes de escribir
+  // este endpoint (season_id=2092, TODAS las fases -- no se filtra
+  // phase_type, a diferencia del resto de endpoints de este archivo, porque
+  // así es como se calculó la tabla que este endpoint tiene que reproducir):
+  // PPG/RPG por grupo coincide exacto con 10.2 bis, USG%/PIE por grupo
+  // coincide exacto con 10.3 bis (n=78 base / 79 alero / 50 interior, mismos
+  // números a 2 decimales).
+  const POSICION_A_GRUPO_SQL = sql`
+    CASE
+      WHEN sp.position IN ('后卫','得分后卫') THEN 'base'
+      WHEN sp.position IN ('前锋','小前锋') THEN 'alero'
+      WHEN sp.position IN ('中锋','大前锋') THEN 'interior'
+      ELSE NULL
+    END
+  `;
+
+  app.get("/api/stats/player-nivel2-context/:externalId", requireAuth, async (req, res) => {
+    try {
+      const { externalId } = req.params;
+      const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
+
+      // Paso 1: posición/grupo real de la jugadora (necesario para saber
+      // contra qué breakpoints compararla).
+      const posRows = await db.execute(sql`
+        SELECT sp.position, ${POSICION_A_GRUPO_SQL} AS grp
+        FROM stats_players sp
+        WHERE sp.external_id::text = ${externalId}
+        LIMIT 1
+      `);
+      const posRow = (posRows as any).rows?.[0];
+      if (!posRow) return res.status(404).json({ error: "Player not found" });
+      const grupo: "base" | "alero" | "interior" | null = posRow.grp ?? null;
+
+      // Paso 2: valores crudos de temporada de la jugadora (mismas fórmulas
+      // que /api/stats/player/:externalId -- PIE y USG% replicadas ahí
+      // carácter a carácter, spec 10.3 bis -- ampliadas con fg3Pct/tovPct).
+      const rawRows = await db.execute(sql`
+        SELECT
+          COUNT(DISTINCT pgs.game_id) AS games,
+          AVG(pgs.pts) AS ppg, AVG(pgs.reb) AS rpg, AVG(pgs.ast) AS apg,
+          AVG(pgs.stl) AS spg, AVG(pgs.blk) AS bpg,
+          SUM(pgs.fga) AS fga_sum, SUM(pgs.fg3a) AS fg3a_sum, SUM(pgs.fta) AS fta_sum,
+          CASE WHEN (SUM(pgs.fga)+0.44*SUM(pgs.fta))>0
+            THEN SUM(pgs.pts)::float/(2*(SUM(pgs.fga)+0.44*SUM(pgs.fta)))*100 END AS ts_pct,
+          CASE WHEN SUM(pgs.fga)>0
+            THEN (SUM(pgs.fgm)+0.5*SUM(pgs.fg3m))::float/SUM(pgs.fga)*100 END AS efg_pct,
+          CASE WHEN SUM(pgs.fg3a)>0
+            THEN SUM(pgs.fg3m)::float/SUM(pgs.fg3a)*100 END AS fg3_pct,
+          CASE WHEN (SUM(pgs.fga)+0.44*SUM(pgs.fta)+SUM(pgs.tov))>0
+            THEN SUM(pgs.tov)::float/(SUM(pgs.fga)+0.44*SUM(pgs.fta)+SUM(pgs.tov))*100 END AS tov_pct,
+          CASE WHEN SUM(pgs.fta)>0
+            THEN SUM(pgs.ftm)::float/SUM(pgs.fta)*100 END AS ft_pct,
+          CASE WHEN SUM(pgs.fga)>0
+            THEN SUM(pgs.fta)::float/SUM(pgs.fga) END AS fta_rate
+        FROM pbp_player_game_stats pgs
+        JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+        WHERE pgs.player_external_id = ${externalId}
+      `);
+      const raw = (rawRows as any).rows?.[0];
+      if (!raw || Number(raw.games ?? 0) === 0) {
+        return res.status(404).json({ error: "No season data for this player" });
+      }
+
+      let pie: number | null = null;
+      try {
+        const pieRows = await db.execute(sql`
+          WITH game_dens AS (
+            SELECT pgs.game_id,
+              SUM(pgs.pts+pgs.fgm+pgs.ftm-pgs.fga-pgs.fta+pgs.def_reb+0.5*pgs.off_reb+pgs.ast+pgs.stl+0.5*pgs.blk-pgs.fouls-pgs.tov) AS game_den
+            FROM pbp_player_game_stats pgs
+            JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+            GROUP BY pgs.game_id
+          )
+          SELECT AVG(100.0 * (pgs.pts+pgs.fgm+pgs.ftm-pgs.fga-pgs.fta+pgs.def_reb+0.5*pgs.off_reb+pgs.ast+pgs.stl+0.5*pgs.blk-pgs.fouls-pgs.tov) / NULLIF(gd.game_den,0)) AS pie
+          FROM pbp_player_game_stats pgs
+          JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+          JOIN game_dens gd ON gd.game_id = pgs.game_id
+          WHERE pgs.player_external_id = ${externalId} AND gd.game_den > 0
+        `);
+        pie = (pieRows as any).rows?.[0]?.pie != null ? Number((pieRows as any).rows[0].pie) : null;
+      } catch (pieErr: any) {
+        console.error("[player-nivel2-context] PIE query failed:", pieErr?.message ?? pieErr);
+      }
+
+      let usgPct: number | null = null;
+      try {
+        const usgRows = await db.execute(sql`
+          WITH player_games AS (
+            SELECT pgs.game_id, pgs.team_id, pgs.fga, pgs.fta, pgs.tov, pgs.seconds_played AS min_sec
+            FROM pbp_player_game_stats pgs
+            JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+            WHERE pgs.player_external_id = ${externalId} AND pgs.seconds_played > 0
+          ),
+          team_games AS (
+            SELECT pgs2.game_id, pgs2.team_id,
+              SUM(pgs2.fga) AS tm_fga, SUM(pgs2.fta) AS tm_fta, SUM(pgs2.tov) AS tm_tov, SUM(pgs2.seconds_played) AS tm_min_sec
+            FROM pbp_player_game_stats pgs2
+            JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+            WHERE pgs2.team_id IN (SELECT DISTINCT team_id FROM player_games)
+            GROUP BY pgs2.game_id, pgs2.team_id
+          )
+          SELECT 100.0 * SUM((pg.fga+0.44*pg.fta+pg.tov)*(tg.tm_min_sec/5.0)) / NULLIF(SUM(pg.min_sec*(tg.tm_fga+0.44*tg.tm_fta+tg.tm_tov)),0) AS usg_pct
+          FROM player_games pg JOIN team_games tg ON tg.game_id = pg.game_id AND tg.team_id = pg.team_id
+        `);
+        const u = (usgRows as any).rows?.[0]?.usg_pct;
+        usgPct = u != null ? Number(u) : null;
+      } catch (usgErr: any) {
+        console.error("[player-nivel2-context] USG% query failed:", usgErr?.message ?? usgErr);
+      }
+
+      // Paso 3: breakpoints P50/P85/P95 del grupo de posición (236 jugadoras
+      // reales, mismo método que 10.2 bis/10.3 bis) -- null si la jugadora no
+      // tiene grupo asignado (29 de 236 en 10.2 bis, degradación elegante).
+      let breakpoints: Record<string, { p50: number; p85: number; p95: number | null } | null> | null = null;
+      if (grupo) {
+        const bpRows = await db.execute(sql`
+          WITH team_games AS (
+            SELECT pgs2.game_id, pgs2.team_id,
+              SUM(pgs2.fga) tm_fga, SUM(pgs2.fta) tm_fta, SUM(pgs2.tov) tm_tov, SUM(pgs2.seconds_played) tm_min
+            FROM pbp_player_game_stats pgs2
+            JOIN stats_games sg2 ON sg2.id = pgs2.game_id AND sg2.status = 4 AND sg2.season_id = ${seasonId}
+            GROUP BY pgs2.game_id, pgs2.team_id
+          ),
+          game_dens AS (
+            SELECT pgs.game_id,
+              SUM(pgs.pts+pgs.fgm+pgs.ftm-pgs.fga-pgs.fta+pgs.def_reb+0.5*pgs.off_reb+pgs.ast+pgs.stl+0.5*pgs.blk-pgs.fouls-pgs.tov) AS game_den
+            FROM pbp_player_game_stats pgs
+            JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+            GROUP BY pgs.game_id
+          ),
+          player_avgs AS (
+            SELECT
+              pgs.player_external_id,
+              COUNT(DISTINCT pgs.game_id) AS games,
+              AVG(pgs.pts) ppg, AVG(pgs.reb) rpg, AVG(pgs.ast) apg, AVG(pgs.stl) spg, AVG(pgs.blk) bpg,
+              SUM(pgs.fga) fga_sum, SUM(pgs.fg3a) fg3a_sum,
+              CASE WHEN (SUM(pgs.fga)+0.44*SUM(pgs.fta))>0 THEN SUM(pgs.pts)::float/(2*(SUM(pgs.fga)+0.44*SUM(pgs.fta)))*100 END AS ts_pct,
+              CASE WHEN SUM(pgs.fga)>0 THEN (SUM(pgs.fgm)+0.5*SUM(pgs.fg3m))::float/SUM(pgs.fga)*100 END AS efg_pct,
+              CASE WHEN SUM(pgs.fg3a)>0 THEN SUM(pgs.fg3m)::float/SUM(pgs.fg3a)*100 END AS fg3_pct,
+              CASE WHEN (SUM(pgs.fga)+0.44*SUM(pgs.fta)+SUM(pgs.tov))>0 THEN SUM(pgs.tov)::float/(SUM(pgs.fga)+0.44*SUM(pgs.fta)+SUM(pgs.tov))*100 END AS tov_pct,
+              CASE WHEN SUM(pgs.fta)>0 THEN SUM(pgs.ftm)::float/SUM(pgs.fta)*100 END AS ft_pct,
+              CASE WHEN SUM(pgs.fga)>0 THEN SUM(pgs.fta)::float/SUM(pgs.fga) END AS fta_rate,
+              SUM(pgs.fta) fta_sum,
+              100.0 * SUM((pgs.fga+0.44*pgs.fta+pgs.tov)*(tg.tm_min/5.0)) / NULLIF(SUM(pgs.seconds_played*(tg.tm_fga+0.44*tg.tm_fta+tg.tm_tov)),0) AS usg_pct,
+              AVG(100.0 * (pgs.pts+pgs.fgm+pgs.ftm-pgs.fga-pgs.fta+pgs.def_reb+0.5*pgs.off_reb+pgs.ast+pgs.stl+0.5*pgs.blk-pgs.fouls-pgs.tov) / NULLIF(gd.game_den,0)) AS pie
+            FROM pbp_player_game_stats pgs
+            JOIN stats_games sg ON sg.id = pgs.game_id AND sg.status = 4 AND sg.season_id = ${seasonId}
+            JOIN stats_players sp ON sp.external_id::text = pgs.player_external_id
+            JOIN team_games tg ON tg.game_id = pgs.game_id AND tg.team_id = pgs.team_id
+            JOIN game_dens gd ON gd.game_id = pgs.game_id
+            WHERE ${POSICION_A_GRUPO_SQL} = ${grupo} AND pgs.seconds_played > 0
+            GROUP BY pgs.player_external_id
+            HAVING COUNT(DISTINCT pgs.game_id) >= 8
+          )
+          SELECT
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY ppg) p50_ppg, percentile_cont(0.85) WITHIN GROUP (ORDER BY ppg) p85_ppg, percentile_cont(0.95) WITHIN GROUP (ORDER BY ppg) p95_ppg,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY rpg) p50_rpg, percentile_cont(0.85) WITHIN GROUP (ORDER BY rpg) p85_rpg, percentile_cont(0.95) WITHIN GROUP (ORDER BY rpg) p95_rpg,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY apg) p50_apg, percentile_cont(0.85) WITHIN GROUP (ORDER BY apg) p85_apg, percentile_cont(0.95) WITHIN GROUP (ORDER BY apg) p95_apg,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY spg) p50_spg, percentile_cont(0.85) WITHIN GROUP (ORDER BY spg) p85_spg,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY bpg) p50_bpg, percentile_cont(0.85) WITHIN GROUP (ORDER BY bpg) p85_bpg,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY tov_pct) p50_tov, percentile_cont(0.85) WITHIN GROUP (ORDER BY tov_pct) p85_tov,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY ts_pct) FILTER (WHERE fga_sum >= 50) p50_ts, percentile_cont(0.85) WITHIN GROUP (ORDER BY ts_pct) FILTER (WHERE fga_sum >= 50) p85_ts, percentile_cont(0.95) WITHIN GROUP (ORDER BY ts_pct) FILTER (WHERE fga_sum >= 50) p95_ts,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY efg_pct) FILTER (WHERE fga_sum >= 50) p50_efg, percentile_cont(0.85) WITHIN GROUP (ORDER BY efg_pct) FILTER (WHERE fga_sum >= 50) p85_efg,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY fg3_pct) FILTER (WHERE fg3a_sum >= 30) p50_fg3, percentile_cont(0.85) WITHIN GROUP (ORDER BY fg3_pct) FILTER (WHERE fg3a_sum >= 30) p85_fg3, percentile_cont(0.95) WITHIN GROUP (ORDER BY fg3_pct) FILTER (WHERE fg3a_sum >= 30) p95_fg3,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY ft_pct) FILTER (WHERE fta_sum >= 20) p50_ft, percentile_cont(0.85) WITHIN GROUP (ORDER BY ft_pct) FILTER (WHERE fta_sum >= 20) p85_ft,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY fta_rate) p50_ftrate, percentile_cont(0.85) WITHIN GROUP (ORDER BY fta_rate) p85_ftrate,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY usg_pct) p50_usg, percentile_cont(0.85) WITHIN GROUP (ORDER BY usg_pct) p85_usg, percentile_cont(0.95) WITHIN GROUP (ORDER BY usg_pct) p95_usg,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY pie) p50_pie, percentile_cont(0.85) WITHIN GROUP (ORDER BY pie) p85_pie, percentile_cont(0.95) WITHIN GROUP (ORDER BY pie) p95_pie
+          FROM player_avgs
+        `);
+        const b = (bpRows as any).rows?.[0] ?? {};
+        const n = (a: any) => (a != null ? Number(a) : null);
+        // p95 puede faltar (spg/bpg/tovPct/eFGPct no lo calculan aquí, igual
+        // que 10.1/10.2 bis los publica sin P95 -- "—" en la tabla). Se deja
+        // `null` tal cual, sin sintetizar un valor falso aquí -- la
+        // extrapolación (si hace falta) vive en `motor-v1-stats.ts`
+        // (percentilPorInterpolacion), documentada y testeable, no escondida
+        // en SQL.
+        const trio = (p50: any, p85: any, p95: any) =>
+          p50 != null && p85 != null ? { p50: n(p50)!, p85: n(p85)!, p95: n(p95) } : null;
+        breakpoints = {
+          ppg: trio(b.p50_ppg, b.p85_ppg, b.p95_ppg),
+          rpg: trio(b.p50_rpg, b.p85_rpg, b.p95_rpg),
+          apg: trio(b.p50_apg, b.p85_apg, b.p95_apg),
+          spg: trio(b.p50_spg, b.p85_spg, null),
+          bpg: trio(b.p50_bpg, b.p85_bpg, null),
+          tovPct: trio(b.p50_tov, b.p85_tov, null),
+          tsPct: trio(b.p50_ts, b.p85_ts, b.p95_ts),
+          eFGPct: trio(b.p50_efg, b.p85_efg, null),
+          fg3Pct: trio(b.p50_fg3, b.p85_fg3, b.p95_fg3),
+          ftPct: trio(b.p50_ft, b.p85_ft, null),
+          ftaRate: trio(b.p50_ftrate, b.p85_ftrate, null),
+          usgPct: trio(b.p50_usg, b.p85_usg, b.p95_usg),
+          pie: trio(b.p50_pie, b.p85_pie, b.p95_pie),
+        };
+      }
+
+      res.set("Cache-Control", "private, max-age=1800, stale-while-revalidate=120");
+      return res.json({
+        externalId,
+        posicionGrupo: grupo,
+        ventana: "temporada",
+        games: Number(raw.games ?? 0),
+        raw: {
+          ppg: Number(raw.ppg ?? 0),
+          rpg: Number(raw.rpg ?? 0),
+          apg: Number(raw.apg ?? 0),
+          spg: Number(raw.spg ?? 0),
+          bpg: Number(raw.bpg ?? 0),
+          tovPct: raw.tov_pct != null ? Number(raw.tov_pct) : null,
+          tsPct: raw.ts_pct != null ? Number(raw.ts_pct) : null,
+          eFGPct: raw.efg_pct != null ? Number(raw.efg_pct) : null,
+          fg3Pct: raw.fg3_pct != null ? Number(raw.fg3_pct) : null,
+          ftPct: raw.ft_pct != null ? Number(raw.ft_pct) : null,
+          ftaRate: raw.fta_rate != null ? Number(raw.fta_rate) : null,
+          usgPct,
+          pie,
+        },
+        volumen: {
+          games: Number(raw.games ?? 0),
+          fgaSum: Number(raw.fga_sum ?? 0),
+          ftaSum: Number(raw.fta_sum ?? 0),
+          fg3aSum: Number(raw.fg3a_sum ?? 0),
+        },
+        breakpoints,
+      });
+    } catch (err: any) {
+      console.error("[stats/player-nivel2-context] error:", err?.message ?? err);
+      return res.status(500).json({ error: "Failed to load Nivel 2 context" });
+    }
+  });
+
   // POST /api/stats/admin/process-possessions
   // Dispara el procesamiento de todos los partidos pendientes de possessions
   // Útil para re-sync histórico

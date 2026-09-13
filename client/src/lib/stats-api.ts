@@ -372,6 +372,34 @@ export function usePlayerWcbaLink(name: string | null | undefined) {
   });
 }
 
+/**
+ * Motor 1.0, Fase 2 (spec 24) -- contexto de Nivel 2 (U Stats) de una
+ * jugadora real de WCBA: valor crudo de temporada + breakpoints P50/P85/P95
+ * de su grupo de posición. La forma exacta la define `motor-v1-stats.ts`
+ * (`Nivel2ContextResponse`) -- este hook solo hace el fetch, todo el cálculo
+ * (contracción bayesiana, percentil, capa3/statsDestacados/quietEdge/
+ * porque/confianza) vive en ese módulo puro, no aquí.
+ *
+ * Deliberadamente NO se llama todavía desde `ReportSlidesV1.tsx` en esta
+ * pasada -- cablear capa3 en la UI real (y decidir si `StatsStrip` se retira
+ * o coexiste) queda marcado `[A VALIDAR CON PABLO]` en el plan de El
+ * Arquitecto (spec 24.2), no se hace sin más aquí.
+ */
+export function useNivel2Context(externalId: string | null | undefined, seasonId?: number) {
+  return useQuery({
+    queryKey: ["stats-player-nivel2-context", externalId, seasonId ?? DEFAULT_SEASON_ID],
+    queryFn: async (): Promise<import("./motor-v1-stats").Nivel2ContextResponse> => {
+      const qs = seasonId ? `?seasonId=${seasonId}` : "";
+      const r = await apiRequest("GET", `/api/stats/player-nivel2-context/${externalId}${qs}`);
+      return r.json();
+    },
+    enabled: Boolean(externalId),
+    staleTime: 1_800_000, // 30min — coherente con el Cache-Control del endpoint
+    retry: 0,
+    networkMode: "offlineFirst",
+  });
+}
+
 export interface LeagueAverages {
   ppg: number;
   rpg: number;
