@@ -1501,3 +1501,21 @@ Verificado: `npm run check`/`check:tests` limpios, `npx vitest run` 205/205, `np
 **Regla real, no solo estética:** `porque` se oculta cuando hay un override `"replace"` activo para ese campo — pertenece a la recomendación original del motor sobre el `ganador`, no a la alternativa que un entrenador eligió a mano (esa no tiene `porque` calculado; mostrar el `porque` del ganador junto al texto de una alternativa distinta sería mezclar la justificación de una recomendación con el texto de otra). `porqueDelGanador()` comprueba `overrides` antes de devolver el texto.
 
 Verificado: `npm run check`/`check:tests` limpios, `npx vitest run` 205/205, `npm run motor:compare` 0 divergencias.
+
+## 25. Hallazgo real, no resuelto — dos rutas jugadora distintas a dos motores distintos, y sin gate de aprobación en la migrada (2026-09-14)
+
+> Encontrado buscando qué más consumía `motor-v4`/`motor-v2.1` fuera de `ReportSlidesV1.tsx` (para valorar el resto de Fase 3 del roadmap, sección 8). No es una pregunta de "qué construyo después" — es un hallazgo sobre lo que YA existe en producción, sin decidir ni tocar código todavía.
+
+**[VERIFICADO]** Hay dos rutas jugadora distintas que muestran el scouting de una rival, y no coinciden:
+
+1. **`/player` → `PlayerTeamList` → `/player/team/:teamId` (`PlayerTeamView`, en `pages/player/Dashboard.tsx`) → clic en una jugadora → `/player/report/:id` → `ReportSlidesV1`.** Esta SÍ es la ruta migrada a Motor 1.0 (PR-B, sección 23.8).
+2. **`/player/reports` → `PlayerHome.tsx` (rejilla de informes vía `usePlayerHome()`, por `assignmentId` — la tabla `scouting_report_assignments` ya mencionada en memoria del proyecto) → clic en un informe → `/player/${opponentPlayerId}` → `Profile.tsx` (`pages/player/Profile.tsx`, 1173 líneas).** Esta ruta usa `generateProfile()` de `mock-data.ts` — un TERCER motor, distinto de `motor-v2.1`/`motor-v4`/`motor-v1`, con su propia lógica de `isoDanger` y su propia capa de traducción (`translateMotorOutputLine`), nunca auditado ni tocado en ninguna sesión de Motor 1.0. Es exactamente lo que la sección 8 (roadmap) ya señalaba como pendiente de Fase 3 ("se retira... la parte de `generateProfile`/`isoDanger` de `mock-data.ts`") — confirmado que sigue vivo y en uso real, no es papel.
+
+**[VERIFICADO, el hallazgo más importante de los dos]** La ruta migrada (`/player/report/:id` → `ReportSlidesV1.tsx`) **no comprueba ningún estado de publicación/aprobación** — ni en el componente (sin referencia a `isPublished`/`publishedAt` en `ReportSlidesV1.tsx`/`mock-data.ts`) ni en el endpoint que consume (`GET /api/players/:id`, `server/routes.ts:372-380`, sin ningún filtro por rol ni por `published`). Cualquier usuaria autenticada con rol `player` puede navegar a `/player/report/:id` con cualquier ID de jugadora y ver el reporte crudo generado por el motor en tiempo real — **el flujo completo de edición privada → propuesta → discrepancias → aprobación → publicación (sección 17.1, la pieza central que motivó el picker de alternativas de la sección 22 y el sistema de overrides) no se aplica en esta ruta**. `PlayerHome.tsx`/`Profile.tsx` sí pasan por `usePlayerHome()`/`assignmentId` (probablemente sí respeta el estado de asignación/publicación, no verificado a fondo todavía) pero ese es el camino que usa el motor viejo sin auditar.
+
+**No sé, y no lo asumo:**
+- Si `/player` (navegación libre por equipo→roster) es un flujo intencional distinto de "mis informes asignados" (ej. herramienta de preparación previa sin gate, a propósito) o un descuido de cuando se construyó sin el sistema de aprobación en mente.
+- Si `usePlayerHome()`/`Profile.tsx` de verdad respeta `scouting_report_assignments`/publicación (parece que sí por diseño, no confirmado línea a línea).
+- Qué se supone que pase con `Profile.tsx` en el roadmap — ¿se retira y todo pasa por `ReportSlidesV1`, se migra su lógica, o se mantiene como una vista distinta a propósito?
+
+**No he tocado código de este hallazgo.** Es una decisión de producto y de seguridad de datos (qué ve una jugadora y cuándo) que le corresponde a Pablo, no una que deba asumir yo — mismo criterio que motivó preguntar por el conflicto de la sección 13.3 al principio de esta fase.
