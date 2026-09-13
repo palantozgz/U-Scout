@@ -3,9 +3,8 @@ import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
-import { useUpdatePlayer, usePlayers, generateProfile, clubRowToMotorContext } from "@/lib/mock-data";
+import { useUpdatePlayer, usePlayers } from "@/lib/mock-data";
 import { useQueryClient } from "@tanstack/react-query";
-import { useClub } from "@/lib/club-api";
 import { cn } from "@/lib/utils";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 
@@ -181,7 +180,6 @@ export default function QuickScout({ playerId }: Props) {
   const qc = useQueryClient();
   const updatePlayer = useUpdatePlayer();
   const { data: allPlayers = [] } = usePlayers();
-  const { data: clubPayload } = useClub();
   const player = allPlayers.find(p => p.id === playerId);
 
   const [w, setW] = useState<WizardState>(initialState);
@@ -258,20 +256,16 @@ export default function QuickScout({ playerId }: Props) {
       const existingInputs = (player?.inputs as Record<string, unknown>) ?? {};
       const mergedInputs = { ...existingInputs, ...wizardFields };
 
-      // Run the motor client-side to generate defensivePlan, internalModel, archetype
-      const motorCtx = clubRowToMotorContext(clubPayload?.club);
-      const profile = generateProfile(mergedInputs as any, undefined, motorCtx);
-
-      // Save everything — same shape as PlayerEditor
+      // CORREGIDO 2026-09-14 (Bloque D, spec 26.3/29/32): ya no se llama a
+      // generateProfile() (motor legacy) para derivar archetype/keyTraits/
+      // defensivePlan/internalModel -- sus 2 lectores reales (MyScout.tsx,
+      // ScoutDesktop.tsx) ya usan motor-v1 en vivo (ensamblarReporte /
+      // identity.archetypeLabel+tagline), no necesitan estos campos
+      // persistidos. Solo hace falta guardar los `inputs` en sí -- el motor
+      // real los recalcula cada vez que se necesita ver el informe.
       await updatePlayer.mutateAsync({
         id: playerId,
-        updates: {
-          inputs: mergedInputs,
-          internalModel: profile.internalModel,
-          defensivePlan: profile.defensivePlan,
-          archetype: profile.archetype,
-          keyTraits: profile.keyTraits,
-        } as any,
+        updates: { inputs: mergedInputs } as any,
       });
       await qc.invalidateQueries({ queryKey: ["/api/players"] });
       setLocation(`/coach/player/${playerId}`);

@@ -102,15 +102,7 @@ function ReportPreview({
   const name = localName(player.name, (player as any).nameEn ?? (player as any).name_en, locale) || "—";
   const isCanonical = (player as any).isCanonical ?? (player as any).is_canonical ?? false;
   const img = player.imageUrl;
-  // AÑADIDO 2026-09-14 (Bloque D, spec 26.3/29): `archetype`/`subArchetype`/
-  // `keyTraits` siguen leyéndose del campo persistido por generateProfile()
-  // (motor legacy) a propósito -- no tienen todavía un equivalente 1:1 en
-  // motor-v1 (eso es justo el trabajo pendiente de "iconografía de
-  // arquetipos", spec sección 20, sin empezar). Migrarlos aquí sin ese
-  // trabajo sería inventar un mapeo de producto que no me corresponde
-  // decidir solo. `defensivePlan`/`hasReport` sí tienen un equivalente
-  // directo y ya se migraron abajo.
-  const { archetype, subArchetype, keyTraits, inputs } = player;
+  const { inputs } = player;
 
   const L = locale === "zh"
     ? { archetype: "打法类型", traits: "关键特征", attrs: "身体属性", plan: "防守策略", forzar: "施压", concede: "让步", notes: "教练备注", open: "查看完整报告" }
@@ -189,15 +181,15 @@ function ReportPreview({
       {hasReport ? (
         <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
 
-          {/* Archetype */}
-          {archetype && (
+          {/* Archetype -- motor-v1 real (identity.archetypeLabel, modificador
+              ya fusionado, spec 14.3 bis), mismo dato que ya muestra
+              ReportSlidesV1.tsx. Un solo chip a propósito: motor-v1 fusiona
+              el modificador en el label en vez de un segundo chip. */}
+          {rendered?.identity.archetypeLabel && (
             <div>
               <p className="text-[10px] font-medium tracking-[1.5px] uppercase text-muted-foreground/70 mb-2">{L.archetype}</p>
               <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[12px] font-medium">{archetype}</span>
-                {subArchetype && (
-                  <span className="px-3 py-1 rounded-full bg-card border border-border/30 text-muted-foreground text-[12px] font-medium">{subArchetype}</span>
-                )}
+                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[12px] font-medium">{rendered.identity.archetypeLabel}</span>
               </div>
             </div>
           )}
@@ -211,18 +203,14 @@ function ReportPreview({
             <AttrBar label={locale === "es" ? "Genera faltas"     : locale === "zh" ? "引foul"   : "Foul drawing"}  value={foul} color="amber"   />
           </div>
 
-          {/* Key traits */}
-          {(keyTraits?.length ?? 0) > 0 && (
+          {/* Key traits -- motor-v1 real (identity.tagline), mismo dato que
+              ya muestra ReportSlidesV1.tsx. Cambia de forma a propósito: era
+              una lista de pills sueltas (keyTraits[]), motor-v1 da una sola
+              frase concreta y accionable en vez de varias etiquetas. */}
+          {rendered?.identity.tagline && (
             <div>
               <p className="text-[10px] font-medium tracking-[1.5px] uppercase text-muted-foreground/70 mb-2">{L.traits}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {keyTraits.slice(0, 6).map((trait) => (
-                  <span key={trait}
-                    className="px-2.5 py-1 rounded-lg bg-card border border-border/30 text-[11px] font-medium text-foreground">
-                    {trait}
-                  </span>
-                ))}
-              </div>
+              <p className="text-[12px] font-medium text-foreground leading-snug">{rendered.identity.tagline}</p>
             </div>
           )}
 

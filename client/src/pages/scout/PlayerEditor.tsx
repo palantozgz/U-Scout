@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo, type ChangeEvent } from "react";
 import { useRoute, useLocation, useSearch } from "wouter";
 import {
   usePlayer, useTeams, useCreatePlayer, useUpdatePlayer, useDeletePlayer,
-  generateProfile, createDefaultPlayer, clubRowToMotorContext,
+  createDefaultPlayer, defaultInternal,
   TRANS_ROLE_SUB_OPTIONS,
   type PlayerInput, type IntensityLevel,
   type CloseoutReaction, type PlayerProfile, type PhysicalLevel,
@@ -11,7 +11,6 @@ import {
   type HighPostAction, type HighPostZonesMotor,
   type TransRoleEditor,
 } from "@/lib/mock-data";
-import { useClub } from "@/lib/club-api";
 import { ArrowLeft, Save, Info, Flame, Zap, Target, Trash2, HelpCircle, X, Check, Plus, ChevronDown, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -598,8 +597,6 @@ export default function PlayerEditor() {
 
   const { data: teams = [], isLoading: teamsLoading } = useTeams();
   const { data: existingPlayer, isLoading: playerLoading } = usePlayer(isNew ? "" : urlPlayerId);
-  const { data: clubPayload } = useClub();
-  const motorClubContext = useMemo(() => clubRowToMotorContext(clubPayload?.club), [clubPayload?.club]);
   const createPlayerMutation = useCreatePlayer();
   const updatePlayerMutation = useUpdatePlayer();
   const deletePlayerMutation = useDeletePlayer();
@@ -652,12 +649,19 @@ export default function PlayerEditor() {
     }
     isSaving.current = true;
     const finalName = currentPlayer.name.trim() || "Unnamed Player";
-    const generated = generateProfile(currentInputs, currentPlayer?.name, motorClubContext);
-    const updated = { ...currentPlayer, name: finalName, inputs: currentInputs, internalModel: generated.internalModel, archetype: generated.archetype, subArchetype: generated.subArchetype, keyTraits: generated.keyTraits, defensivePlan: generated.defensivePlan };
+    // CORREGIDO 2026-09-14 (Bloque D, spec 26.3/29/32): ya no se llama a
+    // generateProfile() (motor legacy) -- ver el comentario más abajo en
+    // handleSave() para el porqué y qué reemplaza a cada campo.
     const currentId = getPlayerId();
     if (!currentId || currentId === "new") {
+      const updated = {
+        ...currentPlayer, name: finalName, inputs: currentInputs,
+        internalModel: defaultInternal,
+        defensivePlan: { defender: [], forzar: [], concede: [] },
+      };
       createPlayerMutation.mutate(updated as Omit<PlayerProfile, "id">, { onSuccess: (created: PlayerProfile) => { createdIdRef.current = created.id; isSaving.current = false; }, onError: () => { isSaving.current = false; } });
     } else {
+      const updated = { ...currentPlayer, name: finalName, inputs: currentInputs };
       updatePlayerMutation.mutate({ id: currentId, updates: updated }, { onSuccess: () => { isSaving.current = false; }, onError: () => { isSaving.current = false; } });
     }
     setDraftSaved(true); setTimeout(() => setDraftSaved(false), 2000); isDirty.current = false;
@@ -675,24 +679,33 @@ export default function PlayerEditor() {
   const handleSave = async () => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     const finalName = player.name.trim() || "Unnamed Player";
-    const generated = generateProfile(inputs, finalName, motorClubContext);
-    const updated = {
-      ...player,
-      name: finalName,
-      inputs,
-      internalModel: generated.internalModel,
-      archetype: generated.archetype,
-      subArchetype: generated.subArchetype,
-      keyTraits: generated.keyTraits,
-      defensivePlan: generated.defensivePlan,
-    };
+    // CORREGIDO 2026-09-14 (Bloque D, spec 26.3/29/32): ya no se llama a
+    // generateProfile() (motor legacy) para derivar archetype/subArchetype/
+    // keyTraits/defensivePlan/internalModel al guardar. Sus 2 lectores
+    // reales -- MyScout.tsx::hasReportInputs y ScoutDesktop.tsx::
+    // ReportPreview -- ya usan motor-v1 en vivo (ensamblarReporte +
+    // identity.archetypeLabel/tagline + defense.deny/force/allow, secciones
+    // 29/30/32), no leen estos campos persistidos. `internalModel` nunca
+    // tuvo ningún lector real (confirmado por grep) -- solo se escribía.
+    // `internal_model`/`defensive_plan` son NOT NULL sin default a nivel de
+    // DB (shared/schema.ts) -- al CREAR una jugadora nueva sigue haciendo
+    // falta un valor válido (mismo placeholder vacío que ya usa
+    // createDefaultPlayer()); al ACTUALIZAR una existente, un PATCH parcial
+    // no toca esas columnas -- se quedan con lo último que tuvieran,
+    // arqueología inerte, no leída por nada.
     setShowSaveFlash(true);
     try {
       const currentId = getPlayerId();
       if (!currentId || currentId === "new") {
+        const updated = {
+          ...player, name: finalName, inputs,
+          internalModel: defaultInternal,
+          defensivePlan: { defender: [], forzar: [], concede: [] },
+        };
         const created = await createPlayerMutation.mutateAsync(updated as Omit<PlayerProfile, "id">);
         createdIdRef.current = created.id;
       } else {
+        const updated = { ...player, name: finalName, inputs };
         await updatePlayerMutation.mutateAsync({ id: currentId, updates: updated });
       }
     } catch {}
