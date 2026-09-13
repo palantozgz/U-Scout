@@ -11,14 +11,14 @@ import type {
 } from "./motor-v4";
 import type { EnrichedInputs } from "./motor-v2.1";
 
-function joinListEN(parts: string[]): string {
+export function joinListEN(parts: string[]): string {
   if (parts.length === 0) return "";
   if (parts.length === 1) return parts[0];
   if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
   return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
 }
 
-function spotZonesPhraseEN(inputs: EnrichedInputs): string {
+export function spotZonesPhraseEN(inputs: EnrichedInputs): string {
   const z = inputs.spotZones;
   if (z) {
     const parts: string[] = [];
@@ -34,7 +34,7 @@ function spotZonesPhraseEN(inputs: EnrichedInputs): string {
   return "the perimeter";
 }
 
-function cornerFocusEN(inputs: EnrichedInputs): string {
+export function cornerFocusEN(inputs: EnrichedInputs): string {
   const z = inputs.spotZones;
   if (z?.cornerLeft && z?.cornerRight) return "the corners";
   if (z?.cornerLeft && !z.cornerRight) return "the left corner";
@@ -43,14 +43,14 @@ function cornerFocusEN(inputs: EnrichedInputs): string {
   return "the corners";
 }
 
-function joinListES(parts: string[]): string {
+export function joinListES(parts: string[]): string {
   if (parts.length === 0) return "";
   if (parts.length === 1) return parts[0];
   if (parts.length === 2) return `${parts[0]} y ${parts[1]}`;
   return `${parts.slice(0, -1).join(", ")}, y ${parts[parts.length - 1]}`;
 }
 
-function spotZonesPhraseES(inputs: EnrichedInputs): string {
+export function spotZonesPhraseES(inputs: EnrichedInputs): string {
   const z = inputs.spotZones;
   if (z) {
     const parts: string[] = [];
@@ -66,7 +66,7 @@ function spotZonesPhraseES(inputs: EnrichedInputs): string {
   return "el perímetro";
 }
 
-function cornerFocusES(inputs: EnrichedInputs): string {
+export function cornerFocusES(inputs: EnrichedInputs): string {
   const z = inputs.spotZones;
   if (z?.cornerLeft && z?.cornerRight) return "las esquinas";
   if (z?.cornerLeft && !z.cornerRight) return "la esquina izquierda";
@@ -74,14 +74,14 @@ function cornerFocusES(inputs: EnrichedInputs): string {
   return "las esquinas";
 }
 
-function joinListZH(parts: string[]): string {
+export function joinListZH(parts: string[]): string {
   if (parts.length === 0) return "";
   if (parts.length === 1) return parts[0];
   if (parts.length === 2) return `${parts[0]}和${parts[1]}`;
   return `${parts.slice(0, -1).join("、")}和${parts[parts.length - 1]}`;
 }
 
-function spotZonesPhraseZH(inputs: EnrichedInputs): string {
+export function spotZonesPhraseZH(inputs: EnrichedInputs): string {
   const z = inputs.spotZones;
   if (z) {
     const parts: string[] = [];
@@ -97,7 +97,7 @@ function spotZonesPhraseZH(inputs: EnrichedInputs): string {
   return "外线";
 }
 
-function cornerFocusZH(inputs: EnrichedInputs): string {
+export function cornerFocusZH(inputs: EnrichedInputs): string {
   const z = inputs.spotZones;
   if (z?.cornerLeft && z?.cornerRight) return "底角";
   if (z?.cornerLeft && !z.cornerRight) return "左侧底角";
@@ -158,7 +158,7 @@ export interface RenderedReport {
   alerts: RenderedAlert[];
 }
 
-type GenderedWord =
+export type GenderedWord =
   | "player"
   | "dominant"
   | "dangerous"
@@ -213,7 +213,7 @@ const genderZH: Record<GenderedWord, string> = {
   creator: "持球组织",
 };
 
-function g(word: GenderedWord, gender: Gender, locale: Locale): string {
+export function g(word: GenderedWord, gender: Gender, locale: Locale): string {
   if (locale === "en") return genderEN[word];
   if (locale === "zh") return genderZH[word];
   if (gender === "f") return genderES_f[word];
@@ -884,7 +884,7 @@ function renderInstructionText(
   return key;
 }
 
-function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
+export function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
   switch (key) {
     case "deny_iso_space": {
       const dirEN = inputs.isoDir === "R"
@@ -1091,7 +1091,7 @@ function renderInstructionEN(key: string, inputs: EnrichedInputs): string {
   }
 }
 
-function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender): string {
+export function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender): string {
   switch (key) {
     case "deny_iso_space": {
       const dirES = inputs.isoDir === "R" ? "ala derecha" : inputs.isoDir === "L" ? "ala izquierda" : "ambas alas";
@@ -1274,7 +1274,7 @@ function renderInstructionES(key: string, inputs: EnrichedInputs, gender: Gender
   }
 }
 
-function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
+export function renderInstructionZH(key: string, inputs: EnrichedInputs): string {
   switch (key) {
     case "deny_iso_space": {
       const dirZH = inputs.isoDir === "R" ? "右翼" : inputs.isoDir === "L" ? "左翼" : "两翼";
@@ -1471,7 +1471,7 @@ function renderAlerts(
   }));
 }
 
-function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext): string {
+export function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext): string {
   const { locale } = ctx;
   if (locale === "en") {
     if (key.includes("instant_shot"))
@@ -1557,7 +1557,7 @@ function renderAlertText(key: string, inputs: EnrichedInputs, ctx: RenderContext
   return key;
 }
 
-function renderTriggerCue(
+export function renderTriggerCue(
   triggerKey: string,
   _inputs: EnrichedInputs,
   ctx: RenderContext,

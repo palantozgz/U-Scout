@@ -329,21 +329,30 @@ function campoAllow(rawOutputs: MotorOutput[], forceWinnerKey: OutputKey | undef
   return { ganador: candidatos[0].output, candidatos };
 }
 
+/**
+ * "Mecanismo" de un output aware -- mismo criterio de dedup que
+ * `motor-v4.ts::buildAlerts`. Exportada (no solo local a `slotsAware`) porque
+ * `reportTextRendererV1.ts` la necesita para `RenderedAlert.mechanismType`
+ * (motor-v1's `DefenseOutput` no lleva ese campo -- se deriva del `key`, igual
+ * que aquí, en vez de duplicar la clasificación en dos sitios).
+ */
+export function mecanismoDeAwareKey(key: string): string {
+  if (/stepback|pull_up|pullup/.test(key)) return "shooting_off_dribble";
+  if (/post|duck_in/.test(key)) return "post_action";
+  if (/trans|transition|leak/.test(key)) return "transition";
+  if (/oreb|putback/.test(key)) return "offensive_rebound";
+  if (/connector|passer|vision/.test(key)) return "playmaking";
+  if (/screen|slip/.test(key)) return "screen_action";
+  if (/pressure|trap|blitz/.test(key)) return "pressure_defense";
+  if (/clutch|freeze/.test(key)) return "clutch";
+  if (/contact|foul/.test(key)) return "contact";
+  return "general";
+}
+
 /** Hasta 2 slots de aware, deduplicados por "mecanismo" (mismo criterio de
  *  motor-v4.ts buildAlerts) para no repetir dos avisos del mismo tipo. */
 function slotsAware(rawOutputs: MotorOutput[]): CampoConCandidatos[] {
-  const mecanismo = (key: string): string => {
-    if (/stepback|pull_up|pullup/.test(key)) return "shooting_off_dribble";
-    if (/post|duck_in/.test(key)) return "post_action";
-    if (/trans|transition|leak/.test(key)) return "transition";
-    if (/oreb|putback/.test(key)) return "offensive_rebound";
-    if (/connector|passer|vision/.test(key)) return "playmaking";
-    if (/screen|slip/.test(key)) return "screen_action";
-    if (/pressure|trap|blitz/.test(key)) return "pressure_defense";
-    if (/clutch|freeze/.test(key)) return "clutch";
-    if (/contact|foul/.test(key)) return "contact";
-    return "general";
-  };
+  const mecanismo = mecanismoDeAwareKey;
 
   const aware = rawOutputs
     .filter((o) => o.category === "aware" && o.weight > 0)
@@ -390,12 +399,46 @@ export interface EnsamblarReporteOpts {
   emparejamientoDefensivo?: string;
 }
 
+/**
+ * CORREGIDO 2026-09-13 (spec 23.3, decisión directa de Pablo -- migración de
+ * `ReportSlidesV1.tsx`): `ScoutingReportV1` deliberadamente NO expone
+ * `EnrichedInputs` (14.2 bis, separar Nivel 1/observación de Nivel 3/inferido).
+ * Pero `reportTextRendererV1.ts` sí lo necesita para generar el mismo nivel de
+ * detalle de texto que el motor legacy (ej. "Force left" depende de `isoDir`).
+ * Pregunta que El Arquitecto dejó explícita para Pablo (no técnica, de
+ * producto): ¿perder ese detalle, o exponer `EnrichedInputs` como dato
+ * auxiliar fuera del contrato limpio? Pablo eligió mantener el detalle --
+ * esta función es el punto único donde `EnrichedInputs` sale de este archivo,
+ * documentada como deuda técnica deliberada (mismo patrón que
+ * `motor-v1-source-map.ts`). `ensamblarReporte()` se queda igual (no rompe a
+ * `scripts/compare-motors.ts` ni a los tests existentes) -- ambas comparten
+ * el mismo cálculo interno, no se corre `motor.generateReport()` dos veces.
+ */
+export function ensamblarReporteParaTexto(
+  inputs: PlayerInputs,
+  clubContext: ClubContext | undefined,
+  opts: EnsamblarReporteOpts,
+): { reporte: ScoutingReportV1; enrichedInputs: EnrichedInputs } {
+  const report = motor.generateReport(inputs, clubContext);
+  return {
+    reporte: ensamblarReporteDesdeMotorReport(report, opts),
+    enrichedInputs: report.inputs as EnrichedInputs,
+  };
+}
+
 export function ensamblarReporte(
   inputs: PlayerInputs,
   clubContext: ClubContext | undefined,
   opts: EnsamblarReporteOpts,
 ): ScoutingReportV1 {
   const report = motor.generateReport(inputs, clubContext);
+  return ensamblarReporteDesdeMotorReport(report, opts);
+}
+
+function ensamblarReporteDesdeMotorReport(
+  report: MotorReport,
+  opts: EnsamblarReporteOpts,
+): ScoutingReportV1 {
   const rawOutputs = report.rawOutputs ?? [];
   const enriched = report.inputs as EnrichedInputs;
 

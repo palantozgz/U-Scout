@@ -1362,11 +1362,11 @@ Verificado: `OverridePanel.tsx`, `overrideEngine.ts` y el backend de aprobación
 
 `closeoutThreat.ts` sí depende de `EnrichedInputs` y de los prefijos de `SituationId` — mismo problema que el punto 1, más un mapeo de prefijos (`catch_shoot`/`off_ball` → `spotUp`/`offScreen`).
 
-### 23.3. Decisión de producto pendiente — **[PENDIENTE, pregunta directa a Pablo, no asumida]**
+### 23.3. Decisión de producto — **[CERRADO 2026-09-13, respuesta directa de Pablo]**
 
-¿`motor-v1.ts` expone `EnrichedInputs` como dato auxiliar fuera del contrato limpio de `ScoutingReportV1` (ej. una función `ensamblarReporteParaTexto()` que devuelve `{ reporte, enrichedInputs }`, documentada como deuda técnica deliberada, mismo patrón que `motor-v1-source-map.ts`), para no perder detalle de texto (ej. "Force left — contest every touch before they gather")? O se reescribe el catálogo de texto sin ese dato, aceptando un texto menos específico que el actual?
+¿`motor-v1.ts` expone `EnrichedInputs` como dato auxiliar fuera del contrato limpio de `ScoutingReportV1`, para no perder detalle de texto (ej. "Force left — contest every touch before they gather")? O se reescribe el catálogo de texto sin ese dato, aceptando un texto menos específico que el actual?
 
-Recomendación de El Arquitecto: la primera opción — la alternativa es un downgrade real de calidad de producto, no solo una refactorización, y es una decisión de producto (qué tan específico debe sonar el texto a un entrenador), no técnica.
+**Pablo elige mantener el detalle actual** (la recomendación de El Arquitecto): `motor-v1.ts` expone `EnrichedInputs` como dato auxiliar fuera del contrato limpio de `ScoutingReportV1`, documentado como deuda técnica deliberada (mismo patrón que `motor-v1-source-map.ts`). El texto para el entrenador mantiene el nivel de detalle actual; el contrato de tipos "limpio" de 14.2 bis queda con una excepción documentada, no violado en silencio.
 
 ### 23.4. Estrategia de corte — decidida
 
@@ -1382,4 +1382,21 @@ No hay datos de producción reales (21.5: la única jugadora real tiene `inputs:
 
 Capa 3/Nivel 2 (Fase 2, no bloquea); `porque`/`confianza` real (siguen placeholder, 21.4); migrar `PlayerEditor.tsx` a `PlayerProfileV1Inputs` (no hace falta — `ensamblarReporte` acepta el mismo `PlayerInputs` legacy); retirar `motor-v4.ts`/`motor-v2.1.ts` del repo (Fase 3 completa — deben quedarse mientras `compare-motors.ts` los use como referencia de aceptación).
 
-**Siguiente paso real:** cerrar 23.3 con Pablo antes de que El Aparejador toque `reportTextRenderer.ts`.
+### 23.7. PR-A cerrado — nueva capa de texto (2026-09-13)
+
+Implementado tal como se planificó en 23.4, sin sorpresas de alcance respecto a lo mapeado en 23.1:
+
+1. **`motor-v1.ts`** — nueva función `ensamblarReporteParaTexto()`, que devuelve `{ reporte, enrichedInputs }` (`ensamblarReporte()` se queda igual, ambas comparten el mismo cálculo interno, no se corre `motor.generateReport()` dos veces). Es el único punto donde `EnrichedInputs` sale de este archivo — deuda técnica deliberada, documentada en la cabecera de la función, resolviendo 23.3. También se exportó `mecanismoDeAwareKey()` (antes función local de `slotsAware()`) para no duplicar la clasificación de "mecanismo" en la capa de texto.
+2. **`reportTextRenderer.ts`** — sin cambios de comportamiento, solo se añadió `export` a los helpers reutilizables (`g`, `joinList*`, `spotZonesPhrase*`, `cornerFocus*`, `renderInstructionEN/ES/ZH`, `renderAlertText`, `renderTriggerCue`) para que la nueva capa los reutilice en vez de duplicarlos — las keys de deny/force/allow/aware son el mismo string legacy en ambos motores (23.1), así que esas ~600 líneas se reutilizan literales.
+3. **`reportTextRendererV1.ts`** (nuevo) — capa de texto para `ScoutingReportV1`. Trabajo nuevo real (no adaptación de firma): descripciones de situación para los 11 buckets Synergy (recuperan la dirección/zona leyendo `EnrichedInputs` dentro de cada caso, ej. `iso` mira `isoDir`, en vez de que la granularidad viva en la key como en motor-v4); catálogo de labels para los 10 `ArchetypeKey` + fusión obligatoria de `archetypeModificador` (14.3 bis); `renderThreatV1()` basado en el semáforo `nivelAmenaza` (21.9 bis) — implementa por primera vez en código el copy activo de "defensa estándar del equipo" (respaldo KYP) que hasta ahora solo estaba decidido en la spec, nunca en texto real.
+4. **`reportTextRendererV1.test.ts`** (nuevo) — 51 tests: los 24 perfiles del fixture renderizados en los 3 idiomas sin ningún string vacío (ninguna descripción de situación cae en el `default` del switch), verificación explícita de que `accionPrincipal` ausente siempre corresponde a `nivelAmenaza: "estandar"` con el copy activo (nunca un hueco silencioso), y de que la fusión de `archetypeModificador` aparece en la etiqueta y nunca como elemento separado.
+
+**Deliberadamente más simple que el original en dos ejes, ambos documentados en la cabecera del archivo, no descuidos:**
+- `renderTaglineV1`/`renderThreatV1` no replican cada rama fina que tenía `motor-v4.ts` por `dangerLevel` 1-5 — el dato de origen ahora es el semáforo binario `nivelAmenaza` (ya decidido en 21.9 bis), así que el texto reflected esa simplicidad real, no es una limitación de esta capa.
+- El picker de alternativas (22.2) no se extendió a `aware` en esta pasada (`RenderedAlert` se queda sin `alternatives`) — explícitamente opcional para esta migración (23.4#5), no bloqueante.
+
+**Verificación:** `npm run check`/`check:tests` limpios, `npx vitest run` 144/144 reales (mismo fallo preexistente y no relacionado), `npm run motor:compare` 0 divergencias en 24 perfiles (esta capa no toca cálculo, solo texto — se corre igual por disciplina).
+
+**Estado:** PR-A cerrado. `ReportSlidesV1.tsx` sigue sin tocarse — sigue en `motor-v4` en producción (21.5). PR-B (23.4: swap atómico en `ReportSlidesV1.tsx`/`closeoutThreat.ts`, eliminar el "También: X", implementar el copy de "estándar" en la UI real) queda como siguiente paso, no hecho en esta sesión.
+
+**Siguiente paso real:** PR-B — swap atómico de `ReportSlidesV1.tsx` a `ensamblarReporteParaTexto()` + `renderReportV1()`, siguiendo el plan de 23.4/23.6.
