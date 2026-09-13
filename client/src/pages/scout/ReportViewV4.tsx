@@ -5,12 +5,17 @@ import { useLocation } from "wouter";
 import { useLocale } from "@/lib/i18n";
 import {
   useApprovalStatus,
+  useApproveReport,
+  useUnapproveReport,
   invalidatePlayerApprovalQueries,
   serverOverridesToReportOverrides,
 } from "@/lib/approval-api";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/useAuth";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+import { Check } from "lucide-react";
 import { OverridePanel } from "@/components/scout/OverridePanel";
 import ReportSlidesV1 from "@/pages/scout/ReportSlidesV1";
 import { usePlayer } from "@/lib/mock-data";
@@ -63,6 +68,8 @@ export default function ReportViewV4({
     enabled: Boolean(playerId),
     coachReviewMode: mode === "coach_review",
   });
+  const approveReport = useApproveReport(playerId);
+  const unapproveReport = useUnapproveReport(playerId);
 
   const { data: scoutMeData } = useQuery({
     queryKey: scoutVersionMeQueryKey(playerId),
@@ -135,9 +142,73 @@ export default function ReportViewV4({
   const serverSaysSubmitted = scoutMeData?.submitted === true;
   const submittedToFilmRoom = sentFlash || serverSaysSubmitted;
 
+  const myId = profile?.id ?? user?.id ?? "";
+  const iApproved = Boolean(approvalData?.approvals.some((a) => a.coachId === myId));
+  const approvalCount = approvalData?.approvals.length ?? 0;
+  const approvalTotal = Math.max(approvalData?.totalStaff ?? 0, 1);
+
+  const onToggleApprove = () => {
+    if (!myId) {
+      toast({
+        variant: "destructive",
+        title: t("approval_approve_error"),
+        description: t("approval_sign_in_required"),
+      });
+      return;
+    }
+    const opts = {
+      onError: (e: Error) => {
+        toast({ variant: "destructive", title: t("approval_approve_error"), description: e?.message ?? "" });
+      },
+    };
+    if (iApproved) unapproveReport.mutate(undefined, opts);
+    else approveReport.mutate(undefined, opts);
+  };
+
   const approvalBar =
     mode === "coach_review" ? (
       <div className="px-4 py-3 space-y-2">
+        {/* CORREGIDO 2026-09-14 (hallazgo real, spec 27): esta pantalla ya leía
+            approvalData pero nunca exponía el botón para aprobar -- la única
+            UI que lo hacía (ApprovalBar) vivía en una ruta muerta sin enlaces
+            reales (/coach/player/:id/profile). Resultado: 0 aprobaciones en
+            producción, nunca. Con el gate de >=1 aprobación de la sección 26
+            ya en producción, esto bloqueaba publicar para cualquiera. */}
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2">
+          <p className="text-xs font-semibold text-muted-foreground min-w-0">
+            <span className="text-foreground font-bold tabular-nums">
+              {`${approvalCount}/${approvalTotal}`}
+            </span>{" "}
+            {t("dashboard_player_coaches_label")}
+            {approvalData?.hasDiscrepancy && (
+              <Badge variant="destructive" className="ml-2 text-[10px] font-bold uppercase tracking-wide align-middle">
+                {t("approval_discrepancy")}
+              </Badge>
+            )}
+          </p>
+          <Button
+            type="button"
+            variant={iApproved ? "default" : "outline"}
+            size="sm"
+            className={
+              iApproved
+                ? "font-bold shrink-0 border-0 bg-emerald-600 text-white hover:bg-emerald-700"
+                : "font-bold shrink-0 border-border text-foreground hover:bg-muted"
+            }
+            disabled={approveReport.isPending || unapproveReport.isPending || !myId}
+            onClick={onToggleApprove}
+          >
+            {iApproved ? (
+              <>
+                <Check className="w-4 h-4 mr-1 shrink-0" aria-hidden />
+                {t("approval_btn_approved")}
+              </>
+            ) : (
+              t("approval_btn_approve")
+            )}
+          </Button>
+        </div>
+
         {/* Submission status */}
         <div
           className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${
