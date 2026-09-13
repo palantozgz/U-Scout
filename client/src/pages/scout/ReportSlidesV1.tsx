@@ -334,6 +334,22 @@ export default function ReportSlidesV1({
     allow: finalReport.defense.allow?.instruction ? [finalReport.defense.allow.instruction] : [],
   };
 
+  // Motor 1.0, Fase 2 (spec 24.6, pendiente cerrado 2026-09-14) -- `porque`
+  // (15.5) ya se calcula desde que capa3 llegó a producción, pero no se
+  // mostraba en ningún sitio. Se muestra bajo la tarjeta del campo, SOLO
+  // cuando no hay un "replace" activo de un entrenador para ese campo -- el
+  // "porque" pertenece a la recomendación original del motor, no a la
+  // alternativa elegida a mano (para esa no hay `porque` calculado; mejor
+  // omitirlo que mostrar uno que ya no corresponde al texto en pantalla).
+  function porqueDelGanador(campo: "deny" | "force" | "allow"): string | undefined {
+    const porque = completo!.reporte.capa2[campo]?.ganador.porque;
+    if (!porque) return undefined;
+    const reemplazado = overrides?.some(
+      (o) => o.slide === "defense" && o.itemKey === `${campo}.instruction` && o.action === "replace",
+    );
+    return reemplazado ? undefined : porque;
+  }
+
   // Picker de alternativas (spec motor-1.0 sección 21.11) -- ¿hay ya un
   // "replace" guardado para el campo que el sheet abierto representa?
   const activeReplaceOverride = activeSheet?.itemKey
@@ -441,6 +457,7 @@ export default function ReportSlidesV1({
             closeoutReport={closeoutReport}
             statsDestacados={completo.reporte.identidad.statsDestacados.slice(0, 1)}
             quietEdge={completo.reporte.identidad.quietEdge}
+            denyPorque={porqueDelGanador("deny")}
             locale={locale}
             es={es}
             zh={zh}
@@ -565,6 +582,9 @@ export default function ReportSlidesV1({
                   </p>
                 </div>
                 <p className="text-sm font-semibold text-foreground/90 leading-snug">{defensivePlan.deny[0]}</p>
+                {porqueDelGanador("deny") && (
+                  <p className="mt-1.5 text-xs text-muted-foreground/70 italic">{porqueDelGanador("deny")}</p>
+                )}
               </button>
             ) : (
               // CORREGIDO 2026-09-13 (spec 21.9 bis/23.4#4): antes, sin deny,
@@ -590,6 +610,9 @@ export default function ReportSlidesV1({
                   </p>
                 </div>
                 <p className="text-sm font-semibold text-foreground/90 leading-snug">{defensivePlan.force[0]}</p>
+                {porqueDelGanador("force") && (
+                  <p className="mt-1.5 text-xs text-muted-foreground/70 italic">{porqueDelGanador("force")}</p>
+                )}
               </button>
             )}
             {defensivePlan.allow.length > 0 && (
@@ -602,6 +625,9 @@ export default function ReportSlidesV1({
                   </p>
                 </div>
                 <p className="text-sm font-semibold text-foreground/90 leading-snug">{defensivePlan.allow[0]}</p>
+                {porqueDelGanador("allow") && (
+                  <p className="mt-1.5 text-xs text-muted-foreground/70 italic">{porqueDelGanador("allow")}</p>
+                )}
               </button>
             )}
             {topAlerts.length > 0 && (
@@ -984,11 +1010,12 @@ function SimpleReportSlide(props: {
   closeoutReport: CloseoutThreatReport | null;
   statsDestacados: StatDestacado[];
   quietEdge: QuietEdge | undefined;
+  denyPorque: string | undefined;
   locale: "en" | "es" | "zh";
   es: boolean;
   zh: boolean;
 }) {
-  const { player, photo, finalReport, closeoutReport, statsDestacados, quietEdge, locale, es, zh } = props;
+  const { player, photo, finalReport, closeoutReport, statsDestacados, quietEdge, denyPorque, locale, es, zh } = props;
   const displayName = localName(player.name, (player as any).nameEn ?? (player as any).name_en, zh ? "zh" : es ? "es" : "en");
   if (!finalReport) return null;
   const topSituation = finalReport.situations[0];
@@ -1045,6 +1072,7 @@ function SimpleReportSlide(props: {
             {es ? "Prioridad defensiva" : zh ? "防守重点" : "Defensive priority"}
           </p>
           <p className="text-sm font-semibold text-foreground/90 leading-snug">{denyInstruction}</p>
+          {denyPorque && <p className="mt-1.5 text-xs text-red-600/70 dark:text-red-400/70 italic">{denyPorque}</p>}
         </div>
       )}
 

@@ -1492,4 +1492,12 @@ Pablo eligió la opción recomendada: cablear `capa3` en `ReportSlidesV1.tsx` y 
 
 Verificado: `npm run check`/`check:tests` limpios, `npx vitest run` 205/205, `npm run motor:compare` 0 divergencias.
 
-**Fase 2 cerrada de punta a punta:** SQL → endpoint → módulo puro → UI real, con `StatsStrip` retirado. `porque`/`confianza` real se calculan y ya llegan a `capa2.deny/force/allow.ganador`, pero **no se muestran todavía en ningún sitio de la UI** (el picker de alternativas y las tarjetas de deny/force/allow siguen mostrando solo `instruction`) — pendiente explícito, pequeño, no bloqueante, para una pasada futura.
+**Fase 2 cerrada de punta a punta:** SQL → endpoint → módulo puro → UI real, con `StatsStrip` retirado.
+
+### 24.7. `porque` visible en la UI — cerrado (2026-09-14)
+
+Último pendiente pequeño de 24.6: `porque` ya se calculaba (`capa2.deny/force/allow.ganador.porque`) pero no se mostraba en ningún sitio. Añadido como línea secundaria en cursiva bajo la instrucción, en las 3 tarjetas de Slide 2 (deny/force/allow) y bajo "Prioridad defensiva" en modo sencillo.
+
+**Regla real, no solo estética:** `porque` se oculta cuando hay un override `"replace"` activo para ese campo — pertenece a la recomendación original del motor sobre el `ganador`, no a la alternativa que un entrenador eligió a mano (esa no tiene `porque` calculado; mostrar el `porque` del ganador junto al texto de una alternativa distinta sería mezclar la justificación de una recomendación con el texto de otra). `porqueDelGanador()` comprueba `overrides` antes de devolver el texto.
+
+Verificado: `npm run check`/`check:tests` limpios, `npx vitest run` 205/205, `npm run motor:compare` 0 divergencias.
