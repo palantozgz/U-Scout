@@ -54,6 +54,7 @@
 
 import type { EnrichedInputs } from "./motor-v2.1";
 import type { RankedSituation } from "./motor-v4";
+import type { SituacionAmenaza } from "./motor-v1-types";
 
 export type CloseoutLight = "red" | "yellow" | "green" | "insufficient_data";
 
@@ -177,6 +178,81 @@ export function computeCloseoutThreat(
   if (light !== "red") {
     const isoScore = situationScore(situations, "iso");
     const pnrScore = situationScore(situations, "pnr");
+    const isoDrives =
+      (inputs.isoStrongHandFinish === "drive" || inputs.isoWeakHandFinish === "drive") && isoScore >= 0.35;
+    const pnrDrives =
+      (inputs.pnrFinishLeft === "Drive to Rim" || inputs.pnrFinishRight === "Drive to Rim") && pnrScore >= 0.35;
+    const offBallDrives = inputs.offBallCutAction === "catch_and_drive";
+    watchDrive = isoDrives || pnrDrives || offBallDrives;
+  }
+
+  const handlerNote = computeHandlerNote(inputs, light);
+
+  return { light, index, watchDrive, handlerNote };
+}
+
+/**
+ * mismo prefijo de bucket usado por `situationScore()` (motor-v4: `id`
+ * granular) pero sobre `SituacionAmenaza.situacion` (motor-v1: los 11 buckets
+ * Synergy) -- spec 23.2. `startsWith` se conserva a propósito: `pnrHandler` Y
+ * `pnrRollMan` empiezan por "pnr", igual que antes `pnr_ball`/`pnr_screener`
+ * -- mismo comportamiento (máximo de ambos), solo cambian los nombres.
+ */
+function situationScoreV1(situaciones: SituacionAmenaza[], prefix: string): number {
+  let max = 0;
+  for (const s of situaciones) {
+    if (s.situacion === prefix || s.situacion.startsWith(prefix)) max = Math.max(max, s.score);
+  }
+  return max;
+}
+
+/**
+ * Adaptación de `computeCloseoutThreat` a `SituacionAmenaza[]` (motor-v1) --
+ * spec 23.2/23.4 (PR-B). Misma lógica exacta, solo cambian los prefijos de
+ * bucket: `catch_shoot` -> `spotUp`, `off_ball` -> `offScreen` (11 buckets
+ * Synergy sin equivalente 1:1 de nombre para estos dos). `iso`/`pnr` no
+ * cambian de prefijo.
+ */
+export function computeCloseoutThreatV1(
+  inputs: EnrichedInputs,
+  situaciones: SituacionAmenaza[],
+): CloseoutThreatReport {
+  if (situaciones.length === 0) {
+    return { light: "insufficient_data", index: null, watchDrive: false, handlerNote: null };
+  }
+
+  type Sig = { value: number; weight: number };
+  const signals: Sig[] = [];
+
+  if (inputs.spotUpAction && SPOT_ACTION_VALUE[inputs.spotUpAction] !== undefined) {
+    const situW = Math.max(situationScoreV1(situaciones, "spotUp"), 0.15);
+    signals.push({ value: SPOT_ACTION_VALUE[inputs.spotUpAction], weight: situW });
+  }
+  if (inputs.offBallCutAction && OFFBALL_CUT_VALUE[inputs.offBallCutAction] !== undefined) {
+    const situW = Math.max(situationScoreV1(situaciones, "offScreen"), 0.15);
+    signals.push({ value: OFFBALL_CUT_VALUE[inputs.offBallCutAction], weight: situW });
+  }
+
+  let light: CloseoutLight;
+  let index: number | null;
+  if (signals.length === 0) {
+    light = "insufficient_data";
+    index = null;
+  } else {
+    const totalWeight = signals.reduce((s, sig) => s + sig.weight, 0);
+    if (totalWeight === 0) {
+      light = "insufficient_data";
+      index = null;
+    } else {
+      index = signals.reduce((s, sig) => s + sig.value * sig.weight, 0) / totalWeight;
+      light = index >= RED_THRESHOLD ? "red" : index <= GREEN_THRESHOLD ? "green" : "yellow";
+    }
+  }
+
+  let watchDrive = false;
+  if (light !== "red") {
+    const isoScore = situationScoreV1(situaciones, "iso");
+    const pnrScore = situationScoreV1(situaciones, "pnr");
     const isoDrives =
       (inputs.isoStrongHandFinish === "drive" || inputs.isoWeakHandFinish === "drive") && isoScore >= 0.35;
     const pnrDrives =

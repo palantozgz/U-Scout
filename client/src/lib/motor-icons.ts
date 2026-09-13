@@ -11,6 +11,11 @@ export const SITUATION_ICONS: Partial<Record<string, LucideIcon>> = {
   post_right: Layers, post_left: Layers, post_high: Layers,
   catch_shoot: Crosshair, transition: Zap, off_ball: Route,
   cut: CornerDownRight, oreb: RefreshCw, floater: ChevronsUp, dho: Repeat2,
+  // 11 buckets Synergy de motor-v1 (spec 23, PR-B) -- claves nuevas, las de
+  // arriba se quedan mientras motor-v4 siga vivo (compare-motors.ts, Fase 3).
+  iso: Repeat2, pnrHandler: Shield, pnrRollMan: Shield, post: Layers,
+  spotUp: Crosshair, handoff: Repeat2, offScreen: Route, putback: RefreshCw,
+  misc: ChevronsUp,
 };
 
 export const DEFENSE_ICONS: Partial<Record<string, LucideIcon>> = {

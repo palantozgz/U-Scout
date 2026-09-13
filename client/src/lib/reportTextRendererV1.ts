@@ -62,6 +62,7 @@ import {
   cornerFocusEN,
   cornerFocusES,
   cornerFocusZH,
+  postMovesPhrase,
   renderInstructionEN,
   renderInstructionES,
   renderInstructionZH,
@@ -249,7 +250,7 @@ function renderSituationDescriptionV1EN(situacion: SituacionSynergy, inputs: Enr
         return `Operates from the high post. Reads cutters and drives when overplayed.`;
       const shoulder = inputs.postShoulder === "R" ? "right" : "left";
       const side = inputs.postShoulder === "R" ? "right" : inputs.postShoulder === "L" ? "left" : "preferred";
-      const moves = inputs.postMoves?.length ? inputs.postMoves.join(" and ") : "standard post moves";
+      const moves = postMovesPhrase(inputs.postMoves, "en") ?? "standard post moves";
       return `Posts on the ${side} block. Attacks over the ${shoulder} shoulder with ${moves}.`;
     }
     case "transition":
@@ -291,7 +292,7 @@ function renderSituationDescriptionV1ES(situacion: SituacionSynergy, inputs: Enr
     case "iso": {
       if (inputs.isoDir === "B")
         return `Ataca por ambos lados. Lee la defensa y elige el lado con menos ayuda.`;
-      const side = inputs.isoDir === "R" ? "derecha" : inputs.isoDir === "L" ? "izquierda" : null;
+      const side = inputs.isoDir === "R" ? "derecho" : inputs.isoDir === "L" ? "izquierdo" : null;
       const dec =
         inputs.isoDec === "S" ? "pull-up" : inputs.isoDec === "F" ? "penetración al aro" : "lectura y pase";
       const contact = inputs.contactFinish === "seeks" ? " Busca el contacto activamente." : "";
@@ -324,7 +325,7 @@ function renderSituationDescriptionV1ES(situacion: SituacionSynergy, inputs: Enr
         return `Opera desde el poste alto. Lee los cortadores y penetra si le sobredefienden.`;
       const shoulder = inputs.postShoulder === "R" ? "derecho" : "izquierdo";
       const side = inputs.postShoulder === "R" ? "derecho" : inputs.postShoulder === "L" ? "izquierdo" : "preferido";
-      const moves = inputs.postMoves?.length ? inputs.postMoves.join(" y ") : "movimientos estándar de poste";
+      const moves = postMovesPhrase(inputs.postMoves, "es") ?? "movimientos estándar de poste";
       return `Postea en el bloque ${side}. Ataca por el hombro ${shoulder} con ${moves}.`;
     }
     case "transition":
@@ -408,7 +409,10 @@ function renderSituationDescriptionV1ZH(situacion: SituacionSynergy, inputs: Enr
   }
 }
 
-function renderSituationDescriptionV1(
+/** Exportada -- `ReportSlidesV1.tsx` la reusa para los "runners-up" de
+ *  situación (spec 22.1/23), mismo patrón que `renderSituationDescription`
+ *  en `reportTextRenderer.ts`. */
+export function renderSituationDescriptionV1(
   situacion: SituacionSynergy,
   inputs: EnrichedInputs,
   locale: Locale,

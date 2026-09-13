@@ -108,6 +108,35 @@ export function cornerFocusZH(inputs: EnrichedInputs): string {
 export type Locale = "en" | "es" | "zh";
 export type Gender = "f" | "m" | "n";
 
+/**
+ * CORREGIDO 2026-09-13 (encontrado durante inspección manual de la migración
+ * de motor-1.0, spec 23): `inputs.postMoves.join(" and "/" y ")` dejaba
+ * strings crudas con guion bajo sin traducir (ej. "up_and_under",
+ * "drop_step") en el texto final, y usaba `.join` en vez de `joinListEN/ES`
+ * (ya disponibles en este mismo archivo) -- "hook and fade and drop_step"
+ * en vez de una lista con formato real. Bug real preexistente, sin relación
+ * con la migración -- se corrige aquí porque se encontró aquí, y se
+ * reutiliza desde `reportTextRendererV1.ts` para no duplicarlo.
+ */
+export function postMoveLabel(move: string, locale: Locale): string {
+  const labels: Record<string, Record<Locale, string>> = {
+    fade: { en: "fadeaway", es: "fadeaway", zh: "后仰跳投" },
+    turnaround: { en: "turnaround", es: "giro", zh: "转身跳投" },
+    hook: { en: "hook", es: "gancho", zh: "勾手" },
+    drop_step: { en: "drop step", es: "drop step", zh: "低位强攻步" },
+    up_and_under: { en: "up-and-under", es: "up and under", zh: "上步假动作" },
+  };
+  return labels[move]?.[locale] ?? move.replace(/_/g, " ");
+}
+
+export function postMovesPhrase(moves: string[] | null | undefined, locale: Locale): string | null {
+  if (!moves || moves.length === 0) return null;
+  const translated = moves.map((m) => postMoveLabel(m, locale));
+  if (locale === "en") return joinListEN(translated);
+  if (locale === "zh") return joinListZH(translated);
+  return joinListES(translated);
+}
+
 export interface RenderContext {
   locale: Locale;
   gender: Gender;
@@ -629,9 +658,7 @@ function renderSituationDescriptionEN(id: string, inputs: EnrichedInputs): strin
     case "post_right":
     case "post_left": {
       const shoulder = inputs.postShoulder === "R" ? "right" : "left";
-      const moves = inputs.postMoves?.length
-        ? inputs.postMoves.join(" and ")
-        : "standard post moves";
+      const moves = postMovesPhrase(inputs.postMoves, "en") ?? "standard post moves";
       return `Posts on the ${id === "post_right" ? "right" : "left"} block. Attacks over the ${shoulder} shoulder with ${moves}.`;
     }
     case "post_high":
@@ -692,7 +719,12 @@ function renderSituationDescriptionES(
   switch (id) {
     case "iso_right":
     case "iso_left": {
-      const side = id === "iso_right" ? "derecha" : "izquierda";
+      // CORREGIDO 2026-09-13 (encontrado durante inspección manual de la
+      // migración de motor-1.0, spec 23): "el lado derecha/izquierda" es
+      // incorrecto en español -- "lado" es masculino, necesita "derecho"/
+      // "izquierdo". Bug real preexistente en producción, sin relación con
+      // la migración -- se corrige aquí porque se encontró aquí.
+      const side = id === "iso_right" ? "derecho" : "izquierdo";
       const dec =
         inputs.isoDec === "S"
           ? "pull-up"
@@ -732,9 +764,7 @@ function renderSituationDescriptionES(
     case "post_right":
     case "post_left": {
       const shoulder = inputs.postShoulder === "R" ? "derecho" : "izquierdo";
-      const moves = inputs.postMoves?.length
-        ? inputs.postMoves.join(" y ")
-        : "movimientos estándar de poste";
+      const moves = postMovesPhrase(inputs.postMoves, "es") ?? "movimientos estándar de poste";
       return `Postea en el bloque ${id === "post_right" ? "derecho" : "izquierdo"}. Ataca por el hombro ${shoulder} con ${moves}.`;
     }
     case "post_high":

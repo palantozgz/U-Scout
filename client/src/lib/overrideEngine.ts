@@ -1,4 +1,5 @@
-import type { RenderedReport } from "./reportTextRenderer";
+import type { RenderedReport, RenderedInstruction } from "./reportTextRenderer";
+import type { RenderedReportV1 } from "./reportTextRendererV1";
 
 export interface ReportOverride {
   id?: string;
@@ -91,6 +92,86 @@ export function applyOverrides(
     }
 
     if (slide === "alerts") {
+      const idx = parseInt(itemKey.split(".")[1] ?? "-1", 10);
+      if (idx >= 0 && idx < result.alerts.length) {
+        if (action === "hide") {
+          result.alerts.splice(idx, 1);
+        }
+        if (action === "replace" && replacementValue) {
+          result.alerts[idx].text = replacementValue;
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Adaptación de `applyOverrides` a `RenderedReportV1` (spec 23, PR-B) --
+ * mismo comportamiento exacto, adaptado a la unión discriminada real de
+ * `ScoutingReportV1` (modo sencillo no tiene `situations`/`alerts`, y su
+ * único campo tocable es `accionPrincipal`, equivalente al `deny` de modo
+ * completo -- mismo `itemKey` de convención, "deny.instruction").
+ * `detectDiscrepancies`/`detectPatterns`/`buildOverrideRecord` NO cambian --
+ * son agnósticas al motor, solo operan sobre `ReportOverride[]` (spec 23.2,
+ * verificado por El Arquitecto).
+ */
+export function applyOverridesV1(
+  report: RenderedReportV1,
+  overrides: ReportOverride[],
+): RenderedReportV1 {
+  const result: RenderedReportV1 = JSON.parse(JSON.stringify(report));
+
+  const campoDefensa = (type: "deny" | "force" | "allow"): RenderedInstruction | undefined => {
+    if (result.modo === "sencillo") return type === "deny" ? result.accionPrincipal : undefined;
+    return result.defense[type];
+  };
+
+  for (const override of overrides) {
+    if (override.action === "approve_as_is") continue;
+
+    const { slide, itemKey, action, replacementValue } = override;
+
+    if (slide === "identity") {
+      if (itemKey === "archetype" && action === "replace" && replacementValue) {
+        result.identity.archetypeLabel = replacementValue;
+      }
+      if (itemKey === "tagline" && action === "replace" && replacementValue) {
+        result.identity.tagline = replacementValue;
+      }
+    }
+
+    if (slide === "situations" && result.modo === "completo") {
+      const idx = parseInt(itemKey.split(".")[1] ?? "-1", 10);
+      if (idx >= 0 && idx < result.situations.length) {
+        if (action === "hide") {
+          result.situations.splice(idx, 1);
+        }
+        if (action === "replace" && replacementValue) {
+          result.situations[idx].description = replacementValue;
+        }
+      }
+    }
+
+    if (slide === "defense") {
+      const [type, field] = itemKey.split(".") as ["deny" | "force" | "allow", string];
+      const campo = type && field ? campoDefensa(type) : undefined;
+      if (campo) {
+        if (action === "hide") {
+          const alt = campo.alternatives[0];
+          if (alt) {
+            campo.instruction = alt.instruction;
+            campo.alternatives = campo.alternatives.slice(1);
+          }
+        }
+        if (action === "replace" && replacementValue) {
+          campo.instruction = replacementValue;
+        }
+      }
+    }
+
+    if (slide === "alerts" && result.modo === "completo") {
       const idx = parseInt(itemKey.split(".")[1] ?? "-1", 10);
       if (idx >= 0 && idx < result.alerts.length) {
         if (action === "hide") {

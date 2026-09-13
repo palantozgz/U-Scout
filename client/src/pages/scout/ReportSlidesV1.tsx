@@ -1,15 +1,17 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, Eye, CornerRightDown } from "lucide-react";
-import { computeCloseoutThreat, type CloseoutThreatReport } from "@/lib/closeoutThreat";
+import { computeCloseoutThreatV1, type CloseoutThreatReport } from "@/lib/closeoutThreat";
 import { usePlayerWcbaLink, usePlayerDetail, type PlayerDetail } from "@/lib/stats-api";
-import { generateMotorV4, type MotorV4Output } from "@/lib/motor-v4";
+import { ensamblarReporteParaTexto } from "@/lib/motor-v1";
+import type { ReporteModoCompletoV1 } from "@/lib/motor-v1-types";
+import type { EnrichedInputs } from "@/lib/motor-v2.1";
 import { SITUATION_ICONS } from "@/lib/motor-icons";
 import {
-  renderReport,
-  renderSituationDescription,
-  type RenderContext,
-  type RenderedReport,
-} from "@/lib/reportTextRenderer";
+  renderReportV1,
+  renderSituationDescriptionV1,
+  type RenderedReportV1,
+} from "@/lib/reportTextRendererV1";
+import type { RenderContext } from "@/lib/reportTextRenderer";
 import {
   usePlayer,
   clubRowToMotorContext,
@@ -25,7 +27,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { applyOverrides, type ReportOverride } from "@/lib/overrideEngine";
+import { applyOverridesV1, type ReportOverride } from "@/lib/overrideEngine";
 import { useSetReportOverride, useDeleteReportOverride, type ApprovalSlide } from "@/lib/approval-api";
 
 const BasketballPlaceholderAvatar = lazy(() =>
@@ -42,6 +44,18 @@ export interface ReportSlidesV1Props {
   overrides?: ReportOverride[];
 }
 
+/** `RenderedReportV1` siempre se usa en su variante "completo" en esta
+ *  pantalla (spec 23, PR-B) -- `simpleMode` es un toggle de presentación
+ *  client-side, igual que ya lo era con motor-v4 (que tampoco distinguía
+ *  modo a nivel de datos). Modo "sencillo" del contrato de motor-v1 es
+ *  para OTROS consumidores (13.3, "sin acción adelantada" para la
+ *  jugadora) -- aquí el entrenador ya ve capa1+capa2 juntas siempre,
+ *  ordenadas por slide, ninguna se "adelanta" fuera de orden. */
+type RenderedCompletoV1 = Extract<RenderedReportV1, { modo: "completo" }>;
+function asCompleto(r: RenderedReportV1 | null): RenderedCompletoV1 | null {
+  return r && r.modo === "completo" ? r : null;
+}
+
 interface ActiveSheet {
   title: string;
   current: string;
@@ -49,9 +63,11 @@ interface ActiveSheet {
   /**
    * Picker de alternativas (spec motor-1.0 sección 21.11) -- solo presente
    * en los sheets de deny/force/allow (los únicos con datos suficientes:
-   * texto + score por candidato, ya renderizados por reportTextRenderer.ts).
-   * Ausente en los sheets de situaciones/archetype -- esos siguen siendo
-   * de solo lectura, el picker no se extendió ahí en esta pasada.
+   * texto + score por candidato, ya renderizados por reportTextRendererV1.ts).
+   * Ausente en los sheets de situaciones -- ese sigue siendo de solo
+   * lectura, el picker no se extendió ahí en esta pasada. El sheet de
+   * archetype se retiró (spec 22.2/23.4 -- "También: X" era el bug de P2
+   * documentado en 21.7, no se migra).
    */
   itemKey?: string;
   originalScore?: number;
@@ -67,6 +83,9 @@ const DENY_CLASSES  = { border: "border-l-red-500",    bg: "bg-red-500/8",     t
 const FORCE_CLASSES = { border: "border-l-amber-500",  bg: "bg-amber-500/8",   text: "text-amber-500 dark:text-amber-400",   dot: "bg-amber-500"  };
 const ALLOW_CLASSES = { border: "border-l-emerald-500",bg: "bg-emerald-500/8", text: "text-emerald-600 dark:text-emerald-400",dot: "bg-emerald-500"};
 const AWARE_CLASSES = { border: "border-l-violet-500", bg: "bg-violet-500/8",  text: "text-violet-500 dark:text-violet-400", dot: "bg-violet-500" };
+// Semáforo "estándar" (spec 21.9 bis) -- ámbar/neutro a propósito, nunca rojo:
+// no es una amenaza, es la ausencia deliberada de una (KYP, "non-shooter").
+const STANDARD_CLASSES = { border: "border-l-amber-400", bg: "bg-amber-400/8", text: "text-amber-600 dark:text-amber-400", dot: "bg-amber-400" };
 
 export default function ReportSlidesV1({
   playerId,
@@ -142,47 +161,59 @@ export default function ReportSlidesV1({
     arrowTimer.current = setTimeout(() => setArrowsVisible(false), ARROW_HIDE_DELAY);
   }
 
-  const motorOutput = useMemo(() => {
+  // Motor 1.0 (spec 23, PR-B) -- reemplaza generateMotorV4(). Siempre modo
+  // "completo": ver el comentario de `asCompleto` arriba sobre por qué esta
+  // pantalla no necesita pedir modo "sencillo" aparte.
+  const assembled = useMemo(() => {
     if (!player) return null;
     const inp = player.scoutingInputs ?? player.inputs;
-    return generateMotorV4(playerInputToMotorInputs(inp), clubMotorCtx);
-  }, [player, clubMotorCtx]);
+    return ensamblarReporteParaTexto(playerInputToMotorInputs(inp), clubMotorCtx, {
+      jugadoraId: playerId,
+      modo: "completo",
+    });
+  }, [player, clubMotorCtx, playerId]);
+
+  const completo: { reporte: ReporteModoCompletoV1; enrichedInputs: EnrichedInputs } | null = useMemo(() => {
+    if (!assembled) return null;
+    if (assembled.reporte.modo !== "completo") return null; // no debería pasar, ver arriba
+    return { reporte: assembled.reporte, enrichedInputs: assembled.enrichedInputs };
+  }, [assembled]);
 
   const ctx: RenderContext = { locale, gender };
 
-  const report = useMemo(() => {
-    if (!motorOutput) return null;
-    return renderReport(motorOutput, ctx);
-  }, [motorOutput, locale, gender]);
+  const report: RenderedCompletoV1 | null = useMemo(() => {
+    if (!completo) return null;
+    return asCompleto(renderReportV1(completo.reporte, completo.enrichedInputs, ctx));
+  }, [completo, locale, gender]);
 
-  const finalReport = useMemo(() => {
+  const finalReport: RenderedCompletoV1 | null = useMemo(() => {
     if (!report) return null;
     if (!overrides || overrides.length === 0) return report;
-    return applyOverrides(report, overrides);
+    return asCompleto(applyOverridesV1(report, overrides));
   }, [report, overrides]);
 
   // ── Slide sencillo: semaforo de cierre + stats WCBA de apoyo ──────────────
   const closeoutReport: CloseoutThreatReport | null = useMemo(() => {
-    if (!motorOutput) return null;
-    return computeCloseoutThreat(motorOutput.inputs, motorOutput.situations);
-  }, [motorOutput]);
+    if (!completo) return null;
+    return computeCloseoutThreatV1(completo.enrichedInputs, completo.reporte.capa1.situaciones);
+  }, [completo]);
   const wcbaLinkQ = usePlayerWcbaLink(player?.name);
   const wcbaDetailQ = usePlayerDetail(wcbaLinkQ.data?.externalId ?? null);
 
   const situationRunnersUp = useMemo(() => {
-    if (!motorOutput || !report) return [];
-    const shownIds = new Set(report.situations.slice(0, 3).map((s) => s.id));
-    return motorOutput.situations
-      .filter((s) => s.score > 0 && !shownIds.has(s.id))
+    if (!completo || !report) return [];
+    const shown = new Set(report.situations.slice(0, 3).map((s) => s.situacion));
+    return completo.reporte.capa1.situaciones
+      .filter((s) => s.score > 0 && !shown.has(s.situacion))
       .sort((a, b) => b.score - a.score)
       .map((s) => ({
-        text: renderSituationDescription(s, ctx, motorOutput.inputs),
+        text: renderSituationDescriptionV1(s.situacion, completo.enrichedInputs, locale),
         score: s.score,
-        id: s.id,
+        situacion: s.situacion,
       }));
-  }, [motorOutput, report, locale, gender]);
+  }, [completo, report, locale, gender]);
 
-  function openSituationSheet(sitId: string, current: string) {
+  function openSituationSheet(current: string) {
     setActiveSheet({
       title: locale === "es" ? "Alternativas" : locale === "zh" ? "其他选项" : "Alternatives",
       current,
@@ -209,21 +240,6 @@ export default function ReportSlidesV1({
       // (toServerSlideAndItemKey) -- "deny.instruction" etc.
       itemKey: `${type}.instruction`,
       originalScore,
-    });
-  }
-
-  function openArchetypeSheet(current: string) {
-    if (!finalReport) return;
-    setActiveSheet({
-      title:
-        locale === "es" ? "Alternativas de arquetipo"
-        : locale === "zh" ? "原型备选"
-        : "Archetype alternatives",
-      current,
-      alternatives: finalReport.identity.archetypeAlternatives.map((a) => ({
-        text: a.label,
-        score: a.score,
-      })),
     });
   }
 
@@ -273,7 +289,7 @@ export default function ReportSlidesV1({
       </div>
     );
   }
-  if (!finalReport || !motorOutput) {
+  if (!finalReport || !completo) {
     return (
       <div className="p-4 text-muted-foreground">
         {locale === "es" ? "No se pudo generar el informe."
@@ -284,21 +300,18 @@ export default function ReportSlidesV1({
   }
 
   const photo = isRealPhoto(player.imageUrl);
-  const subAlt = finalReport.identity.archetypeAlternatives?.[0];
   const topSituations = finalReport.situations.slice(0, 3);
   const topAlerts = finalReport.alerts.slice(0, 2);
   const hasPrev = slide > 0;
   const hasNext = slide < TOTAL_SLIDES - 1;
   const es = locale === "es";
   const zh = locale === "zh";
+  const esEstandar = finalReport.identity.nivelAmenaza === "estandar";
 
   const defensivePlan = {
     deny: finalReport.defense.deny?.instruction ? [finalReport.defense.deny.instruction] : [],
     force: finalReport.defense.force?.instruction ? [finalReport.defense.force.instruction] : [],
-    allow:
-      motorOutput.defense.allow.winner.key !== "none" && finalReport.defense.allow?.instruction
-        ? [finalReport.defense.allow.instruction]
-        : [],
+    allow: finalReport.defense.allow?.instruction ? [finalReport.defense.allow.instruction] : [],
   };
 
   // Picker de alternativas (spec motor-1.0 sección 21.11) -- ¿hay ya un
@@ -320,7 +333,7 @@ export default function ReportSlidesV1({
         replacementValue: alt.text,
         originalScore: activeSheet.originalScore,
         replacementScore: alt.score,
-        archetypeKey: motorOutput!.identity.archetypeKey,
+        archetypeKey: completo!.reporte.identidad.archetypeKey,
         locale: locale as "en" | "es" | "zh",
       });
     } catch (e) {
@@ -405,7 +418,6 @@ export default function ReportSlidesV1({
             player={player}
             photo={photo}
             finalReport={finalReport}
-            motorOutput={motorOutput}
             closeoutReport={closeoutReport}
             wcbaPlayer={wcbaDetailQ.data?.player ?? null}
             wcbaLoading={wcbaLinkQ.isLoading || (Boolean(wcbaLinkQ.data?.externalId) && wcbaDetailQ.isLoading)}
@@ -434,18 +446,17 @@ export default function ReportSlidesV1({
               </div>
             </div>
 
-            <button type="button" onClick={() => openArchetypeSheet(finalReport.identity.archetypeLabel)}
-              className="w-full text-left rounded-2xl border border-border bg-card p-4 space-y-1 active:bg-muted/40 transition-colors">
+            {/* Arquetipo -- CORREGIDO 2026-09-13 (spec 22.2/23.4): ya no es un
+                botón que abre un sheet de "También: X". Ese sub-label
+                repetía la situación #2 con otro nombre sin añadir
+                información (bug de P2 documentado en 21.7) -- se retira,
+                no se migra. La tarjeta es solo lectura. */}
+            <div className="w-full rounded-2xl border border-border bg-card p-4 space-y-1">
               <p className="text-[10px] font-black uppercase tracking-widest text-primary/80">
                 {es ? "Arquetipo" : zh ? "类型" : "Archetype"}
               </p>
               <p className="text-2xl font-black text-foreground leading-tight">{finalReport.identity.archetypeLabel}</p>
-              {subAlt && (
-                <p className="text-xs text-muted-foreground font-semibold">
-                  {es ? "También: " : zh ? "或: " : "Also: "}{subAlt.label}
-                </p>
-              )}
-            </button>
+            </div>
 
             {finalReport.identity.tagline && (
               <div className="rounded-2xl border border-border bg-card px-4 py-3">
@@ -456,10 +467,23 @@ export default function ReportSlidesV1({
               </div>
             )}
 
+            {/* CORREGIDO 2026-09-13 (spec 21.9 bis/23.4#4): antes esta tarjeta
+                era siempre roja/"amenaza". Cuando nivelAmenaza es "estandar"
+                (KYP, non-shooter) el texto ya es el copy activo de "defensa
+                estándar" -- pintarlo de rojo contradiría el propio mensaje.
+                Ámbar/neutro en ese caso, rojo solo cuando hay amenaza real. */}
             {finalReport.identity.threat && (
-              <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-destructive/70 mb-1">
-                  {es ? "Amenaza principal" : zh ? "主要威胁" : "Main threat"}
+              <div className={cn(
+                "rounded-2xl border px-4 py-3",
+                esEstandar ? "border-amber-400/30 bg-amber-400/5" : "border-destructive/30 bg-destructive/5",
+              )}>
+                <p className={cn(
+                  "text-[10px] font-black uppercase tracking-widest mb-1",
+                  esEstandar ? "text-amber-600 dark:text-amber-400" : "text-destructive/70",
+                )}>
+                  {esEstandar
+                    ? (es ? "Sin amenaza clara" : zh ? "无明确威胁" : "No clear threat")
+                    : (es ? "Amenaza principal" : zh ? "主要威胁" : "Main threat")}
                 </p>
                 <p className="text-sm font-semibold text-foreground leading-snug">{finalReport.identity.threat}</p>
               </div>
@@ -480,22 +504,17 @@ export default function ReportSlidesV1({
               {es ? "Situaciones primarias" : zh ? "主要进攻方式" : "Primary situations"}
             </p>
             {topSituations.map((sit, i) => {
-              const SitIcon = SITUATION_ICONS[sit.id as keyof typeof SITUATION_ICONS];
-              const desc = renderSituationDescription(
-                motorOutput.situations.find((s) => s.id === sit.id) ?? motorOutput.situations[i],
-                ctx,
-                motorOutput.inputs,
-              );
-              const colors = situationColors(sit.id);
+              const SitIcon = SITUATION_ICONS[sit.situacion];
+              const colors = situationColors(sit.situacion);
               return (
-                <button key={sit.id} type="button" onClick={() => openSituationSheet(sit.id, desc)}
+                <button key={sit.situacion} type="button" onClick={() => openSituationSheet(sit.description)}
                   className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 space-y-2 bg-card active:bg-muted/40 transition-colors", colors.border)}>
                   <div className="flex items-center gap-2">
                     {SitIcon && <SitIcon className="w-4 h-4 shrink-0 text-muted-foreground/60" />}
                     <p className={cn("text-xs font-black uppercase tracking-widest", colors.text)}>{sit.label}</p>
                     <span className="ml-auto text-[9px] font-black text-muted-foreground/40 tabular-nums">#{i + 1}</span>
                   </div>
-                  <p className="text-sm leading-snug text-foreground/85 font-medium">{desc}</p>
+                  <p className="text-sm leading-snug text-foreground/85 font-medium">{sit.description}</p>
                 </button>
               );
             })}
@@ -512,8 +531,8 @@ export default function ReportSlidesV1({
         {/* SLIDE 2: ¿Qué hago yo? */}
         {slide === 2 && (
           <div className="px-4 pt-6 pb-24 space-y-3 max-w-lg mx-auto">
-            {defensivePlan.deny.length > 0 && (
-              <button type="button" onClick={() => openDefenseSheet("deny", defensivePlan.deny[0], finalReport.defense.deny.alternatives ?? [], motorOutput.defense.deny.winner.score)}
+            {defensivePlan.deny.length > 0 ? (
+              <button type="button" onClick={() => openDefenseSheet("deny", defensivePlan.deny[0], finalReport.defense.deny?.alternatives ?? [], completo.reporte.capa2.deny?.ganador.score ?? 0)}
                 className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card active:bg-muted/40 transition-colors", DENY_CLASSES.border)}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={cn("w-2 h-2 rounded-full shrink-0", DENY_CLASSES.dot)} />
@@ -523,9 +542,22 @@ export default function ReportSlidesV1({
                 </div>
                 <p className="text-sm font-semibold text-foreground/90 leading-snug">{defensivePlan.deny[0]}</p>
               </button>
+            ) : (
+              // CORREGIDO 2026-09-13 (spec 21.9 bis/23.4#4): antes, sin deny,
+              // esta sección desaparecía en silencio. El semáforo "estandar"
+              // exige una instrucción activa (KYP), nunca un hueco vacío.
+              <div className={cn("w-full rounded-2xl border border-border border-l-4 p-4 bg-card", STANDARD_CLASSES.border)}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={cn("w-2 h-2 rounded-full shrink-0", STANDARD_CLASSES.dot)} />
+                  <p className={cn("text-[10px] font-black uppercase tracking-widest", STANDARD_CLASSES.text)}>
+                    {es ? "Defensa estándar" : zh ? "标准防守" : "Standard defense"}
+                  </p>
+                </div>
+                <p className="text-sm font-semibold text-foreground/90 leading-snug">{finalReport.identity.threat}</p>
+              </div>
             )}
             {defensivePlan.force.length > 0 && (
-              <button type="button" onClick={() => openDefenseSheet("force", defensivePlan.force[0], finalReport.defense.force.alternatives ?? [], motorOutput.defense.force.winner.score)}
+              <button type="button" onClick={() => openDefenseSheet("force", defensivePlan.force[0], finalReport.defense.force?.alternatives ?? [], completo.reporte.capa2.force?.ganador.score ?? 0)}
                 className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card active:bg-muted/40 transition-colors", FORCE_CLASSES.border)}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={cn("w-2 h-2 rounded-full shrink-0", FORCE_CLASSES.dot)} />
@@ -537,7 +569,7 @@ export default function ReportSlidesV1({
               </button>
             )}
             {defensivePlan.allow.length > 0 && (
-              <button type="button" onClick={() => openDefenseSheet("allow", defensivePlan.allow[0], finalReport.defense.allow.alternatives ?? [], motorOutput.defense.allow.winner.score)}
+              <button type="button" onClick={() => openDefenseSheet("allow", defensivePlan.allow[0], finalReport.defense.allow?.alternatives ?? [], completo.reporte.capa2.allow?.ganador.score ?? 0)}
                 className={cn("w-full text-left rounded-2xl border border-border border-l-4 p-4 bg-card active:bg-muted/40 transition-colors", ALLOW_CLASSES.border)}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={cn("w-2 h-2 rounded-full shrink-0", ALLOW_CLASSES.dot)} />
@@ -690,15 +722,19 @@ export default function ReportSlidesV1({
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-function situationColors(id: string): { border: string; text: string; bg: string } {
-  if (id.startsWith("iso"))  return { border: "border-l-orange-500", text: "text-orange-500 dark:text-orange-400", bg: "bg-orange-500/8" };
-  if (id.startsWith("pnr"))  return { border: "border-l-blue-500",   text: "text-blue-500 dark:text-blue-400",    bg: "bg-blue-500/8"   };
-  if (id.startsWith("post")) return { border: "border-l-purple-500", text: "text-purple-500 dark:text-purple-400",bg: "bg-purple-500/8" };
-  if (id === "catch_shoot")  return { border: "border-l-teal-500",   text: "text-teal-600 dark:text-teal-400",   bg: "bg-teal-500/8"   };
-  if (id === "transition")   return { border: "border-l-emerald-500",text: "text-emerald-600 dark:text-emerald-400",bg:"bg-emerald-500/8"};
-  if (id === "off_ball")     return { border: "border-l-violet-500", text: "text-violet-500 dark:text-violet-400",bg: "bg-violet-500/8" };
-  if (id === "floater")      return { border: "border-l-cyan-500",   text: "text-cyan-600 dark:text-cyan-400",   bg: "bg-cyan-500/8"   };
-  if (id === "oreb")         return { border: "border-l-rose-500",   text: "text-rose-500 dark:text-rose-400",   bg: "bg-rose-500/8"   };
+// CORREGIDO 2026-09-13 (spec 23, PR-B): los 11 buckets Synergy de motor-v1 en
+// vez de los 16 SituationId granulares de motor-v4. `pnrHandler`/`pnrRollMan`
+// comparten el prefijo "pnr" a propósito -- mismo criterio que antes con
+// `pnr_ball`/`pnr_screener` (mismo color para toda la familia PnR).
+function situationColors(situacion: string): { border: string; text: string; bg: string } {
+  if (situacion === "iso")        return { border: "border-l-orange-500", text: "text-orange-500 dark:text-orange-400", bg: "bg-orange-500/8" };
+  if (situacion.startsWith("pnr"))return { border: "border-l-blue-500",   text: "text-blue-500 dark:text-blue-400",    bg: "bg-blue-500/8"   };
+  if (situacion === "post")       return { border: "border-l-purple-500", text: "text-purple-500 dark:text-purple-400",bg: "bg-purple-500/8" };
+  if (situacion === "spotUp")     return { border: "border-l-teal-500",   text: "text-teal-600 dark:text-teal-400",   bg: "bg-teal-500/8"   };
+  if (situacion === "transition") return { border: "border-l-emerald-500",text: "text-emerald-600 dark:text-emerald-400",bg:"bg-emerald-500/8"};
+  if (situacion === "offScreen")  return { border: "border-l-violet-500", text: "text-violet-500 dark:text-violet-400",bg: "bg-violet-500/8" };
+  if (situacion === "handoff")    return { border: "border-l-cyan-500",   text: "text-cyan-600 dark:text-cyan-400",   bg: "bg-cyan-500/8"   };
+  if (situacion === "putback")    return { border: "border-l-rose-500",   text: "text-rose-500 dark:text-rose-400",   bg: "bg-rose-500/8"   };
   return { border: "border-l-muted-foreground/30", text: "text-muted-foreground", bg: "" };
 }
 
@@ -869,19 +905,19 @@ function StatsStrip(props: {
 function SimpleReportSlide(props: {
   player: { name: string; number?: string | number | null; imageUrl?: string | null };
   photo: boolean;
-  finalReport: RenderedReport | null;
-  motorOutput: MotorV4Output | null;
+  finalReport: RenderedCompletoV1 | null;
   closeoutReport: CloseoutThreatReport | null;
   wcbaPlayer: PlayerDetail | null;
   wcbaLoading: boolean;
   es: boolean;
   zh: boolean;
 }) {
-  const { player, photo, finalReport, motorOutput, closeoutReport, wcbaPlayer, wcbaLoading, es, zh } = props;
+  const { player, photo, finalReport, closeoutReport, wcbaPlayer, wcbaLoading, es, zh } = props;
   const displayName = localName(player.name, (player as any).nameEn ?? (player as any).name_en, zh ? "zh" : es ? "es" : "en");
-  if (!finalReport || !motorOutput) return null;
+  if (!finalReport) return null;
   const topSituation = finalReport.situations[0];
   const denyInstruction = finalReport.defense.deny?.instruction;
+  const esEstandar = finalReport.identity.nivelAmenaza === "estandar";
 
   return (
     <div className="px-4 pt-6 pb-24 space-y-3 max-w-lg mx-auto">
@@ -902,9 +938,17 @@ function SimpleReportSlide(props: {
       </div>
 
       {finalReport.identity.threat && (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-destructive/70 mb-1">
-            {es ? "Amenaza principal" : zh ? "主要威胁" : "Main threat"}
+        <div className={cn(
+          "rounded-2xl border px-4 py-3",
+          esEstandar ? "border-amber-400/30 bg-amber-400/5" : "border-destructive/30 bg-destructive/5",
+        )}>
+          <p className={cn(
+            "text-[10px] font-black uppercase tracking-widest mb-1",
+            esEstandar ? "text-amber-600 dark:text-amber-400" : "text-destructive/70",
+          )}>
+            {esEstandar
+              ? (es ? "Sin amenaza clara" : zh ? "无明确威胁" : "No clear threat")
+              : (es ? "Amenaza principal" : zh ? "主要威胁" : "Main threat")}
           </p>
           <p className="text-sm font-semibold text-foreground leading-snug">{finalReport.identity.threat}</p>
         </div>
@@ -934,4 +978,3 @@ function SimpleReportSlide(props: {
     </div>
   );
 }
-
