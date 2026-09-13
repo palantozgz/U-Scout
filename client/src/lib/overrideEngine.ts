@@ -1,4 +1,4 @@
-import type { RenderedReport, RenderedInstruction } from "./reportTextRenderer";
+import type { RenderedInstruction } from "./reportTextRenderer";
 import type { RenderedReportV1 } from "./reportTextRendererV1";
 
 export interface ReportOverride {
@@ -39,78 +39,10 @@ export interface DetectedPattern {
   confidence: number;
 }
 
-export function applyOverrides(
-  report: RenderedReport,
-  overrides: ReportOverride[],
-): RenderedReport {
-  const result: RenderedReport = JSON.parse(JSON.stringify(report));
-
-  for (const override of overrides) {
-    if (override.action === "approve_as_is") continue;
-
-    const { slide, itemKey, action, replacementValue } = override;
-
-    if (slide === "identity") {
-      if (itemKey === "archetype" && action === "replace" && replacementValue) {
-        result.identity.archetypeLabel = replacementValue;
-      }
-      if (itemKey === "tagline" && action === "replace" && replacementValue) {
-        result.identity.tagline = replacementValue;
-      }
-    }
-
-    if (slide === "situations") {
-      const idx = parseInt(itemKey.split(".")[1] ?? "-1", 10);
-      if (idx >= 0 && idx < result.situations.length) {
-        if (action === "hide") {
-          result.situations.splice(idx, 1);
-        }
-        if (action === "replace" && replacementValue) {
-          result.situations[idx].description = replacementValue;
-        }
-      }
-    }
-
-    if (slide === "defense") {
-      const [type, field] = itemKey.split(".") as [
-        "deny" | "force" | "allow",
-        string,
-      ];
-      if (type && field && result.defense[type]) {
-        if (action === "hide") {
-          const alt = result.defense[type].alternatives[0];
-          if (alt) {
-            result.defense[type].instruction = alt.instruction;
-            result.defense[type].alternatives =
-              result.defense[type].alternatives.slice(1);
-          }
-        }
-        if (action === "replace" && replacementValue) {
-          result.defense[type].instruction = replacementValue;
-        }
-      }
-    }
-
-    if (slide === "alerts") {
-      const idx = parseInt(itemKey.split(".")[1] ?? "-1", 10);
-      if (idx >= 0 && idx < result.alerts.length) {
-        if (action === "hide") {
-          result.alerts.splice(idx, 1);
-        }
-        if (action === "replace" && replacementValue) {
-          result.alerts[idx].text = replacementValue;
-        }
-      }
-    }
-  }
-
-  return result;
-}
-
 /**
- * Adaptación de `applyOverrides` a `RenderedReportV1` (spec 23, PR-B) --
- * mismo comportamiento exacto, adaptado a la unión discriminada real de
- * `ScoutingReportV1` (modo sencillo no tiene `situations`/`alerts`, y su
+ * Aplica overrides sobre `RenderedReportV1` (spec 23, PR-B) -- adaptado a la
+ * unión discriminada real de `ScoutingReportV1` (modo sencillo no tiene
+ * `situations`/`alerts`, y su
  * único campo tocable es `accionPrincipal`, equivalente al `deny` de modo
  * completo -- mismo `itemKey` de convención, "deny.instruction").
  * `detectDiscrepancies`/`detectPatterns`/`buildOverrideRecord` NO cambian --

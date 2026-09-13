@@ -46,7 +46,10 @@ export function useHomeData() {
     });
     if (mode === "staff") {
       void import("@/lib/mock-data");
-      void import("@/lib/motor-v4");
+      // CORREGIDO 2026-09-14 (limpieza de arqueología, sección 24/25 de
+      // motor-1.0-spec.md): motor-v4 ya no tiene ningún importador real de
+      // producción desde PR-B (spec 23.8) -- este prefetch cargaba un
+      // módulo que nadie monta, puro peso muerto en el bundle del cliente.
       void queryClient.prefetchQuery({
         queryKey: ["/api/players"],
         queryFn: async () => (await apiRequest("GET", "/api/players")).json(),
