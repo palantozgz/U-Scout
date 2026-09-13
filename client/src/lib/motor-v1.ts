@@ -94,9 +94,14 @@ const SITUACION_A_SYNERGY: Record<string, SituacionSynergy> = {
   cut: "cut",
   oreb: "putback",
   offball: "offScreen",
-  // 'floater' no es una de las 11 categorías Synergy -- aparece tanto en ISO
-  // como en PnR en el código actual (EditorIsoHandFinish y pnr_floater_unified).
-  // Decisión conservadora: misc, hasta que se decida un mapeo mejor.
+  // 'floater' no es uno de los 11 play types de Synergy -- es un tipo de
+  // finalización, no una categoría de jugada propia (spec 21.4#5, CERRADO,
+  // verificado contra la taxonomía oficial de Synergy). El caso donde el
+  // dato SÍ dice que el floater viene de PnR (pnrFinishLeft/Right==='Floater'
+  // con pnrFreq real) ya se funde en el bucket 'pnr' antes de llegar aquí
+  // (motor-v2.1.ts: source 'pnr_floater_unified' -> motor-v1-source-map.ts).
+  // En cualquier otro caso el input no indica de qué play type viene --
+  // 'misc' es la lectura honesta, no una aproximación a mejorar.
   floater: "misc",
   misc: "misc",
 };
