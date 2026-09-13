@@ -1426,3 +1426,41 @@ La propia 21.9 bis ya dejaba anotado que un punto de color por jugadora en el li
 **Tercer estado añadido, no solo binario:** una jugadora sin ninguna situación scouteada (`inputs={}`, el caso más común en producción hoy, 21.5) no es "estandar" (sin amenaza) — es "sin datos" (gris), mismo criterio que `insufficient_data` en `closeoutThreat.ts`. Confundir ambos habría pintado de amarillo/"revisado, sin amenaza" a jugadoras que en realidad nadie ha scouteado todavía.
 
 Verificado: `npm run check`/`check:tests` limpios, `npx vitest run` 168/168 (sin tests nuevos específicos — es UI fina sobre lógica ya cubierta por `motor-v1.test.ts`/`motor-v1-acceptance.test.ts`).
+
+## 24. Fase 2 — plan de vínculo con U Stats (El Arquitecto, 2026-09-13)
+
+> Delegado en El Arquitecto (mismo patrón que 21.7/23) antes de tocar código: cerrar `capa3`/`porque`/`confianza` real (deuda explícita de `motor-v1.ts` desde Fase 1).
+
+### 24.1. Hallazgos que corrigen el estado asumido por las secciones 5/10
+
+**La spec (5.2) estaba desactualizada en dos puntos, verificado contra código real:** `GET /api/stats/player/:externalId` (`server/routes.ts:2236`) ya devuelve mucho más que PPG/RPG/APG — prácticamente todo lo que `PlayerRealStats` necesita como valor crudo (ts%, eFG%, USG%, PIE, FT rate, etc.), con USG%/PIE ya verificados contra las fórmulas de 10.3 bis. Y ya existe `GET /api/stats/player-percentiles` (`server/routes.ts:3174`), pero solo P95 de 7 métricas, sin el P50/P85 ni el agrupado por `base`/`alero`/`interior` que pide 10.2 bis (usa un match exacto del texto chino de posición, no los 3 grupos).
+
+**Hallazgo nuevo, no anticipado:** `ReportSlidesV1.tsx` **ya resuelve un vínculo a U Stats hoy, en producción**, pero por fuera de motor-v1 por completo — `usePlayerWcbaLink`+`usePlayerDetail` alimentan un `StatsStrip` con PPG/3P%/FT Rate/TS% crudos (sin percentil, sin shrinkage), en paralelo a `capa3` (que sigue vacío). Fase 2 no es solo "rellenar un campo" — incluye decidir si `StatsStrip` se retira en favor de `statsDestacados` una vez exista, o coexisten (marcado `[A VALIDAR CON PABLO]`, no se retira sin más en la implementación).
+
+**Contradicción real encontrada en 15.5:** el ejemplo de "porque" que da la spec (*"finaliza 61% mejor por derecha"*) no es implementable — el PBP de la WCBA no tiene splits por mano/dirección (ya lo decía 5.3, pero el ejemplo concreto de 15.5 lo contradecía sin que se notara hasta ahora). El "porque" real tiene que citar una métrica agregada de temporada (TS%/USG%/3P%...), no una comparación direccional.
+
+**No existe `wcba_external_id` en `players`** (confirmado por grep) — el vínculo sigue por nombre en caliente vía `player-link`, tal como documenta 5.2.
+
+### 24.2. Decisión de arquitectura
+
+**No se toca la pureza de `motor-v1.ts`** (principio de sección 4: testeable con Vitest sin red). El enriquecimiento con Nivel 2 vive en una capa nueva, posterior al cálculo puro — mismo patrón que ya usa hoy `ReportSlidesV1.tsx` de facto con `StatsStrip`, ahora centralizado:
+
+1. **SQL**: extender `/api/stats/player-percentiles` para devolver P50/P85/P95 de las 9+ métricas de 10.2 bis/10.3 bis agrupadas por `base`/`alero`/`interior` (mapeo de posición-chino→grupo nuevo, no existe hoy en ningún sitio del código) + una fila de `tovPct` recalculada (Nota 6 de 14.2 bis: el "TOV/partido" de 10.1 es un conteo bruto, no la tasa normalizada del contrato — no reusar el número estático). Recalculado en vivo contra `season_id=2092` (mismo que 10.1-10.3 bis), no congelado como constante.
+2. **Endpoint nuevo** `GET /api/stats/player-nivel2-context/:externalId` — combina crudo (paso existente) + breakpoints del paso 1 + contracción bayesiana (calculada en TS en el handler, no en SQL) + ventana "últimos 12 partidos" (12.4).
+3. **`motor-v1-stats.ts`** (nuevo, puro, mismo patrón que `motor-v1-archetype.ts`) — funciones de enriquecimiento que combinan `PlayerRealStats` ya resuelto + `ScoutingReportV1` + `EnrichedInputs` auxiliar: `capa3`, `statsDestacados`/`quietEdge`, `DiscrepanciaNivel1Nivel2`, `porque` por output, `confianza` real. No hace fetch — función pura, testeable sin red.
+4. **Capa de fetch/orquestación** (React Query) conecta el endpoint del paso 2 con la función del paso 3, en `ReportSlidesV1.tsx`.
+
+### 24.3. Fórmulas cerradas (no a decidir de nuevo por El Aparejador)
+
+- **Contracción bayesiana (12.3):** pseudo-cuentas, `valorContraído = (volumenIntentos·valorObservado + k·mediaGrupo) / (volumenIntentos + k)`. `k` = mitad del umbral mínimo de confianza que ya usa 10.1/10.2 bis para esa métrica (3P%/FT%: k=20 intentos; eFG%/TS%: k=25 tiros; el resto: k=8 partidos).
+- **Percentil:** interpolación lineal a trozos sobre los 3 puntos reales P50/P85/P95 del grupo, aplicada tanto al valor observado como al contraído.
+- **Discrepancia Nivel 1/2:** mapeo cerrado de 3 señales (iso/pnrHandler/post todas N/R vs. USG% alto; ninguna situación primaria vs. PPG alto; spotUp nunca vs. 3P% alto), umbral P85 + volumen sobre el trust-floor de esa métrica.
+- **Quiet edge:** solo `tipo: "estadistico"` en esta pasada (no hay agregado real de Nivel 1 de otras jugadoras para medir "típico cualitativo", 21.5) — de las métricas con percentil ajustado ≥70 no ya en `statsDestacados`, filtradas por una tabla fija de "atípico para el grupo" (base: rpg/bpg; alero: apg; interior: apg/fg3Pct, tomada de los propios ejemplos de 10.2 bis).
+- **`porque`:** plantilla `"{instrucción} — {métrica} real: {valor} (P{percentil} en su posición)"`, métrica elegida según `situacionOrigen`, umbral percentil ajustado ≥70.
+- **`confianza`:** alta si Nivel 1 real (frecuencia de campo *Freq directo, no aproximación) sin discrepancia, o Nivel 2 con volumen suficiente sin discrepancia y coherente; media si solo una fuente sólida o discrepancia sin resolver (tope, nunca "alta" con contradicción abierta); baja si ninguna.
+
+### 24.4. Fuera de alcance de esta fase
+
+ORTG/DRTG individual (ya descartado, 10.3 bis); autorrelleno `ftShooting`/`foulDrawing` desde proxy (15.4, es de captura no de lectura); `quietEdge` cualitativo; migración de esquema `wcbaExternalId` + UI de confirmación (recomendado, condicionado a validación de Pablo — pregunta 1 de sección 11); el ejemplo literal de "porque" con split de mano/dirección de 15.5 (no implementable, sustituido por 24.3).
+
+**Siguiente paso real:** implementar en el orden de 24.2 (SQL → endpoint → `motor-v1-stats.ts` → integración), verificando cada paso contra la Supabase de producción real (236 jugadoras de stats reales existen, aunque el scouting siga vacío).
