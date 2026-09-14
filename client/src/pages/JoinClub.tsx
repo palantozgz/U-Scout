@@ -112,7 +112,7 @@ export default function JoinClub() {
 
   if (!token) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center">
+      <div className="h-[100dvh] overflow-y-auto bg-background flex flex-col items-center justify-center p-6 text-center">
         <ShieldAlert className="w-12 h-12 text-muted-foreground mb-4" />
         <p className="text-destructive font-medium">{t("join_invalid")}</p>
       </div>
@@ -121,7 +121,7 @@ export default function JoinClub() {
 
   if (preview.isLoading) {
     return (
-      <div className="min-h-[100dvh] bg-background flex items-center justify-center">
+      <div className="h-[100dvh] overflow-y-auto bg-background flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -129,7 +129,7 @@ export default function JoinClub() {
 
   if (preview.isError) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center">
+      <div className="h-[100dvh] overflow-y-auto bg-background flex flex-col items-center justify-center p-6 text-center">
         <ShieldAlert className="w-12 h-12 text-muted-foreground mb-4" />
         <p className="text-destructive font-medium">{t("join_invalid")}</p>
       </div>
@@ -140,7 +140,7 @@ export default function JoinClub() {
 
   if (registerSuccess) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[100dvh] px-6 gap-6 bg-background">
+      <div className="flex flex-col items-center justify-center h-[100dvh] overflow-y-auto px-6 gap-6 bg-background">
         <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Shield className="w-8 h-8 text-primary" />
         </div>
@@ -157,7 +157,7 @@ export default function JoinClub() {
 
   if (data.used) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center gap-4">
+      <div className="h-[100dvh] overflow-y-auto bg-background flex flex-col items-center justify-center p-6 text-center gap-4">
         <ShieldAlert className="w-12 h-12 text-muted-foreground" />
         <p className="text-foreground font-medium">{t("join_used")}</p>
         <Button variant="outline" onClick={() => setLocation("/login")}>
@@ -169,7 +169,7 @@ export default function JoinClub() {
 
   if (data.expired) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center gap-4">
+      <div className="h-[100dvh] overflow-y-auto bg-background flex flex-col items-center justify-center p-6 text-center gap-4">
         <ShieldAlert className="w-12 h-12 text-muted-foreground" />
         <p className="text-foreground font-medium">{t("join_expired")}</p>
         <Button variant="outline" onClick={() => setLocation("/login")}>
@@ -180,7 +180,7 @@ export default function JoinClub() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-background flex flex-col">
+    <div className="h-[100dvh] overflow-y-auto bg-background flex flex-col">
       <main className="flex-1 p-6 flex flex-col justify-center max-w-md mx-auto w-full space-y-6">
         <div className="text-center space-y-2">
           {data.club.logo && (data.club.logo.startsWith("data:image/") || /^https:\/\//i.test(data.club.logo)) ? (

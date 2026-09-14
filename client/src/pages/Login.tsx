@@ -65,7 +65,7 @@ export default function Login() {
 
   if (success) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[100dvh] px-6 gap-6 bg-background">
+      <div className="flex flex-col items-center justify-center h-[100dvh] overflow-y-auto px-6 gap-6 bg-background">
         <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Shield className="w-8 h-8 text-primary" />
         </div>
@@ -83,7 +83,7 @@ export default function Login() {
   }
 
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-[100dvh] px-6 gap-6 bg-background">
+    <div className="relative flex flex-col items-center justify-center h-[100dvh] overflow-y-auto px-6 gap-6 bg-background">
 
       {/* Language picker */}
       <div className="absolute top-4 right-4 flex gap-1">

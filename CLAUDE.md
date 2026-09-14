@@ -17,7 +17,7 @@ client/src/
     player/        → PlayerHome, PlayerTeamList, WellnessStandalone, Dashboard, PlayerHomeSettingsStub
   components/
     branding/      → ModuleHeader (logo animado por módulo), logos SVG
-  lib/             → useAuth, capabilities, i18n, club-api, wellness, schedule, motor-v4
+  lib/             → useAuth, capabilities, i18n, club-api, wellness, schedule, motor-v1 (motor real en producción, ver docs/motor-1.0-spec.md; motor-v4/motor-v2.1 siguen como núcleo interno que motor-v1 envuelve, nunca se llaman directamente desde la UI)
 ```
 
 ## Arquitectura de layout — REGLAS CRÍTICAS
@@ -33,7 +33,7 @@ Todas las páginas con `ModuleNav` deben usar:
 **PROHIBIDO usar:** `min-h-[100dvh]` ni `md:overflow-y-auto` en páginas con ModuleNav.
 Motivo: `min-h` + safe-area padding en App.tsx hace que el wrapper supere 100dvh y active scroll en el wrapper en lugar de dentro de la página.
 
-Páginas sin ModuleNav (Login, Join, JoinClub, OnboardingFlow): pueden usar `min-h-[100dvh]` — correcto.
+Páginas sin ModuleNav (Login, Join, JoinClub, OnboardingFlow): **esta línea decía que `min-h-[100dvh]` era correcto ahí — era un error real, corregido 2026-09-14 (spec sección 42).** Estas 4 pantallas se renderizan igualmente dentro del wrapper raíz `h-[100dvh] overflow-hidden` de `App.tsx` (línea ~487, ver arriba) — el mismo mecanismo que prohíbe `min-h-[100dvh]` en páginas con ModuleNav aplica aquí exactamente igual. Usan el mismo patrón de una sola pieza (no hay `<main>` separado con nav fijo): outer div `h-[100dvh] overflow-y-auto` directamente, sin `min-h`.
 
 ### App.tsx wrapper (desktop sidebar)
 ```tsx
@@ -172,20 +172,36 @@ No lo hagas para dudas triviales o de implementación mecánica (eso ralentiza s
 - `Home.tsx` footer: "U SCOUT" → "U CORE"
 - Comentarios internos con "U Scout" pendientes de limpiar (cosmético)
 
+### Las 4 decisiones de diseño desktop de la auditoría, resueltas por Pablo (2026-09-14, spec sección 35)
+Ver ítems 3/7/8/9 de PENDIENTES más abajo (ya marcados corregidos): `ScoutDesktop.tsx` borrado, `PlayerEditor.tsx` con `max-w-3xl`, `ModuleHeader.tsx` compacto en desktop, panel lateral de `Schedule.tsx` planner reactivado.
+
+### La jugadora nunca ve alternativas del motor (2026-09-14, spec sección 33)
+`ReportSlidesV1.tsx`: las 3 tarjetas deny/force/allow de la vista completa eran interactivas (abrían el sheet "Alternativas del motor" con puntuaciones) para cualquiera, jugadora incluida. Ahora solo son interactivas en `coachMode` — en modo jugadora son de solo lectura, sin sheet, sin puntuaciones, sin opciones descartadas visibles. Mandato de Pablo: "la jugadora solo ve la opcion que hemos aprobado... categorico, sencillo, sintetizado".
+
+### "El decantador" / Nivel B — calibración cerrada end-to-end (2026-09-14, spec secciones 38-41)
+- Gate de publicación reconciliado: ≥1 aprobación sigue siendo obligatoria para todos sin excepción, pero una vez que existe, cualquier coach del club puede publicar (el badge `reportPublishAccess` ya no controla quién publica).
+- `reportPublishAccess`/`canAccessCalibrationPanel` (renombrada, antes `canPublishReports`) ahora controla el panel nuevo "Calibración" en `ClubManagement.tsx`: entrenadores con permiso ven patrones de sustitución que convergen entre ≥N (2-5, configurable) entrenadores distintos de jugadoras canónicas del mismo arquetipo, y pueden promocionarlos a permanentes — **reversible sin deploy** (tabla `promoted_patterns`, mecanismo puro `aplicarPatronesPromocionados()` en `motor-v1.ts`, aplicado en `ReportSlidesV1.tsx` vía `useActivePromotedPatterns()`).
+- `detectPatterns()` (`overrideEngine.ts`) corregido: cuenta entrenadores distintos, no jugadoras distintas (bug real que hubiera permitido a un solo coach "promocionar" su propia preferencia repetida).
+- Seguridad: `POST /api/stats/import-team`/`import-league` no comprobaban rol ni pertenencia de `targetTeamId` al club — IDOR cross-tenant real, cerrado.
+- Aviso de "pendientes" en `CoachHome.tsx` ahora refleja a todo el staff (cuántos entrenadores distintos tienen fichas sin enviar), no solo al propio coach — sin nombres, por coste de la API admin de Supabase en una ruta de carga frecuente.
+- `useDeletePlayer`: no encolaba el borrado sin conexión (a diferencia de create/update) — corregido, mismo patrón de cola offline ya existente en `queryClient.ts`.
+
+Detalle completo, decisiones reconciliadas y verificación en `docs/motor-1.0-spec.md` secciones 27, 33-41.
+
 ## PENDIENTES — Próximas sesiones
 
 ### Alta prioridad
 1. ~~**Stats module**~~ — **CORREGIDO 2026-09-14**: NO es un placeholder, son 4761 líneas en producción (fichas, roster, eficiencia, comparador radar, bubble chart, game log). Este pendiente estaba obsoleto, descubierto por la auditoría de la sección 34. Existe un `Stats.tsx.bak` (907 líneas) que es probablemente el placeholder real que se sustituyó sin actualizar esta documentación — candidato a limpieza de arqueología, no investigado a fondo.
 2. ~~**Playbook**~~ — **CORREGIDO 2026-09-14**: NO es un placeholder, son 1494 líneas en producción (hub de 4 secciones, wizard de sistema defensivo, lector de planes, vista jugadora). Mismo caso que Stats — pendiente obsoleto.
-3. **Desktop content density** — Sigue vigente, pero más acotado de lo que decía este pendiente: `Home.tsx` (vía `HomeDesktop.tsx`) ya tiene layout de 2 columnas real, no es un hueco. Sigue abierto solo para `Schedule.tsx` en modo `staffView === "planner"` (el panel lateral se apaga a propósito ahí y queda una columna centrada con margen lateral vacío).
+3. ~~**Desktop content density**~~ — **CORREGIDO 2026-09-14** (spec sección 35): `Home.tsx` ya tenía layout de 2 columnas real. El hueco real que quedaba, `Schedule.tsx` en modo `staffView === "planner"` (panel lateral apagado a propósito), se reactivó (`panel={desktopPanel}` sin condicionar a `staffView`) — Pablo confirmó reactivarlo tras revisar el hallazgo. Pendiente de que Pablo lo vea en un portátil real con datos, no se pudo verificar interactivamente (requiere sesión autenticada).
 
 ### Media prioridad
 4. ~~**CoachHome desktop — densidad**~~ — **CORREGIDO** (ya antes de la auditoría del 2026-09-14, sin fecha exacta): las 3 `AlertSlot` de `CoachHome.tsx` (líneas 271-290) ya muestran próximo partido, contador de pendientes y conflictos.
 5. **Notificaciones** — No existe sistema push/in-app. El coach avisa hoy por WhatsApp externo.
-6. **Onboarding flow** — `OnboardingFlow.tsx` no revisado para desktop.
-7. **PlayerEditor desktop** — **Acotado 2026-09-14**: confirmado que NO es una columna estrecha desperdiciando espacio lateral (el `main`/`Tabs` no tiene `max-w-*`, es ancho completo) — el problema real es lo contrario: los `grid grid-cols-2` de cada una de las 9 secciones se estiran al ancho total de una pantalla de 27", dando campos de formulario desproporcionados. Dos soluciones legítimas sin decidir: limitar el ancho (`max-w-3xl`/`max-w-4xl` centrado, cambio simple) o rediseñar a sidebar de navegación de secciones + panel de contenido (cambio de arquitectura). Decisión de Pablo pendiente.
-8. **ModuleHeader en desktop** — **Acotado 2026-09-14**: el objetivo táctil del botón de ajustes ya se corrigió (44pt). Sigue sin decidir el problema de fondo: el logo *crece* de 56px a 88px en desktop (más espacio, no menos) mientras wordmark/tagline se quedan fijos en 10-11px vía `style={{fontSize}}` inline (no son clases Tailwind, invisibles a cualquier grep de `text-[`). Decisión de Pablo pendiente: comprimir el header en desktop (`md:hidden` parcial o versión horizontal) para liberar esas filas a contenido real.
-9. **`ScoutDesktop.tsx` — código muerto descubierto 2026-09-14**: cero importadores reales en toda la app desde el commit `b09c640` (2026-05-21, Pablo Muñoz), que sustituyó esta vista de 2 columnas (lista + preview) por `CoachHome.tsx` como pantalla real de `/scout` en desktop. Pese a eso, las secciones 28/30/32 de esta spec (2026-09-14, mucho después) invirtieron trabajo real migrando `ScoutDesktop.tsx::ReportPreview` a motor-v1 sin que nadie notara que el archivo no se renderiza para ningún usuario. Decisión de Pablo pendiente: ¿revivir esa vista como la experiencia desktop real de `/scout` (hoy es literalmente el mismo `CoachHome` que en mobile), o borrarla del todo para no seguir invirtiendo en código fantasma?
+6. ~~**Onboarding flow**~~ — **REVISADO 2026-09-14** (spec sección 42): en desktop el layout ya es correcto tal cual (tarjeta centrada `max-w-md`, mismo patrón que `Login.tsx`, apropiado para un wizard de un solo paso a la vez — no necesita ensancharse). Lo que sí era un hallazgo real y **crítico**, no anticipado por el pendiente original: `OnboardingFlow.tsx`, `Login.tsx`, `Join.tsx` y `JoinClub.tsx` (las únicas pantallas que se renderizan *antes* del shell de `ModuleNav`, por eso la auditoría de la sección 34 no las cubrió) usaban `min-h-[100dvh]` sin scroll real, anidadas dentro del wrapper raíz `overflow-hidden` de `App.tsx` — mismo mecanismo del hallazgo crítico de `Dashboard.tsx`. Con el teclado abierto en un móvil pequeño, los formularios de registro (`Login.tsx`/`JoinClub.tsx`) o el último paso del tutorial de onboarding podían quedar recortados sin forma de llegar al botón. Corregido en las 4 (`min-h-[100dvh]` → `h-[100dvh] overflow-y-auto`), verificado interactivamente en el navegador con viewport 380×300.
+7. ~~**PlayerEditor desktop**~~ — **CORREGIDO 2026-09-14** (spec sección 35): Pablo eligió limitar el ancho. `<Tabs>` pasa de `w-full` a `w-full max-w-3xl mx-auto` — mismo formulario, ya no se estira a un ancho absurdo en pantallas anchas.
+8. ~~**ModuleHeader en desktop**~~ — **CORREGIDO 2026-09-14** (spec sección 35): Pablo eligió la versión compacta. En `md:`+ el header pasa a una fila horizontal (logo 36px, más pequeño que en móvil) con wordmark/tagline en línea usando tamaños reales (`text-sm`/`text-xs`) que sí escalan, en vez de crecer 56px→88px con texto fijo en 10-11px. Móvil sin cambios.
+9. ~~**`ScoutDesktop.tsx` — código muerto**~~ — **BORRADO 2026-09-14** (spec sección 35): Pablo eligió borrarlo del todo, confirmado sin importadores reales antes de eliminar. Ruta `/scout` en desktop sigue siendo `CoachHome.tsx` (igual que mobile).
 
 ### Baja prioridad / cosmético
 9. **ModCard "SOON" badge** — `text-[8px]` → `md:text-[10px]`

@@ -33,7 +33,7 @@ export default function JoinPage() {
 
   if (!token) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
+      <div className="h-[100dvh] overflow-y-auto bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10">
           <ShieldAlert className="w-8 h-8 text-destructive/70" />
         </div>
@@ -48,7 +48,7 @@ export default function JoinPage() {
 
   if (preview.isLoading) {
     return (
-      <div className="min-h-[100dvh] bg-background flex items-center justify-center">
+      <div className="h-[100dvh] overflow-y-auto bg-background flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -56,7 +56,7 @@ export default function JoinPage() {
 
   if (preview.isError) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
+      <div className="h-[100dvh] overflow-y-auto bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10">
           <ShieldAlert className="w-8 h-8 text-destructive/70" />
         </div>
@@ -78,7 +78,7 @@ export default function JoinPage() {
   }, [user, token, data]);
   if (data.used) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
+      <div className="h-[100dvh] overflow-y-auto bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10">
           <ShieldAlert className="w-8 h-8 text-destructive/70" />
         </div>
@@ -93,7 +93,7 @@ export default function JoinPage() {
 
   if (data.expired) {
     return (
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
+      <div className="h-[100dvh] overflow-y-auto bg-background flex flex-col items-center justify-center p-8 text-center gap-5">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10">
           <ShieldAlert className="w-8 h-8 text-destructive/70" />
         </div>
@@ -110,7 +110,7 @@ export default function JoinPage() {
     data.role === "player" ? t("invite_role_player") : t("invite_role_staff");
 
   return (
-    <div className="min-h-[100dvh] bg-background flex flex-col">
+    <div className="h-[100dvh] overflow-y-auto bg-background flex flex-col">
       <main className="flex-1 p-6 flex flex-col justify-center max-w-md mx-auto w-full space-y-6">
         <div className="text-center space-y-2">
           <p className="text-4xl">{data.team.logo}</p>

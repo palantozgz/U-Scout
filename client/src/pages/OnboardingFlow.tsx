@@ -238,7 +238,7 @@ export default function OnboardingFlow({
   };
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background text-foreground px-5 pt-10 pb-8 max-w-md mx-auto w-full">
+    <div className="flex flex-col h-[100dvh] overflow-y-auto bg-background text-foreground px-5 pt-10 pb-8 max-w-md mx-auto w-full">
       {step === "language" && (
         <>
           <p className="text-center text-xs text-muted-foreground mb-6 leading-relaxed">{t("onboarding_lang_prompt_trilingual")}</p>
