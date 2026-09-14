@@ -1739,3 +1739,9 @@ Respuesta directa de Pablo a las 4 preguntas abiertas de la sección 34.3 — la
 4. **`Schedule.tsx` modo planner — reactivar el panel lateral.** Investigado antes de tocar (mandato explícito de Pablo): se apagó a propósito en el mismo commit de mayo (`b09c640`) que retiró `ScoutDesktop.tsx`, sin comentario explícito del motivo. Verificado que el cableado para alimentarlo ya funcionaba de todas formas (`openSessionDetail`/`PlannerSessionCardButton` ya alimentan `desktopSelectedEvent` al hacer clic en una sesión del planner, sin ningún efecto visible porque el panel que lo consume estaba oculto) — señal de que probablemente fue una desactivación rápida de aquel commit grande, no una decisión final razonada. Presentado el hallazgo (con la sospecha no confirmada de que el grid de 7 días podría apretarse con el panel en portátiles más estrechos) antes de decidir — Pablo confirmó reactivarlo de todas formas. Implementado (`panel={desktopPanel}` sin condicionar a `staffView`). **Pendiente de que Pablo lo confirme visualmente en un portátil real** — no se pudo verificar de forma interactiva (requiere sesión autenticada + datos reales de sesiones en el planner).
 
 Verificado: `npm run check` limpio, `npx vitest run` 13/13 archivos, 212/212 pruebas. Smoke test del build sin errores de consola.
+
+## 36. Limpieza trivial — `Stats.tsx.bak` eliminado (2026-09-14)
+
+Candidato de limpieza señalado por la auditoría de la sección 34 (probablemente el placeholder real de Stats antes de su sustitución), sin investigar a fondo entonces. Confirmado ahora: archivo `.bak` de 42KB, fecha 9 de mayo, cero referencias en todo el repo (no es siquiera una extensión importable). Eliminado.
+
+Verificado: `npm run check` limpio, `npx vitest run` 13/13 archivos, 212/212 pruebas.
