@@ -133,6 +133,7 @@ export default function CoachHome() {
       alertPending: "reports pending",
       alertConflicts: "conflicts",
       alertAllGood: "All reports up to date ✓",
+      alertStaffPending: "{n} coaches still have pending profiles",
       sandboxBanner: "⚗️ Sandbox — profiles created here won't appear in Film Room",
     },
     es: {
@@ -150,6 +151,7 @@ export default function CoachHome() {
       alertPending: "informes pendientes",
       alertConflicts: "conflictos",
       alertAllGood: "Todos los informes al día ✓",
+      alertStaffPending: "{n} entrenadores con fichas pendientes",
       sandboxBanner: "⚗️ Campo de pruebas — estas fichas no llegan a la Sala de análisis",
     },
     zh: {
@@ -167,6 +169,7 @@ export default function CoachHome() {
       alertPending: "份报告待完成",
       alertConflicts: "个冲突",
       alertAllGood: "所有报告已完成 ✓",
+      alertStaffPending: "{n} 位教练还有待完成的档案",
       sandboxBanner: "⚗️ 测试区域 — 此处创建的档案不会进入集体分析",
     },
   }[locale as "en" | "es" | "zh"] ?? {
@@ -184,6 +187,7 @@ export default function CoachHome() {
     alertPending: "reports pending",
     alertConflicts: "conflicts",
     alertAllGood: "All reports up to date ✓",
+    alertStaffPending: "{n} coaches still have pending profiles",
     sandboxBanner: "⚗️ Sandbox — profiles created here won't appear in Film Room",
   };
 
@@ -207,7 +211,13 @@ export default function CoachHome() {
   const clubId = clubQ.data?.club?.id;
   const { data: allPlayers = [] } = usePlayers();
   const { data: weekEvents = [] } = useThisWeekScheduleEvents({ clubId });
-  const { data: filmRoomData } = useQuery<{ players: Array<{ hasDiscrepancy: boolean; hasSubmittedMine: boolean }> }>({
+  const { data: filmRoomData } = useQuery<{
+    players: Array<{
+      hasDiscrepancy: boolean;
+      hasSubmittedMine: boolean;
+      missingCoachIds?: string[];
+    }>;
+  }>({
     queryKey: ["/api/film-room"],
     queryFn: async () => (await apiRequest("GET", "/api/film-room")).json(),
     staleTime: 60_000,
@@ -238,6 +248,18 @@ export default function CoachHome() {
     [filmRoomData],
   );
 
+  // AÑADIDO 2026-09-14 ("el decantador", spec 34/39/41): cuántos entrenadores
+  // DISTINTOS del staff (no solo yo) siguen sin enviar su versión para
+  // alguna jugadora ya en curso -- el diseño original de abril pedía
+  // visibilidad de todo el staff, no solo del propio trabajo.
+  const staffPendingCoachCount = useMemo(() => {
+    const ids = new Set<string>();
+    for (const p of filmRoomData?.players ?? []) {
+      for (const id of p.missingCoachIds ?? []) ids.add(id);
+    }
+    return ids.size;
+  }, [filmRoomData]);
+
   // Alert slot data
   const nextGameLabel = nextGame
     ? (() => {
@@ -253,6 +275,10 @@ export default function CoachHome() {
   const pendingLabel = myPendingCount > 0
     ? `${myPendingCount} ${L.alertPending}`
     : L.alertAllGood;
+
+  const staffPendingSub = staffPendingCoachCount > 0
+    ? L.alertStaffPending.replace("{n}", String(staffPendingCoachCount))
+    : undefined;
 
   const conflictsLabel = discrepancyCount > 0
     ? `${discrepancyCount} ${L.alertConflicts}`
@@ -278,6 +304,7 @@ export default function CoachHome() {
           <AlertSlot
             icon={myPendingCount > 0 ? "📋" : "✅"}
             label={pendingLabel}
+            sub={staffPendingSub}
             tone={myPendingCount > 0 ? "amber" : "emerald"}
             onClick={() => setLocation("/coach/my-scout")}
           />

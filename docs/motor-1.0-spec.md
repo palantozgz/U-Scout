@@ -1820,3 +1820,15 @@ Nueva pestaña "Calibración" en `ClubManagement.tsx` (junto a Club/Liga/Equipo/
 Verificado: `npm run check` limpio, `npx vitest run` 15/15 archivos, 224/224 pruebas, `npm run motor:compare` 0 divergencias. Smoke test del build sin errores de consola.
 
 Con esto, "el decantador"/Nivel B queda cerrado end-to-end tal como lo pidió Pablo: reversible, y visible/editable por los entrenadores con permiso de publicación delegado.
+
+## 41. Último detalle del decantador original — aviso de "pendientes" ahora refleja a todo el staff, no solo al propio (2026-09-14)
+
+Cierre del último hallazgo menor de la auditoría de la sección 34 (hallazgo A.1): el aviso de "pendientes" en `CoachHome.tsx` solo contaba el trabajo del propio coach que abre la sesión — el diseño original de abril pedía "reports que faltan de rellenar **a cada miembro del staff** de ese partido".
+
+**Implementado, con un ajuste de alcance real frente al diseño original**: `/api/film-room` ahora calcula, por jugadora ya en curso (≥1 versión entregada por alguien), qué entrenadores activos del club todavía no han enviado la suya (`missingCoachIds`). `CoachHome.tsx` agrega esto en `staffPendingCoachCount` (cuántos entrenadores distintos del staff tienen algo pendiente) y lo muestra como subtítulo del aviso existente ("N entrenadores con fichas pendientes"), reutilizando el prop `sub` que `AlertSlot` ya tenía definido y sin usar.
+
+**Deliberadamente sin nombres de entrenadores** (el diseño de abril sugería "Ana, Marcos") — mostrar nombres exige resolver identidades vía la API admin de Supabase, una llamada cara en una ruta de acceso frecuente (`CoachHome` se monta en cada visita al módulo Scout). El conteo cumple el objetivo real (visibilidad de todo el staff, no solo el propio trabajo) sin ese coste. Si en el futuro se quiere ver quién exactamente falta, es una extensión aislada sobre esta misma base (`missingCoachIds` ya expone los ids, solo falta resolver nombres bajo demanda, no en cada carga).
+
+Con esto se cierra el ciclo completo de "el decantador" tal como se describió originalmente en abril: los 3 contenedores nombrados, las 3 flechas del flujo, los avisos de cabecera (ahora sí reflejando a todo el staff), Roster Oficial auditado, y Nivel B construido de punta a punta con reversibilidad real.
+
+Verificado: `npm run check` limpio, `npx vitest run` 15/15 archivos, 224/224 pruebas. Smoke test del build sin errores de consola.

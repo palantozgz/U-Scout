@@ -833,6 +833,22 @@ export async function registerRoutes(
       const allPlayers = await storage.getPlayers(undefined, club.id);
       const canonicalPlayers = allPlayers.filter((p: any) => p.is_canonical);
 
+      // AÑADIDO 2026-09-14 ("el decantador", spec 34/39/41): el aviso de
+      // "pendientes" de CoachHome solo contaba el propio trabajo del coach
+      // que abre la sesión -- el diseño original de abril pedía "reports
+      // que faltan de rellenar a CADA MIEMBRO DEL STAFF". Deliberadamente
+      // sin nombres (evita una llamada cara a la API admin de Supabase en
+      // una ruta de acceso frecuente) -- solo cuántos coaches distintos del
+      // staff activo siguen sin enviar su versión para alguna jugadora que
+      // ya tiene al menos una versión entregada (trabajo "en curso", no
+      // "nadie ha empezado" -- señal más accionable).
+      const clubMembers = await storage.listClubMembers(club.id);
+      const activeCoachIds = new Set(
+        clubMembers
+          .filter((m) => (m.role === "coach" || m.role === "head_coach") && m.status === "active")
+          .map((m) => m.userId),
+      );
+
       // For each canonical player, get all submitted versions
       const filmRoomData = await Promise.all(
         canonicalPlayers.map(async (player: any) => {
@@ -840,6 +856,11 @@ export async function registerRoutes(
           const submitted = versions.filter((v) => v.status === "submitted" || v.status === "merged");
           const myVersion = versions.find((v) => v.coachId === coachId);
           const hasSubmittedMine = myVersion && myVersion.status !== "draft";
+          const submittedCoachIds = new Set(submitted.map((v) => v.coachId));
+          const missingCoachIds =
+            submitted.length > 0
+              ? Array.from(activeCoachIds).filter((id) => !submittedCoachIds.has(id))
+              : [];
 
           // Get approval status for discrepancy/publish info (same logic as /approval-status)
           let approvalStatus: {
@@ -875,6 +896,7 @@ export async function registerRoutes(
             isPublished: approvalStatus?.isPublished ?? false,
             hasDiscrepancy: approvalStatus?.hasDiscrepancy ?? false,
             approvalCount: approvalStatus?.approvals?.length ?? 0,
+            missingCoachIds,
           };
         })
       );
