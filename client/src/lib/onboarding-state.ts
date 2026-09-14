@@ -104,3 +104,28 @@ export function resetModuleIntros(userId: string): void {
     /* ignore */
   }
 }
+
+/**
+ * "Enable notifications" priming card (spec 45, iOS only) — shown once to a
+ * player so the real system permission dialog is never sprung on them with
+ * no context (Apple HIG). Independent of everything above: a player can
+ * dismiss/allow this on their own schedule, unrelated to onboarding/module
+ * intro completion.
+ */
+const NOTIF_PRIMING_LS_KEY = (userId: string) => `uscout_notif_priming:${userId}`;
+
+export function hasSeenNotificationsPriming(userId: string): boolean {
+  try {
+    return localStorage.getItem(NOTIF_PRIMING_LS_KEY(userId)) === "1";
+  } catch {
+    return true;
+  }
+}
+
+export function markNotificationsPrimingSeen(userId: string): void {
+  try {
+    localStorage.setItem(NOTIF_PRIMING_LS_KEY(userId), "1");
+  } catch {
+    /* ignore */
+  }
+}

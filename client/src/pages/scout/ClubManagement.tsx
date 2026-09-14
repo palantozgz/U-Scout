@@ -1,7 +1,7 @@
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList, Dumbbell, Send, X, ChevronRight, Sparkles, RotateCcw } from "lucide-react";
+import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList, Dumbbell, Send, X, ChevronRight, Sparkles, RotateCcw, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,6 +65,7 @@ import { rosterSignature, setStoredRosterSignature } from "@/lib/clubRosterSeen"
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import { ModuleIntroCard } from "@/components/ModuleIntroCard";
 import { getModuleIntroContent } from "@/lib/module-intro-content";
+import { DEFAULT_NOTIFY_TIME } from "@/lib/local-notifications";
 import type {
   ClubAgeCategory,
   ClubGender,
@@ -908,6 +909,55 @@ export default function ClubManagement() {
                       </p>
                     </div>
                   </div>
+                </section>
+
+                <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                  <p className="text-[11px] md:text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                    <Bell className="w-3.5 h-3.5" />
+                    {locale === "zh" ? "提醒时间" : locale === "es" ? "Horario de los avisos" : "Reminder times"}
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {locale === "zh"
+                      ? "每天在这个时间提醒球员查看球探报告，以及另一个时间提醒她们完成健康打卡（仅 iOS 通知，需要球员在手机上开启权限）。"
+                      : locale === "es"
+                        ? "Cada día se avisa a las jugadoras a esta hora para revisar los scout reports, y a otra para rellenar su wellness (notificación de iOS — cada jugadora debe haberla activado en su móvil)."
+                        : "Every day, players get a reminder at this time to check scout reports, and another to fill in their wellness (iOS notification — each player needs to have allowed it on her phone)."}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground">
+                        {locale === "zh" ? "球探报告" : locale === "es" ? "Scout reports" : "Scout reports"}
+                      </Label>
+                      <Input
+                        type="time"
+                        disabled={!canEditClubContext}
+                        value={q.data.club.scoutReportsNotifyTime ?? DEFAULT_NOTIFY_TIME}
+                        onChange={(e) =>
+                          patchClub.mutate({ scoutReportsNotifyTime: e.target.value || null })
+                        }
+                        className="bg-background border-border"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground">Wellness</Label>
+                      <Input
+                        type="time"
+                        disabled={!canEditClubContext}
+                        value={q.data.club.wellnessNotifyTime ?? DEFAULT_NOTIFY_TIME}
+                        onChange={(e) =>
+                          patchClub.mutate({ wellnessNotifyTime: e.target.value || null })
+                        }
+                        className="bg-background border-border"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] md:text-xs text-muted-foreground/60 leading-relaxed">
+                    {locale === "zh"
+                      ? `默认 ${DEFAULT_NOTIFY_TIME}。`
+                      : locale === "es"
+                        ? `Por defecto, ${DEFAULT_NOTIFY_TIME}.`
+                        : `Defaults to ${DEFAULT_NOTIFY_TIME}.`}
+                  </p>
                 </section>
 
                 <section className="rounded-2xl border border-border bg-card p-4 space-y-3">

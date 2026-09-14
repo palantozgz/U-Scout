@@ -1,13 +1,17 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Clock, MapPin, Building2, CalendarDays, Target, BarChart3, Heart, BookOpen } from "lucide-react";
 import { useHomeData } from "@/lib/useHomeData";
 import { useCapabilities } from "@/lib/capabilities";
+import { useAuth } from "@/lib/useAuth";
+import { useClub } from "@/lib/club-api";
 import { ACTIVITY_TYPE_CONFIG } from "@/lib/scheduleActivityConfig";
 import { CLUB_TIME_ZONE, type ScheduleEvent } from "@/lib/schedule";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ModuleNav } from "./ModuleNav";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
+import { NotificationsPrimingCard } from "@/components/NotificationsPrimingCard";
+import { DEFAULT_NOTIFY_TIME, scheduleDailyReminders } from "@/lib/local-notifications";
 
 // ── Tokens matching the mockup ────────────────────────────────
 // card:      bg-card border border-border/30 rounded-xl
@@ -181,6 +185,15 @@ export default function HomeDesktop() {
     todayDateKey,
   } = useHomeData();
 
+  const { profile } = useAuth();
+  const clubQ = useClub({ enabled: Boolean(profile) });
+  const scoutReportsTime = clubQ.data?.club.scoutReportsNotifyTime ?? DEFAULT_NOTIFY_TIME;
+  const wellnessTime = clubQ.data?.club.wellnessNotifyTime ?? DEFAULT_NOTIFY_TIME;
+  useEffect(() => {
+    if (mode !== "player" || !clubQ.data) return;
+    void scheduleDailyReminders({ scoutReportsTime, wellnessTime, locale });
+  }, [mode, clubQ.data, scoutReportsTime, wellnessTime, locale]);
+
   const sessionsByDay = useMemo(() => {
     const map = new Map<string, ScheduleEvent[]>();
     for (const ev of weekSessionsQ?.data ?? []) {
@@ -292,6 +305,9 @@ export default function HomeDesktop() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
+      {mode === "player" && (
+        <NotificationsPrimingCard scoutReportsTime={scoutReportsTime} wellnessTime={wellnessTime} />
+      )}
       {/* ── Header fijo — mismo logo que el resto de módulos ── */}
       <ModuleHeader
         module="core"

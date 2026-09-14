@@ -62,6 +62,9 @@ export const zClubAgeCategory = z.enum(tuple1(CLUB_AGE_CATEGORIES));
 export const zClubReportMode = z.enum(tuple1(CLUB_REPORT_MODES));
 export const zClubModuleKey = z.enum(tuple1(CLUB_MODULE_KEYS));
 
+/** "HH:MM", 24h. Validates club notification-time fields below. */
+export const zNotifyTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Expected HH:MM (24h)");
+
 /** PATCH /api/club body (all optional; null clears context fields). */
 export const patchClubBodySchema = z.object({
   name: z.string().min(1).optional(),
@@ -72,4 +75,7 @@ export const patchClubBodySchema = z.object({
   ageCategory: z.union([zClubAgeCategory, z.null()]).optional(),
   reportMode: z.union([zClubReportMode, z.null()]).optional(),
   disabledModules: z.array(zClubModuleKey).optional(),
+  /** Spec 45 — null resets to the app default (21:30). */
+  scoutReportsNotifyTime: z.union([zNotifyTime, z.null()]).optional(),
+  wellnessNotifyTime: z.union([zNotifyTime, z.null()]).optional(),
 });

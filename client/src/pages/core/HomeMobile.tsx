@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { CalendarDays, BarChart3, Target, Heart, Building2, BookOpen } from "lucide-react";
 import { useHomeData } from "@/lib/useHomeData";
@@ -8,6 +8,8 @@ import { isModuleEnabledFor } from "@/lib/moduleAccess";
 import type { ClubModuleKey } from "@shared/club-context";
 import { ModuleNav } from "./ModuleNav";
 import { ModuleHeader } from "@/components/branding/ModuleHeader";
+import { NotificationsPrimingCard } from "@/components/NotificationsPrimingCard";
+import { DEFAULT_NOTIFY_TIME, scheduleDailyReminders } from "@/lib/local-notifications";
 
 // ── Sub-components ────────────────────────────────────────────
 
@@ -157,6 +159,18 @@ export default function HomeMobile() {
     showClubActivityDot,
   } = useHomeData();
 
+  // Re-programa los 2 recordatorios locales en cada visita a Home si ya hay
+  // permiso concedido (spec 45) — cubre el caso de que el head coach haya
+  // cambiado la hora en My Club desde la última vez. No pide permiso por su
+  // cuenta (scheduleDailyReminders no hace nada si aún no está concedido); la
+  // NotificationsPrimingCard de abajo es la única que dispara el diálogo real.
+  const scoutReportsTime = clubQ.data?.club.scoutReportsNotifyTime ?? DEFAULT_NOTIFY_TIME;
+  const wellnessTime = clubQ.data?.club.wellnessNotifyTime ?? DEFAULT_NOTIFY_TIME;
+  useEffect(() => {
+    if (mode !== "player" || !clubQ.data) return;
+    void scheduleDailyReminders({ scoutReportsTime, wellnessTime, locale });
+  }, [mode, clubQ.data, scoutReportsTime, wellnessTime, locale]);
+
   // ── Smart alerts ──────────────────────────────────────────
   function renderAlerts() {
     if (mode === "staff") {
@@ -254,6 +268,9 @@ export default function HomeMobile() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
+      {mode === "player" && (
+        <NotificationsPrimingCard scoutReportsTime={scoutReportsTime} wellnessTime={wellnessTime} />
+      )}
       <main className="flex-1 overflow-y-auto min-h-0 px-3 pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
 
         {/* Brand header */}

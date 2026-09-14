@@ -139,6 +139,10 @@ export const clubs = pgTable("clubs", {
   disabledModules: text("disabled_modules").array().notNull().default(sql`'{}'::text[]`),
   /** Token opaco para el feed de calendario .ics publico (sin login). Null hasta que alguien lo pide por primera vez. */
   icalToken: varchar("ical_token", { length: 64 }),
+  /** Hora local "HH:MM" del recordatorio diario a jugadoras para revisar scout reports (notificacion local en iOS, spec 45). Null = usar el valor por defecto de la app (21:30), sin fila que mantener por cada club sin personalizar. */
+  scoutReportsNotifyTime: varchar("scout_reports_notify_time", { length: 5 }),
+  /** Igual que arriba, para el recordatorio diario de rellenar wellness. Null = 21:30 por defecto. */
+  wellnessNotifyTime: varchar("wellness_notify_time", { length: 5 }),
 });
 
 export type Club = typeof clubs.$inferSelect;

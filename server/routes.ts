@@ -1406,6 +1406,8 @@ export async function registerRoutes(
           ageCategory: club.ageCategory ?? null,
           reportMode: club.reportMode ?? null,
           disabledModules: club.disabledModules ?? [],
+          scoutReportsNotifyTime: club.scoutReportsNotifyTime ?? null,
+          wellnessNotifyTime: club.wellnessNotifyTime ?? null,
         },
         members: members.map((m) => {
           const fromAdmin = authByUserId.get(m.userId) ?? { fullName: null, email: null };
@@ -1677,11 +1679,13 @@ export async function registerRoutes(
           ageCategory: club.ageCategory ?? null,
           reportMode: club.reportMode ?? null,
           disabledModules: club.disabledModules ?? [],
+          scoutReportsNotifyTime: club.scoutReportsNotifyTime ?? null,
+          wellnessNotifyTime: club.wellnessNotifyTime ?? null,
         });
       }
       const updated = await storage.updateClub(
         club.id,
-        updates as Partial<Pick<Club, "name" | "logo" | "leagueType" | "gender" | "level" | "ageCategory" | "reportMode" | "disabledModules">>,
+        updates as Partial<Pick<Club, "name" | "logo" | "leagueType" | "gender" | "level" | "ageCategory" | "reportMode" | "disabledModules" | "scoutReportsNotifyTime" | "wellnessNotifyTime">>,
       );
       if (!updated) return res.status(404).json({ error: "Club not found" });
       res.json({
@@ -1696,6 +1700,8 @@ export async function registerRoutes(
         ageCategory: updated.ageCategory ?? null,
         reportMode: updated.reportMode ?? null,
         disabledModules: updated.disabledModules ?? [],
+        scoutReportsNotifyTime: updated.scoutReportsNotifyTime ?? null,
+        wellnessNotifyTime: updated.wellnessNotifyTime ?? null,
       });
     } catch (err) {
       res.status(500).json({ error: "Failed to update club" });

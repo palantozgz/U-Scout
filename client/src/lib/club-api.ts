@@ -74,6 +74,9 @@ export interface ClubPayload {
     ageCategory?: string | null;
     reportMode?: string | null;
     disabledModules?: string[];
+    /** "HH:MM", null = usa el valor por defecto de la app (spec 45). */
+    scoutReportsNotifyTime?: string | null;
+    wellnessNotifyTime?: string | null;
   };
   members: ClubMemberDto[];
   pendingInvitations: ClubInvitationDto[];
@@ -108,6 +111,8 @@ export type PatchClubBody = {
   ageCategory?: ClubAgeCategory | null;
   reportMode?: ClubReportMode | null;
   disabledModules?: ClubModuleKey[];
+  scoutReportsNotifyTime?: string | null;
+  wellnessNotifyTime?: string | null;
 };
 
 export function usePatchClub() {
