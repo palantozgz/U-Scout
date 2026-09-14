@@ -21,6 +21,7 @@ import {
   type InsertClubInvitation,
   type ReportApproval,
   type ReportOverride,
+  type PromotedPattern,
   users,
   teams,
   players,
@@ -34,6 +35,7 @@ import {
   reportOverrides,
   reportPublications,
   playerReportViews,
+  promotedPatterns,
 } from "@shared/schema";
 
 // ── Scout version types (player_scout_versions table — raw SQL, not in schema.ts) ──
@@ -152,6 +154,19 @@ export interface IStorage {
   upsertReportApproval(playerId: string, coachId: string): Promise<void>;
   deleteReportApproval(playerId: string, coachId: string): Promise<void>;
   listReportOverridesForPlayer(playerId: string): Promise<ReportOverride[]>;
+  listReportOverridesForPlayers(playerIds: string[]): Promise<ReportOverride[]>;
+  // Nivel B / "el decantador" (spec 38/39).
+  listActivePromotedPatterns(clubId: string): Promise<PromotedPattern[]>;
+  promotePattern(row: {
+    clubId: string;
+    archetypeKey: string;
+    fieldKey: string;
+    replacementKey: string;
+    promotedBy: string;
+    distinctCoachesAtPromotion: number;
+    avgScoreGapAtPromotion?: number;
+  }): Promise<PromotedPattern>;
+  revertPromotedPattern(id: string, clubId: string, revertedBy: string): Promise<PromotedPattern | undefined>;
   upsertReportOverride(row: {
     playerId: string;
     coachId: string;
@@ -843,6 +858,56 @@ export class DatabaseStorage implements IStorage {
 
   async listReportOverridesForPlayer(playerId: string): Promise<ReportOverride[]> {
     return db.select().from(reportOverrides).where(eq(reportOverrides.playerId, playerId));
+  }
+
+  // AÑADIDO 2026-09-14 (Nivel B/decantador, spec 39): agregación multi-
+  // jugadora para el panel de calibración -- listReportOverridesForPlayer
+  // (arriba) es por jugadora individual, esto trae todos los overrides de
+  // un conjunto de jugadoras canónicas de un club a la vez.
+  async listReportOverridesForPlayers(playerIds: string[]): Promise<ReportOverride[]> {
+    if (playerIds.length === 0) return [];
+    return db.select().from(reportOverrides).where(inArray(reportOverrides.playerId, playerIds));
+  }
+
+  // Nivel B / "el decantador" (spec 38/39).
+  async listActivePromotedPatterns(clubId: string): Promise<PromotedPattern[]> {
+    return db
+      .select()
+      .from(promotedPatterns)
+      .where(and(eq(promotedPatterns.clubId, clubId), eq(promotedPatterns.status, "active")));
+  }
+
+  async promotePattern(row: {
+    clubId: string;
+    archetypeKey: string;
+    fieldKey: string;
+    replacementKey: string;
+    promotedBy: string;
+    distinctCoachesAtPromotion: number;
+    avgScoreGapAtPromotion?: number;
+  }): Promise<PromotedPattern> {
+    const [created] = await db
+      .insert(promotedPatterns)
+      .values({
+        clubId: row.clubId,
+        archetypeKey: row.archetypeKey,
+        fieldKey: row.fieldKey,
+        replacementKey: row.replacementKey,
+        promotedBy: row.promotedBy,
+        distinctCoachesAtPromotion: row.distinctCoachesAtPromotion,
+        avgScoreGapAtPromotion: row.avgScoreGapAtPromotion ?? null,
+      })
+      .returning();
+    return created;
+  }
+
+  async revertPromotedPattern(id: string, clubId: string, revertedBy: string): Promise<PromotedPattern | undefined> {
+    const [updated] = await db
+      .update(promotedPatterns)
+      .set({ status: "reverted", revertedBy, revertedAt: new Date() })
+      .where(and(eq(promotedPatterns.id, id), eq(promotedPatterns.clubId, clubId), eq(promotedPatterns.status, "active")))
+      .returning();
+    return updated;
   }
 
   async upsertReportOverride(row: {

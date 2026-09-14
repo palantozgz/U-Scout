@@ -208,6 +208,86 @@ async function canManageTeam(req: Request, teamId: string): Promise<boolean> {
   return false;
 }
 
+// ── Nivel B / "el decantador" (spec 38/39) ──────────────────────────────────
+interface CalibrationPattern {
+  archetypeKey: string;
+  fieldKey: string;
+  replacementKey: string;
+  /** Un texto de ejemplo (el más frecuente en el grupo) -- para que el
+   *  panel muestre qué es el patrón sin exponer quién lo eligió. */
+  replacementValueSample: string;
+  /** Entrenadores distintos -- la señal real de consenso, número principal. */
+  distinctCoaches: number;
+  /** Jugadoras distintas -- dato secundario. */
+  distinctPlayers: number;
+  avgScoreGap: number | null;
+  isPromoted: boolean;
+  promotedPatternId?: string;
+}
+
+/**
+ * Agregación real, server-side, para el panel de Nivel B/"el decantador".
+ * Nunca devuelve el `coachId`/nombre de entrenador individual por patrón
+ * (anonimato exigido por Pablo, spec 17.2) ni la jugadora rival concreta --
+ * solo el agregado. Excluye deliberadamente fichas sandbox (nunca pueden
+ * producir una señal multi-entrenador real, spec 39).
+ */
+async function computeCalibrationPatterns(clubId: string, threshold: number): Promise<CalibrationPattern[]> {
+  const allPlayers = await storage.getPlayers(undefined, clubId);
+  const canonicalIds = allPlayers.filter((p: any) => p.is_canonical).map((p: any) => p.id);
+  const overrides = await storage.listReportOverridesForPlayers(canonicalIds);
+  const activePromoted = await storage.listActivePromotedPatterns(clubId);
+  const promotedByKey = new Map(
+    activePromoted.map((p) => [`${p.archetypeKey}::${p.fieldKey}::${p.replacementKey}`, p]),
+  );
+
+  const groups = new Map<string, typeof overrides>();
+  for (const o of overrides) {
+    if (o.action !== "replace" || !o.replacementValue || !o.archetypeKey) continue;
+    const groupKey = `${o.archetypeKey}::${o.itemKey}::${o.replacementKey ?? o.replacementValue}`;
+    if (!groups.has(groupKey)) groups.set(groupKey, []);
+    groups.get(groupKey)!.push(o);
+  }
+
+  const patterns: CalibrationPattern[] = [];
+  for (const [groupKey, rows] of Array.from(groups.entries())) {
+    const distinctCoaches = new Set(rows.map((r) => r.coachId));
+    if (distinctCoaches.size < threshold) continue;
+
+    const distinctPlayers = new Set(rows.map((r) => r.playerId));
+    const [archetypeKey, fieldKey] = groupKey.split("::");
+    const replacementKey = rows.find((r) => r.replacementKey)?.replacementKey ?? rows[0].replacementValue!;
+
+    // Texto de ejemplo -- el más frecuente entre las filas del grupo.
+    const valueCounts = new Map<string, number>();
+    for (const r of rows) {
+      const v = r.replacementValue ?? "";
+      valueCounts.set(v, (valueCounts.get(v) ?? 0) + 1);
+    }
+    const replacementValueSample = Array.from(valueCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+
+    const gaps = rows
+      .filter((r) => r.originalScore != null && r.replacementScore != null)
+      .map((r) => Number(r.originalScore) - Number(r.replacementScore));
+    const avgScoreGap = gaps.length > 0 ? gaps.reduce((a, b) => a + b, 0) / gaps.length : null;
+
+    const promoted = promotedByKey.get(`${archetypeKey}::${fieldKey}::${replacementKey}`);
+    patterns.push({
+      archetypeKey,
+      fieldKey,
+      replacementKey,
+      replacementValueSample,
+      distinctCoaches: distinctCoaches.size,
+      distinctPlayers: distinctPlayers.size,
+      avgScoreGap,
+      isPromoted: Boolean(promoted),
+      promotedPatternId: promoted?.id,
+    });
+  }
+
+  return patterns.sort((a, b) => b.distinctCoaches - a.distinctCoaches);
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -1402,6 +1482,141 @@ export async function registerRoutes(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return res.status(500).json({ error: "Failed to update report publish access", detail: msg });
+    }
+  });
+
+  // ── Nivel B / "el decantador" (spec 38/39) ────────────────────────────────
+  // Gate de servidor, no solo de cliente -- mismo patrón ya usado en
+  // PATCH .../report-publish-access. head_coach/master siempre; coach
+  // normal solo con reportPublishAccess delegado (mismo badge, ahora
+  // reutilizado para el panel de calibración tras la reconciliación de la
+  // sección 38 -- ya no controla quién publica).
+  async function canAccessCalibrationPanelServer(req: Request): Promise<boolean> {
+    if (isHeadCoachOrMaster(req)) return true;
+    const club = await storage.getClubForUser(req.user!.id);
+    if (!club) return false;
+    const membership = await storage.getClubMemberByClubAndUser(club.id, req.user!.id);
+    return Boolean(membership?.reportPublishAccess);
+  }
+
+  const CALIBRATION_THRESHOLD_DEFAULT = 3;
+  const CALIBRATION_THRESHOLD_MIN = 2;
+  const CALIBRATION_THRESHOLD_MAX = 5;
+
+  app.get("/api/club/calibration-patterns", requireAuth, async (req, res) => {
+    try {
+      if (!(await canAccessCalibrationPanelServer(req))) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+
+      const rawThreshold = Number(req.query.threshold);
+      const threshold =
+        Number.isFinite(rawThreshold) && rawThreshold >= CALIBRATION_THRESHOLD_MIN && rawThreshold <= CALIBRATION_THRESHOLD_MAX
+          ? Math.round(rawThreshold)
+          : CALIBRATION_THRESHOLD_DEFAULT;
+
+      const patterns = await computeCalibrationPatterns(club.id, threshold);
+      res.json({ patterns, threshold });
+    } catch (err) {
+      console.error("calibration-patterns error:", err);
+      res.status(500).json({ error: "Failed to load calibration patterns" });
+    }
+  });
+
+  app.post("/api/club/calibration-patterns/promote", requireAuth, async (req, res) => {
+    try {
+      if (!(await canAccessCalibrationPanelServer(req))) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const parsed = z
+        .object({
+          archetypeKey: z.string().min(1),
+          fieldKey: z.string().min(1),
+          replacementKey: z.string().min(1),
+          threshold: z.number().min(CALIBRATION_THRESHOLD_MIN).max(CALIBRATION_THRESHOLD_MAX).optional(),
+        })
+        .safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+      }
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+
+      // Recalcula server-side en el momento -- no confía en lo que el
+      // cliente vio, evita una carrera donde el panel quedó desactualizado
+      // y alguien promociona algo que ya no cumple el umbral.
+      const threshold = parsed.data.threshold ?? CALIBRATION_THRESHOLD_DEFAULT;
+      const patterns = await computeCalibrationPatterns(club.id, threshold);
+      const match = patterns.find(
+        (p) =>
+          p.archetypeKey === parsed.data.archetypeKey &&
+          p.fieldKey === parsed.data.fieldKey &&
+          p.replacementKey === parsed.data.replacementKey,
+      );
+      if (!match) {
+        return res.status(400).json({ error: "Pattern no longer meets the threshold" });
+      }
+      const created = await storage.promotePattern({
+        clubId: club.id,
+        archetypeKey: parsed.data.archetypeKey,
+        fieldKey: parsed.data.fieldKey,
+        replacementKey: parsed.data.replacementKey,
+        promotedBy: req.user!.id,
+        distinctCoachesAtPromotion: match.distinctCoaches,
+        avgScoreGapAtPromotion: match.avgScoreGap ?? undefined,
+      });
+      res.status(201).json(created);
+    } catch (err: any) {
+      // Índice único parcial (un solo patrón activo por club+arquetipo+campo)
+      if (err?.code === "23505") {
+        return res.status(409).json({ error: "A pattern is already active for this archetype/field" });
+      }
+      console.error("calibration-patterns promote error:", err);
+      res.status(500).json({ error: "Failed to promote pattern" });
+    }
+  });
+
+  app.post("/api/club/calibration-patterns/:id/revert", requireAuth, async (req, res) => {
+    try {
+      if (!(await canAccessCalibrationPanelServer(req))) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.status(404).json({ error: "Club not found" });
+      const reverted = await storage.revertPromotedPattern(req.params.id as string, club.id, req.user!.id);
+      if (!reverted) return res.status(404).json({ error: "Active pattern not found" });
+      res.json(reverted);
+    } catch (err) {
+      console.error("calibration-patterns revert error:", err);
+      res.status(500).json({ error: "Failed to revert pattern" });
+    }
+  });
+
+  // Ligero, deliberadamente SIN el gate de canAccessCalibrationPanelServer --
+  // a diferencia del panel (solo para quien calibra), esto lo necesita
+  // CUALQUIERA que vea un informe de verdad calibrado (coach en revisión, o
+  // jugadora viendo su propio informe) para que el ajuste de Nivel B se
+  // aplique al motor -- ver ensamblarReporte()/opts.patronesPromocionados
+  // en motor-v1.ts. Solo expone {archetypeKey, fieldKey, replacementKey},
+  // nunca los datos agregados sensibles (distinctCoaches/avgScoreGap) que sí
+  // requieren el permiso del panel.
+  app.get("/api/club/active-promoted-patterns", requireAuth, async (req, res) => {
+    try {
+      const club = await storage.getClubForUser(req.user!.id);
+      if (!club) return res.json({ patterns: [] });
+      const active = await storage.listActivePromotedPatterns(club.id);
+      res.json({
+        patterns: active.map((p) => ({
+          archetypeKey: p.archetypeKey,
+          fieldKey: p.fieldKey,
+          replacementKey: p.replacementKey,
+        })),
+      });
+    } catch (err) {
+      console.error("active-promoted-patterns error:", err);
+      res.status(500).json({ error: "Failed to load active patterns" });
     }
   });
 

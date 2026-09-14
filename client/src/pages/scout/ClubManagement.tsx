@@ -1,7 +1,7 @@
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList, Dumbbell, Send, X, ChevronRight } from "lucide-react";
+import { ArrowLeft, Copy, Check, Users, MoreVertical, ShieldCheck, AlertTriangle, UserPlus, ClipboardList, Dumbbell, Send, X, ChevronRight, Sparkles, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,12 +50,17 @@ import {
   useRevokeClubInvitation,
   useClubStats,
   clubStatsQueryKey,
+  useCalibrationPatterns,
+  usePromotePattern,
+  useRevertPattern,
   type ClubMemberDto,
   type PatchClubBody,
+  type CalibrationPattern,
 } from "@/lib/club-api";
 import { toast } from "@/hooks/use-toast";
 import { isShortUserIdFallback, userDisplayLabel } from "@/lib/userDisplayLabel";
 import { cn } from "@/lib/utils";
+import { archetypeBaseLabel, INSTRUCTION_LABELS } from "@/lib/reportTextRendererV1";
 import { rosterSignature, setStoredRosterSignature } from "@/lib/clubRosterSeen";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import type {
@@ -309,6 +314,12 @@ export default function ClubManagement() {
       status: me.status as ClubMembership["status"],
       isOwner: q.data.club.ownerId === profile.id,
       operationsAccess: Boolean(me.operationsAccess),
+      // CORREGIDO 2026-09-14 (Nivel B/decantador, spec 38/39): faltaba --
+      // caps.canAccessCalibrationPanel (antes canPublishReports) depende de
+      // esto para un coach delegado, pero como esa capability nunca tuvo
+      // consumidores reales hasta ahora, el hueco quedó dormido y sin
+      // efecto visible hasta esta pantalla.
+      reportPublishAccess: Boolean(me.reportPublishAccess),
     };
   }, [profile?.id, q.data?.club, q.data?.members]);
 
@@ -633,6 +644,11 @@ export default function ClubManagement() {
                 <TabsTrigger value="stats" className="text-xs font-bold">
                   {t("club_tab_stats")}
                 </TabsTrigger>
+                {caps.canAccessCalibrationPanel && (
+                  <TabsTrigger value="calibracion" className="text-xs font-bold">
+                    {locale === "zh" ? "校准" : locale === "es" ? "Calibración" : "Calibration"}
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <TabsContent value="club" className="space-y-4 mt-0">
@@ -1330,6 +1346,15 @@ export default function ClubManagement() {
                   </>
                 )}
               </TabsContent>
+
+              {caps.canAccessCalibrationPanel && (
+                <TabsContent value="calibracion" className="space-y-4 mt-0">
+                  <CalibrationPanel
+                    locale={locale}
+                    gender={q.data.club.gender === "F" ? "f" : q.data.club.gender === "M" ? "m" : "n"}
+                  />
+                </TabsContent>
+              )}
             </Tabs>
           </>
         )}
@@ -1377,6 +1402,226 @@ export default function ClubManagement() {
       </Dialog>
       <ModuleNav />
     </div>
+  );
+}
+
+// ── Nivel B / "el decantador" (spec 38/39) ────────────────────────────────
+// Panel de calibración: qué sustituciones repiten varios entrenadores
+// distintos para el mismo arquetipo, con opción de promocionarlas a
+// permanentes (afecta al motor para todo el club) o revertirlas -- nunca
+// expone qué entrenador concreto originó cada override individual (spec
+// 17.2), solo el agregado.
+function CalibrationPanel({ locale, gender }: { locale: "en" | "es" | "zh"; gender: "f" | "m" | "n" }) {
+  const [threshold, setThreshold] = useState(3);
+  const q = useCalibrationPatterns(threshold);
+  const promoteMut = usePromotePattern(threshold);
+  const revertMut = useRevertPattern(threshold);
+  const [confirmRevert, setConfirmRevert] = useState<CalibrationPattern | null>(null);
+
+  const L = locale === "zh"
+    ? {
+        title: "多位教练达成一致的替换",
+        empty: "暂无达到阈值的模式 -- 随着更多教练做出编辑，这里会显示出来。",
+        coaches: "位不同教练",
+        players: "名球员",
+        fineCalib: "微调",
+        editorialDisagree: "编辑分歧",
+        promote: "设为永久",
+        promoted: "已永久",
+        revert: "撤销",
+        threshold: "阈值",
+        confirmTitle: "撤销此模式？",
+        confirmBody: "以后的报告将不再应用这个调整 -- 引擎会恢复到原来的计算方式。",
+        confirmCancel: "取消",
+        confirmOk: "撤销",
+      }
+    : locale === "es"
+      ? {
+          title: "Sustituciones en las que coinciden varios entrenadores",
+          empty: "Todavía no hay ningún patrón que llegue al umbral -- aparecerá aquí según más entrenadores editen informes.",
+          coaches: "entrenadores distintos",
+          players: "jugadoras",
+          fineCalib: "Calibración fina",
+          editorialDisagree: "Desacuerdo editorial",
+          promote: "Hacer permanente",
+          promoted: "Permanente",
+          revert: "Revertir",
+          threshold: "Umbral",
+          confirmTitle: "¿Revertir este patrón?",
+          confirmBody: "Los informes futuros dejarán de aplicar este ajuste -- el motor vuelve a su cálculo original.",
+          confirmCancel: "Cancelar",
+          confirmOk: "Revertir",
+        }
+      : {
+          title: "Substitutions multiple coaches agree on",
+          empty: "No pattern meets the threshold yet -- this fills in as more coaches edit reports.",
+          coaches: "different coaches",
+          players: "players",
+          fineCalib: "Fine calibration",
+          editorialDisagree: "Editorial disagreement",
+          promote: "Make permanent",
+          promoted: "Permanent",
+          revert: "Revert",
+          threshold: "Threshold",
+          confirmTitle: "Revert this pattern?",
+          confirmBody: "Future reports will stop applying this adjustment -- the motor reverts to its original calculation.",
+          confirmCancel: "Cancel",
+          confirmOk: "Revert",
+        };
+
+  const fieldLabel = (fieldKey: string): string => {
+    const type = fieldKey.split(".")[0] as "deny" | "force" | "allow";
+    return INSTRUCTION_LABELS[type]?.[locale] ?? fieldKey;
+  };
+
+  const archetypeLabel = (key: string): string => {
+    try {
+      return archetypeBaseLabel(key as any, locale, gender);
+    } catch {
+      return key;
+    }
+  };
+
+  const doPromote = (p: CalibrationPattern) => {
+    promoteMut.mutate(
+      { archetypeKey: p.archetypeKey, fieldKey: p.fieldKey, replacementKey: p.replacementKey },
+      {
+        onSuccess: () => toast({ description: locale === "es" ? "Patrón promocionado." : locale === "zh" ? "模式已设为永久。" : "Pattern promoted." }),
+        onError: (err) =>
+          toast({
+            description: typeof (err as any)?.message === "string" ? (err as any).message : "Error",
+            variant: "destructive" as any,
+          }),
+      },
+    );
+  };
+
+  const doRevert = () => {
+    if (!confirmRevert?.promotedPatternId) return;
+    revertMut.mutate(confirmRevert.promotedPatternId, {
+      onSuccess: () => {
+        toast({ description: locale === "es" ? "Patrón revertido." : locale === "zh" ? "已撤销。" : "Pattern reverted." });
+        setConfirmRevert(null);
+      },
+      onError: (err) => {
+        toast({
+          description: typeof (err as any)?.message === "string" ? (err as any).message : "Error",
+          variant: "destructive" as any,
+        });
+        setConfirmRevert(null);
+      },
+    });
+  };
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-4 space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm font-bold text-foreground">{L.title}</p>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="calibration-threshold" className="text-xs text-muted-foreground">{L.threshold}</Label>
+          <Select value={String(threshold)} onValueChange={(v) => setThreshold(Number(v))}>
+            <SelectTrigger id="calibration-threshold" className="h-9 w-16">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[2, 3, 4, 5].map((n) => (
+                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {q.isLoading && (
+        <div className="flex justify-center py-8">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
+      {q.data && q.data.patterns.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-6">{L.empty}</p>
+      )}
+
+      {q.data && q.data.patterns.length > 0 && (
+        <div className="space-y-3">
+          {q.data.patterns.map((p) => {
+            const gapKnown = p.avgScoreGap != null;
+            const isFine = gapKnown && Math.abs(p.avgScoreGap!) < 0.15;
+            return (
+              <div
+                key={`${p.archetypeKey}::${p.fieldKey}::${p.replacementKey}`}
+                className="rounded-xl border border-border bg-background p-3 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="outline" className="text-[10px] font-black uppercase">{fieldLabel(p.fieldKey)}</Badge>
+                      <span className="text-xs font-bold text-foreground">{archetypeLabel(p.archetypeKey)}</span>
+                    </div>
+                    <p className="text-sm text-foreground/90 mt-1">{p.replacementValueSample}</p>
+                  </div>
+                  {p.isPromoted ? (
+                    <Badge variant="secondary" className="text-[10px] font-black uppercase shrink-0 gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      {L.promoted}
+                    </Badge>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="shrink-0 h-9"
+                      disabled={promoteMut.isPending}
+                      onClick={() => doPromote(p)}
+                    >
+                      {L.promote}
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+                  <span className="font-bold text-foreground">{p.distinctCoaches}</span> {L.coaches}
+                  <span className="opacity-50">·</span>
+                  <span>{p.distinctPlayers} {L.players}</span>
+                  {gapKnown && (
+                    <>
+                      <span className="opacity-50">·</span>
+                      <Badge variant={isFine ? "outline" : "secondary"} className="text-[10px]">
+                        {isFine ? L.fineCalib : L.editorialDisagree}
+                      </Badge>
+                    </>
+                  )}
+                  {p.isPromoted && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1 ml-auto"
+                      onClick={() => setConfirmRevert(p)}
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      {L.revert}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <AlertDialog open={!!confirmRevert} onOpenChange={(o) => { if (!o) setConfirmRevert(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{L.confirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{L.confirmBody}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{L.confirmCancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={doRevert} disabled={revertMut.isPending}>
+              {L.confirmOk}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
   );
 }
 

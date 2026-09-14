@@ -1795,3 +1795,28 @@ Endpoints de servidor (`GET /api/club/calibration-patterns`, `POST .../promote`,
 ### 39.3. Auditoría de "Roster Oficial" — cerrada, la mayor parte ya funcionaba bien
 
 Pablo: *"audita porque esto ya estaba hecho previamente y funcionaba decente"*. Confirmado: creación canónica gateada correctamente (cliente y servidor), modo sandbox real y bien aislado, importador WCBA funcional. El único hallazgo real fue el de seguridad ya cerrado en la sección 38 (`import-team`/`import-league` sin chequeo de rol/pertenencia a club). No se propuso ni ejecutó ningún rediseño — auditoría, no reconstrucción, tal como se pidió.
+
+## 40. "El decantador" / Nivel B — cerrado end-to-end: endpoints, panel visual y wiring real al motor (2026-09-14)
+
+Continuación directa de la sección 39 (esquema + mecanismo reversible ya implementados). Esta pasada cierra el ciclo completo: desde que un entrenador con permiso ve el panel, promociona un patrón, y ese patrón afecta de verdad al informe que ve cualquier coach o jugadora — no solo a nivel de base de datos.
+
+### 40.1. Servidor
+
+- **`GET /api/club/calibration-patterns`** (`?threshold=2..5`, default 3) — agregación real (`computeCalibrationPatterns()`, `server/routes.ts`): trae overrides de todas las jugadoras **canónicas** del club (excluye sandbox a propósito — una ficha de un solo entrenador nunca puede producir una señal multi-entrenador real), agrupa por `archetypeKey::itemKey::(replacementKey ?? replacementValue)`, cuenta `coachId`/`playerId` distintos, calcula el "score gap" medio, y cruza contra `promoted_patterns` activos para marcar `isPromoted`. **Nunca devuelve `coachId` ni jugadora individual** — solo el agregado y un texto de ejemplo (spec 17.2, anonimato exigido). Gate real en servidor (`canAccessCalibrationPanelServer`, mismo criterio que el badge `reportPublishAccess`), no solo en cliente.
+- **`POST /api/club/calibration-patterns/promote`** — vuelve a calcular la agregación en el momento antes de insertar (no confía en lo que el cliente vio, evita promocionar algo que ya no cumple el umbral por una condición de carrera). Índice único parcial (migración 0007) impide dos patrones activos a la vez para el mismo club+arquetipo+campo — mapeado a 409 si ocurre.
+- **`POST /api/club/calibration-patterns/:id/revert`** — marca `status='reverted'` (nunca `DELETE`, historial conservado).
+- **`GET /api/club/active-promoted-patterns`** — endpoint ligero y deliberadamente **sin** el gate del panel: lo necesita cualquiera que vea un informe real calibrado (coach en revisión, o la propia jugadora), no solo quien administra el panel. Solo expone `{archetypeKey, fieldKey, replacementKey}` — nunca los datos agregados sensibles.
+
+### 40.2. Wiring real al motor — sin esto, promocionar un patrón no habría hecho nada
+
+`ReportSlidesV1.tsx` (la pantalla real donde se renderiza cualquier informe, coach o jugadora) ahora pide `useActivePromotedPatterns()` y lo pasa como `opts.patronesPromocionados` a `ensamblarReporteParaTexto()` — cerrando el círculo completo: patrón promocionado en el panel → `aplicarPatronesPromocionados()` (sección 39) sesga el ganador real → el informe que ve cualquiera cambia, reversible en cualquier momento sin deploy.
+
+### 40.3. Panel visual
+
+Nueva pestaña "Calibración" en `ClubManagement.tsx` (junto a Club/Liga/Equipo/Stats), visible **solo** con `canAccessCalibrationPanel` (renombrada en la sección 39 — head_coach/master siempre, coach con `reportPublishAccess` delegado). Por patrón: etiqueta DENY/FORCE/ALLOW + arquetipo (mismo catálogo que ya usa el informe real, `archetypeBaseLabel`, exportada para esto), texto de ejemplo, contador principal de **entrenadores** distintos (no jugadoras, corregido en la sección 39), badge de "Calibración fina" vs "Desacuerdo editorial" según el score gap, botón Promocionar/Revertir (revertir con diálogo de confirmación — acción con efecto real sobre informes futuros de todo el club). Selector de umbral (2-5, default 3) expuesto directamente en el panel, sin tocar código, para clubes con plantillas de staff pequeñas.
+
+**Hallazgo real encontrado al cablear el panel, no anticipado por El Arquitecto**: el objeto `membership` que `ClubManagement.tsx` construye para `useCapabilities()` nunca incluía `reportPublishAccess` — un hueco dormido desde la sección 26 (la capability correspondiente, entonces `canPublishReports`, no tenía ningún consumidor real hasta hoy, así que el hueco no tenía ningún efecto visible). Corregido: el objeto ahora incluye `reportPublishAccess: Boolean(me.reportPublishAccess)`, igual que ya hacía con `operationsAccess`.
+
+Verificado: `npm run check` limpio, `npx vitest run` 15/15 archivos, 224/224 pruebas, `npm run motor:compare` 0 divergencias. Smoke test del build sin errores de consola.
+
+Con esto, "el decantador"/Nivel B queda cerrado end-to-end tal como lo pidió Pablo: reversible, y visible/editable por los entrenadores con permiso de publicación delegado.

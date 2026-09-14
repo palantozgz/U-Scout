@@ -20,7 +20,7 @@ import {
 } from "@/lib/mock-data";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
-import { useClub } from "@/lib/club-api";
+import { useClub, useActivePromotedPatterns } from "@/lib/club-api";
 import { cn, isRealPhoto, localName } from "@/lib/utils";
 import {
   Sheet,
@@ -169,6 +169,12 @@ export default function ReportSlidesV1({
     arrowTimer.current = setTimeout(() => setArrowsVisible(false), ARROW_HIDE_DELAY);
   }
 
+  // Nivel B / "el decantador" (spec 38/39) -- patrones promocionados
+  // activos del club, aplicados al motor más abajo. Sin conexión/sin datos
+  // todavía, `activePatternsQ.data` es `undefined` -- ensamblarReporte()
+  // ya trata eso como "sin ajuste", nunca bloquea el informe.
+  const activePatternsQ = useActivePromotedPatterns({ enabled: Boolean(user) });
+
   // Motor 1.0 (spec 23, PR-B) -- reemplaza generateMotorV4(). Siempre modo
   // "completo": ver el comentario de `asCompleto` arriba sobre por qué esta
   // pantalla no necesita pedir modo "sencillo" aparte.
@@ -178,8 +184,9 @@ export default function ReportSlidesV1({
     return ensamblarReporteParaTexto(playerInputToMotorInputs(inp), clubMotorCtx, {
       jugadoraId: playerId,
       modo: "completo",
+      patronesPromocionados: activePatternsQ.data,
     });
-  }, [player, clubMotorCtx, playerId]);
+  }, [player, clubMotorCtx, playerId, activePatternsQ.data]);
 
   const completoBase: { reporte: ReporteModoCompletoV1; enrichedInputs: EnrichedInputs } | null = useMemo(() => {
     if (!assembled) return null;

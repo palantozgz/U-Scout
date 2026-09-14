@@ -9,6 +9,7 @@ import type {
 } from "@shared/club-context";
 import { apiRequest } from "./queryClient";
 import { useAuth } from "@/lib/useAuth";
+import type { PatronPromocionadoActivo } from "@/lib/motor-v1";
 
 export const clubQueryKey = ["/api/club"] as const;
 /**
@@ -366,6 +367,80 @@ export function useClubStats(options?: { enabled?: boolean }) {
         }>;
       }>,
     networkMode: "offlineFirst",
+  });
+}
+
+// Nivel B / "el decantador" (spec 38/39). Deliberadamente sin gate de
+// permiso en el cliente -- cualquiera que vea un informe real (coach o
+// jugadora) necesita esto para que el ajuste de Nivel B se aplique al
+// motor (ver ensamblarReporte()/opts.patronesPromocionados en motor-v1.ts).
+// El endpoint solo expone {archetypeKey, fieldKey, replacementKey}, nunca
+// los datos agregados sensibles del panel (esos sí exigen permiso, ver
+// useCalibrationPatterns en ClubManagement.tsx).
+export function useActivePromotedPatterns(options?: { enabled?: boolean }) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["active-promoted-patterns", user?.id ?? "anon"],
+    queryFn: async (): Promise<PatronPromocionadoActivo[]> => {
+      const raw = await (await apiRequest("GET", "/api/club/active-promoted-patterns")).json();
+      return Array.isArray(raw?.patterns) ? raw.patterns : [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 min -- promociones/reversiones no son instantáneas de por sí
+    networkMode: "offlineFirst",
+    enabled: (options?.enabled ?? true) && Boolean(user),
+  });
+}
+
+// Nivel B / "el decantador" (spec 38/39) -- panel de calibración. Distinto
+// de useActivePromotedPatterns (arriba, ligero, sin gate, lo consume el
+// motor) -- esto trae el agregado completo (distinctCoaches/avgScoreGap)
+// para el panel, y solo lo puede pedir quien tiene el permiso
+// (canAccessCalibrationPanel), el servidor lo re-verifica también.
+export interface CalibrationPattern {
+  archetypeKey: string;
+  fieldKey: string;
+  replacementKey: string;
+  replacementValueSample: string;
+  distinctCoaches: number;
+  distinctPlayers: number;
+  avgScoreGap: number | null;
+  isPromoted: boolean;
+  promotedPatternId?: string;
+}
+
+const calibrationPatternsQueryKey = (threshold: number) => ["calibration-patterns", threshold] as const;
+
+export function useCalibrationPatterns(threshold: number, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: calibrationPatternsQueryKey(threshold),
+    queryFn: async (): Promise<{ patterns: CalibrationPattern[]; threshold: number }> =>
+      (await apiRequest("GET", `/api/club/calibration-patterns?threshold=${threshold}`)).json(),
+    enabled: options?.enabled ?? true,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function usePromotePattern(threshold: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { archetypeKey: string; fieldKey: string; replacementKey: string }) =>
+      (await apiRequest("POST", "/api/club/calibration-patterns/promote", { ...body, threshold })).json(),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: calibrationPatternsQueryKey(threshold) });
+      void qc.invalidateQueries({ queryKey: ["active-promoted-patterns"] });
+    },
+  });
+}
+
+export function useRevertPattern(threshold: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (patternId: string) =>
+      (await apiRequest("POST", `/api/club/calibration-patterns/${encodeURIComponent(patternId)}/revert`, {})).json(),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: calibrationPatternsQueryKey(threshold) });
+      void qc.invalidateQueries({ queryKey: ["active-promoted-patterns"] });
+    },
   });
 }
 

@@ -129,7 +129,10 @@ export type RenderedReportV1 =
 // ganador en rank 0, a diferencia de motor-v4 que los separaba -- spec 23.1).
 // ---------------------------------------------------------------------------------
 
-const INSTRUCTION_LABELS: Record<"deny" | "force" | "allow", Record<Locale, string>> = {
+// AÑADIDO 2026-09-14 (Nivel B/decantador, spec 38/39): exportada para que el
+// panel de calibración muestre el mismo DENY/FORCE/ALLOW que ya usa el
+// informe real.
+export const INSTRUCTION_LABELS: Record<"deny" | "force" | "allow", Record<Locale, string>> = {
   deny: { en: "DENY", es: "NIEGA", zh: "封堵" },
   force: { en: "FORCE", es: "FUERZA", zh: "逼迫" },
   allow: { en: "ALLOW", es: "PERMITE", zh: "放开" },
@@ -510,7 +513,11 @@ const ARCHETYPE_LABELS: Record<ArchetypeKey, { en: string; es: Record<Gender, st
   },
 };
 
-function archetypeBaseLabel(key: ArchetypeKey, locale: Locale, gender: Gender): string {
+// AÑADIDO 2026-09-14 (Nivel B/decantador, spec 38/39): exportada para que el
+// panel de calibración (ClubManagement.tsx) pueda mostrar una etiqueta
+// legible por arquetipo en vez del ArchetypeKey crudo -- mismo catálogo que
+// ya usa el informe real, no un texto nuevo inventado para el panel.
+export function archetypeBaseLabel(key: ArchetypeKey, locale: Locale, gender: Gender): string {
   const entry = ARCHETYPE_LABELS[key];
   if (locale === "en") return entry.en;
   if (locale === "zh") return entry.zh;
