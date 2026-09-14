@@ -1,8 +1,10 @@
 /**
  * ModuleHeader — cabecera estándar para todos los módulos de U CORE.
  *
- * Móvil:   compacto, inline — logo pequeño + wordmark en una línea, settings a la derecha
- * Desktop: expandido, centrado — logo grande + wordmark + tagline + dot
+ * Móvil:   centrado, vertical — logo + wordmark + tagline + dot
+ * Desktop: compacto, horizontal (spec 34.3, 2026-09-14) — logo pequeño +
+ *          wordmark/tagline en línea, legibles (antes crecía en vez de
+ *          comprimirse, con texto fijo minúsculo)
  *
  * Todos los módulos usan el mismo componente → cambio aquí = cambia en todos.
  */
@@ -125,22 +127,38 @@ export function ModuleHeader({ module, tagline, className }: ModuleHeaderProps) 
         <Settings className="w-5 h-5" />
       </button>
 
-      {/* Contenido centrado — logo + wordmark + tagline + dot */}
+      {/* Contenido — logo + wordmark + tagline + dot.
+          CORREGIDO 2026-09-14 (spec 34.3, decisión de Pablo -- "versión
+          compacta en desktop"): antes el logo CRECÍA en desktop (56px→88px,
+          más espacio, no menos) mientras wordmark/tagline se quedaban fijos
+          en 10-11px vía inline style, ilegibles en cualquier tamaño de
+          pantalla. Ahora en md:+ pasa a una fila horizontal compacta (logo
+          más pequeño que en móvil, texto real que sí escala) -- libera las
+          filas verticales que esto ocupaba para contenido real. Móvil sigue
+          igual (centrado vertical, ya corregido antes para landscape). */}
       <div
-        className="module-header-inner flex flex-col items-center text-foreground"
+        className="module-header-inner flex flex-col items-center md:flex-row md:justify-center md:gap-2.5 text-foreground"
         style={{ paddingTop: "0.75rem", paddingBottom: "0.5rem", gap: "0.2rem" }}
       >
-        {/* Logo: 56px en móvil, 88px en desktop */}
+        {/* Logo: 56px en móvil, 36px en desktop (compacto, no expandido) */}
         <span className="module-header-logo md:hidden"><UMark size={56} /></span>
-        <span className="module-header-logo hidden md:block"><UMark size={88} /></span>
+        <span className="module-header-logo hidden md:block"><UMark size={36} /></span>
 
-        <span className="module-header-wordmark" style={{ fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase", opacity: 0.45, fontWeight: 500 }}>
+        <div className="hidden md:flex md:flex-col md:items-start md:justify-center">
+          <span className="module-header-wordmark text-[11px] md:text-sm font-medium uppercase tracking-[0.2em] md:tracking-wide opacity-[0.45]">
+            {wordmark}
+          </span>
+          <span className="module-header-tagline text-[10px] md:text-xs font-medium uppercase tracking-[0.18em] md:tracking-wide opacity-[0.28]">
+            {tagline}
+          </span>
+        </div>
+        <span className="module-header-wordmark md:hidden text-[11px] font-medium uppercase tracking-[0.2em] opacity-[0.45]">
           {wordmark}
         </span>
-        <span className="module-header-tagline" style={{ fontSize: "10px", letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.28, fontWeight: 500 }}>
+        <span className="module-header-tagline md:hidden text-[10px] font-medium uppercase tracking-[0.18em] opacity-[0.28]">
           {tagline}
         </span>
-        <div className="module-header-dot" style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: accent }} aria-hidden />
+        <div className="module-header-dot md:self-center" style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: accent }} aria-hidden />
       </div>
     </div>
   );

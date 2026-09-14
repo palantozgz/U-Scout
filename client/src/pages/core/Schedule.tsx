@@ -1041,11 +1041,19 @@ export default function Schedule() {
   ) : undefined;
 
 
+  // CORREGIDO 2026-09-14 (spec 34.3, decisión de Pablo tras verificar): se
+  // apagaba el panel a propósito en planner desde el commit b09c640
+  // (2026-05-21), sin comentario explícito del motivo -- pero el click para
+  // ver detalle de una sesión en el planner ya alimentaba desktopSelectedEvent
+  // (openSessionDetail, PlannerSessionCardButton) sin ningún efecto visible
+  // porque el panel que lo consume estaba oculto. Reactivado -- pendiente de
+  // que Pablo lo confirme en un portátil real por si el grid de 7 días queda
+  // apretado con el panel (320-384px) en pantallas más estrechas.
   return (
     <ModulePageShell
       title={t("ucore_card_schedule_title")}
       moduleHeader={{ module: "schedule", tagline: t("tagline_schedule") }}
-      panel={staffView === "planner" ? undefined : desktopPanel}
+      panel={desktopPanel}
       panelLabel={isDesktop ? (locale === "zh" ? "概况" : locale === "es" ? "DETALLE" : "OVERVIEW") : undefined}
     >
       <div className="p-4 pb-10 md:px-8 md:pt-5 max-w-5xl mx-auto w-full">

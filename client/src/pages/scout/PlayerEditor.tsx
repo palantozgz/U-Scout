@@ -812,8 +812,13 @@ export default function PlayerEditor() {
         </div>
       </header>
 
+      {/* CORREGIDO 2026-09-14 (spec 34.3, decisión de Pablo -- "limitar el
+          ancho, centrado"): sin max-w, los grid-cols-2 de cada sección se
+          estiraban al ancho completo de una pantalla de escritorio, campos
+          desproporcionados. El formulario de 9 secciones sigue siendo el
+          mismo, solo deja de estirarse en desktop. */}
       <main className="flex-1 p-4 pb-24 overflow-y-auto min-h-0">
-        <Tabs defaultValue="context" className="w-full">
+        <Tabs defaultValue="context" className="w-full max-w-3xl mx-auto">
           <TabsList className="grid w-full grid-cols-6 mb-6 p-1 bg-slate-200/60 dark:bg-slate-800/60 rounded-xl shadow-inner">
             <TabsTrigger value="context" className="rounded-lg text-[10px] md:text-xs sm:text-xs font-bold py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm text-muted-foreground data-[state=active]:text-foreground">
               <Info className="w-3 h-3 sm:w-4 sm:h-4 md:mr-1" /><span className="hidden md:inline">{t("tab_context")}</span>
