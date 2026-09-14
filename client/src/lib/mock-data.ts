@@ -1075,7 +1075,25 @@ export function useDeletePlayer() {
       );
       return { previous };
     },
-    onError: (_err, _id, ctx) => {
+    // CORREGIDO 2026-09-14 (cola de mutaciones offline, spec 18/37): create/
+    // update ya encolaban para repetir al reconectar (enqueueOfflinePlayerMutation
+    // en mock-data.ts, replay completo ya implementado en
+    // flushOfflinePlayerMutations -- incluido el caso "delete", que nunca
+    // tenía ningún punto real que lo encolara). Sin conexión, este onError
+    // deshacía el borrado optimista como si hubiera fallado por un error
+    // real -- la jugadora reaparecía en la lista aunque el entrenador ya la
+    // hubiera borrado, y el borrado nunca se reintentaba al volver la
+    // conexión. Ahora, sin conexión, se mantiene el borrado optimista y se
+    // encola -- mismo patrón exacto que useUpdatePlayer.
+    onError: (_err, id, ctx) => {
+      if (!navigator.onLine) {
+        enqueueOfflinePlayerMutation({
+          id: `q-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          kind: "delete",
+          playerId: id,
+        });
+        return;
+      }
       if (ctx?.previous) qc.setQueryData(["/api/players"], ctx.previous);
     },
     onSettled: () => {

@@ -1745,3 +1745,13 @@ Verificado: `npm run check` limpio, `npx vitest run` 13/13 archivos, 212/212 pru
 Candidato de limpieza señalado por la auditoría de la sección 34 (probablemente el placeholder real de Stats antes de su sustitución), sin investigar a fondo entonces. Confirmado ahora: archivo `.bak` de 42KB, fecha 9 de mayo, cero referencias en todo el repo (no es siquiera una extensión importable). Eliminado.
 
 Verificado: `npm run check` limpio, `npx vitest run` 13/13 archivos, 212/212 pruebas.
+
+## 37. Hueco real encontrado y cerrado en la cola de mutaciones offline ya existente (2026-09-14)
+
+Al buscar el siguiente trabajo con criterio propio ("avanza todo lo que puedas"), se investigó el estado real de la cola de mutaciones offline (spec sección 18, "para que guardar/editar funcione sin conexión") antes de asumir que había que construirla desde cero — **ya existía, sustancialmente completa**, en `client/src/lib/queryClient.ts` (`enqueueOfflinePlayerMutation`/`flushOfflinePlayerMutations`, localStorage, reconciliación de ids temporales, replay al reconectar vía el listener `online`).
+
+**[VERIFICADO] Hueco real, no una feature nueva**: `useCreatePlayer`/`useUpdatePlayer` (`mock-data.ts`) sí encolaban al fallar sin conexión — pero `useDeletePlayer` no. Su `onError` deshacía el borrado optimista incondicionalmente, como si hubiera sido un error real del servidor: sin conexión, una jugadora borrada por un entrenador **reaparecía en la lista** y el borrado nunca se reintentaba al recuperar la conexión. La lógica de replay para `kind: "delete"` ya estaba completa en `flushOfflinePlayerMutations` desde antes — el único punto que faltaba era encolar en el sitio correcto. `useDeletePlayer` es una acción real y alcanzable (`Personnel.tsx`, `PlayerEditor.tsx`, no arqueología).
+
+**Corregido**: `useDeletePlayer::onError` ahora distingue — sin conexión, mantiene el borrado optimista y encola (mismo patrón exacto que `useUpdatePlayer`); con conexión pero error real, deshace como antes.
+
+Verificado: `npm run check` limpio, `npx vitest run` 13/13 archivos, 212/212 pruebas. Smoke test del build sin errores de consola.
