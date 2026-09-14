@@ -2,9 +2,13 @@ import type { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { Lock } from "lucide-react";
 import { useLocale } from "@/lib/i18n";
+import { useAuth } from "@/lib/useAuth";
 import { useIsModuleEnabled } from "@/lib/moduleAccess";
 import type { ClubModuleKey } from "@shared/club-context";
 import { ModuleNav } from "@/pages/core/ModuleNav";
+import { ModuleIntroCard } from "@/components/ModuleIntroCard";
+import { getModuleIntroContent } from "@/lib/module-intro-content";
+import type { ModuleIntroKey } from "@/lib/onboarding-state";
 
 /**
  * Gates one of the 4 disable-able U Core modules (schedule/scout/stats/playbook)
@@ -12,10 +16,26 @@ import { ModuleNav } from "@/pages/core/ModuleNav";
  * always pass through. Everyone else sees a friendly "not available yet" screen
  * instead of the real page when the head coach has turned that module off
  * (e.g. preseason: only Schedule+Wellness active, Playbook added later).
+ *
+ * Also the single wiring point for the per-module "first time" intro card (spec
+ * sección 44) — every gated module goes through here. `showIntro` defaults to
+ * true; set it to false for a route that reuses another module's moduleKey for
+ * *access* but is a different real screen (e.g. /player/wellness reuses
+ * moduleKey="schedule" for its gate — it deliberately gets no intro of its own,
+ * Schedule's card already covers that ground).
  */
-export function ModuleGate({ moduleKey, children }: { moduleKey: ClubModuleKey; children: ReactNode }) {
+export function ModuleGate({
+  moduleKey,
+  children,
+  showIntro = true,
+}: {
+  moduleKey: ClubModuleKey;
+  children: ReactNode;
+  showIntro?: boolean;
+}) {
   const { enabled, loading } = useIsModuleEnabled(moduleKey);
   const { locale } = useLocale();
+  const { effectiveRole } = useAuth();
   const [, setLocation] = useLocation();
 
   // Avoid flashing the "disabled" screen before we actually know the club setting.
@@ -26,7 +46,24 @@ export function ModuleGate({ moduleKey, children }: { moduleKey: ClubModuleKey; 
       </div>
     );
   }
-  if (enabled) return <>{children}</>;
+  if (enabled) {
+    const introContent = showIntro
+      ? getModuleIntroContent(moduleKey as ModuleIntroKey, locale, effectiveRole === "player" ? "player" : "staff")
+      : null;
+    return (
+      <>
+        {introContent && (
+          <ModuleIntroCard
+            moduleKey={moduleKey as ModuleIntroKey}
+            emoji={introContent.emoji}
+            title={introContent.title}
+            body={introContent.body}
+          />
+        )}
+        {children}
+      </>
+    );
+  }
 
   const es = locale === "es";
   const zh = locale === "zh";

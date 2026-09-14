@@ -33,10 +33,74 @@ export function completeOnboarding(userId: string): void {
   }
 }
 
+const REPLAY_KEY = (userId: string) => `uscout_onboarding_replay:${userId}`;
+
+/** One-shot flag set by resetOnboarding() below, consumed (read + cleared) here. */
+function consumeOnboardingReplay(userId: string): boolean {
+  try {
+    const requested = localStorage.getItem(REPLAY_KEY(userId)) === "1";
+    if (requested) localStorage.removeItem(REPLAY_KEY(userId));
+    return requested;
+  } catch {
+    return false;
+  }
+}
+
 export function shouldOfferOnboarding(userCreatedAt: string | undefined, userId: string): boolean {
+  // A deliberate replay request (Settings → "watch tutorials again") always wins,
+  // even for accounts created before ONBOARDING_V2_LAUNCH_ISO — without this, the
+  // date gate below would silently make the replay button a no-op for anyone with
+  // a pre-launch (legacy) account.
+  if (consumeOnboardingReplay(userId)) return true;
   if (!userCreatedAt) return false;
   if (isOnboardingCompleted(userId)) return false;
   const created = new Date(userCreatedAt).getTime();
   const launch = new Date(ONBOARDING_V2_LAUNCH_ISO).getTime();
   return created >= launch;
+}
+
+/** Lets Settings offer "watch the welcome tutorial again" without waiting for a new account. */
+export function resetOnboarding(userId: string): void {
+  try {
+    localStorage.removeItem(LS_KEY(userId));
+    localStorage.setItem(REPLAY_KEY(userId), "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Per-module "first time you open this" intro card (spec section 44). Independent
+ * of the main onboarding above — a user can have finished language/theme/tutorial
+ * and still not have opened e.g. Stats yet, so each module tracks its own flag.
+ */
+export const MODULE_INTRO_KEYS = ["scout", "schedule", "stats", "playbook", "club"] as const;
+export type ModuleIntroKey = (typeof MODULE_INTRO_KEYS)[number];
+
+const MODULE_INTRO_LS_KEY = (userId: string, moduleKey: ModuleIntroKey) =>
+  `uscout_module_intro:${userId}:${moduleKey}`;
+
+export function hasSeenModuleIntro(userId: string, moduleKey: ModuleIntroKey): boolean {
+  try {
+    return localStorage.getItem(MODULE_INTRO_LS_KEY(userId, moduleKey)) === "1";
+  } catch {
+    return true;
+  }
+}
+
+export function markModuleIntroSeen(userId: string, moduleKey: ModuleIntroKey): void {
+  try {
+    localStorage.setItem(MODULE_INTRO_LS_KEY(userId, moduleKey), "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Used by Settings' "watch tutorials again" — clears every module flag at once. */
+export function resetModuleIntros(userId: string): void {
+  try {
+    for (const key of MODULE_INTRO_KEYS) localStorage.removeItem(MODULE_INTRO_LS_KEY(userId, key));
+  } catch {
+    /* ignore */
+  }
 }

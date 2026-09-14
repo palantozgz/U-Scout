@@ -185,7 +185,7 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
       <Route path="/player/reports" component={PlayerHome} />
       <Route path="/player/home-settings" component={PlayerHomeSettingsStub} />
       <Route path="/player/wellness">
-        <ModuleGate moduleKey="schedule"><WellnessStandalone /></ModuleGate>
+        <ModuleGate moduleKey="schedule" showIntro={false}><WellnessStandalone /></ModuleGate>
       </Route>
       <Route path="/player/teams">
         <RootRedirect to="/player" />

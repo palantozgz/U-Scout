@@ -1,9 +1,11 @@
 import { useLocation } from "wouter";
-import { ArrowLeft, Globe, Check, LogOut, User, Monitor } from "lucide-react";
+import { ArrowLeft, Globe, Check, LogOut, User, Monitor, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale, type Locale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { useTheme, type Theme } from "@/lib/theme";
+import { resetOnboarding, resetModuleIntros } from "@/lib/onboarding-state";
+import { toast } from "@/hooks/use-toast";
 
 const LANGUAGES: { code: Locale; label: string; native: string; flag: string }[] = [
   { code: "en", label: "English",  native: "English", flag: "🇬🇧" },
@@ -41,12 +43,28 @@ const THEMES: { id: Theme; emoji: string; labelKey: string; previewBg: string; a
 export default function Settings() {
   const [, setLocation] = useLocation();
   const { locale, changeLocale, t } = useLocale();
-  const { profile, signOut, canUseRolePreview, previewRole, setPreviewRole } = useAuth();
+  const { user, profile, signOut, canUseRolePreview, previewRole, setPreviewRole } = useAuth();
   const { theme, setTheme } = useTheme();
 
   const handleSignOut = async () => {
     await signOut();
     setLocation("/login");
+  };
+
+  const handleReplayTutorials = () => {
+    if (!user?.id) return;
+    resetOnboarding(user.id);
+    resetModuleIntros(user.id);
+    toast({
+      description:
+        locale === "es"
+          ? "Listo. Verás el tutorial de bienvenida al volver al inicio, y cada módulo te mostrará su intro la próxima vez que lo abras."
+          : locale === "zh"
+            ? "已重置。返回首页会再次看到欢迎教程，每个模块下次打开也会再显示一次介绍。"
+            : "Done. You'll see the welcome tutorial next time you go to Home, and each module will show its intro again the next time you open it.",
+    });
+    // Reload (not just navigate) so AuthGate re-runs its onboarding check on mount.
+    window.location.href = "/home";
   };
 
   return (
@@ -152,6 +170,34 @@ export default function Settings() {
               </p>
             </div>
           )}
+        </div>
+
+        {/* Tutoriales */}
+        <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+            <GraduationCap className="w-4 h-4 text-primary" />
+            <p className="font-bold text-foreground text-sm">
+              {locale === "es" ? "Tutoriales" : locale === "zh" ? "教程" : "Tutorials"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleReplayTutorials}
+            className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-muted/50 transition-colors text-left"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                {locale === "es" ? "Ver los tutoriales otra vez" : locale === "zh" ? "重新查看教程" : "Watch the tutorials again"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                {locale === "es"
+                  ? "Bienvenida + la intro de cada módulo, la próxima vez que lo abras."
+                  : locale === "zh"
+                    ? "欢迎教程 + 下次打开各模块时再次显示介绍。"
+                    : "Welcome tutorial + each module's intro, next time you open it."}
+              </p>
+            </div>
+          </button>
         </div>
 
         {/* App info */}

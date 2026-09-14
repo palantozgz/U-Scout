@@ -17,7 +17,9 @@ client/src/
     player/        → PlayerHome, PlayerTeamList, WellnessStandalone, Dashboard, PlayerHomeSettingsStub
   components/
     branding/      → ModuleHeader (logo animado por módulo), logos SVG
-  lib/             → useAuth, capabilities, i18n, club-api, wellness, schedule, motor-v1 (motor real en producción, ver docs/motor-1.0-spec.md; motor-v4/motor-v2.1 siguen como núcleo interno que motor-v1 envuelve, nunca se llaman directamente desde la UI)
+    ModuleGate.tsx → gate de activación por módulo + tarjeta de intro de primera vez (spec 44)
+    ModuleIntroCard.tsx → tarjeta compacta de "primera vez que abres este módulo" (spec 44)
+  lib/             → useAuth, capabilities, i18n, club-api, wellness, schedule, motor-v1 (motor real en producción, ver docs/motor-1.0-spec.md; motor-v4/motor-v2.1 siguen como núcleo interno que motor-v1 envuelve, nunca se llaman directamente desde la UI), onboarding-state (onboarding principal + intros de módulo, spec 44), module-intro-content (copy de esas tarjetas)
 ```
 
 ## Arquitectura de layout — REGLAS CRÍTICAS
@@ -187,6 +189,12 @@ Ver ítems 3/7/8/9 de PENDIENTES más abajo (ya marcados corregidos): `ScoutDesk
 - `useDeletePlayer`: no encolaba el borrado sin conexión (a diferencia de create/update) — corregido, mismo patrón de cola offline ya existente en `queryClient.ts`.
 
 Detalle completo, decisiones reconciliadas y verificación en `docs/motor-1.0-spec.md` secciones 27, 33-41.
+
+### Restos de marca "U Scout"/"U Stats"/"U Playbook" en Home móvil y ClubManagement (2026-09-14, spec sección 43)
+8 casos reales visibles a usuarios (no solo comentarios de código) corregidos reutilizando las claves `ucore_nav_*` ya establecidas. Ver ítem 12 de PENDIENTES más abajo.
+
+### Onboarding por módulo + "ver tutoriales otra vez" en Ajustes (2026-09-14, spec sección 44)
+Cada uno de los 5 módulos (Scout/Schedule/Stats/Playbook/Club) muestra una tarjeta compacta y no bloqueante la primera vez real que se abre — no otro wizard de varias slides (fatiga real si se abren varios módulos seguidos). Copy diferenciada por rol donde el contenido real difiere (Scout/Schedule/Playbook), única para ambos en Stats (misma pantalla, verificado). Repetible desde Ajustes ("Tutoriales" → "Ver los tutoriales otra vez"), que también fuerza el onboarding principal a mostrarse de nuevo — de paso se encontró y cerró un bug real: `shouldOfferOnboarding()` nunca se activaba para cuentas creadas antes del 12 de abril de 2026 sin importar el flag, lo que habría hecho ese botón un no-op silencioso para cuentas antiguas. `client/src/lib/onboarding-state.ts` (flags), `client/src/lib/module-intro-content.ts` (copy), `client/src/components/ModuleIntroCard.tsx` (UI), cableado en `ModuleGate.tsx` (único punto real para los 4 módulos con gate) y en `ClubManagement.tsx` (Club, no pasa por ModuleGate).
 
 ## PENDIENTES — Próximas sesiones
 

@@ -1,8 +1,10 @@
 import { useLocation } from "wouter";
-import { ArrowLeft, Check, Globe, LogOut, User, LifeBuoy } from "lucide-react";
+import { ArrowLeft, Check, Globe, LogOut, User, LifeBuoy, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale, type Locale } from "@/lib/i18n";
 import { useAuth, type AppUserRole } from "@/lib/useAuth";
+import { resetOnboarding, resetModuleIntros } from "@/lib/onboarding-state";
+import { toast } from "@/hooks/use-toast";
 
 const LANGUAGES: { code: Locale; label: string; native: string; flag: string }[] = [
   { code: "en", label: "English", native: "English", flag: "🇬🇧" },
@@ -21,11 +23,26 @@ const ROLE_LABEL: Record<AppUserRole, "role_master" | "role_head_coach" | "role_
 export default function PlayerHomeSettingsStub() {
   const { t, locale, changeLocale } = useLocale();
   const [, setLocation] = useLocation();
-  const { profile, previewRole, signOut } = useAuth();
+  const { user, profile, previewRole, signOut } = useAuth();
 
   const handleSignOut = async () => {
     await signOut();
     setLocation("/login");
+  };
+
+  const handleReplayTutorials = () => {
+    if (!user?.id) return;
+    resetOnboarding(user.id);
+    resetModuleIntros(user.id);
+    toast({
+      description:
+        locale === "es"
+          ? "Listo. Verás el tutorial de bienvenida al volver al inicio, y cada módulo te mostrará su intro la próxima vez que lo abras."
+          : locale === "zh"
+            ? "已重置。返回首页会再次看到欢迎教程，每个模块下次打开也会再显示一次介绍。"
+            : "Done. You'll see the welcome tutorial next time you go to Home, and each module will show its intro again the next time you open it.",
+    });
+    window.location.href = "/home";
   };
 
   return (
@@ -93,6 +110,26 @@ export default function PlayerHomeSettingsStub() {
             ))}
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={handleReplayTutorials}
+          className="w-full flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm hover:bg-muted/40 transition-colors text-left"
+        >
+          <GraduationCap className="w-5 h-5 text-primary shrink-0" />
+          <div className="min-w-0">
+            <p className="font-bold text-foreground text-sm">
+              {locale === "es" ? "Ver los tutoriales otra vez" : locale === "zh" ? "重新查看教程" : "Watch the tutorials again"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {locale === "es"
+                ? "Bienvenida + la intro de cada módulo"
+                : locale === "zh"
+                  ? "欢迎教程 + 各模块介绍"
+                  : "Welcome tutorial + each module's intro"}
+            </p>
+          </div>
+        </button>
 
         <a
           href="mailto:support@uscout.app?subject=U%20Core%20support"
