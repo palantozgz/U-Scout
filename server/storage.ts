@@ -161,6 +161,8 @@ export interface IStorage {
     // Solo relevantes cuando action === "replace" -- picker de alternativas,
     // spec motor-1.0 sección 21.11.
     replacementValue?: string;
+    // OutputKey real de la alternativa elegida -- Nivel B/decantador, spec 38/39.
+    replacementKey?: string;
     originalScore?: number;
     replacementScore?: number;
     archetypeKey?: string;
@@ -850,6 +852,7 @@ export class DatabaseStorage implements IStorage {
     itemKey: string;
     action: "hide" | "keep" | "replace" | "approve_as_is";
     replacementValue?: string;
+    replacementKey?: string;
     originalScore?: number;
     replacementScore?: number;
     archetypeKey?: string;
@@ -864,6 +867,7 @@ export class DatabaseStorage implements IStorage {
       row.action === "replace"
         ? {
             replacementValue: row.replacementValue ?? null,
+            replacementKey: row.replacementKey ?? null,
             originalScore: row.originalScore ?? null,
             replacementScore: row.replacementScore ?? null,
             archetypeKey: row.archetypeKey ?? null,
@@ -871,6 +875,7 @@ export class DatabaseStorage implements IStorage {
           }
         : {
             replacementValue: null,
+            replacementKey: null,
             originalScore: null,
             replacementScore: null,
             archetypeKey: row.archetypeKey ?? null,

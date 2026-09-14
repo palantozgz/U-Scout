@@ -61,7 +61,9 @@ function asCompleto(r: RenderedReportV1 | null): RenderedCompletoV1 | null {
 interface ActiveSheet {
   title: string;
   current: string;
-  alternatives: { text: string; score: number }[];
+  // `key` añadido 2026-09-14 (Nivel B/decantador, spec 38/39) -- opcional,
+  // ausente en los sheets de situaciones (que no traen OutputKey).
+  alternatives: { text: string; score: number; key?: string }[];
   /**
    * Picker de alternativas (spec motor-1.0 sección 21.11) -- solo presente
    * en los sheets de deny/force/allow (los únicos con datos suficientes:
@@ -249,7 +251,7 @@ export default function ReportSlidesV1({
   function openDefenseSheet(
     type: "deny" | "force" | "allow",
     current: string,
-    alternatives: { instruction: string; score: number }[],
+    alternatives: { instruction: string; score: number; key?: string }[],
     originalScore: number,
   ) {
     const labels = {
@@ -260,7 +262,7 @@ export default function ReportSlidesV1({
     setActiveSheet({
       title: labels[type][locale],
       current,
-      alternatives: alternatives.map((a) => ({ text: a.instruction, score: a.score })),
+      alternatives: alternatives.map((a) => ({ text: a.instruction, score: a.score, key: a.key })),
       // itemKey sigue la misma convención que OverridePanel.tsx
       // (toServerSlideAndItemKey) -- "deny.instruction" etc.
       itemKey: `${type}.instruction`,

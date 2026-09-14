@@ -41,9 +41,14 @@ export type Capabilities = {
   canViewStats: boolean;
   /** Can view Mi Club / club management entry point. head_coach + master only. */
   canViewClubManagement: boolean;
-  /** Can publish scouting reports to players (spec motor-1.0 25.1/26).
-   *  head_coach/master siempre; coach solo con reportPublishAccess delegado. */
-  canPublishReports: boolean;
+  /** Puede ver/editar el panel de calibración Nivel B ("el decantador",
+   *  spec 17.3/38/39). head_coach/master siempre; coach solo con
+   *  reportPublishAccess delegado. RENOMBRADO 2026-09-14 (spec 38): se
+   *  llamaba canPublishReports, pero tras la reconciliación del gate de
+   *  publicación (sección 38 -- cualquier coach con ≥1 aprobación puede
+   *  publicar, sin badge) ese nombre ya no describía lo que controla. Cero
+   *  consumidores reales antes del rename, confirmado por grep. */
+  canAccessCalibrationPanel: boolean;
 };
 
 export type CoachBadges = {
@@ -125,7 +130,7 @@ export function computeCapabilities(input: {
 
   const canCreateCanonical = effectiveRole === "master" || effectiveRole === "head_coach";
 
-  const canPublishReports =
+  const canAccessCalibrationPanel =
     effectiveRole === "master" ||
     effectiveRole === "head_coach" ||
     (effectiveRole === "coach" && Boolean(m?.reportPublishAccess) && m?.status === "active");
@@ -148,7 +153,7 @@ export function computeCapabilities(input: {
     canManageWellness,
     canViewStats,
     canViewClubManagement,
-    canPublishReports,
+    canAccessCalibrationPanel,
   };
 }
 

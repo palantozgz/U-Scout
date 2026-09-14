@@ -9,6 +9,15 @@ export interface ReportOverride {
   itemKey: string;
   action: "hide" | "replace" | "approve_as_is";
   replacementValue?: string;
+  /** AÑADIDO 2026-09-14 (Nivel B/decantador, spec 38/39): el `OutputKey` real
+   *  de la alternativa elegida (p.ej. "force_weak_hand"), no su texto
+   *  renderizado. `replacementValue` es locale-dependiente y, en campos
+   *  direccionales, también depende de la jugadora (spec 23.1) -- agrupar
+   *  patrones de calibración por texto nunca detectaría el mismo patrón de
+   *  fondo entre dos jugadoras con dirección distinta. Opcional: ausente en
+   *  overrides guardados antes de este cambio (fallback a `replacementValue`
+   *  en el agrupamiento, ver `detectPatterns`). */
+  replacementKey?: string;
   originalScore?: number;
   replacementScore?: number;
   archetypeKey?: string;
@@ -35,8 +44,17 @@ export interface DetectedPattern {
   fieldKey: string;
   archetypeKey: string;
   preferredValue: string;
+  /** Entrenadores distintos que coinciden en este patrón -- la señal real
+   *  de consenso (Nivel B/decantador, spec 38/39). */
   count: number;
   confidence: number;
+  /** Jugadoras distintas donde se observó el patrón -- dato secundario,
+   *  nunca el número principal (corregido 2026-09-14, hallazgo C.0 de El
+   *  Arquitecto: antes `count` medía jugadoras, no entrenadores -- un solo
+   *  entrenador repitiendo la misma sustitución en 3 jugadoras del mismo
+   *  arquetipo "promocionaba" un patrón que en realidad era su preferencia
+   *  personal, justo el riesgo que Nivel B existe para no ser). */
+  distinctPlayers: number;
 }
 
 /**
@@ -155,7 +173,12 @@ export function detectPatterns(
 
   for (const o of allOverrides) {
     if (o.action !== "replace" || !o.replacementValue || !o.archetypeKey) continue;
-    const key = `${o.archetypeKey}::${o.itemKey}::${o.replacementValue}`;
+    // AÑADIDO 2026-09-14 (Nivel B/decantador, spec 38/39): agrupa por
+    // `replacementKey` (OutputKey real, estable entre idiomas/jugadoras)
+    // cuando existe; cae a `replacementValue` (texto renderizado) como
+    // fallback para overrides guardados antes de que ese campo existiera --
+    // agrupa peor, pero no descarta datos históricos.
+    const key = `${o.archetypeKey}::${o.itemKey}::${o.replacementKey ?? o.replacementValue}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(o);
   }
@@ -163,18 +186,29 @@ export function detectPatterns(
   const patterns: DetectedPattern[] = [];
 
   for (const [key, overrides] of Array.from(groups.entries())) {
+    // CORREGIDO 2026-09-14 (hallazgo C.0 de El Arquitecto): contaba
+    // jugadoras distintas, no entrenadores distintos -- un solo entrenador
+    // repitiendo la misma sustitución en 3 jugadoras ya "promocionaba" un
+    // patrón, justo el riesgo de convergencia estrecha que Nivel B existe
+    // para evitar (esa es la protección de Nivel A, individual). La señal
+    // real de Nivel B es consenso ENTRE entrenadores distintos.
+    const distinctCoaches = new Set(
+      overrides.map((o: ReportOverride) => o.coachId),
+    );
+    if (distinctCoaches.size < threshold) continue;
+
     const distinctPlayers = new Set(
       overrides.map((o: ReportOverride) => o.playerId),
     );
-    if (distinctPlayers.size < threshold) continue;
 
     const [archetypeKey, fieldKey, preferredValue] = key.split("::");
     patterns.push({
       fieldKey,
       archetypeKey,
       preferredValue,
-      count: distinctPlayers.size,
-      confidence: Math.min(distinctPlayers.size / threshold, 1.0),
+      count: distinctCoaches.size,
+      confidence: Math.min(distinctCoaches.size / threshold, 1.0),
+      distinctPlayers: distinctPlayers.size,
     });
   }
 
@@ -188,6 +222,7 @@ export function buildOverrideRecord(params: {
   itemKey: string;
   action: "hide" | "replace" | "approve_as_is";
   replacementValue?: string;
+  replacementKey?: string;
   originalScore?: number;
   replacementScore?: number;
   archetypeKey?: string;
@@ -200,6 +235,7 @@ export function buildOverrideRecord(params: {
     itemKey: params.itemKey,
     action: params.action,
     replacementValue: params.replacementValue,
+    replacementKey: params.replacementKey,
     originalScore: params.originalScore,
     replacementScore: params.replacementScore,
     archetypeKey: params.archetypeKey,

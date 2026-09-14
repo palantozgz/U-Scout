@@ -229,6 +229,10 @@ export const reportOverrides = pgTable(
     // y los scores del ganador original vs. el sustituto (spec 17.2, "score
     // gap" -- señal de diagnóstico para calibración futura).
     replacementValue: text("replacement_value"),
+    // Añadida 2026-09-14 (Nivel B/decantador, spec 38/39) -- el OutputKey
+    // real de la alternativa elegida, no su texto renderizado (que es
+    // locale/jugadora-dependiente, ver overrideEngine.ts::ReportOverride).
+    replacementKey: text("replacement_key"),
     originalScore: numeric("original_score", { mode: "number" }),
     replacementScore: numeric("replacement_score", { mode: "number" }),
     archetypeKey: text("archetype_key"),
@@ -247,6 +251,31 @@ export const reportOverrides = pgTable(
 
 export type ReportOverride = typeof reportOverrides.$inferSelect;
 export type InsertReportOverride = typeof reportOverrides.$inferInsert;
+
+/** Nivel B / "el decantador" (spec 38/39): patrones de sustitución
+ *  promovidos a permanentes por un entrenador con permiso de calibración.
+ *  Reversible por diseño -- status+revertedBy/At en la misma fila (no
+ *  DELETE) para conservar historial. Un solo patrón "activo" a la vez por
+ *  club+arquetipo+campo (índice único parcial en la migración 0007). */
+export const promotedPatterns = pgTable("promoted_patterns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clubId: varchar("club_id")
+    .notNull()
+    .references(() => clubs.id, { onDelete: "cascade" }),
+  archetypeKey: text("archetype_key").notNull(),
+  fieldKey: text("field_key").notNull(),
+  replacementKey: text("replacement_key").notNull(),
+  status: varchar("status", { length: 16 }).notNull().default("active"),
+  promotedBy: varchar("promoted_by").notNull(),
+  promotedAt: timestamp("promoted_at", { withTimezone: true }).notNull().defaultNow(),
+  revertedBy: varchar("reverted_by"),
+  revertedAt: timestamp("reverted_at", { withTimezone: true }),
+  distinctCoachesAtPromotion: integer("distinct_coaches_at_promotion").notNull(),
+  avgScoreGapAtPromotion: numeric("avg_score_gap_at_promotion", { mode: "number" }),
+});
+
+export type PromotedPattern = typeof promotedPatterns.$inferSelect;
+export type InsertPromotedPattern = typeof promotedPatterns.$inferInsert;
 
 export const reportPublications = pgTable("report_publications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

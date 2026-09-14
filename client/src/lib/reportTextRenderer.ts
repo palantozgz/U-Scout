@@ -156,7 +156,11 @@ export interface RenderedInstruction {
   label: string;
   instruction: string;
   situationRef?: string;
-  alternatives: { instruction: string; score: number }[];
+  // AÑADIDO 2026-09-14 (Nivel B/decantador, spec 38/39): `key` es el
+  // `OutputKey` real de cada alternativa (motor-v1), opcional porque el
+  // renderer legacy (motor-v4, esta misma interfaz compartida) no lo tiene
+  // -- solo `renderCampoV1` (reportTextRendererV1.ts) lo rellena.
+  alternatives: { instruction: string; score: number; key?: string }[];
 }
 
 export interface RenderedAlert {

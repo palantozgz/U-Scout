@@ -157,9 +157,13 @@ export function renderCampoV1(
     label: INSTRUCTION_LABELS[type][ctx.locale],
     instruction: renderInstructionTextV1(String(campo.ganador.key), enriched, ctx),
     situationRef: campo.ganador.situacionOrigen,
+    // `key` añadido 2026-09-14 (Nivel B/decantador, spec 38/39) -- el
+    // OutputKey real de cada alternativa, para que el picker de
+    // ReportSlidesV1.tsx pueda guardarlo junto al texto ya renderizado.
     alternatives: campo.candidatos.slice(1).map((c) => ({
       instruction: renderInstructionTextV1(String(c.output.key), enriched, ctx),
       score: c.score,
+      key: String(c.output.key),
     })),
   };
 }

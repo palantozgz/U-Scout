@@ -133,6 +133,8 @@ export interface SetReportOverrideBody {
   action: "hide" | "keep" | "replace" | "approve_as_is";
   /** Solo relevantes cuando action === "replace" (picker de alternativas, spec 21.11). */
   replacementValue?: string;
+  /** OutputKey real de la alternativa elegida (Nivel B/decantador, spec 38/39). */
+  replacementKey?: string;
   originalScore?: number;
   replacementScore?: number;
   archetypeKey?: string;

@@ -142,6 +142,10 @@ const reportOverrideBodySchema = z.object({
   action: z.enum(["hide", "keep", "replace", "approve_as_is"]),
   // Solo se validan/usan cuando action === "replace".
   replacementValue: z.string().min(1).optional(),
+  // AÑADIDO 2026-09-14 (Nivel B/decantador, spec 38/39): OutputKey real de
+  // la alternativa elegida, para que el panel de calibración pueda agrupar
+  // patrones de forma estable entre idiomas/jugadoras (ver overrideEngine.ts).
+  replacementKey: z.string().min(1).optional(),
   originalScore: z.number().min(0).max(1).optional(),
   replacementScore: z.number().min(0).max(1).optional(),
   archetypeKey: z.string().optional(),
@@ -577,6 +581,7 @@ export async function registerRoutes(
         itemKey: parsed.data.itemKey,
         action: parsed.data.action,
         replacementValue: parsed.data.replacementValue,
+        replacementKey: parsed.data.replacementKey,
         originalScore: parsed.data.originalScore,
         replacementScore: parsed.data.replacementScore,
         archetypeKey: parsed.data.archetypeKey,
@@ -817,22 +822,24 @@ export async function registerRoutes(
       // aprobación ya existía, correcto, en /publish (líneas 609-612) pero
       // nada de la UI llama a ese endpoint -- este es el real, así que el
       // gate va aquí, copiado literal.
+      if (req.user!.role === "player") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
       const approvals = await storage.listReportApprovalsForPlayer(playerId);
       if (approvals.length < 1) {
         return res.status(400).json({ error: "At least one coach approval is required" });
       }
-      // Permiso de club: head_coach/master siempre pueden; un coach normal
-      // necesita el badge delegable reportPublishAccess (spec 26, mismo
-      // patrón que operationsAccess).
-      if (!isHeadCoachOrMaster(req)) {
-        const club = await storage.getClubForUser(req.user!.id);
-        const membership = club
-          ? await storage.getClubMemberByClubAndUser(club.id, req.user!.id)
-          : null;
-        if (!membership?.reportPublishAccess) {
-          return res.status(403).json({ error: "You don't have permission to publish reports" });
-        }
-      }
+      // RECONCILIADO 2026-09-14 (sección 38, "el decantador" -- diseño
+      // original de abril recuperado vía búsqueda en Claude Desktop): antes,
+      // solo head_coach/master o un coach con el badge delegable
+      // reportPublishAccess podían publicar, incluso con la aprobación ya
+      // conseguida -- eso no era el diseño original ("no cuellos de botella
+      // innecesarios") ni lo que Pablo confirmó hoy. El gate de ≥1 aprobación
+      // de arriba sigue siendo obligatorio para TODOS sin excepción (eso sí
+      // es la protección real, y no se toca). Pero una vez que esa
+      // aprobación ya existe, cualquier coach del club puede publicar --
+      // reportPublishAccess deja de controlar esta acción y pasa a controlar
+      // solo el panel de Nivel B ("el decantador"), como se pidió.
 
       // Publish via existing flow
       await storage.publishPlayerReport(playerId, req.user!.id);
@@ -973,22 +980,18 @@ export async function registerRoutes(
       const { userId, playerId } = parsed.data;
       const player = await storage.getPlayer(playerId);
       if (!player) return res.status(404).json({ error: "Player not found" });
-      // CORREGIDO 2026-09-14 (spec 25.1/26) -- por disciplina, mismo gate que
-      // /game-plan (el endpoint real de publicación hoy): este endpoint no
-      // tiene ningún caller de cliente todavía, pero si algún día se cablea
-      // no debe reabrir el hueco de aprobación/permiso ya cerrado ahí.
+      // CORREGIDO 2026-09-14 (spec 25.1/26/38) -- por disciplina, mismo gate
+      // que /game-plan (el endpoint real de publicación hoy): este endpoint
+      // no tiene ningún caller de cliente todavía, pero si algún día se
+      // cablea no debe reabrir el hueco de aprobación ya cerrado ahí. El
+      // gate de permiso adicional (reportPublishAccess) se retiró de ambos
+      // en la sección 38 -- ver el comentario ahí.
+      if (req.user!.role === "player") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
       const approvals = await storage.listReportApprovalsForPlayer(playerId);
       if (approvals.length < 1) {
         return res.status(400).json({ error: "At least one coach approval is required" });
-      }
-      if (!isHeadCoachOrMaster(req)) {
-        const club = await storage.getClubForUser(req.user!.id);
-        const membership = club
-          ? await storage.getClubMemberByClubAndUser(club.id, req.user!.id)
-          : null;
-        if (!membership?.reportPublishAccess) {
-          return res.status(403).json({ error: "You don't have permission to publish reports" });
-        }
       }
       const created = await storage.createScoutingReportAssignment({
         userId,
@@ -1797,9 +1800,28 @@ export async function registerRoutes(
 
   // ─── POST /api/stats/import-team ─────────────────────────────────────────
   app.post("/api/stats/import-team", requireAuth, async (req, res) => {
+    // CORREGIDO 2026-09-14 (hallazgo real de El Arquitecto, spec 38/39, mismo
+    // patrón IDOR que 25.1): este endpoint no comprobaba rol en absoluto (el
+    // botón de UI sí estaba bien gateado en Personnel.tsx, pero el endpoint
+    // no lo reproducía) NI que targetTeamId perteneciera al club del
+    // solicitante -- cualquier usuario autenticado que conociera o
+    // adivinara el id de un equipo de OTRO club podía inyectar jugadoras
+    // canónicas ahí. Cerrado con los mismos dos chequeos que ya usa
+    // import-league (rol + pertenencia al club).
+    if (req.user!.role !== "head_coach" && req.user!.role !== "master") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
     const { statsTeamExternalId, targetTeamId, coachUserId } = req.body;
     if (!statsTeamExternalId || !targetTeamId || !coachUserId) {
       return res.status(400).json({ error: "statsTeamExternalId, targetTeamId, coachUserId required" });
+    }
+    const club = await storage.getClubForUser(req.user!.id);
+    if (!club) return res.status(404).json({ error: "Club not found" });
+    const targetTeamRow = await db.execute(
+      sql`SELECT id FROM teams WHERE id = ${targetTeamId} AND club_id = ${club.id} LIMIT 1`
+    );
+    if (!(targetTeamRow as any).rows?.[0]) {
+      return res.status(403).json({ error: "Target team does not belong to your club" });
     }
 
     // Resolve internal stats_teams id
@@ -1858,6 +1880,14 @@ export async function registerRoutes(
   // ─── POST /api/stats/import-league ─────────────────────────────────────────
   app.post("/api/stats/import-league", requireAuth, async (req, res) => {
     try {
+      // CORREGIDO 2026-09-14 (hallazgo real de El Arquitecto, spec 38/39):
+      // ya escopaba correctamente al club del solicitante, pero no
+      // comprobaba rol -- un coach sin badge podía importar la liga entera
+      // a su club llamando directamente al endpoint (el botón de UI sí
+      // estaba gateado, el endpoint no lo reproducía).
+      if (req.user!.role !== "head_coach" && req.user!.role !== "master") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
       const { coachUserId } = req.body ?? {};
       if (!coachUserId || typeof coachUserId !== "string") {
         return res.status(400).json({ error: "coachUserId required" });

@@ -392,11 +392,69 @@ function slotsAware(rawOutputs: MotorOutput[]): CampoConCandidatos[] {
 // Ensamblado del reporte (spec 13.3, 14.2 bis)
 // ---------------------------------------------------------------------------------
 
+/** Nivel B / "el decantador" (spec 38/39) -- un patrón promocionado activo,
+ *  tal como lo devuelve `GET /api/club/calibration-patterns` (server). */
+export interface PatronPromocionadoActivo {
+  archetypeKey: string;
+  /** "deny.instruction" | "force.instruction" | "allow.instruction" --
+   *  misma convención de `itemKey` que ya usan los overrides individuales. */
+  fieldKey: string;
+  replacementKey: string;
+}
+
 export interface EnsamblarReporteOpts {
   jugadoraId: string;
   modo: "sencillo" | "completo";
   wcbaExternalId?: string;
   emparejamientoDefensivo?: string;
+  /** Nivel B / "el decantador" (spec 38/39) -- ausente por defecto (ningún
+   *  caller existente lo pasa, comportamiento idéntico al actual). Cuando
+   *  se pasa, `aplicarPatronesPromocionados()` sesga qué output gana en
+   *  deny/force/allow para el arquetipo detectado, ANTES de que
+   *  `campoDesdeRawOutputs()` elija ganador -- ver el punto de inserción
+   *  exacto en `ensamblarReporteDesdeMotorReport()`. */
+  patronesPromocionados?: PatronPromocionadoActivo[];
+}
+
+/**
+ * Nivel B / "el decantador" (spec 38/39) -- aplica los patrones
+ * promocionados activos que coincidan con el arquetipo detectado de esta
+ * jugadora, subiendo el `weight` del output promocionado por encima del
+ * ganador actual de su categoría. Nunca inventa un output que no exista en
+ * `rawOutputs` para esta jugadora concreta (si el motor no generó ese
+ * `OutputKey` como candidato real para ella, el patrón simplemente no se
+ * aplica ahí -- coherente con "nunca inferir observación del scout",
+ * spec sección 3). Reversible por diseño: es una función pura sobre datos
+ * de entrada, no muta ningún estado -- si `patrones` llega vacío (patrón
+ * revertido, ya no está `active` en la tabla), el resultado es idéntico a
+ * `rawOutputs` sin tocar, byte a byte.
+ */
+export function aplicarPatronesPromocionados(
+  rawOutputs: MotorOutput[],
+  archetypeKey: ArchetypeKey,
+  patrones: PatronPromocionadoActivo[] | undefined,
+): MotorOutput[] {
+  if (!patrones || patrones.length === 0) return rawOutputs;
+
+  const relevantes = patrones.filter((p) => p.archetypeKey === archetypeKey);
+  if (relevantes.length === 0) return rawOutputs;
+
+  let outputs = rawOutputs;
+  for (const patron of relevantes) {
+    const categoria = patron.fieldKey.split(".")[0] as "deny" | "force" | "allow";
+    const candidatos = outputs.filter((o) => o.category === categoria);
+    if (candidatos.length === 0) continue;
+    const objetivo = candidatos.find((o) => o.key === patron.replacementKey);
+    // El output promocionado no es un candidato real para esta jugadora --
+    // no se fuerza nada fuera del abanico que el motor ya calculó.
+    if (!objetivo) continue;
+    const pesoMaximoActual = Math.max(...candidatos.map((o) => o.weight));
+    if (objetivo.weight >= pesoMaximoActual) continue; // ya es el ganador, nada que hacer
+    outputs = outputs.map((o) =>
+      o === objetivo ? { ...o, weight: pesoMaximoActual + Number.EPSILON } : o,
+    );
+  }
+  return outputs;
 }
 
 /**
@@ -450,13 +508,24 @@ function ensamblarReporteDesdeMotorReport(
   const senales = senalesDesdeEnriched(enriched);
   const deteccion = detectarArchetype(situaciones, posicion, senales);
 
+  // Nivel B / "el decantador" (spec 38/39) -- se aplica aquí, DESPUÉS de
+  // conocer deteccion.key (el arquetipo) y ANTES de elegir ganador de
+  // deny/force/allow, para que el patrón promocionado influya en qué
+  // output gana, no solo en el texto final. Sin patrones activos para este
+  // arquetipo (el caso normal hoy), `rawOutputsAjustados === rawOutputs`.
+  const rawOutputsAjustados = aplicarPatronesPromocionados(
+    rawOutputs,
+    deteccion.key,
+    opts.patronesPromocionados,
+  );
+
   // deny se calcula ANTES de identidad -- detectarModificador() necesita
   // deny.ganador.situacionOrigen para no repetir en la etiqueta lo que la
   // acción principal ya dice (spec 14.3 bis, regla anti-P2 de El Arquitecto).
-  const deny = campoDesdeRawOutputs(rawOutputs, "deny", 0.35);
-  const force = campoDesdeRawOutputs(rawOutputs, "force");
-  const allow = campoAllow(rawOutputs, force?.ganador.key);
-  const awareSlots = slotsAware(rawOutputs);
+  const deny = campoDesdeRawOutputs(rawOutputsAjustados, "deny", 0.35);
+  const force = campoDesdeRawOutputs(rawOutputsAjustados, "force");
+  const allow = campoAllow(rawOutputsAjustados, force?.ganador.key);
+  const awareSlots = slotsAware(rawOutputsAjustados);
 
   // deny puede faltar legítimamente -- CORREGIDO 2026-09-12, mismo patrón que
   // force/allow (spec 21.6): verificado con datos reales (p020, jugadora de
