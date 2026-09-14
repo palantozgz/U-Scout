@@ -873,7 +873,7 @@ export default function ClubManagement() {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-muted-foreground">
-                        {locale === "zh" ? "U Scout 默认报告视图" : locale === "es" ? "Vista por defecto de U Scout" : "U Scout default report view"}
+                        {locale === "zh" ? "球探默认报告视图" : locale === "es" ? "Vista por defecto de Scout" : "Scout default report view"}
                       </Label>
                       <Select
                         disabled={!canEditClubContext}
@@ -954,17 +954,17 @@ export default function ClubManagement() {
                         },
                         {
                           key: "scout" as ClubModuleKey,
-                          label: "U Scout",
+                          label: t("ucore_nav_scout"),
                           sub: locale === "zh" ? "对手球探报告" : locale === "es" ? "Informes de scouting rival" : "Opponent scouting reports",
                         },
                         {
                           key: "stats" as ClubModuleKey,
-                          label: "U Stats",
+                          label: t("ucore_nav_stats"),
                           sub: locale === "zh" ? "WCBA联赛数据" : locale === "es" ? "Estadísticas de la liga WCBA" : "WCBA league stats",
                         },
                         {
                           key: "playbook" as ClubModuleKey,
-                          label: "U Playbook",
+                          label: t("ucore_nav_playbook"),
                           sub: locale === "zh" ? "战术手册" : locale === "es" ? "Manual táctico" : "Tactical manual",
                         },
                       ]

@@ -204,11 +204,10 @@ Detalle completo, decisiones reconciliadas y verificación en `docs/motor-1.0-sp
 9. ~~**`ScoutDesktop.tsx` — código muerto**~~ — **BORRADO 2026-09-14** (spec sección 35): Pablo eligió borrarlo del todo, confirmado sin importadores reales antes de eliminar. Ruta `/scout` en desktop sigue siendo `CoachHome.tsx` (igual que mobile).
 
 ### Baja prioridad / cosmético
-9. **ModCard "SOON" badge** — `text-[8px]` → `md:text-[10px]`
-10. **Alert chips sub-text** — `text-[10px]` → `md:text-xs`
-11. **Wellness Home player** — Chip "✓ enviado" podría mostrar valores del día (sleep/energy).
-12. **Film Room discrepancy UX** — Flujo de resolución de conflictos poco claro para coaches nuevos.
-13. **Comentarios "// Prefetch U Scout"** — `Home.tsx` líneas 165, 169. Cosmético.
+9. ~~**ModCard "SOON" badge / Alert chips sub-text**~~ — **DESCARTADO 2026-09-14** (spec sección 43): premisa incorrecta. `HomeMobile.tsx` nunca renderiza en desktop — `Home.tsx` elige entre `HomeMobile`/`HomeDesktop` por JS (`useIsDesktop()`, mismo breakpoint 768px que `md:`), no son el mismo árbol con clases responsive. Un `md:text-[10px]` ahí sería CSS muerto, nunca se aplicaría. No hace falta ningún cambio.
+10. **Wellness Home player** — Chip "✓ enviado" podría mostrar valores del día (sleep/energy).
+11. **Film Room discrepancy UX** — Flujo de resolución de conflictos poco claro para coaches nuevos.
+12. ~~**Restos de marca antigua "U Scout"**~~ — **CORREGIDO 2026-09-14** (spec sección 43): no eran solo comentarios cosméticos como decía este pendiente (esos sí son inofensivos y se dejan). Encontrados 8 casos **visibles a usuarios reales**: los 4 títulos de tarjeta de módulo en el Home de móvil (`ucore_card_scout_title`/`_schedule_title`/`_stats_title` decían literalmente "U Scout"/"U Stats"/"U Schedule..." en los 3 idiomas; Playbook ni siquiera tenía clave i18n, `title="U Playbook"` fijo) y 3 más en `ClubManagement.tsx` (lista de módulos activables del club, y la etiqueta del selector de vista de informe por defecto). Corregidos reutilizando las claves `ucore_nav_*` ya establecidas (mismo texto que ya usa el sidebar desktop, sin inventar naming nuevo) — 224/224 pruebas, `npm run check` limpio.
 
 ### Técnico
 14. **Icono Xcode** — Después de cada cambio de icono: eliminar app del dispositivo + Clean Build Folder + rebuild. El caché de iconos en iOS es agresivo.

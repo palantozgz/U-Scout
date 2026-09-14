@@ -339,7 +339,7 @@ export default function HomeMobile() {
                 {modEnabled("playbook") && (
                 <ModCard
                   icon={<BookOpen className="w-6 h-6" />}
-                  title="U Playbook"
+                  title={t("ucore_nav_playbook")}
                   subtitle={t("home_playbook_sub")}
                   onClick={() => setLocation("/playbook")}
                   testId="ucore-home-card-playbook"
