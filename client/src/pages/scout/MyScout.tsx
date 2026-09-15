@@ -16,6 +16,7 @@ import {
   type PlayerProfile,
 } from "@/lib/mock-data";
 import { useClub } from "@/lib/club-api";
+import { useCapabilities } from "@/lib/capabilities";
 import { ensamblarReporte } from "@/lib/motor-v1";
 import { BasketballPlaceholderAvatar } from "@/components/BasketballPlaceholderAvatar";
 import { cn, isRealPhoto, localName } from "@/lib/utils";
@@ -89,6 +90,25 @@ export default function MyScout() {
   const { data: teams = [] } = useTeams();
   const createPlayerMutation = useCreatePlayer();
   const clubQ = useClub({ enabled: Boolean(profile) });
+
+  // AÑADIDO 2026-09-15 (pasada de fricción/cosmética): el estado vacío de
+  // fichas oficiales le decía al usuario "créalas en Plantilla" sin darle
+  // un botón para ir -- y un coach sin operationsAccess no puede llegar a
+  // Plantilla en absoluto (mismo criterio que CoachHome.tsx/FilmRoom.tsx),
+  // así que el botón solo se muestra a quien de verdad puede usarlo.
+  const myMembership = useMemo(() => {
+    const members = clubQ.data?.members ?? [];
+    const mine = members.find((m) => m.userId === profile?.id);
+    if (!mine) return null;
+    return {
+      clubId: mine.clubId,
+      userId: mine.userId,
+      role: mine.role as "head_coach" | "coach" | "player",
+      status: mine.status as "active" | "pending" | "banned",
+      operationsAccess: Boolean((mine as any).operationsAccess),
+    };
+  }, [clubQ.data?.members, profile?.id]);
+  const canAccessPersonnel = useCapabilities({ membership: myMembership }).canAccessPersonnel;
 
   // CORREGIDO 2026-09-14 (Bloque D, spec 26.3/29): antes dependía de
   // player.archetype, un campo persistido por generateProfile() (motor
@@ -386,12 +406,21 @@ export default function MyScout() {
 
         {/* SECTION 1 — Canonical players grouped by team */}
         {canonicalPlayers.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border px-4 py-5 text-center">
+          <div className="rounded-xl border border-dashed border-border px-4 py-5 text-center space-y-2">
             <p className="text-sm text-muted-foreground">
-              {locale === "es" ? "Sin fichas oficiales — créalas en Plantilla"
-               : locale === "zh" ? "暂无官方档案 — 请在球员档案中创建"
-               : "No official profiles yet — create them in Personnel"}
+              {canAccessPersonnel
+                ? (locale === "es" ? "Sin fichas oficiales — créalas en Plantilla"
+                   : locale === "zh" ? "暂无官方档案 — 请在球员档案中创建"
+                   : "No official profiles yet — create them in Personnel")
+                : (locale === "es" ? "Sin fichas oficiales — pide a tu head coach que añada rivales en Plantilla"
+                   : locale === "zh" ? "暂无官方档案 — 请让主教练在球员档案中添加对手"
+                   : "No official profiles yet — ask your head coach to add opponents in Personnel")}
             </p>
+            {canAccessPersonnel && (
+              <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setLocation("/coach/personnel")}>
+                {locale === "es" ? "Ir a Plantilla" : locale === "zh" ? "前往球员档案" : "Go to Personnel"}
+              </Button>
+            )}
           </div>
         ) : (
           teamsWithCanonical.map((team) => {

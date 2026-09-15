@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Switch, Route, useLocation, useRoute } from "wouter";
+import { Mail } from "lucide-react";
 import { migrateLegacyOnboarding, shouldOfferOnboarding } from "@/lib/onboarding-state";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useIsFetching, useQuery } from "@tanstack/react-query";
@@ -365,6 +366,7 @@ function BackgroundSyncIndicator() {
 function ClubSecurityGate(props: { children: ReactNode }) {
   useRailwayWarmup(); // pre-warm Railway on app focus / resume
   const { user, profile, signOut } = useAuth();
+  const { locale } = useLocale();
   const clubQ = useClub({ enabled: Boolean(user && profile) });
 
   useEffect(() => {
@@ -395,6 +397,49 @@ function ClubSecurityGate(props: { children: ReactNode }) {
   }, [clubQ.error, clubQ.isError, profile, signOut, user?.id]);
 
   const clubId = clubQ.data?.club?.id;
+
+  // AÑADIDO 2026-09-15 (pasada de fricción/cosmética): una cuenta "coach" que
+  // se registra desde el formulario público (/login) en vez de un enlace de
+  // invitación nunca llega a tener club — GET /api/club devuelve 404 "No club
+  // found" para cualquiera que no sea head_coach/master (esos sí lo
+  // auto-crean). Antes eso no se capturaba en ningún sitio: cada pantalla
+  // seguía renderizando con datos vacíos, sin explicar nada, como si la app
+  // funcionara mal en vez de decir claramente qué falta. Master no necesita
+  // club para nada (uso interno/dev), se deja fuera a propósito.
+  const noClubFound =
+    profile?.role !== "master" &&
+    clubQ.isError &&
+    String((clubQ.error as any)?.message ?? "").includes("No club found");
+
+  if (noClubFound) {
+    const es = locale === "es";
+    const zh = locale === "zh";
+    return (
+      <div className="flex flex-col items-center justify-center h-[100dvh] overflow-y-auto bg-background px-6 text-center gap-3">
+        <div className="w-14 h-14 rounded-2xl bg-muted/40 flex items-center justify-center">
+          <Mail className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <p className="text-base font-black text-foreground">
+          {es ? "Todavía no perteneces a ningún club" : zh ? "你还没有加入任何俱乐部" : "You don't belong to a club yet"}
+        </p>
+        <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+          {es
+            ? "Pide a tu head coach el enlace de invitación de vuestro club — es la única forma de entrar."
+            : zh
+              ? "请向你的主教练索要俱乐部的邀请链接 — 这是加入的唯一方式。"
+              : "Ask your head coach for your club's invite link — it's the only way in."}
+        </p>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="mt-2 h-11 px-6 rounded-xl border border-border text-sm font-bold text-foreground"
+        >
+          {es ? "Cerrar sesión" : zh ? "退出登录" : "Sign out"}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       {clubId && user?.id && <BackgroundPrefetcher clubId={clubId} userId={user.id} />}

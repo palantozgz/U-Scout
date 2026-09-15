@@ -475,6 +475,13 @@ export default function FilmRoom() {
                 ? "从我的报告中提交，报告将显示在此处"
                 : "Submit reports from My Scout to see them here"}
             </p>
+            {/* AÑADIDO 2026-09-15 (pasada de fricción/cosmética): el texto ya decía
+                a dónde ir, pero no había ningún botón -- el usuario tenía que
+                volver atrás y encontrar Mi Scout por su cuenta. Mismo patrón
+                aplicado en GamePlan.tsx y MyScout.tsx. */}
+            <Button size="sm" variant="outline" className="mt-1 rounded-lg" onClick={() => setLocation("/coach/my-scout")}>
+              {es ? "Ir a Mi Scout" : zh ? "前往我的报告" : "Go to My Scout"}
+            </Button>
           </div>
         )}
 

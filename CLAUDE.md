@@ -205,6 +205,9 @@ Confirmado por Pablo vía investigación de Claude Desktop (diseño original de 
 ### Resolución de discrepancias campo a campo en Film Room (2026-09-15, spec sección 48)
 Un supervisor (`canAccessCalibrationPanel` — head_coach/master/coach con `reportPublishAccess`) puede adoptar, campo a campo, el pick de un compañero directamente desde `DiscrepancyPanel` — antes solo se mostraba el conflicto, sin forma de resolverlo en la app. Reutiliza el mismo endpoint del picker de alternativas de siempre (`POST /api/players/:id/overrides`), sin tabla ni mecanismo nuevo: el supervisor va componiendo su propio conjunto de overrides mezclando lo mejor de cada propuesta, y al publicar (spec 47) ese conjunto compuesto se congela como versión final.
 
+### Pasada de fricción/cosmética — primer lote (2026-09-15, spec sección 49)
+Mandato de Pablo: revisar flujos UX y cosmética para usuarios nuevos, mínima fricción, trabajo autónomo. Estados vacíos sin CTA arreglados en `MyScout.tsx` (botón "Ir a Plantilla", condicionado a que el usuario pueda acceder de verdad) y `FilmRoom.tsx` (botón "Ir a Mi Scout") — otras pantallas ya tenían esto bien (`GamePlan.tsx`, `Personnel.tsx`, `Playbook.tsx`, no tocadas). **Hallazgo no anticipado, no solo cosmético**: registrarse como "Coach" desde `/login` sin invitación previa deja una cuenta real sin club, sin forma de arreglarlo sola, y ninguna pantalla lo explicaba (`ClubSecurityGate` no capturaba ese 404 en absoluto). Corregido: texto aclaratorio bajo el selector de rol en `Login.tsx`, y `ClubSecurityGate` (`App.tsx`) ahora muestra una pantalla real ("todavía no perteneces a ningún club, pide el enlace a tu head coach") en vez de dejar pasar a pantallas rotas en silencio.
+
 ## PENDIENTES — Próximas sesiones
 
 ### Alta prioridad

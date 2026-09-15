@@ -161,6 +161,27 @@ export default function Login() {
           </div>
         )}
 
+        {/* AÑADIDO 2026-09-15 (pasada de fricción/cosmética): quien registra la
+            primera cuenta de su club nunca ha usado la app -- sin esto no
+            tenía forma de saber la diferencia real entre las 2 opciones, ni
+            que "Coach" aquí (sin invitación previa) deja la cuenta sin club
+            hasta que alguien la invite (ver ClubSecurityGate en App.tsx). */}
+        {mode === "register" && (
+          <p className="text-[11px] text-muted-foreground/70 text-center leading-relaxed -mt-1">
+            {locale === "es"
+              ? role === "head_coach"
+                ? "Head Coach crea el club y puede invitar al resto del staff."
+                : "Coach se une a un club ya existente — solo si tienes un enlace de invitación."
+              : locale === "zh"
+                ? role === "head_coach"
+                  ? "主教练创建俱乐部，并可以邀请其他教练。"
+                  : "教练需要加入已有的俱乐部 — 仅在你有邀请链接时选择此项。"
+                : role === "head_coach"
+                  ? "Head Coach creates the club and can invite the rest of the staff."
+                  : "Coach joins an existing club — only pick this if you have an invite link."}
+          </p>
+        )}
+
         {error && (
           <p className="text-sm text-destructive text-center">{error}</p>
         )}

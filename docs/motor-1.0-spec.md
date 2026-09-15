@@ -1993,3 +1993,24 @@ Pregunta directa de Pablo tras cerrar la sección 47: *"¿has tenido en cuenta l
 **Por qué no hizo falta rediseñar el mecanismo de publicación de la sección 47**: con esto, "seleccionar un ganador" y "combinar partes de varias propuestas" son la MISMA acción a nivel de datos — un supervisor va adoptando, campo a campo, lo que el staff acuerda, hasta que su propio conjunto de overrides es exactamente la versión final deseada (mezclada o no); cuando esa persona publica, spec 47 ya se encarga de que ESE conjunto (ahora compuesto) se congele. No hacía falta una fase de "selección de ganador" separada del acto de publicar.
 
 Verificado: `npm run check` limpio, `npx vitest run` 17/17 archivos (sin cambios — feature de UI + reutiliza mutaciones/endpoints ya existentes, no añade lógica pura nueva que aislar en un test unitario), `npm run build` (producción real) sin errores, smoke test en navegador sin errores de consola en la pantalla pública. Igual que en la sección 47, no se pudo probar interactivamente el flujo completo (2+ entrenadores discrepando → un supervisor adopta picks mezclados → publica → una jugadora ve el resultado) por falta de credenciales de prueba y de datos reales en producción.
+
+## 49. Pasada de fricción/cosmética — primer lote (2026-09-15)
+
+Pablo: *"usemos lo que nos queda de tokens de esta semana para revisar los flujos UX y para hacer mejoras cosmeticas, que todo tenga en cuenta la minima friccion posible asi como la comodidad de uso y visual de la app para usuarios nuevos. puedes trabajar de forma autonoma"*. Auditoría propia (lectura de código + navegador embebido, sin credenciales de prueba), priorizando pantallas del primer camino real de un usuario nuevo. No se repite trabajo ya hecho — antes de tocar cada pantalla se comprobó si ya tenía un estado vacío/CTA razonable (varias ya lo tenían: `GamePlan.tsx`, `Personnel.tsx` "sin equipos", `Playbook.tsx` — no tocadas).
+
+### 49.1. Estados vacíos sin forma de actuar sobre ellos
+
+Patrón real encontrado en 2 pantallas: el texto ya decía a dónde ir, pero no había ningún botón — el usuario tenía que volver atrás y encontrar la pantalla correcta por su cuenta.
+
+- **`MyScout.tsx`** (sin fichas oficiales): añadido botón "Ir a Plantilla", pero **solo si el usuario puede llegar de verdad** (`canAccessPersonnel` — un coach sin `operationsAccess` no puede acceder a Personnel en absoluto, mismo criterio que `CoachHome.tsx`). Para quien no puede, el texto cambia a "pide a tu head coach que añada rivales en Plantilla" en vez de mandarle a un sitio al que no puede entrar.
+- **`FilmRoom.tsx`** (sin informes entregados): añadido botón "Ir a Mi Scout".
+
+### 49.2. Cuenta huérfana real al registrarse como "Coach" sin invitación — hallazgo no anticipado
+
+Al revisar visualmente el formulario de registro (`Login.tsx`, único camino que un usuario completamente nuevo recorre) apareció un problema real, no solo cosmético: el selector de rol ofrece "Head Coach"/"Coach" como opciones aparentemente equivalentes, sin ninguna explicación. Verificado qué pasa realmente al elegir "Coach" sin haber llegado por un enlace de invitación: `GET /api/club` (`server/routes.ts`) solo auto-crea un club para `head_coach`/`master` — un "coach" que se registra directo desde `/login` queda con una cuenta real pero **sin club, sin forma de arreglarlo por su cuenta**, y ninguna pantalla lo explicaba: `ClubSecurityGate` (`App.tsx`) no capturaba ese 404 en absoluto, así que cada pantalla seguía renderizando con datos vacíos como si la app funcionara mal, en vez de decir claramente qué falta. (Jugadoras no corren este riesgo — el formulario público de `/login` no ofrece el rol `player` en absoluto, solo llega vía enlace de invitación real, `JoinClub.tsx`.)
+
+**Corregido en 2 sitios**:
+- `Login.tsx`: texto corto bajo el selector de rol, específico a la opción marcada — aclara que "Head Coach" crea el club, y que "Coach" **solo tiene sentido con un enlace de invitación**, no para el primer registro de un club nuevo.
+- `App.tsx::ClubSecurityGate`: si `useClub()` devuelve el 404 "No club found" (y el rol no es `master`, que no necesita club), ahora se muestra una pantalla real explicando la situación ("Todavía no perteneces a ningún club — pide a tu head coach el enlace de invitación") con un botón para cerrar sesión, en vez de dejar pasar a pantallas rotas en silencio.
+
+Verificado: `npm run check` limpio, `npx vitest run` 17/17 archivos, `npm run build` sin errores. Smoke test interactivo en el navegador embebido del formulario de registro (los 2 textos del selector de rol, en los 2 idiomas verificados visualmente) sin errores de consola. La pantalla de `ClubSecurityGate` no se pudo probar de forma interactiva (necesita una cuenta real registrada como "coach" sin invitación, no reproducible sin credenciales) — verificada por lectura del código y del formato real del error 404 que devuelve el servidor.
