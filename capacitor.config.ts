@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.ucore.app',
+  appId: 'com.ucorebasketball.app',
   appName: 'U Core',
   webDir: 'dist/public',
   server: {
