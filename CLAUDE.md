@@ -223,6 +223,9 @@ Pablo pidió preparar el club real de Jiangxi para la entrada del staff/jugadora
 ### Pasada de fricción/cosmética — cuarto lote: teclado numérico + validación instantánea (2026-09-15, spec sección 54)
 `inputMode="numeric"` en los campos de dorsal (`MyScout.tsx`, `Personnel.tsx`). Validación instantánea de campos vacíos en `Login.tsx`/`JoinClub.tsx` — verificado que `required` de HTML no habría bastado (ninguno de los 2 formularios está dentro de un `<form>` real), añadida una comprobación manual equivalente al principio de `handleSubmit`/`handleAuth`.
 
+### Eliminar/banear miembros unificado + aviso real al expulsado (2026-09-15, spec sección 55)
+Pablo, contexto de tryouts reales: unificar "eliminar"/"banear" en una sola acción. Hallazgo real antes de tocar nada: el borrado duro (`DELETE /api/club/members/:id`) no disparaba NINGUNA limpieza de datos locales ni aviso — solo el baneo lo hacía, y encima en completo silencio (cierre de sesión instantáneo, sin pantalla). `ClubManagement.tsx`: un único botón "Eliminar"/"Restaurar" por fila (usa el mecanismo de baneo, reversible, por debajo — valioso en tryouts donde un error es plausible), `useDeleteClubMember` retirado por dejar de usarse. `App.tsx::ClubSecurityGate`: el borrado de datos locales ahora se dispara para los 3 casos de "sin acceso" (eliminado, sin club, registro cerrado); ya no se fuerza el cierre de sesión automático para el caso de baneo, se muestra una pantalla real explicando qué pasó, igual que los otros 2 casos. Traducciones revisadas de paso: `club_status_banned`/`club_unban` desalineadas con el nuevo concepto, corregidas; `club_ban` (huérfana) eliminada. **Confirmado a Pablo**: el flujo de invitación (`JoinClub.tsx`) es un endpoint totalmente aparte del gate de registro de la sección 52, no se ve afectado.
+
 ## PENDIENTES — Próximas sesiones
 
 ### Alta prioridad

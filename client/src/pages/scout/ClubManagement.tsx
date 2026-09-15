@@ -43,7 +43,6 @@ import {
   useClub,
   usePatchClub,
   useClubInvite,
-  useDeleteClubMember,
   useBanClubMember,
   useSetClubMemberOperationsAccess,
   useSetClubMemberReportPublishAccess,
@@ -344,7 +343,6 @@ export default function ClubManagement() {
     setStoredRosterSignature(profile.id, q.data.club.id, rosterSignature(q.data.members));
   }, [q.data, profile?.id]);
   const inviteMut = useClubInvite();
-  const delMember = useDeleteClubMember();
   const banMut = useBanClubMember();
   const opsMut = useSetClubMemberOperationsAccess();
   const publishMut = useSetClubMemberReportPublishAccess();
@@ -1207,7 +1205,6 @@ export default function ClubManagement() {
                           meRole={meClubRole}
                           profileId={profile?.id}
                           clubOwnerId={q.data.club.ownerId}
-                          delMember={delMember}
                           banMut={banMut}
                           opsMut={opsMut}
                           publishMut={publishMut}
@@ -1254,7 +1251,6 @@ export default function ClubManagement() {
                         meRole={meClubRole}
                         profileId={profile?.id}
                         clubOwnerId={q.data.club.ownerId}
-                        delMember={delMember}
                         banMut={banMut}
                         opsMut={opsMut}
                         publishMut={publishMut}
@@ -1689,7 +1685,6 @@ function MemberRow({
   meRole,
   profileId,
   clubOwnerId,
-  delMember,
   banMut,
   opsMut,
   publishMut,
@@ -1702,7 +1697,6 @@ function MemberRow({
   meRole: ClubActorRole;
   profileId?: string;
   clubOwnerId: string;
-  delMember: ReturnType<typeof useDeleteClubMember>;
   banMut: ReturnType<typeof useBanClubMember>;
   opsMut: ReturnType<typeof useSetClubMemberOperationsAccess>;
   publishMut: ReturnType<typeof useSetClubMemberReportPublishAccess>;
@@ -1717,7 +1711,6 @@ function MemberRow({
   const canPublish = canToggleReportPublishAccess({ meRole, targetRole: m.role, isOwner, isSelf });
   const publishEnabled = Boolean(m.reportPublishAccess) && m.role === "coach";
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
-  const [banConfirmOpen, setBanConfirmOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1835,6 +1828,10 @@ function MemberRow({
                 {publishEnabled ? t("club_publish_access_remove") : t("club_publish_access_grant")}
               </Button>
             ) : null}
+            {/* CORREGIDO 2026-09-15 (mandato directo de Pablo): un único
+                elemento, "Eliminar"/"Restaurar" según el estado actual, en
+                vez de 2 acciones distintas (eliminar/banear) -- misma
+                intención unificada que en la variante "player" de esta fila. */}
             {!isSelf && (canRemove || canBan) ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1843,26 +1840,23 @@ function MemberRow({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-[10rem]">
-                  <DropdownMenuItem
-                    className={cn("font-medium", !canRemove && "opacity-50 pointer-events-none")}
-                    onSelect={() => {
-                      if (!canRemove) return;
-                      setRemoveConfirmOpen(true);
-                    }}
-                  >
-                    <span className="text-destructive">{t("club_remove")}</span>
-                  </DropdownMenuItem>
-                  {canBan ? (
+                  {banned ? (
                     <DropdownMenuItem
-                      className={cn("font-medium", (banned || !canBan) && "opacity-50 pointer-events-none")}
-                      onSelect={() => {
-                        if (banned) return;
-                        setBanConfirmOpen(true);
-                      }}
+                      className="font-medium"
+                      onSelect={() => banMut.mutate({ id: m.id, ban: false }, {
+                        onSuccess: () => toast({ description: t("club_unban") }),
+                      })}
                     >
-                      <span className={banned ? "opacity-60" : ""}>{t("club_ban")}</span>
+                      {t("club_unban")}
                     </DropdownMenuItem>
-                  ) : null}
+                  ) : (
+                    <DropdownMenuItem
+                      className="font-medium"
+                      onSelect={() => setRemoveConfirmOpen(true)}
+                    >
+                      <span className="text-destructive">{t("club_remove")}</span>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : null}
@@ -1927,64 +1921,59 @@ function MemberRow({
                 {publishEnabled ? t("club_publish_access_remove") : t("club_publish_access_grant")}
               </Button>
             ) : null}
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive border-destructive/30 hover:bg-destructive/10"
-              disabled={delMember.isPending || !canRemove}
-              onClick={() => setRemoveConfirmOpen(true)}
-            >
-              {t("club_remove")}
-            </Button>
-            {canBan && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={banMut.isPending || banned}
-                onClick={() => setBanConfirmOpen(true)}
-              >
-                {t("club_ban")}
-              </Button>
+            {/* CORREGIDO 2026-09-15 (mandato directo de Pablo, hallazgo real
+                durante tryouts): "Eliminar" y "Banear" eran 2 botones/acciones
+                distintas -- confuso para lo que en la práctica es una sola
+                intención ("que deje de ver nada del equipo, y que sus datos
+                locales se borren"). Unificadas en un único botón, reversible
+                (reutiliza el mecanismo de baneo por debajo, no el borrado
+                duro -- valioso durante tryouts reales, donde eliminar a la
+                jugadora equivocada por error debe poder deshacerse). */}
+            {banned ? (
+              canBan && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={banMut.isPending}
+                  onClick={() => banMut.mutate({ id: m.id, ban: false }, {
+                    onSuccess: () => toast({ description: t("club_unban") }),
+                  })}
+                >
+                  {t("club_unban")}
+                </Button>
+              )
+            ) : (
+              (canRemove || canBan) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                  disabled={banMut.isPending}
+                  onClick={() => setRemoveConfirmOpen(true)}
+                >
+                  {t("club_remove")}
+                </Button>
+              )
             )}
           </div>
         )
       )}
 
+      {/* CORREGIDO 2026-09-15 (mandato directo de Pablo): un único diálogo de
+          confirmación -- antes había 2 (eliminar con borrado duro, banear
+          con estado reversible) para la misma intención real. Usa banMut
+          (reversible vía "Restaurar") en vez de delMember: valioso de verdad
+          durante tryouts, donde eliminar a la jugadora equivocada por error
+          debe poder deshacerse sin perder el historial. El texto explica las
+          2 consecuencias reales (pierde acceso ya, se borran sus datos
+          locales del club) para que quien confirma sepa exactamente qué va
+          a pasar, no solo un nombre. */}
       <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("club_remove")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {m.displayName || m.invitedEmail || "—"}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("close")}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                delMember.mutate(m.id, {
-                  onSuccess: () => toast({ description: t("club_remove") }),
-                  onError: (err) =>
-                    toast({
-                      description: typeof (err as any)?.message === "string" ? (err as any).message : t("club_load_error"),
-                      variant: "destructive" as any,
-                    }),
-                });
-              }}
-            >
-              {t("club_remove")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={banConfirmOpen} onOpenChange={setBanConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("club_ban")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {m.displayName || m.invitedEmail || "—"}
+              {(m.displayName || m.invitedEmail || "—") + " — " + t("club_remove_confirm_body")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1995,7 +1984,7 @@ function MemberRow({
                 banMut.mutate(
                   { id: m.id, ban: true },
                   {
-                    onSuccess: () => toast({ description: t("club_ban") }),
+                    onSuccess: () => toast({ description: t("club_remove") }),
                     onError: (err) =>
                       toast({
                         description: typeof (err as any)?.message === "string" ? (err as any).message : t("club_load_error"),
@@ -2005,7 +1994,7 @@ function MemberRow({
                 );
               }}
             >
-              {t("club_ban")}
+              {t("club_remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

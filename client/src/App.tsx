@@ -364,40 +364,87 @@ function BackgroundSyncIndicator() {
   );
 }
 
+// AÑADIDO 2026-09-15 (mandato directo de Pablo: "eliminar" a un miembro debe
+// dejarlo sin acceso Y borrar los datos del club que ya tenía en su propio
+// dispositivo -- "enviar una query a su telefono para que deletee todos los
+// datos en local"). Extraído a función propia porque ahora se dispara para
+// los 3 estados de "sin acceso real" de ClubSecurityGate (eliminado/baneado,
+// sin club, registro cerrado), no solo el de baneo como antes -- inofensivo
+// para los otros 2 casos (nunca tuvieron datos de club que borrar).
+function wipeLocalClubData(): void {
+  try {
+    const keys = Object.keys(window.localStorage);
+    for (const k of keys) {
+      if (k.startsWith("uscout-")) window.localStorage.removeItem(k);
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    queryClient.clear();
+  } catch {
+    // ignore
+  }
+}
+
 function ClubSecurityGate(props: { children: ReactNode }) {
   useRailwayWarmup(); // pre-warm Railway on app focus / resume
   const { user, profile, signOut } = useAuth();
   const { locale } = useLocale();
   const clubQ = useClub({ enabled: Boolean(user && profile) });
 
+  // CORREGIDO 2026-09-15 (mandato directo de Pablo, hallazgo real durante
+  // tryouts): antes, un miembro baneado/eliminado se quedaba con la sesión
+  // cerrada al instante y en completo silencio -- ni un mensaje, solo
+  // desaparecía de vuelta al login sin explicación. Ahora se le explica qué
+  // pasó igual que a los otros 2 casos de "sin acceso" (secciones 49/52) --
+  // no se fuerza el cierre de sesión automático, se deja un botón manual,
+  // mismo patrón para los 3 casos. El borrado de datos locales SÍ es
+  // automático e inmediato en los 3 (una sola vez por aparición del error).
+  const wipedRef = useRef(false);
   useEffect(() => {
-    if (!user?.id || !profile) return;
-    if (!clubQ.isError) return;
-    const msg = String((clubQ.error as any)?.message ?? clubQ.error ?? "");
-    const isBanned = msg.includes("403") && msg.includes("banned");
-    if (!isBanned) return;
-
-    // Hard offboarding: clear local club/device state so next login is clean.
-    try {
-      const keys = Object.keys(window.localStorage);
-      for (const k of keys) {
-        if (k.startsWith("uscout-")) window.localStorage.removeItem(k);
-      }
-    } catch {
-      // ignore
+    if (!user?.id || !profile) {
+      wipedRef.current = false;
+      return;
     }
-
-    // Clear all cached queries (persisted + in-memory).
-    try {
-      queryClient.clear();
-    } catch {
-      // ignore
-    }
-
-    void signOut();
-  }, [clubQ.error, clubQ.isError, profile, signOut, user?.id]);
+    if (!clubQ.isError || wipedRef.current) return;
+    wipedRef.current = true;
+    wipeLocalClubData();
+  }, [clubQ.error, clubQ.isError, profile, user?.id]);
 
   const clubId = clubQ.data?.club?.id;
+
+  const removedOrBanned =
+    clubQ.isError && String((clubQ.error as any)?.message ?? "").includes("banned");
+
+  if (removedOrBanned) {
+    const es = locale === "es";
+    const zh = locale === "zh";
+    return (
+      <div className="flex flex-col items-center justify-center h-[100dvh] overflow-y-auto bg-background px-6 text-center gap-3">
+        <div className="w-14 h-14 rounded-2xl bg-muted/40 flex items-center justify-center">
+          <Mail className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <p className="text-base font-black text-foreground">
+          {es ? "Ya no perteneces a este club" : zh ? "你已不再属于该俱乐部" : "You no longer belong to this club"}
+        </p>
+        <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+          {es
+            ? "Tu cuerpo técnico te ha retirado del club. Sus datos se han borrado de este dispositivo. Si es un error, pide que te reactiven."
+            : zh
+              ? "你的教练组已将你从俱乐部中移除，本设备上的相关数据已删除。如有误判，请联系他们恢复。"
+              : "Your coaching staff has removed you from the club. This device's data for it has been cleared. If this is a mistake, ask them to restore your access."}
+        </p>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="mt-2 h-11 px-6 rounded-xl border border-border text-sm font-bold text-foreground"
+        >
+          {es ? "Cerrar sesión" : zh ? "退出登录" : "Sign out"}
+        </button>
+      </div>
+    );
+  }
 
   // AÑADIDO 2026-09-15 (pasada de fricción/cosmética): una cuenta "coach" que
   // se registra desde el formulario público (/login) en vez de un enlace de
