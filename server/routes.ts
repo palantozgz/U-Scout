@@ -588,7 +588,11 @@ export async function registerRoutes(
         totalStaff,
         overrides,
         isPublished: Boolean(player.published),
-        hasDiscrepancy: computeHasDiscrepancy(overrides),
+        // AÑADIDO 2026-09-15 (spec 46/47): una vez publicado, los overrides
+        // que persisten (ya no se borran, ver GET /overrides) son la
+        // versión congelada, no un desacuerdo activo -- mostrar "conflicto"
+        // sobre un informe ya resuelto y publicado sería confuso, no real.
+        hasDiscrepancy: Boolean(player.published) ? false : computeHasDiscrepancy(overrides),
       });
     } catch (_err) {
       res.status(500).json({ error: "Failed to load approval status" });
@@ -625,21 +629,35 @@ export async function registerRoutes(
       const player = await storage.getPlayer(playerId);
       if (!player) return res.status(404).json({ error: "Player not found" });
       const rows = await storage.listReportOverridesForPlayer(playerId);
-      const mine = rows
-        .filter((o) => o.coachId === req.user!.id)
-        .map((o) => ({
-          coachId: o.coachId,
-          slide: o.slide,
-          itemKey: o.itemKey,
-          action: o.action,
-          // Expuestos 2026-09-12 (picker de alternativas) -- el frontend los
-          // necesita para mostrar "ya elegiste esta alternativa" al reabrir
-          // el sheet, no solo para guardar.
-          replacementValue: o.replacementValue ?? undefined,
-          originalScore: o.originalScore ?? undefined,
-          replacementScore: o.replacementScore ?? undefined,
-        }));
-      res.json(mine);
+      // CORREGIDO 2026-09-15 (spec 46/47, diseño confirmado por Pablo). Antes
+      // esto SIEMPRE filtraba a "coachId === quien pregunta" -- correcto
+      // para un entrenador revisando su propio borrador en My Scout/Film
+      // Room, pero roto para la jugadora viendo un informe ya publicado (no
+      // es "coach" de nada, esa comparación nunca podía dar ninguna fila --
+      // veía siempre 0 overrides, sin importar lo que hubiera publicado
+      // cualquier entrenador). Diseño original: al publicar, el conjunto de
+      // overrides del entrenador que publica se congela como la versión
+      // final -- esa es la que debe ver cualquiera (jugadora u otro coach)
+      // a partir de ahí, no un filtro por "quién pregunta".
+      const isPublished = Boolean((player as any).published);
+      const publishedBy = (player as any).published_by as string | null | undefined;
+      const relevant =
+        isPublished && publishedBy
+          ? rows.filter((o) => o.coachId === publishedBy)
+          : rows.filter((o) => o.coachId === req.user!.id);
+      const mapped = relevant.map((o) => ({
+        coachId: o.coachId,
+        slide: o.slide,
+        itemKey: o.itemKey,
+        action: o.action,
+        // Expuestos 2026-09-12 (picker de alternativas) -- el frontend los
+        // necesita para mostrar "ya elegiste esta alternativa" al reabrir
+        // el sheet, no solo para guardar.
+        replacementValue: o.replacementValue ?? undefined,
+        originalScore: o.originalScore ?? undefined,
+        replacementScore: o.replacementScore ?? undefined,
+      }));
+      res.json(mapped);
     } catch (err) {
       res.status(500).json({ error: "Failed to load overrides" });
     }
@@ -884,7 +902,8 @@ export async function registerRoutes(
                 approvedAt: a.approvedAt.toISOString(),
               })),
               isPublished: Boolean(player.published),
-              hasDiscrepancy: computeHasDiscrepancy(overrides),
+              // Spec 46/47: ver mismo razonamiento en /approval-status.
+              hasDiscrepancy: Boolean(player.published) ? false : computeHasDiscrepancy(overrides),
             };
           } catch {}
 
@@ -945,8 +964,16 @@ export async function registerRoutes(
 
       // Publish via existing flow
       await storage.publishPlayerReport(playerId, req.user!.id);
-      // Clear scout versions (merge complete)
-      await storage.mergeAndClearScoutVersions(playerId);
+      // CORREGIDO 2026-09-15 (spec 46/47, diseño confirmado por Pablo): antes
+      // se llamaba mergeAndClearScoutVersions aquí, que también borraba
+      // report_overrides -- eso descartaba silenciosamente todos los picks
+      // de "reemplazar alternativa" de cualquier entrenador justo al
+      // publicar, contradiciendo el diseño original ("la opción del que
+      // publica se considera la versión final"). Solo los borradores de
+      // scouting (player_scout_versions) se limpian aquí; los overrides se
+      // quedan -- se congelan como la versión publicada vía publishedBy
+      // (ver GET /api/players/:id/overrides).
+      await storage.clearScoutVersionsAfterPublish(playerId);
 
       // Auto-assign report to all active club players
       const club = await storage.getClubForUser(req.user!.id);

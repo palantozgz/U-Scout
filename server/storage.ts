@@ -195,7 +195,12 @@ export interface IStorage {
   getScoutVersion(playerId: string, coachId: string): Promise<ScoutVersion | undefined>;
   listScoutVersionsForPlayer(playerId: string): Promise<ScoutVersion[]>;
   submitScoutVersion(playerId: string, coachId: string): Promise<void>;
+  /** Unpublish/"start fresh" reset: clears both draft scout versions AND report_overrides. */
   mergeAndClearScoutVersions(playerId: string): Promise<void>;
+  /** Publish: clears the (now-merged) draft scout versions only. report_overrides stay — they become
+   *  the frozen final version of the report (spec 47, design confirmed by Pablo from the original
+   *  april decantador research: "cuando se publica, la opcion del que publica se considera la version final"). */
+  clearScoutVersionsAfterPublish(playerId: string): Promise<void>;
 
   // league_matches
   listLeagueMatches(clubId: string): Promise<LeagueMatch[]>;
@@ -1077,13 +1082,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async mergeAndClearScoutVersions(playerId: string): Promise<void> {
-    // Called when head_coach publishes to Game Plan.
-    // Deletes all per-coach versions — the canonical inputs are already
-    // in players.inputs (set by head_coach during the merge/publish step).
+    // CORREGIDO 2026-09-15 (spec 46/47): este metodo es el reset de
+    // "unpublish -- empezar de cero" (unico llamador real: POST
+    // /api/players/:id/unpublish). El comentario anterior decia que esto se
+    // llamaba "al publicar" y que los inputs canonicos "ya estaban puestos"
+    // en ese paso -- ninguna de las 2 cosas es cierta en el codigo real (no
+    // hay ningun paso que escriba report_overrides -> players.inputs en
+    // ningun sitio). El publish real usa clearScoutVersionsAfterPublish()
+    // (abajo), que a proposito NO borra report_overrides.
     await db.transaction(async (tx) => {
       await tx.execute(sql`DELETE FROM player_scout_versions WHERE player_id = ${playerId}`);
       await tx.execute(sql`DELETE FROM report_overrides WHERE player_id = ${playerId}`);
     });
+  }
+
+  async clearScoutVersionsAfterPublish(playerId: string): Promise<void> {
+    // AÑADIDO 2026-09-15 (spec 46/47, diseño original confirmado por Pablo
+    // vía investigación de Claude Desktop, abril 2026): al publicar, los
+    // borradores por entrenador (player_scout_versions) ya cumplieron su
+    // función -- se fusionan conceptualmente en la publicación. PERO
+    // report_overrides NO se borra aquí: son la capa que se aplica en
+    // tiempo de render sobre los datos canónicos (nunca los modifica) y,
+    // congelados al conjunto del entrenador que publica, son la versión
+    // final que ve la jugadora de ahora en adelante (ver
+    // GET /api/players/:id/overrides). También alimentan Nivel B
+    // (detección de patrones entre entrenadores) -- borrarlos aquí perdería
+    // ese historial justo en el momento en que más vale la pena conservarlo.
+    await db.execute(sql`DELETE FROM player_scout_versions WHERE player_id = ${playerId}`);
   }
 
   async listLeagueMatches(clubId: string): Promise<LeagueMatch[]> {
