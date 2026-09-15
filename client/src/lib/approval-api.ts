@@ -26,6 +26,12 @@ export interface ApprovalStatusPayload {
     replacementValue?: string;
     originalScore?: number;
     replacementScore?: number;
+    // Añadidos 2026-09-15 (spec 48, adoptar el pick de un compañero campo a
+    // campo) -- necesarios para reenviar el override exacto a
+    // useSetReportOverride sin perder el OutputKey estable ni el arquetipo.
+    replacementKey?: string;
+    archetypeKey?: string;
+    locale?: string;
   }>;
   isPublished: boolean;
   hasDiscrepancy: boolean;

@@ -1,15 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronRight, Users2, AlertTriangle, CheckCircle2, Send, Lock } from "lucide-react";
+import { ArrowLeft, ChevronRight, Users2, AlertTriangle, CheckCircle2, Send, Lock, Check } from "lucide-react";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import { useLocale } from "@/lib/i18n";
-import { useApprovalStatus } from "@/lib/approval-api";
+import { useApprovalStatus, useSetReportOverride, type SetReportOverrideBody } from "@/lib/approval-api";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import type { PlayerProfile } from "@/lib/mock-data";
+import { useAuth } from "@/lib/useAuth";
+import { useClub, type ClubMemberDto } from "@/lib/club-api";
+import { useCapabilities, type ClubMembership } from "@/lib/capabilities";
+import { userDisplayLabel } from "@/lib/userDisplayLabel";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface FilmRoomEntry {
@@ -23,27 +27,68 @@ interface FilmRoomEntry {
 }
 
 // ── Discrepancy panel ─────────────────────────────────────────────────────────
+// AMPLIADO 2026-09-15 (spec 48). Antes solo listaba las opciones en conflicto
+// como texto informativo -- sin ninguna forma de resolverlo salvo que los
+// entrenadores hablaran fuera de la app y uno de ellos replicara a mano la
+// opción acordada. Pregunta directa de Pablo: "antes del aprobado final,
+// habria que dar una vez mas opcion de override a los supervisores no?" --
+// sí. Ahora un supervisor (mismo permiso que ya controla el panel de
+// Calibración/Nivel B, `canAccessCalibrationPanel`) puede adoptar, campo a
+// campo, el pick de cualquier compañero -- se guarda como su PROPIO override
+// (mismo endpoint que el picker de alternativas de siempre), así que el
+// informe final puede combinar aciertos de varios entrenadores distintos
+// antes de que alguien publique. No inventa ningún mecanismo nuevo: sigue
+// siendo "quien publica, su estado actual es la versión final" (spec 47) --
+// esto solo hace más fácil llegar a ese estado combinando picks ajenos.
+type DiscrepancyOverrideRow = NonNullable<
+  ReturnType<typeof useApprovalStatus>["data"]
+>["overrides"][number];
+
+function optionLabel(o: DiscrepancyOverrideRow, locale: string): string {
+  if (o.action === "replace" && o.replacementValue) return o.replacementValue;
+  if (o.action === "hide") return locale === "es" ? "Ocultar" : locale === "zh" ? "隐藏" : "Hide";
+  if (o.action === "approve_as_is")
+    return locale === "es" ? "Mantener la opción del motor" : locale === "zh" ? "保留系统建议" : "Keep the motor's pick";
+  return o.action;
+}
+
 function DiscrepancyPanel({
   playerId,
   locale,
+  members,
+  canResolve,
+  myCoachId,
 }: {
   playerId: string;
   locale: string;
+  members: ClubMemberDto[];
+  canResolve: boolean;
+  myCoachId: string | undefined;
 }) {
   const { data: approvalData } = useApprovalStatus(playerId, { enabled: true });
+  const setOverride = useSetReportOverride(playerId);
+
+  const nameFor = (coachId: string) =>
+    userDisplayLabel({
+      userId: coachId,
+      authFullName: members.find((m) => m.userId === coachId)?.authFullName,
+      authEmail: members.find((m) => m.userId === coachId)?.authEmail,
+      displayName: members.find((m) => m.userId === coachId)?.displayName,
+      invitedEmail: members.find((m) => m.userId === coachId)?.invitedEmail,
+    });
 
   if (!approvalData?.hasDiscrepancy) return null;
 
-  const byKey = new Map<string, { coaches: string[]; actions: string[] }>();
+  const byKey = new Map<string, DiscrepancyOverrideRow[]>();
   for (const o of approvalData.overrides ?? []) {
     const k = `${o.slide}:${o.itemKey}`;
-    if (!byKey.has(k)) byKey.set(k, { coaches: [], actions: [] });
-    byKey.get(k)!.coaches.push(o.coachId);
-    byKey.get(k)!.actions.push(o.action);
+    if (!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k)!.push(o);
   }
-  const conflicts = Array.from(byKey.entries()).filter(
-    ([, v]) => new Set(v.actions).size > 1,
-  );
+  const conflicts = Array.from(byKey.entries()).filter(([, rows]) => {
+    const distinct = new Set(rows.map((r) => r.replacementKey ?? r.replacementValue ?? r.action));
+    return distinct.size > 1;
+  });
 
   if (conflicts.length === 0) return null;
 
@@ -52,26 +97,76 @@ function DiscrepancyPanel({
       <p className="text-[10px] md:text-xs font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
         ⚠ {locale === "es" ? "Discrepancias" : locale === "zh" ? "分歧" : "Discrepancies"}
       </p>
-      {conflicts.map(([key, v]) => {
-        const itemLabel = key.split(":")[1];
-        const uniqueActions = Array.from(new Set(v.actions));
+      {canResolve && (
+        <p className="text-[10px] md:text-xs text-muted-foreground/70 leading-relaxed">
+          {locale === "es"
+            ? "Puedes adoptar la opción de un compañero campo a campo — se guarda en tu versión, la que se publica si publicas tú."
+            : locale === "zh"
+              ? "你可以逐项采用同事的选择——会保存到你的版本中，如果由你发布，这就是最终版本。"
+              : "You can adopt a colleague's pick field by field — it's saved to your version, the one that gets published if you publish."}
+        </p>
+      )}
+      {conflicts.map(([key, rows]) => {
+        const [slideKey, itemLabel] = key.split(":");
+        const byValue = new Map<string, DiscrepancyOverrideRow[]>();
+        for (const r of rows) {
+          const vk = r.replacementKey ?? r.replacementValue ?? r.action;
+          if (!byValue.has(vk)) byValue.set(vk, []);
+          byValue.get(vk)!.push(r);
+        }
+        const myRow = myCoachId ? rows.find((r) => r.coachId === myCoachId) : undefined;
+        const myValueKey = myRow ? (myRow.replacementKey ?? myRow.replacementValue ?? myRow.action) : undefined;
+
         return (
-          <div key={key} className="rounded-md bg-background/50 px-2 py-1.5 space-y-0.5">
+          <div key={key} className="rounded-md bg-background/50 px-2 py-1.5 space-y-1.5">
             <p className="text-[11px] md:text-sm font-bold text-foreground">{itemLabel}</p>
-            <div className="flex flex-wrap gap-1">
-              {uniqueActions.map((action) => (
-                <span
-                  key={action}
-                  className="text-[10px] md:text-xs px-1.5 py-0.5 rounded-full border border-border font-semibold text-muted-foreground"
-                >
-                  {action}
-                </span>
-              ))}
+            <div className="space-y-1">
+              {Array.from(byValue.entries()).map(([valueKey, valueRows]) => {
+                const sample = valueRows[0];
+                const isMine = valueKey === myValueKey;
+                const names = valueRows.map((r) => nameFor(r.coachId)).join(", ");
+                return (
+                  <div
+                    key={valueKey}
+                    className={cn(
+                      "flex items-center justify-between gap-2 rounded-md px-2 py-1.5",
+                      isMine ? "bg-primary/10 border border-primary/30" : "bg-muted/30",
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] md:text-sm font-semibold text-foreground truncate flex items-center gap-1">
+                        {isMine && <Check className="w-3 h-3 text-primary shrink-0" />}
+                        {optionLabel(sample, locale)}
+                      </p>
+                      <p className="text-[10px] md:text-xs text-muted-foreground/70 truncate">{names}</p>
+                    </div>
+                    {canResolve && !isMine && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-[10px] md:text-xs shrink-0"
+                        disabled={setOverride.isPending}
+                        onClick={() =>
+                          setOverride.mutate({
+                            slide: slideKey as SetReportOverrideBody["slide"],
+                            itemKey: itemLabel,
+                            action: sample.action as SetReportOverrideBody["action"],
+                            replacementValue: sample.replacementValue,
+                            replacementKey: sample.replacementKey,
+                            originalScore: sample.originalScore,
+                            replacementScore: sample.replacementScore,
+                            archetypeKey: sample.archetypeKey,
+                            locale: (sample.locale as SetReportOverrideBody["locale"]) ?? (locale as SetReportOverrideBody["locale"]),
+                          })
+                        }
+                      >
+                        {locale === "es" ? "Usar esta" : locale === "zh" ? "采用" : "Use this"}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <p className="text-[10px] md:text-xs text-muted-foreground/60">
-              {v.coaches.length}{" "}
-              {locale === "es" ? "coaches en conflicto" : locale === "zh" ? "教练有分歧" : "coaches disagree"}
-            </p>
           </div>
         );
       })}
@@ -86,12 +181,18 @@ function FilmRoomCard({
   onViewReport,
   onPublish,
   isPublishing,
+  members,
+  canResolve,
+  myCoachId,
 }: {
   entry: FilmRoomEntry;
   locale: string;
   onViewReport: (id: string) => void;
   onPublish: (id: string) => void;
   isPublishing: boolean;
+  members: ClubMemberDto[];
+  canResolve: boolean;
+  myCoachId: string | undefined;
 }) {
   const [expanded, setExpanded] = useState(false);
   const { player, submittedCount, hasDiscrepancy, isPublished, approvalCount, hasSubmittedMine } = entry;
@@ -179,7 +280,13 @@ function FilmRoomCard({
 
           {/* Discrepancy panel — only visible after submitting own report */}
           {hasSubmittedMine && hasDiscrepancy && (
-            <DiscrepancyPanel playerId={player.id} locale={locale} />
+            <DiscrepancyPanel
+              playerId={player.id}
+              locale={locale}
+              members={members}
+              canResolve={canResolve}
+              myCoachId={myCoachId}
+            />
           )}
 
           {/* Staff submissions summary */}
@@ -235,6 +342,7 @@ export default function FilmRoom() {
   const [, setLocation] = useLocation();
   const { locale } = useLocale();
   const qc = useQueryClient();
+  const { profile } = useAuth();
 
   const [publishingId, setPublishingId] = useState<string | null>(null);
 
@@ -243,6 +351,27 @@ export default function FilmRoom() {
     queryFn: async () => (await apiRequest("GET", "/api/film-room")).json(),
     refetchInterval: 30_000,
   });
+
+  // AÑADIDO 2026-09-15 (spec 48): necesario para resolver nombres de
+  // compañeros en DiscrepancyPanel y para saber si el usuario actual es
+  // "supervisor" (mismo permiso que ya controla el panel de Calibración).
+  const clubQ = useClub({ enabled: Boolean(profile) });
+  const membership: ClubMembership | null = useMemo(() => {
+    if (!profile?.id || !clubQ.data?.club) return null;
+    const me = clubQ.data.members?.find((m) => m.userId === profile.id);
+    if (!me) return null;
+    return {
+      clubId: clubQ.data.club.id,
+      userId: profile.id,
+      role: me.role as ClubMembership["role"],
+      status: me.status as ClubMembership["status"],
+      isOwner: clubQ.data.club.ownerId === profile.id,
+      operationsAccess: Boolean(me.operationsAccess),
+      reportPublishAccess: Boolean(me.reportPublishAccess),
+    };
+  }, [profile?.id, clubQ.data]);
+  const caps = useCapabilities({ membership });
+  const members = clubQ.data?.members ?? [];
 
   const es = locale === "es";
   const zh = locale === "zh";
@@ -357,6 +486,9 @@ export default function FilmRoom() {
             onViewReport={(id) => setLocation(`/coach/scout/${id}/review`)}
             onPublish={handlePublish}
             isPublishing={publishingId === entry.player.id}
+            members={members}
+            canResolve={caps.canAccessCalibrationPanel}
+            myCoachId={profile?.id}
           />
         ))}
       </main>

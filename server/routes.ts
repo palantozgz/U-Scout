@@ -578,6 +578,14 @@ export async function registerRoutes(
         replacementValue: o.replacementValue ?? undefined,
         originalScore: o.originalScore ?? undefined,
         replacementScore: o.replacementScore ?? undefined,
+        // AÑADIDOS 2026-09-15 (spec 48, resolución de discrepancias por
+        // campo): sin estos 3, FilmRoom no puede "adoptar" el pick exacto
+        // de un compañero -- reenviarlo a POST /overrides con solo
+        // replacementValue perdería el OutputKey estable y el arquetipo,
+        // necesarios para guardarlo bien.
+        replacementKey: o.replacementKey ?? undefined,
+        archetypeKey: o.archetypeKey ?? undefined,
+        locale: o.locale ?? undefined,
       }));
 
       res.json({
