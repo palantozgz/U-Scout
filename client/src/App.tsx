@@ -7,6 +7,7 @@ import { QueryClientProvider, useIsFetching, useQuery } from "@tanstack/react-qu
 import { ClubGenderProvider } from "@/lib/clubGenderContext";
 import { Toaster } from "@/components/ui/toaster";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { PasswordRecoveryModal } from "@/components/PasswordRecoveryModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/lib/useAuth";
@@ -528,6 +529,7 @@ function App() {
       <TooltipProvider>
         <OfflineBanner />
         <Toaster />
+        <PasswordRecoveryModal />
         {isAuthed ? <BackgroundSyncIndicator /> : null}
         <div className={`h-[100dvh] bg-background md:pl-12 lg:pl-48 relative overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${typeof window !== "undefined" && (window as any).Capacitor?.isNativePlatform?.() ? "w-full" : "max-w-md mx-auto shadow-2xl border-x border-border md:max-w-none md:ml-0 md:mr-0 md:shadow-none md:border-x-0"}`}>
           {showSplash ? <UCoreBootSplash fadeOut={splashFadeOut} /> : null}

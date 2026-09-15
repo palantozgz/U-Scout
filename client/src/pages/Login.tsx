@@ -4,11 +4,11 @@
 
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { supabase } from "@/lib/supabase";
+import { supabase, resetPasswordForEmail } from "@/lib/supabase";
 import { useLocale, type Locale } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Shield } from "lucide-react";
+import { Shield, Eye, EyeOff } from "lucide-react";
 
 const LANG_OPTIONS: { code: Locale; flag: string; label: string }[] = [
   { code: "en", flag: "🇬🇧", label: "EN" },
@@ -16,7 +16,7 @@ const LANG_OPTIONS: { code: Locale; flag: string; label: string }[] = [
   { code: "zh", flag: "🇨🇳", label: "中文" },
 ];
 
-type Mode = "login" | "register";
+type Mode = "login" | "register" | "forgot";
 
 export default function Login() {
   const { t, locale, changeLocale } = useLocale();
@@ -24,15 +24,34 @@ export default function Login() {
   const [mode,     setMode]     = useState<Mode>("login");
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
+  // AÑADIDO 2026-09-15 (pasada de fricción/cosmética): sin esto, un usuario
+  // nuevo escribiendo su contraseña por primera vez en el móvil no tiene
+  // forma de verificar que no se ha equivocado -- patrón estándar en
+  // formularios de auth modernos.
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState("");
   const [role,     setRole]     = useState<"head_coach" | "coach" | "player">("head_coach");
   const [error,    setError]    = useState<string | null>(null);
   const [loading,  setLoading]  = useState(false);
   const [success,  setSuccess]  = useState(false);
+  // AÑADIDO 2026-09-15 (pasada de fricción/cosmética): no existía ninguna
+  // forma de recuperar el acceso -- un usuario nuevo que se equivocaba de
+  // contraseña quedaba bloqueado sin salida dentro de la app. El correo de
+  // recuperación real lo maneja PasswordRecoveryModal (App.tsx), montado
+  // en la raíz -- aquí solo se dispara el envío y se confirma.
+  const [resetSent, setResetSent] = useState(false);
 
   const handleSubmit = async () => {
     setError(null);
     setLoading(true);
+
+    if (mode === "forgot") {
+      const { error } = await resetPasswordForEmail(email);
+      if (error) setError(error.message);
+      else setResetSent(true);
+      setLoading(false);
+      return;
+    }
 
     if (mode === "login") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -82,6 +101,25 @@ export default function Login() {
     );
   }
 
+  if (resetSent) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[100dvh] overflow-y-auto px-6 gap-6 bg-background">
+        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Shield className="w-8 h-8 text-primary" />
+        </div>
+        <div className="text-center">
+          <h2 className="text-xl font-bold mb-2">{t("auth_reset_sent_title")}</h2>
+          <p className="text-muted-foreground text-sm">
+            {t("auth_reset_sent_body").replace("{email}", email)}
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => { setMode("login"); setResetSent(false); }}>
+          {t("auth_back_to_login")}
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="relative flex flex-col items-center justify-center h-[100dvh] overflow-y-auto px-6 gap-6 bg-background">
 
@@ -110,7 +148,7 @@ export default function Login() {
         </div>
         <h1 className="text-2xl font-extrabold tracking-tight">U Core</h1>
         <p className="text-muted-foreground text-sm">
-          {mode === "login" ? t("sign_in") : t("sign_up")}
+          {mode === "login" ? t("sign_in") : mode === "register" ? t("sign_up") : t("auth_forgot_password_title")}
         </p>
       </div>
 
@@ -122,6 +160,7 @@ export default function Login() {
             value={fullName}
             onChange={e => setFullName(e.target.value)}
             className="h-12 rounded-xl"
+            autoComplete="name"
           />
         )}
 
@@ -132,16 +171,44 @@ export default function Login() {
           onChange={e => setEmail(e.target.value)}
           className="h-12 rounded-xl"
           autoCapitalize="none"
+          autoComplete="email"
+          onKeyDown={e => mode === "forgot" && e.key === "Enter" && handleSubmit()}
         />
 
-        <Input
-          type="password"
-          placeholder={t("password")}
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          className="h-12 rounded-xl"
-          onKeyDown={e => e.key === "Enter" && handleSubmit()}
-        />
+        {mode !== "forgot" && (
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              placeholder={t("password")}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="h-12 rounded-xl pr-11"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              onKeyDown={e => e.key === "Enter" && handleSubmit()}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(v => !v)}
+              className="absolute right-0 top-0 h-12 w-11 flex items-center justify-center text-muted-foreground hover:text-foreground"
+              aria-label={showPassword ? t("password_hide") : t("password_show")}
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        )}
+
+        {mode === "login" && (
+          <div className="text-right -mt-1">
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+              onClick={() => { setMode("forgot"); setError(null); }}
+            >
+              {t("auth_forgot_password_link")}
+            </button>
+          </div>
+        )}
 
         {mode === "register" && (
           <div className="grid grid-cols-2 gap-2">
@@ -191,21 +258,37 @@ export default function Login() {
           onClick={handleSubmit}
           disabled={loading}
         >
-          {loading ? "..." : mode === "login" ? t("sign_in") : t("sign_up")}
+          {loading
+            ? "..."
+            : mode === "login"
+              ? t("sign_in")
+              : mode === "register"
+                ? t("sign_up")
+                : t("auth_forgot_password_submit")}
         </Button>
       </div>
 
       {/* Toggle */}
-      <p className="text-sm text-muted-foreground">
-        {mode === "login" ? t("no_account") : t("already_have_account")}
-        {" "}
+      {mode === "forgot" ? (
         <button
-          className="text-primary font-semibold underline underline-offset-2"
-          onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null); }}
+          type="button"
+          className="text-sm text-primary font-semibold underline underline-offset-2"
+          onClick={() => { setMode("login"); setError(null); }}
         >
-          {mode === "login" ? t("sign_up") : t("sign_in")}
+          {t("auth_back_to_login")}
         </button>
-      </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {mode === "login" ? t("no_account") : t("already_have_account")}
+          {" "}
+          <button
+            className="text-primary font-semibold underline underline-offset-2"
+            onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null); }}
+          >
+            {mode === "login" ? t("sign_up") : t("sign_in")}
+          </button>
+        </p>
+      )}
 
     </div>
   );

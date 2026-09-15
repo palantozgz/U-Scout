@@ -208,6 +208,9 @@ Un supervisor (`canAccessCalibrationPanel` — head_coach/master/coach con `repo
 ### Pasada de fricción/cosmética — primer lote (2026-09-15, spec sección 49)
 Mandato de Pablo: revisar flujos UX y cosmética para usuarios nuevos, mínima fricción, trabajo autónomo. Estados vacíos sin CTA arreglados en `MyScout.tsx` (botón "Ir a Plantilla", condicionado a que el usuario pueda acceder de verdad) y `FilmRoom.tsx` (botón "Ir a Mi Scout") — otras pantallas ya tenían esto bien (`GamePlan.tsx`, `Personnel.tsx`, `Playbook.tsx`, no tocadas). **Hallazgo no anticipado, no solo cosmético**: registrarse como "Coach" desde `/login` sin invitación previa deja una cuenta real sin club, sin forma de arreglarlo sola, y ninguna pantalla lo explicaba (`ClubSecurityGate` no capturaba ese 404 en absoluto). Corregido: texto aclaratorio bajo el selector de rol en `Login.tsx`, y `ClubSecurityGate` (`App.tsx`) ahora muestra una pantalla real ("todavía no perteneces a ningún club, pide el enlace a tu head coach") en vez de dejar pasar a pantallas rotas en silencio.
 
+### Pasada de fricción/cosmética — segundo lote: contraseñas (2026-09-15, spec sección 50)
+`Login.tsx`/`JoinClub.tsx`: `autoComplete` en los 3 campos (email/nombre/contraseña, faltaba en los 2 formularios) y botón de mostrar/ocultar contraseña (ningún campo de la app lo tenía). **Hallazgo no anticipado más importante**: no existía ninguna forma de recuperar el acceso a la cuenta — cerrado de punta a punta con `resetPasswordForEmail`/`updatePassword` (`supabase.ts`), un nuevo modo "forgot" en `Login.tsx`, y `PasswordRecoveryModal.tsx` (nuevo, montado en la raíz de `App.tsx`, escucha el evento `PASSWORD_RECOVERY` del SDK de Supabase). Verificado interactivamente el envío del enlace; el flujo de clic-real-en-el-correo no es reproducible sin credenciales de prueba, ver spec 50.3 para el detalle honesto de qué se verificó y qué no.
+
 ## PENDIENTES — Próximas sesiones
 
 ### Alta prioridad

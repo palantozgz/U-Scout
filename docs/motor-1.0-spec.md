@@ -2013,4 +2013,31 @@ Al revisar visualmente el formulario de registro (`Login.tsx`, único camino que
 - `Login.tsx`: texto corto bajo el selector de rol, específico a la opción marcada — aclara que "Head Coach" crea el club, y que "Coach" **solo tiene sentido con un enlace de invitación**, no para el primer registro de un club nuevo.
 - `App.tsx::ClubSecurityGate`: si `useClub()` devuelve el 404 "No club found" (y el rol no es `master`, que no necesita club), ahora se muestra una pantalla real explicando la situación ("Todavía no perteneces a ningún club — pide a tu head coach el enlace de invitación") con un botón para cerrar sesión, en vez de dejar pasar a pantallas rotas en silencio.
 
+## 50. Pasada de fricción/cosmética — segundo lote: contraseñas (2026-09-15)
+
+Continuación autónoma de la sección 49. Auditoría de los 2 formularios de autenticación reales (`Login.tsx`, `JoinClub.tsx`) enfocada en el campo más propenso a fricción de cualquier app: la contraseña.
+
+### 50.1. `autoComplete` ausente en todos los campos de los 2 formularios
+
+Verificado por grep antes de asumir: ningún campo de email/contraseña/nombre en `Login.tsx` ni `JoinClub.tsx` tenía el atributo `autoComplete`. Sin esto, los gestores de contraseñas (Keychain de iOS, Chrome, 1Password) no ofrecen de forma fiable guardar/rellenar, ni el teclado sugiere una contraseña fuerte al registrarse — fricción real e invisible en cada login. Añadido: `autoComplete="email"`, `autoComplete="name"`, y `autoComplete="current-password"`/`"new-password"` (según el modo) en los 2 formularios.
+
+### 50.2. Sin forma de verificar la contraseña escrita
+
+Ningún campo de contraseña de la app tenía botón de mostrar/ocultar (verificado: cero coincidencias de `type="password"` fuera de estos 2 formularios, no hay ningún otro sitio con contraseña en la app). En un formulario de registro escrito por primera vez en el móvil, sin poder verificar lo que se ha tecleado, un error de tipeo se traduce directamente en "no puedo entrar a mi cuenta" más tarde. Añadido en los 2 formularios: icono de ojo (`Eye`/`EyeOff`, lucide-react) que alterna `type="text"`/`type="password"`, con `aria-label` traducido y objetivo táctil de 44×48px.
+
+### 50.3. Sin ninguna forma de recuperar el acceso — hallazgo no anticipado, cierra un hueco real
+
+Verificado por grep: `resetPasswordForEmail`/"forgot password" no aparecía en ningún sitio del código. Un usuario que olvidaba su contraseña quedaba bloqueado sin ninguna salida dentro de la app — el fallo de fricción más grave posible (cuenta inaccesible, no solo incómoda). Cerrado de punta a punta, no solo el enlace:
+
+- **`client/src/lib/supabase.ts`**: `resetPasswordForEmail(email)` (envía el correo, `redirectTo` apunta a la raíz de la app) y `updatePassword(newPassword)` (aplica la nueva). `detectSessionInUrl: true` ya estaba activo en la configuración del cliente (para magic links/OAuth) — sin cambios ahí, ya consumía el token del enlace de recuperación solo.
+- **`Login.tsx`**: nuevo modo `"forgot"` — enlace "¿Olvidaste tu contraseña?" (solo visible en modo login), formulario reducido a un campo de email, y una pantalla de confirmación "revisa tu correo" que reutiliza el mismo patrón visual que la confirmación de registro ya existente.
+- **`client/src/components/PasswordRecoveryModal.tsx`** (nuevo): escucha `supabase.auth.onAuthStateChange` por el evento `"PASSWORD_RECOVERY"` (se dispara solo cuando el propio SDK de Supabase consume un enlace de recuperación válido de la URL) y muestra un diálogo pidiendo la contraseña nueva, con el mismo toggle de mostrar/ocultar. Montado una única vez en la raíz de `App.tsx` — funciona sin importar en qué pantalla "aterrice" el enlace, no depende de ninguna ruta concreta.
+- **12 claves i18n nuevas** en los 3 idiomas (`auth_forgot_password_*`, `auth_reset_*`, `password_show`/`password_hide`).
+
+**Verificado interactivamente, mitad real y mitad no reproducible — dicho con honestidad, no asumido completo:**
+- **Sí verificado, en el navegador embebido, con recarga completa del servidor de por medio** (un error de consola aparecido durante una edición en caliente resultó ser un mensaje obsoleto retenido por la pestaña — confirmado abriendo una pestaña nueva y limpia antes de dar la comprobación por buena, no descartado a la ligera): el enlace "Forgot your password?" cambia de pantalla correctamente, el formulario se reduce a un solo campo, y al enviar con un email inventado (`test-nonexistent-user@example.com`) Supabase responde con éxito sin revelar si la cuenta existe (comportamiento de seguridad esperado) y la pantalla de confirmación real se muestra con el email correcto sustituido en el texto — cero errores de consola en la pestaña limpia.
+- **No reproducible en esta sesión**: la segunda mitad del flujo (abrir el enlace real del correo → que salte el evento `PASSWORD_RECOVERY` → `PasswordRecoveryModal` → guardar la contraseña nueva) exige un correo real entregado y un clic real en ese enlace — no hay forma de simular eso sin credenciales de prueba. Verificado en su lugar por lectura exhaustiva de la documentación/tipos del SDK de Supabase (`PASSWORD_RECOVERY` confirmado como el nombre exacto del evento en `node_modules/@supabase/auth-js`) y por el propio flag `detectSessionInUrl` ya presente y en uso en producción para otros flujos (magic links).
+
+Verificado: `npm run check` limpio, `npx vitest run` 17/17 archivos (sin cambios — no hay lógica pura nueva que testear en aislamiento, todo es integración directa con el SDK de Supabase), `npm run build` (producción real) sin errores.
+
 Verificado: `npm run check` limpio, `npx vitest run` 17/17 archivos, `npm run build` sin errores. Smoke test interactivo en el navegador embebido del formulario de registro (los 2 textos del selector de rol, en los 2 idiomas verificados visualmente) sin errores de consola. La pantalla de `ClubSecurityGate` no se pudo probar de forma interactiva (necesita una cuenta real registrada como "coach" sin invitación, no reproducible sin credenciales) — verificada por lectura del código y del formato real del error 404 que devuelve el servidor.

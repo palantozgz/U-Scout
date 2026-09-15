@@ -53,3 +53,20 @@ export async function getCurrentUser() {
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 }
+
+// AÑADIDOS 2026-09-15 (pasada de fricción/cosmética): no existía ninguna
+// forma de recuperar el acceso a la cuenta -- un usuario nuevo que se
+// equivocaba de contraseña quedaba bloqueado sin salida dentro de la app.
+// `redirectTo` apunta a la propia raíz de la app -- Supabase adjunta el
+// token de recuperación como fragmento de URL, `detectSessionInUrl: true`
+// (ya activo arriba) lo consume solo y dispara el evento
+// "PASSWORD_RECOVERY" que escucha App.tsx.
+export async function resetPasswordForEmail(email: string) {
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
+}
+
+export async function updatePassword(newPassword: string) {
+  return supabase.auth.updateUser({ password: newPassword });
+}

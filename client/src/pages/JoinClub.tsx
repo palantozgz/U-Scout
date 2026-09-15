@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, ShieldAlert } from "lucide-react";
+import { Shield, ShieldAlert, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocale } from "@/lib/i18n";
@@ -20,6 +20,8 @@ export default function JoinClub() {
   const acceptMutation = useAcceptClubInvitation();
 
   const [mode, setMode] = useState<Mode>("login");
+  // AÑADIDO 2026-09-15 (pasada de fricción/cosmética, mismo criterio que Login.tsx).
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -224,6 +226,7 @@ export default function JoinClub() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="h-12 rounded-xl bg-background"
+                  autoComplete="name"
                 />
               )}
               <Input
@@ -233,15 +236,28 @@ export default function JoinClub() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-12 rounded-xl bg-background"
                 autoCapitalize="none"
+                autoComplete="email"
               />
-              <Input
-                type="password"
-                placeholder={t("password")}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-12 rounded-xl bg-background"
-                onKeyDown={(e) => e.key === "Enter" && handleAuth()}
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder={t("password")}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-12 rounded-xl bg-background pr-11"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  onKeyDown={(e) => e.key === "Enter" && handleAuth()}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-0 top-0 h-12 w-11 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  aria-label={showPassword ? t("password_hide") : t("password_show")}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
               {mode === "register" && (
                 <div className="grid grid-cols-3 gap-2">
                   {(["head_coach", "coach", "player"] as const).map((r) => (
