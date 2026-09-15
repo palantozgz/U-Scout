@@ -1564,6 +1564,17 @@ function CalibrationPanel({ locale, gender }: { locale: "en" | "es" | "zh"; gend
     });
   };
 
+  // AÑADIDO 2026-09-15 (spec sección 57): Pablo, mirando el panel en
+  // producción -- "no sé para qué sirve". Ningún sitio explicaba en lenguaje
+  // llano qué hace el botón "Hacer permanente" antes de pulsarlo. Frase
+  // corta encima del panel, siempre visible (no solo en el estado vacío).
+  const intro =
+    locale === "zh"
+      ? "当你的教练团队中有几个人在不同的报告里做了同一处修改时，会出现在这里。点击「设为永久」后，引擎以后会自动应用这个调整，不用每次手动改。"
+      : locale === "es"
+        ? "Cuando varios entrenadores de tu staff hacen el mismo cambio en informes distintos, aparece aquí. Pulsar \"Hacer permanente\" hace que el motor lo aplique solo a partir de ahora, sin que nadie tenga que repetirlo a mano cada vez."
+        : "When several coaches on your staff make the same change on different reports, it shows up here. Tapping \"Make permanent\" makes the engine apply it automatically from now on, so nobody has to repeat it by hand.";
+
   return (
     <section className="rounded-2xl border border-border bg-card p-4 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1582,6 +1593,8 @@ function CalibrationPanel({ locale, gender }: { locale: "en" | "es" | "zh"; gend
           </Select>
         </div>
       </div>
+
+      <p className="text-xs text-muted-foreground leading-snug">{intro}</p>
 
       {q.isLoading && (
         <div className="flex justify-center py-8">

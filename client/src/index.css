@@ -172,6 +172,31 @@ body::after {
   --radius: 0.5rem;
 }
 
+/* AÑADIDO 2026-09-15 (spec 57) -- Pablo: "los cuadros de las horas quedan
+   feos" (input type="time" del horario de avisos, ClubManagement.tsx). El
+   navegador nunca sabía qué tema estaba activo -- sin color-scheme, dibuja
+   sus propios controles nativos (reloj/calendario, flechas de spin,
+   scrollbars) con su chrome claro por defecto, sin encajar con las 2
+   variantes oscuras de la app (.dark, .theme-oldschool). No afecta al
+   layout de nada que ya esté estilado a mano -- solo a las piezas que el
+   navegador dibuja él mismo. */
+:root,
+.theme-office {
+  color-scheme: light;
+}
+.dark,
+.theme-oldschool {
+  color-scheme: dark;
+}
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.65;
+  border-radius: 0.25rem;
+}
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 /* ── CLASSIC: fondo con textura de pista y arco de balón ─────── */
 html.theme-oldschool body {
   /* Líneas de parqué horizontales — tablones de madera */

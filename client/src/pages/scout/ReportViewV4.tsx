@@ -146,6 +146,54 @@ export default function ReportViewV4({
   const iApproved = Boolean(approvalData?.approvals.some((a) => a.coachId === myId));
   const approvalCount = approvalData?.approvals.length ?? 0;
   const approvalTotal = Math.max(approvalData?.totalStaff ?? 0, 1);
+  const isPublished = approvalData?.isPublished === true;
+
+  // AÑADIDO 2026-09-15 (spec sección 57): hasta ahora, "Publicar" solo
+  // existía en Film Room (POST .../game-plan), que exigía primero pasar por
+  // "Enviar a sala" y navegar fuera de esta pantalla -- fricción real para
+  // un staff de un solo entrenador (o para cualquier informe donde no hace
+  // falta esperar comparación con el resto). Pablo, con propuesta propia ya
+  // resuelta ("que el que genere un report [...] pueda decidir si quiere
+  // publicarla directamente o dejarla a la vista del staff para
+  // comparación [...] sin crear nada nuevo, con la fricción de un solo
+  // clic"): en vez de un "modo simplificado" nuevo y paralelo, un segundo
+  // botón aquí mismo -- mismo gate real del servidor (>=1 aprobación,
+  // auto-concedida aquí si hace falta), mismo endpoint de publicación,
+  // ningún permiso ni validación nueva.
+  const [isPublishing, setIsPublishing] = useState(false);
+  const handlePublishDirectly = async () => {
+    setIsPublishing(true);
+    try {
+      if (!iApproved) {
+        await approveReport.mutateAsync();
+      }
+      await apiRequest("POST", `/api/players/${encodeURIComponent(playerId)}/game-plan`);
+      await invalidatePlayerApprovalQueries(queryClient, playerId);
+      queryClient.invalidateQueries({ queryKey: ["/api/film-room"] });
+      toast({
+        description: es
+          ? "Informe publicado — ya es visible para las jugadoras."
+          : zh
+            ? "报告已发布 — 球员现在可以看到了。"
+            : "Report published — players can see it now.",
+      });
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : String(e);
+      const noApproval = raw.includes("coach approval is required");
+      toast({
+        variant: "destructive" as any,
+        description: noApproval
+          ? (es
+              ? "Hace falta al menos una aprobación antes de publicar."
+              : zh
+                ? "发布前需要至少一位教练的批准。"
+                : "At least one coach approval is required before publishing.")
+          : (es ? "No se pudo publicar el informe." : zh ? "无法发布报告。" : "Could not publish the report."),
+      });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   const onToggleApprove = () => {
     if (!myId) {
@@ -257,15 +305,28 @@ export default function ReportViewV4({
           onOverrideChange={() => void invalidatePlayerApprovalQueries(queryClient, playerId)}
         />
 
-        {isCanonicalProfile && (
-          <div className="flex items-center justify-end gap-2 pt-1">
+        {isCanonicalProfile && isPublished && (
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2 border bg-emerald-500/10 border-emerald-500/20">
+            <span className="text-base leading-none">🚀</span>
+            <p className="text-[11px] font-black uppercase tracking-wider leading-tight text-emerald-600 dark:text-emerald-400">
+              {es
+                ? "Publicado — visible para las jugadoras"
+                : zh
+                  ? "已发布 — 球员可见"
+                  : "Published — visible to players"}
+            </p>
+          </div>
+        )}
+
+        {isCanonicalProfile && !isPublished && (
+          <div className="flex flex-col items-stretch gap-2 pt-1 sm:flex-row sm:items-center sm:justify-end">
             <Button
               type="button"
               size="sm"
-              variant="default"
-              className="h-10 min-w-[8rem] rounded-xl px-4 font-bold text-sm bg-primary text-primary-foreground"
+              variant="outline"
+              className="h-10 rounded-xl px-4 font-bold text-sm border-border text-foreground hover:bg-muted"
               onClick={() => void handleSubmitToFilmRoom()}
-              disabled={isSubmitting || submittedToFilmRoom}
+              disabled={isSubmitting || submittedToFilmRoom || isPublishing}
             >
               <Send className="w-4 h-4 mr-2 shrink-0" />
               {isSubmitting
@@ -276,13 +337,38 @@ export default function ReportViewV4({
                     : "Sending..."
                 : submittedToFilmRoom || sentFlash
                   ? es
-                    ? "Enviado ✓"
+                    ? "Enviado, esperando al staff ✓"
                     : zh
-                      ? "已发送 ✓"
-                      : "Sent ✓"
+                      ? "已发送，等待其他教练 ✓"
+                      : "Sent, waiting on staff ✓"
                   : es
-                    ? "→ Sala de análisis"
-                    : "→ Film Room"}
+                    ? "Dejar para comparar con el staff"
+                    : zh
+                      ? "留给其他教练比较"
+                      : "Leave for staff comparison"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="default"
+              className="h-10 rounded-xl px-4 font-bold text-sm bg-primary text-primary-foreground"
+              onClick={() => void handlePublishDirectly()}
+              disabled={isPublishing || isSubmitting}
+            >
+              🚀
+              <span className="ml-2">
+                {isPublishing
+                  ? es
+                    ? "Publicando..."
+                    : zh
+                      ? "发布中..."
+                      : "Publishing..."
+                  : es
+                    ? "Publicar directamente"
+                    : zh
+                      ? "直接发布"
+                      : "Publish directly"}
+              </span>
             </Button>
           </div>
         )}
