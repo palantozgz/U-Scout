@@ -214,6 +214,9 @@ Mandato de Pablo: revisar flujos UX y cosmética para usuarios nuevos, mínima f
 ### Pasada de fricción/cosmética — tercer lote: Settings.tsx (2026-09-15, spec sección 51)
 Añadido enlace de soporte (`mailto:support@uscout.app`) a `Settings.tsx` (staff) — ya existía en `PlayerHomeSettingsStub.tsx` (jugadoras) pero faltaba en el de staff, mismas claves i18n reutilizadas. De pasada, 2 datos técnicos desactualizados en la tarjeta "Acerca de": decía "v4 — Motor" y "18 arquetipos" (era motor-v4/legacy) — corregido a "Motor 1.0"/"10" (contado directamente del union type real `ArchetypeKey` en `motor-v1-types.ts`, no adivinado).
 
+### Bloqueo de registro público de nuevos clubes — preparación App Store (2026-09-15, spec sección 52)
+Sin sistema de pagos todavía: `GET /api/club` (único sitio real donde un `head_coach` auto-crea un club nuevo) ahora exige que el email esté en `HEAD_COACH_SIGNUP_ALLOWLIST` (variable de entorno de Railway, csv) — si no, `403 signup_closed`, sin crear nada. `master` nunca se restringe. Enforced en servidor, no solo escondido en el cliente. El flujo de invitación a un club existente (coach/jugadora) no se toca, ya estaba correctamente cerrado. Variable configurada en producción con el único email real de head_coach que existe hoy (`pablomgz@hotmail.com`) — ampliar la lista es cambiar la variable en Railway, sin deploy.
+
 ## PENDIENTES — Próximas sesiones
 
 ### Alta prioridad

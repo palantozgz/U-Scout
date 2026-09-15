@@ -412,6 +412,43 @@ function ClubSecurityGate(props: { children: ReactNode }) {
     clubQ.isError &&
     String((clubQ.error as any)?.message ?? "").includes("No club found");
 
+  // AÑADIDO 2026-09-15 (mandato directo de Pablo, preparación para App
+  // Store): distingue el "signup_closed" real (un head_coach nuevo, de
+  // fuera, que nunca va a recibir una invitación porque no la necesita —
+  // decirle "pide una invitación" sería confuso/falso) del "no club found"
+  // de arriba (alguien que SÍ está esperando una invitación real).
+  const signupClosed =
+    clubQ.isError && String((clubQ.error as any)?.message ?? "").includes("signup_closed");
+
+  if (signupClosed) {
+    const es = locale === "es";
+    const zh = locale === "zh";
+    return (
+      <div className="flex flex-col items-center justify-center h-[100dvh] overflow-y-auto bg-background px-6 text-center gap-3">
+        <div className="w-14 h-14 rounded-2xl bg-muted/40 flex items-center justify-center">
+          <Mail className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <p className="text-base font-black text-foreground">
+          {es ? "Registro todavía no abierto" : zh ? "暂未开放公开注册" : "Registration isn't open yet"}
+        </p>
+        <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+          {es
+            ? "U Core todavía no está abierto a nuevos clubes. Escríbenos a support@uscout.app si quieres acceso."
+            : zh
+              ? "U Core 目前还未对新俱乐部开放。如需申请使用，请发邮件至 support@uscout.app。"
+              : "U Core isn't open to new clubs yet. Email support@uscout.app if you'd like access."}
+        </p>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="mt-2 h-11 px-6 rounded-xl border border-border text-sm font-bold text-foreground"
+        >
+          {es ? "Cerrar sesión" : zh ? "退出登录" : "Sign out"}
+        </button>
+      </div>
+    );
+  }
+
   if (noClubFound) {
     const es = locale === "es";
     const zh = locale === "zh";

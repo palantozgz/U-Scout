@@ -152,6 +152,29 @@ const reportOverrideBodySchema = z.object({
   locale: z.enum(["en", "es", "zh"]).optional(),
 });
 
+/**
+ * AÑADIDO 2026-09-15 -- gate temporal de registro público, antes de tener
+ * pagos y de subir la app a la App Store. Solo restringe quién puede
+ * auto-crear un club NUEVO como head_coach (ver GET /api/club) -- no toca
+ * el flujo de invitaciones a un club existente, que ya requiere un enlace
+ * real generado por un head_coach.
+ *
+ * `HEAD_COACH_SIGNUP_ALLOWLIST` (Railway → variables de entorno del
+ * servicio): lista de emails separados por comas. Si no está definida, cae
+ * a solo el email de Pablo -- falla cerrado (restrictivo), nunca abierto,
+ * si alguien se olvida de configurar la variable en un entorno nuevo.
+ */
+const DEFAULT_HEAD_COACH_SIGNUP_ALLOWLIST = ["pablomgz@hotmail.com"];
+
+function isHeadCoachSignupAllowed(email: string | undefined | null): boolean {
+  if (!email) return false;
+  const raw = process.env.HEAD_COACH_SIGNUP_ALLOWLIST;
+  const allowlist = raw
+    ? raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)
+    : DEFAULT_HEAD_COACH_SIGNUP_ALLOWLIST;
+  return allowlist.includes(email.toLowerCase().trim());
+}
+
 function computeHasDiscrepancy(
   overrides: Array<{
     coachId: string;
@@ -1393,6 +1416,25 @@ export async function registerRoutes(
       const uid = req.user!.id;
       const appRole = req.user!.role;
       let club = await storage.getClubForUser(uid);
+      // AÑADIDO 2026-09-15 (pasada de fricción/cosmética + preparación para
+      // App Store, mandato directo de Pablo): sin sistema de pagos todavía,
+      // cualquiera que se descargue la app y se registre como "Head Coach"
+      // conseguía un club nuevo, totalmente funcional, gratis. Bloqueado en
+      // el único sitio real donde un head_coach obtiene un club (aquí, no
+      // solo escondiendo el botón en el cliente -- eso sería trivial de
+      // saltarse llamando a la API directamente). `master` nunca se
+      // restringe (rol de confianza interno). Reversible sin deploy: solo
+      // hay que ampliar HEAD_COACH_SIGNUP_ALLOWLIST en las variables de
+      // entorno de Railway, o quitar la comprobación del todo cuando haya
+      // pagos -- no se ha tocado el flujo de invitaciones (coach/jugadora),
+      // que ya estaba controlado por necesitar un enlace real de un
+      // head_coach existente y sigue exactamente igual.
+      if (!club && appRole === "head_coach" && !isHeadCoachSignupAllowed(req.user!.email)) {
+        return res.status(403).json({
+          error: "signup_closed",
+          message: "New club registration is not open to the public yet. Ask for an invite from an existing club, or contact U Core.",
+        });
+      }
       if (!club && (appRole === "head_coach" || appRole === "master")) {
         club = await storage.createClub({
           name: "My Club",
