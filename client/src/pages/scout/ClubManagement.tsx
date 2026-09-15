@@ -576,7 +576,7 @@ export default function ClubManagement() {
   return (
     <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       <ModuleIntroCard moduleKey="club" emoji={clubIntro.emoji} title={clubIntro.title} body={clubIntro.body} />
-      <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
+      <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <Button variant="ghost" size="icon" onClick={() => setLocation("/coach")} className="-ml-2 shrink-0">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </Button>

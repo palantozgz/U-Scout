@@ -434,7 +434,7 @@ export default function ReportSlidesV1({
       onPointerUp={handlePointerUp}
     >
       {/* ── Top bar ── */}
-      <header className="sticky top-0 z-20 flex items-center gap-2 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 shrink-0">
+      <header className="sticky top-0 z-20 flex items-center gap-2 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 shrink-0" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         {onBack && (
           <button type="button" onClick={onBack} className="-ml-1 p-2 rounded-lg text-muted-foreground hover:text-foreground" aria-label="Back">
             <ArrowLeft className="w-5 h-5" />

@@ -549,7 +549,7 @@ export default function Personnel() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
-      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 space-y-3 max-w-5xl mx-auto w-full">
+      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 space-y-3 max-w-5xl mx-auto w-full" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"

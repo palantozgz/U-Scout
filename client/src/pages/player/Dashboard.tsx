@@ -43,7 +43,7 @@ export function PlayerTeamView() {
 
   return (
     <div className="flex flex-col h-[100dvh] overflow-hidden bg-background text-foreground pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
-      <header className="sticky top-0 z-10 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <Button
           variant="ghost"
           size="icon"
