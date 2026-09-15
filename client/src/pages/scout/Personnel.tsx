@@ -683,6 +683,7 @@ export default function Personnel() {
                 value={newPlayerNumber}
                 onChange={(e) => setNewPlayerNumber(e.target.value)}
                 className="w-16 h-10 rounded-lg text-sm text-center"
+                inputMode="numeric"
                 onKeyDown={(e) => e.key === "Enter" && handleCreatePlayer()}
               />
             </div>

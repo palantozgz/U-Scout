@@ -31,6 +31,7 @@ const zh = {
   auth_reset_done_title: "密码已更新",
   auth_reset_done_body: "你的密码已修改，现已使用新密码登录。",
   auth_reset_done_continue: "继续",
+  auth_fill_required_fields: "请填写所有字段。",
   no_account: "没有账户？",
   role_master: "管理员",
   role_head_coach: "主教练",

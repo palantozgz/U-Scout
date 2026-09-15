@@ -32,6 +32,7 @@ const en = {
   auth_reset_done_title: "Password updated",
   auth_reset_done_body: "Your password has been changed. You're signed in with your new password.",
   auth_reset_done_continue: "Continue",
+  auth_fill_required_fields: "Please fill in all fields.",
   no_account: "Don't have an account?",
   role_master: "Master",
   role_head_coach: "Head Coach",

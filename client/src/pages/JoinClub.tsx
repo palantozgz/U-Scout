@@ -84,6 +84,18 @@ export default function JoinClub() {
 
   const handleAuth = async () => {
     setError(null);
+
+    // AÑADIDO 2026-09-15 (pasada de fricción/cosmética, mismo criterio que
+    // Login.tsx): estos campos no están dentro de un <form> real, `required`
+    // de HTML nunca dispararía. Comprobación manual en su lugar.
+    const missingEmail = !email.trim();
+    const missingPassword = !password.trim();
+    const missingName = mode === "register" && !fullName.trim();
+    if (missingEmail || missingPassword || missingName) {
+      setError(t("auth_fill_required_fields"));
+      return;
+    }
+
     setLoading(true);
     if (mode === "login") {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password });

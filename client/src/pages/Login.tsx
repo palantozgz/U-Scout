@@ -43,6 +43,21 @@ export default function Login() {
 
   const handleSubmit = async () => {
     setError(null);
+
+    // AÑADIDO 2026-09-15 (pasada de fricción/cosmética): estos campos no
+    // están dentro de un <form> real (el botón es un <div>/onClick, no
+    // type="submit") -- un `required` de HTML no dispararía nunca la
+    // validación nativa del navegador aquí. Comprobación manual en su
+    // lugar: evita un viaje de red innecesario y un mensaje crudo de
+    // Supabase por dejar un campo vacío sin querer.
+    const missingEmail = !email.trim();
+    const missingPassword = mode !== "forgot" && !password.trim();
+    const missingName = mode === "register" && !fullName.trim();
+    if (missingEmail || missingPassword || missingName) {
+      setError(t("auth_fill_required_fields"));
+      return;
+    }
+
     setLoading(true);
 
     if (mode === "forgot") {

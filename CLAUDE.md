@@ -217,6 +217,12 @@ Añadido enlace de soporte (`mailto:support@uscout.app`) a `Settings.tsx` (staff
 ### Bloqueo de registro público de nuevos clubes — preparación App Store (2026-09-15, spec sección 52)
 Sin sistema de pagos todavía: `GET /api/club` (único sitio real donde un `head_coach` auto-crea un club nuevo) ahora exige que el email esté en `HEAD_COACH_SIGNUP_ALLOWLIST` (variable de entorno de Railway, csv) — si no, `403 signup_closed`, sin crear nada. `master` nunca se restringe. Enforced en servidor, no solo escondido en el cliente. El flujo de invitación a un club existente (coach/jugadora) no se toca, ya estaba correctamente cerrado. Variable configurada en producción con el único email real de head_coach que existe hoy (`pablomgz@hotmail.com`) — ampliar la lista es cambiar la variable en Railway, sin deploy.
 
+### Auditoría de datos reales de producción — antes de limpiar el club de Jiangxi (2026-09-15, spec sección 53, SIN cambios de datos)
+Pablo pidió preparar el club real de Jiangxi para la entrada del staff/jugadoras reales. Consultado el estado real vía SQL directo (solo lectura) antes de proponer nada: 1 solo club, 3 cuentas totales (Pablo real + 2 marcadas "QA TEST" por el propio Pablo), 307 de las 309 jugadoras son el roster real de la WCBA ya importado (no tocar), solo 2 son fichas de prueba. Plan de migración a un club de pruebas nuevo propuesto y pendiente de confirmación — 2 cosas preguntadas directamente en vez de asumidas: qué hacer con 12 sesiones de calendario ambiguas, y que Pablo cree él mismo la cuenta "head coach test" (crear cuentas nuevas está prohibido para mí por las reglas de seguridad de la sesión). Ver spec sección 53 para el detalle completo de la consulta.
+
+### Pasada de fricción/cosmética — cuarto lote: teclado numérico + validación instantánea (2026-09-15, spec sección 54)
+`inputMode="numeric"` en los campos de dorsal (`MyScout.tsx`, `Personnel.tsx`). Validación instantánea de campos vacíos en `Login.tsx`/`JoinClub.tsx` — verificado que `required` de HTML no habría bastado (ninguno de los 2 formularios está dentro de un `<form>` real), añadida una comprobación manual equivalente al principio de `handleSubmit`/`handleAuth`.
+
 ## PENDIENTES — Próximas sesiones
 
 ### Alta prioridad

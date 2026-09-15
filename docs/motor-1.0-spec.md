@@ -2063,3 +2063,29 @@ Pablo, mandato directo: sin sistema de pagos todavía y con la app a punto de su
 **Deliberadamente sin tocar**: el flujo de invitación coach/jugadora (`JoinClub.tsx`, `POST /api/club/invitations/:token/accept`) — ya estaba correctamente cerrado, no forma parte de este hallazgo.
 
 Verificado: `npm run check` limpio, `npx vitest run` 17/17 archivos, `npm run build` (producción real) sin errores. No se pudo probar el rechazo real end-to-end (registrarse con un email fuera de la lista) porque **crear cuentas nuevas no es algo que deba hacer por mi cuenta** (ver reglas de seguridad) — verificado por lectura exhaustiva de la condición y por confirmar contra el dato real en Supabase que el email de Pablo es el único que debía quedar permitido hoy.
+
+## 53. Auditoría de datos reales de producción — antes de limpiar nada (2026-09-15, SIN cambios de datos)
+
+Pablo pidió preparar la app para la entrada real del staff/jugadoras de Jiangxi: limpiar usuarios/sesiones/datos de prueba del club, o migrarlos a un club de prueba nuevo si se quieren conservar. Dado que esto es borrar/mover datos de producción reales (difícil de deshacer), se consultó primero el estado real vía SQL directo contra Supabase — **sin ejecutar ningún `UPDATE`/`DELETE`** — antes de proponer ningún plan.
+
+**Panorama real, verificado, no asumido:**
+- **1 club**: "JIANGXI (江西女篮)" — ya con contexto real (WCBA, F, elite), no un club de pruebas separado.
+- **3 cuentas en total en `auth.users`**: `pablomgz@hotmail.com` (head_coach, real, creada abril), `ucore.qa.coach@gmail.com` y `ucore.qa.player@gmail.com` (ambas con "⚠️ QA TEST — no borrar sin avisar" en el nombre — marcadas por el propio Pablo en algún momento anterior, exactamente para este tipo de situación).
+- **309 jugadoras en `players`**: 307 canónicas repartidas en 18 equipos reales de la WCBA (14-20 jugadoras cada uno, incluida la propia "江西鲸裕清酒"/Jiangxi con 14) — **esto es el roster real ya importado, no datos de prueba**, confirmado por nombre de equipo real antes de proponer tocarlo. Solo 2 son de "sandbox" (fichas de práctica, una de Pablo y una del coach QA).
+- **12 `schedule_events`**, todos creados por Pablo, mayoría sin título — ambiguo, no se asume que sean de prueba sin preguntar.
+- **5 `wellness_entries`**, las 5 del usuario QA jugadora.
+- **5 `club_invitations` históricas** — 3 usadas por ids de usuario que ya no existen en `auth.users` (cuentas de prueba de abril, borradas en algún momento anterior a esta sesión; las filas de invitación quedan como referencia huérfana inofensiva, no se tocan) y 2 usadas por las cuentas QA actuales.
+- **0 filas** en `report_approvals`, `report_publications`, `report_overrides`, `player_scout_versions`, `scouting_report_assignments` — nada que limpiar ahí.
+
+**Plan propuesto a Pablo, pendiente de confirmación antes de ejecutar nada:** migrar las 2 cuentas QA (y sus fichas sandbox/wellness) a un club de pruebas nuevo, dejando Jiangxi solo con la cuenta real de Pablo y el roster de 307 jugadoras intacto. Dos cosas sin resolver, preguntadas directamente en vez de asumidas: (1) qué hacer con las 12 sesiones de calendario (ambiguas), (2) la cuenta "head coach test" del club nuevo **no la puedo crear yo** — crear cuentas nuevas está en la lista de acciones prohibidas de las reglas de seguridad de esta sesión, ni siquiera vía API interna — se le pidió a Pablo que la registre él mismo y me pase el email para añadirlo a `HEAD_COACH_SIGNUP_ALLOWLIST` (sección 52) y ejecutar la migración.
+
+Ningún dato se ha modificado en esta sección — solo lectura (`SELECT`), documentado aquí para que quede constancia exacta de qué se encontró antes de que la limpieza real (siguiente sesión o más adelante en esta misma) se ejecute sobre una base ya verificada, no sobre suposiciones.
+
+## 54. Pasada de fricción/cosmética — cuarto lote: teclado numérico + validación instantánea (2026-09-15)
+
+Continuación autónoma de bajo riesgo (sin tocar datos de producción) mientras se espera la respuesta de Pablo a la sección 53.
+
+- **`inputMode="numeric"`** en los 2 campos reales de dorsal/número (`MyScout.tsx`, `Personnel.tsx`, formularios de creación rápida de jugadora) — sin esto, el teclado móvil muestra el teclado completo de texto para un campo que siempre es un número corto; friccion pequeña pero repetida en una acción frecuente. Revisados también altura/peso en `PlayerEditor.tsx` — dejados tal cual a propósito: el placeholder incluye la unidad ("195 cm"), no son puramente numéricos, forzar el teclado numérico ahí sería peor, no mejor.
+- **Validación instantánea de campos vacíos en `Login.tsx`/`JoinClub.tsx`**: verificado antes de asumir que `required` de HTML bastaría — no basta, ninguno de los 2 formularios está dentro de un `<form>` real (el botón de enviar es un `onClick` sobre un `<div>`/`<button>` normal, no `type="submit"` dentro de un `<form onSubmit>`), así que la validación nativa del navegador nunca se dispararía. Añadida una comprobación manual equivalente al principio de `handleSubmit`/`handleAuth`: si falta email/contraseña/nombre, mensaje instantáneo ("Rellena todos los campos") sin ningún viaje de red, en vez de dejar que Supabase devuelva un error genérico tras la espera.
+
+Verificado: `npm run check` limpio, `npx vitest run` 17/17 archivos, `npm run build` (producción real) sin errores. Smoke test interactivo en el navegador embebido: pulsar "Sign in" con los 2 campos vacíos muestra el mensaje al instante, sin ninguna petición de red — verificado también que no queda ningún error de consola.

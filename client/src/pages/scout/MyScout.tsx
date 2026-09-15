@@ -379,6 +379,7 @@ export default function MyScout() {
                 value={newNumber}
                 onChange={(e) => setNewNumber(e.target.value)}
                 className="w-16 h-10 rounded-lg text-sm text-center"
+                inputMode="numeric"
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               />
             </div>

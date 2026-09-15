@@ -31,6 +31,7 @@ const es = {
   auth_reset_done_title: "Contraseña actualizada",
   auth_reset_done_body: "Tu contraseña se ha cambiado. Ya tienes sesión iniciada con la nueva.",
   auth_reset_done_continue: "Continuar",
+  auth_fill_required_fields: "Rellena todos los campos.",
   no_account: "¿No tienes cuenta?",
   role_master: "Director/a",
   role_head_coach: "Entrenador/a jefe",
