@@ -2040,4 +2040,11 @@ Verificado por grep: `resetPasswordForEmail`/"forgot password" no aparecía en n
 
 Verificado: `npm run check` limpio, `npx vitest run` 17/17 archivos (sin cambios — no hay lógica pura nueva que testear en aislamiento, todo es integración directa con el SDK de Supabase), `npm run build` (producción real) sin errores.
 
-Verificado: `npm run check` limpio, `npx vitest run` 17/17 archivos, `npm run build` sin errores. Smoke test interactivo en el navegador embebido del formulario de registro (los 2 textos del selector de rol, en los 2 idiomas verificados visualmente) sin errores de consola. La pantalla de `ClubSecurityGate` no se pudo probar de forma interactiva (necesita una cuenta real registrada como "coach" sin invitación, no reproducible sin credenciales) — verificada por lectura del código y del formato real del error 404 que devuelve el servidor.
+## 51. Pasada de fricción/cosmética — tercer lote: Settings.tsx (2026-09-15)
+
+Continuación autónoma de las secciones 49-50. Auditoría de `Settings.tsx` (ajustes de staff — coach/head_coach), comparándolo contra `PlayerHomeSettingsStub.tsx` (ajustes de jugadora) para ver qué tenía uno que le faltaba al otro.
+
+- **Sin contacto de soporte**: `PlayerHomeSettingsStub.tsx` ya tenía un enlace de ayuda (`mailto:support@uscout.app`); `Settings.tsx` no tenía ninguno, pese a que el staff (sobre todo el head coach, gestionando todo el club) es quien más probablemente necesite ayuda. Añadido el mismo bloque, reutilizando las claves i18n ya existentes `player_settings_help_title`/`_sub` — verificado que el texto en sí ya es genérico ("Help & support" / "Email the team"), no específico de jugadora, así que no hacía falta ninguna clave nueva.
+- **2 datos técnicos visibles y desactualizados, encontrados de pasada**: la tarjeta "Acerca de" mostraba `"v4 — Motor"` (de antes de que `ReportSlidesV1.tsx` pasara a motor-v1, spec sección 23/28) y `"18"` arquetipos (recuento de la era motor-v4/legacy). Verificado el dato real antes de cambiarlo, no adivinado: `ArchetypeKey` (`motor-v1-types.ts`) tiene exactamente 10 valores, contados directamente del union type. Corregido a "Motor 1.0" / "10".
+
+Verificado: `npm run check` limpio, `npx vitest run` 17/17 archivos, `npm run build` (producción real) sin errores. No se pudo hacer smoke test interactivo — `Settings.tsx` exige sesión autenticada de staff, sin credenciales de prueba disponibles; verificado por lectura de código y grep de las claves i18n reutilizadas.

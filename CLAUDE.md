@@ -211,6 +211,9 @@ Mandato de Pablo: revisar flujos UX y cosmética para usuarios nuevos, mínima f
 ### Pasada de fricción/cosmética — segundo lote: contraseñas (2026-09-15, spec sección 50)
 `Login.tsx`/`JoinClub.tsx`: `autoComplete` en los 3 campos (email/nombre/contraseña, faltaba en los 2 formularios) y botón de mostrar/ocultar contraseña (ningún campo de la app lo tenía). **Hallazgo no anticipado más importante**: no existía ninguna forma de recuperar el acceso a la cuenta — cerrado de punta a punta con `resetPasswordForEmail`/`updatePassword` (`supabase.ts`), un nuevo modo "forgot" en `Login.tsx`, y `PasswordRecoveryModal.tsx` (nuevo, montado en la raíz de `App.tsx`, escucha el evento `PASSWORD_RECOVERY` del SDK de Supabase). Verificado interactivamente el envío del enlace; el flujo de clic-real-en-el-correo no es reproducible sin credenciales de prueba, ver spec 50.3 para el detalle honesto de qué se verificó y qué no.
 
+### Pasada de fricción/cosmética — tercer lote: Settings.tsx (2026-09-15, spec sección 51)
+Añadido enlace de soporte (`mailto:support@uscout.app`) a `Settings.tsx` (staff) — ya existía en `PlayerHomeSettingsStub.tsx` (jugadoras) pero faltaba en el de staff, mismas claves i18n reutilizadas. De pasada, 2 datos técnicos desactualizados en la tarjeta "Acerca de": decía "v4 — Motor" y "18 arquetipos" (era motor-v4/legacy) — corregido a "Motor 1.0"/"10" (contado directamente del union type real `ArchetypeKey` en `motor-v1-types.ts`, no adivinado).
+
 ## PENDIENTES — Próximas sesiones
 
 ### Alta prioridad

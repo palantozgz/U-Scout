@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { ArrowLeft, Globe, Check, LogOut, User, Monitor, GraduationCap } from "lucide-react";
+import { ArrowLeft, Globe, Check, LogOut, User, Monitor, GraduationCap, LifeBuoy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale, type Locale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
@@ -210,14 +210,37 @@ export default function Settings() {
             </div>
             <div className="flex justify-between">
               <span>{t("settings_motor")}</span>
-              <span className="font-semibold text-foreground">v4 — Motor</span>
+              {/* CORREGIDO 2026-09-15 (pasada de fricción/cosmética): decía "v4"
+                  desde antes de que ReportSlidesV1.tsx pasara a motor-v1 (spec
+                  motor-1.0 sección 23/28) -- etiqueta visible a cualquier coach,
+                  técnicamente incorrecta desde entonces. */}
+              <span className="font-semibold text-foreground">Motor 1.0</span>
             </div>
             <div className="flex justify-between">
               <span>{t("settings_archetypes")}</span>
-              <span className="font-semibold text-foreground">18</span>
+              {/* CORREGIDO 2026-09-15: decía "18", resto de la era motor-v4/legacy
+                  -- el catálogo real de motor-v1 (ArchetypeKey, motor-v1-types.ts)
+                  tiene 10 arquetipos, verificado contando el propio union type. */}
+              <span className="font-semibold text-foreground">10</span>
             </div>
           </div>
         </div>
+
+        {/* AÑADIDO 2026-09-15 (pasada de fricción/cosmética): PlayerHomeSettingsStub.tsx
+            (jugadoras) ya tenía este enlace de soporte -- Settings.tsx (staff) no
+            tenía ninguno, pese a ser quien más probablemente necesite ayuda
+            gestionando el club. Mismas claves i18n (el texto ya es genérico,
+            no específico de jugadora). */}
+        <a
+          href="mailto:support@uscout.app?subject=U%20Core%20support"
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm hover:bg-muted/40 transition-colors"
+        >
+          <LifeBuoy className="w-5 h-5 text-primary shrink-0" />
+          <div className="min-w-0">
+            <p className="font-bold text-foreground text-sm">{t("player_settings_help_title")}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("player_settings_help_sub")}</p>
+          </div>
+        </a>
 
         {/* Account */}
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
