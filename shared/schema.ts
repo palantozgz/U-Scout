@@ -195,6 +195,39 @@ export const clubInvitations = pgTable("club_invitations", {
 export type ClubInvitation = typeof clubInvitations.$inferSelect;
 export type InsertClubInvitation = typeof clubInvitations.$inferInsert;
 
+/**
+ * AÑADIDO 2026-09-15 -- cableado del esquema `subscriptions`, que ya existía
+ * como tabla real en Supabase (diseño previo en Claude Desktop, 2026-04-03)
+ * pero nunca se había declarado aquí ni se usaba en ningún endpoint (0 filas
+ * en producción a día de hoy). Modelo confirmado con Pablo: el HEAD COACH es
+ * el cliente que paga -- su compra crea/activa esta fila, no hay flujo de
+ * "club compra y reparte". Los límites (`max_coaches`/`max_players`/
+ * `max_rival_teams`) son datos por fila, no hardcodeados por plan en código;
+ * los valores de basic (3/15/20) son el default real de la tabla. Precios y
+ * qué diferencia exactamente pro/elite de basic NO están decididos todavía
+ * -- eso queda pendiente de producto, no se ha inventado aquí.
+ *
+ * Este cableado es puramente de datos: no implica ningún procesador de pago
+ * concreto (Stripe/Apple IAP/RevenueCat/...). El único punto de integración
+ * que faltará el día que se elija uno es que su webhook de "pago confirmado"
+ * inserte una fila aquí -- ver isHeadCoachSignupAllowed/gate en
+ * server/routes.ts (GET /api/club), ya preparado para leerla.
+ */
+export const subscriptions = pgTable("subscriptions", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
+  headCoachId: text("head_coach_id").notNull(),
+  plan: text("plan").notNull().default("basic"),
+  maxCoaches: integer("max_coaches").notNull().default(3),
+  maxPlayers: integer("max_players").notNull().default(15),
+  maxRivalTeams: integer("max_rival_teams").notNull().default(20),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+});
+
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = typeof subscriptions.$inferInsert;
+
 /** Coach sign-off on a scouting report before publication. */
 export const reportApprovals = pgTable(
   "report_approvals",

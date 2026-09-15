@@ -19,6 +19,7 @@ import {
   type InsertClubMember,
   type ClubInvitation,
   type InsertClubInvitation,
+  type Subscription,
   type ReportApproval,
   type ReportOverride,
   type PromotedPattern,
@@ -31,6 +32,7 @@ import {
   clubs,
   clubMembers,
   clubInvitations,
+  subscriptions,
   reportApprovals,
   reportOverrides,
   reportPublications,
@@ -120,6 +122,15 @@ export interface IStorage {
   getClubForUser(userId: string): Promise<Club | undefined>;
   /** Club for approval staff tally: membership club first, else owned club. */
   findClubForApprovalStaff(userId: string): Promise<Club | undefined>;
+  /**
+   * AÑADIDO 2026-09-15: fila `subscriptions` activa (status='active' y
+   * expires_at nulo o futuro) para este head_coach, si existe. Hoy la tabla
+   * tiene 0 filas en producción -- este método siempre devuelve undefined
+   * hasta que exista un flujo de pago real que inserte una. Usado como
+   * segunda vía (además de HEAD_COACH_SIGNUP_ALLOWLIST) para permitir la
+   * auto-creación de club en GET /api/club.
+   */
+  getActiveSubscriptionForUser(headCoachId: string): Promise<Subscription | undefined>;
   createClub(row: InsertClub): Promise<Club>;
   updateClub(
     id: string,
@@ -622,6 +633,22 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(clubMembers.userId, userId), eq(clubMembers.status, "active")))
       .limit(1);
     return row?.c;
+  }
+
+  async getActiveSubscriptionForUser(headCoachId: string): Promise<Subscription | undefined> {
+    const now = new Date();
+    const [row] = await db
+      .select()
+      .from(subscriptions)
+      .where(
+        and(
+          eq(subscriptions.headCoachId, headCoachId),
+          eq(subscriptions.status, "active"),
+          or(isNull(subscriptions.expiresAt), gt(subscriptions.expiresAt, now)),
+        ),
+      )
+      .limit(1);
+    return row;
   }
 
   async findClubForApprovalStaff(userId: string): Promise<Club | undefined> {

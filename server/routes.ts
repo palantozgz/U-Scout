@@ -163,6 +163,18 @@ const reportOverrideBodySchema = z.object({
  * servicio): lista de emails separados por comas. Si no está definida, cae
  * a solo el email de Pablo -- falla cerrado (restrictivo), nunca abierto,
  * si alguien se olvida de configurar la variable en un entorno nuevo.
+ *
+ * AÑADIDO 2026-09-15 (2): esta allowlist es una de DOS vías para pasar el
+ * gate -- la otra es tener una fila activa en `subscriptions`
+ * (storage.getActiveSubscriptionForUser, ver GET /api/club más abajo).
+ * Modelo confirmado con Pablo (diseño previo en Claude Desktop): el head
+ * coach paga primero y esa compra crea su universo -- no hay aprobación
+ * manual. Hoy `subscriptions` tiene 0 filas, así que esta vía nunca deja
+ * pasar a nadie todavía -- "levantar el bloqueo" cuando haya pagos NO
+ * requiere tocar este gate, solo que el webhook del procesador de pago que
+ * se elija (Stripe/Apple IAP/RevenueCat/...) inserte la fila de
+ * suscripción tras un pago confirmado. La allowlist se queda para siempre
+ * como override manual (cuentas de test, soporte), independiente de pagos.
  */
 const DEFAULT_HEAD_COACH_SIGNUP_ALLOWLIST = ["pablomgz@hotmail.com"];
 
@@ -1425,15 +1437,23 @@ export async function registerRoutes(
       // saltarse llamando a la API directamente). `master` nunca se
       // restringe (rol de confianza interno). Reversible sin deploy: solo
       // hay que ampliar HEAD_COACH_SIGNUP_ALLOWLIST en las variables de
-      // entorno de Railway, o quitar la comprobación del todo cuando haya
-      // pagos -- no se ha tocado el flujo de invitaciones (coach/jugadora),
-      // que ya estaba controlado por necesitar un enlace real de un
-      // head_coach existente y sigue exactamente igual.
+      // entorno de Railway -- no se ha tocado el flujo de invitaciones
+      // (coach/jugadora), que ya estaba controlado por necesitar un enlace
+      // real de un head_coach existente y sigue exactamente igual.
+      //
+      // AÑADIDO 2026-09-15 (2): segunda vía de paso -- suscripción activa
+      // real (ver comentario grande sobre `subscriptions` más arriba). Hoy
+      // esto no deja pasar a nadie (0 filas), pero deja el gate ya listo
+      // para cuando exista un flujo de pago: no hará falta tocar esta
+      // función, solo que ese flujo inserte la fila en `subscriptions`.
       if (!club && appRole === "head_coach" && !isHeadCoachSignupAllowed(req.user!.email)) {
-        return res.status(403).json({
-          error: "signup_closed",
-          message: "New club registration is not open to the public yet. Ask for an invite from an existing club, or contact U Core.",
-        });
+        const activeSub = await storage.getActiveSubscriptionForUser(uid);
+        if (!activeSub) {
+          return res.status(403).json({
+            error: "signup_closed",
+            message: "New club registration is not open to the public yet. Ask for an invite from an existing club, or contact U Core.",
+          });
+        }
       }
       if (!club && (appRole === "head_coach" || appRole === "master")) {
         club = await storage.createClub({
