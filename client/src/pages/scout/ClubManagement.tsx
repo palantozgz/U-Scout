@@ -1565,15 +1565,48 @@ function CalibrationPanel({ locale, gender }: { locale: "en" | "es" | "zh"; gend
   };
 
   // AÑADIDO 2026-09-15 (spec sección 57): Pablo, mirando el panel en
-  // producción -- "no sé para qué sirve". Ningún sitio explicaba en lenguaje
-  // llano qué hace el botón "Hacer permanente" antes de pulsarlo. Frase
-  // corta encima del panel, siempre visible (no solo en el estado vacío).
-  const intro =
+  // producción -- "no sé para qué sirve". Primera versión (una frase suelta
+  // en gris) resultó insuficiente -- pidió explícitamente "explicarlo mejor
+  // a fondo en el menú, porque los usuarios no lo van a entender". Sustituida
+  // por una caja destacada (mismo patrón visual que el link de invitación
+  // más arriba en este archivo), con el mecanismo completo en lenguaje llano
+  // + un ejemplo concreto, siempre visible (no solo en el estado vacío).
+  const explain =
     locale === "zh"
-      ? "当你的教练团队中有几个人在不同的报告里做了同一处修改时，会出现在这里。点击「设为永久」后，引擎以后会自动应用这个调整，不用每次手动改。"
+      ? {
+          heading: "这是什么？",
+          p1: "引擎会自动生成每一份报告。有时候某位教练不认同某个结论，就会在那份报告里手动修改。",
+          p2: "如果几位不同的教练，在相似类型的球员身上，都做了同样的修改——这就不是巧合，说明引擎在这里的默认判断经常出错。下面列出的就是这些重复出现的修改。",
+          example: "例如：如果 3 位不同的教练都把某句描述改成了同一个说法，就会出现在这里。",
+          promoteWhat: "「设为永久」",
+          promoteDesc: "以后引擎会自动应用这个修改，教练不用再一个个手动改。",
+          revertWhat: "「撤销」",
+          revertDesc: "取消这个永久修改，引擎恢复原来的计算方式。",
+          emptyNote: "只有你一个人使用时，这里会一直是空的——需要几位教练真正做出同样的修改才会出现。",
+        }
       : locale === "es"
-        ? "Cuando varios entrenadores de tu staff hacen el mismo cambio en informes distintos, aparece aquí. Pulsar \"Hacer permanente\" hace que el motor lo aplique solo a partir de ahora, sin que nadie tenga que repetirlo a mano cada vez."
-        : "When several coaches on your staff make the same change on different reports, it shows up here. Tapping \"Make permanent\" makes the engine apply it automatically from now on, so nobody has to repeat it by hand.";
+        ? {
+            heading: "¿Qué es esto?",
+            p1: "El motor genera cada informe en automático. A veces un entrenador no está de acuerdo con algo que dice, y lo cambia a mano en ese informe.",
+            p2: "Si varios entrenadores distintos hacen el mismo cambio a mano, en jugadoras con un perfil parecido, no es casualidad — es señal de que el motor se equivoca ahí siempre. Esos cambios repetidos son los que ves listados abajo.",
+            example: "Ejemplo: si 3 entrenadores distintos corrigen la misma frase en jugadoras parecidas, aparecerá aquí.",
+            promoteWhat: "\"Hacer permanente\"",
+            promoteDesc: "el motor aplica ese cambio solo, en todos los informes parecidos, a partir de ahora — nadie tiene que volver a corregirlo a mano.",
+            revertWhat: "\"Revertir\"",
+            revertDesc: "deshace eso, el motor vuelve a calcularlo como antes.",
+            emptyNote: "Con un solo entrenador usando la app, este panel se ve vacío siempre — hace falta que varios coincidan en el mismo cambio.",
+          }
+        : {
+            heading: "What is this?",
+            p1: "The engine generates every report automatically. Sometimes a coach disagrees with something it says and changes it by hand on that report.",
+            p2: "If several different coaches make the same change by hand, on players with a similar profile, that's not a coincidence — it's a sign the engine gets that wrong every time. Those repeated changes are what's listed below.",
+            example: "Example: if 3 different coaches correct the same line on similar players, it will show up here.",
+            promoteWhat: "\"Make permanent\"",
+            promoteDesc: "the engine applies that change on its own, on every similar report, from now on — nobody has to fix it by hand again.",
+            revertWhat: "\"Revert\"",
+            revertDesc: "undoes that, the engine goes back to calculating it the original way.",
+            emptyNote: "With just one coach using the app, this panel will always look empty — it needs several coaches to agree on the same change.",
+          };
 
   return (
     <section className="rounded-2xl border border-border bg-card p-4 space-y-4">
@@ -1594,7 +1627,23 @@ function CalibrationPanel({ locale, gender }: { locale: "en" | "es" | "zh"; gend
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground leading-snug">{intro}</p>
+      <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+        <p className="text-xs font-bold text-foreground">{explain.heading}</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">{explain.p1}</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">{explain.p2}</p>
+        <p className="text-xs text-muted-foreground/80 leading-relaxed italic">{explain.example}</p>
+        <ul className="text-xs text-muted-foreground leading-relaxed space-y-1 list-disc pl-4">
+          <li>
+            <span className="font-semibold text-foreground">{explain.promoteWhat}</span> — {explain.promoteDesc}
+          </li>
+          <li>
+            <span className="font-semibold text-foreground">{explain.revertWhat}</span> — {explain.revertDesc}
+          </li>
+        </ul>
+        <p className="text-[10px] text-muted-foreground/60 leading-relaxed pt-1 border-t border-border/50">
+          {explain.emptyNote}
+        </p>
+      </div>
 
       {q.isLoading && (
         <div className="flex justify-center py-8">
