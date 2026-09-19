@@ -75,7 +75,7 @@ export function ModulePageShell(
           />
         </div>
       ) : (
-        <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border shrink-0" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+        <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border shrink-0">
           <div className="w-full max-w-5xl mx-auto px-3 md:px-8 md:py-3.5 py-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               {showBack ? (
