@@ -36,21 +36,21 @@ baloncesto,basketball,scouting,estadisticas,equipo,entrenador,tactica,club,depor
 
 ## URL de política de privacidad
 https://u-scout-production.up.railway.app/privacy-policy.html
-(pendiente: hacer push del archivo para que esta URL responda)
+(verificado 19 sept 2026: responde 200)
 
 ## URL de soporte (obligatoria — puede ser la misma política de privacidad o un email mailto:)
-mailto:[TU EMAIL AQUÍ]
+mailto:pablomgz@hotmail.com
 
 ## Notas de la versión (What's New — 1.0)
 Primera versión de U Core.
 
 ## Información de contacto (App Review Information — no pública)
 Nombre: Pablo Muñoz
-Email: [TU EMAIL AQUÍ]
-Teléfono: [TU TELÉFONO AQUÍ]
+Email: pablomgz@hotmail.com
+Teléfono: +34606505164
 
 ## Cuenta de demo para el revisor de Apple (muy recomendable incluirla)
 Como U Core requiere login y no es de registro público, Apple casi seguro pedirá credenciales de prueba. Prepara un usuario demo con datos de ejemplo (no reales de jugadoras) y anótalo aquí:
-Usuario: [PENDIENTE]
-Contraseña: [PENDIENTE]
+Usuario: ucore.qa.headcoach@test.com
+Contraseña: 12345678
 Notas para el revisor: "Esta es una app de gestión interna para un club de baloncesto profesional. Usa las credenciales anteriores para acceder como entrenador de demostración."
