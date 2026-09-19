@@ -9,6 +9,7 @@ import type { Express, Request, Response } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
 import { processPossessions } from "./possessions";
+import { CURRENT_SEASON_ID } from "../shared/season";
 
 // ─── Auth middleware ───────────────────────────────────────────────────────────
 function requireIngestKey(req: Request, res: Response, next: () => void) {
@@ -304,7 +305,7 @@ async function handlePBP(rows: any[]): Promise<number> {
     `);
     const gRow = (gRes as any).rows?.[0];
     if (gRow) {
-      processPossessions(Number(gRow.id), Number(gRow.season_id ?? 2092)).catch(err =>
+      processPossessions(Number(gRow.id), Number(gRow.season_id ?? CURRENT_SEASON_ID)).catch(err =>
         console.error('[ingest] processPossessions failed:', err.message)
       );
     }

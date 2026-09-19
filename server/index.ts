@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { rateLimit } from "express-rate-limit";
 import { registerRoutes } from "./routes";
+import { CURRENT_SEASON_ID } from "../shared/season";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
@@ -80,7 +81,7 @@ export function log(message: string, source = "express") {
     // Auto-process pending possessions on startup (fire-and-forget)
     setTimeout(() => {
       import('./possessions').then(({ processAllPendingPossessions }) => {
-        processAllPendingPossessions(2092).catch(err =>
+        processAllPendingPossessions(CURRENT_SEASON_ID).catch(err =>
           console.error('[startup] possessions auto-process failed:', err.message)
         );
       });
