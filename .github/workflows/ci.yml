@@ -1,0 +1,32 @@
+name: CI
+
+# Typecheck + unit tests en cada push/PR a main. Los E2E (Playwright) NO
+# corren aqui a proposito: apuntan al club QA en produccion y deben
+# lanzarse a mano (npx playwright test), nunca en un runner automatico
+# sin control sobre cuando/cuantas veces se ejecutan contra datos reales.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run check
+
+      - name: Unit tests
+        run: npm run test
