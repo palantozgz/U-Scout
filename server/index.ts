@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { rateLimit } from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -6,22 +7,39 @@ import { createServer } from "http";
 const app = express();
 const httpServer = createServer(app);
 
+// Railway sits behind its own edge proxy -- sin esto, express-rate-limit
+// no puede leer X-Forwarded-For correctamente (o lanza ERR_ERL_UNEXPECTED_X_FORWARDED_FOR).
+app.set("trust proxy", 1);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
   }
 }
 
+// Rate limit: guarda basico contra abuso/scraping en /api. Generoso a
+// proposito (club pequeno, TanStack Query con staleTime largo, collector
+// del Pi llamando a los endpoints de ingest) -- no es estricto, es un piso
+// que antes no existia en absoluto.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please try again later." },
+});
+app.use("/api", apiLimiter);
+
 app.use(
   express.json({
-    limit: "10mb",
+    limit: "2mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false, limit: "10mb" }));
+app.use(express.urlencoded({ extended: false, limit: "2mb" }));
 
 // Ensure browsers requesting the default /favicon.ico get an icon asset (dev + prod).
 app.get("/favicon.ico", (_req, res) => {
