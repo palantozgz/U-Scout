@@ -146,6 +146,7 @@ function DiscrepancyPanel({
                         variant="outline"
                         className="h-7 px-2 text-[10px] md:text-xs shrink-0"
                         disabled={setOverride.isPending}
+                        data-testid={`filmroom-override-use-${key}-${valueKey}`}
                         onClick={() =>
                           setOverride.mutate({
                             slide: slideKey as SetReportOverrideBody["slide"],
@@ -230,6 +231,7 @@ function FilmRoomCard({
         type="button"
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
         onClick={() => setExpanded((e) => !e)}
+        data-testid={`filmroom-card-toggle-${player.id}`}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -308,6 +310,7 @@ function FilmRoomCard({
               variant="outline"
               className="flex-1 h-11 rounded-lg text-xs font-bold"
               onClick={() => onViewReport(player.id)}
+              data-testid={`filmroom-view-report-${player.id}`}
             >
               {es ? "Ver informe" : zh ? "查看报告" : "View report"}
             </Button>
@@ -318,6 +321,7 @@ function FilmRoomCard({
                 className="flex-1 h-11 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
                 disabled={isPublishing}
                 onClick={() => onPublish(player.id)}
+                data-testid={`filmroom-publish-${player.id}`}
               >
                 <Send className="w-3 h-3 mr-1" />
                 {isPublishing
@@ -431,6 +435,7 @@ export default function FilmRoom() {
         <button
           type="button"
           onClick={() => setLocation("/coach")}
+          data-testid="filmroom-header-back"
           className="-ml-1 p-3 rounded-lg text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -479,7 +484,7 @@ export default function FilmRoom() {
                 a dónde ir, pero no había ningún botón -- el usuario tenía que
                 volver atrás y encontrar Mi Scout por su cuenta. Mismo patrón
                 aplicado en GamePlan.tsx y MyScout.tsx. */}
-            <Button size="sm" variant="outline" className="mt-1 rounded-lg" onClick={() => setLocation("/coach/my-scout")}>
+            <Button size="sm" variant="outline" className="mt-1 rounded-lg" onClick={() => setLocation("/coach/my-scout")} data-testid="filmroom-go-myscout">
               {es ? "Ir a Mi Scout" : zh ? "前往我的报告" : "Go to My Scout"}
             </Button>
           </div>

@@ -106,13 +106,14 @@ function wizardToInputs(w: WizardState): Record<string, unknown> {
 }
 
 // ── Option button ─────────────────────────────────────────────────────────────
-function Opt({ label, sub, selected, onSelect }: {
-  label: string; sub?: string; selected: boolean; onSelect: () => void;
+function Opt({ label, sub, selected, onSelect, testId }: {
+  label: string; sub?: string; selected: boolean; onSelect: () => void; testId?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onSelect}
+      data-testid={testId}
       className={cn(
         "w-full rounded-2xl border-2 px-4 py-4 text-left transition-all active:scale-[0.98]",
         selected
@@ -129,13 +130,14 @@ function Opt({ label, sub, selected, onSelect }: {
 }
 
 // ── Multi-select option ───────────────────────────────────────────────────────
-function MultiOpt({ label, selected, onToggle }: {
-  label: string; selected: boolean; onToggle: () => void;
+function MultiOpt({ label, selected, onToggle, testId }: {
+  label: string; selected: boolean; onToggle: () => void; testId?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onToggle}
+      data-testid={testId}
       className={cn(
         "rounded-xl border-2 px-3 py-2.5 text-left transition-all active:scale-[0.98] flex items-center gap-2",
         selected ? "border-primary bg-primary/8" : "border-border bg-card hover:border-primary/40"
@@ -298,6 +300,7 @@ export default function QuickScout({ playerId }: Props) {
               sub={s.sub}
               selected={w.situation === s.value}
               onSelect={() => setW(prev => ({ ...prev, situation: s.value }))}
+              testId={`quickscout-situation-${s.value}`}
             />
           ))}
         </div>
@@ -315,7 +318,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Left" as const, label: es ? "Izquierda" : zh ? "左手" : "Left", sub: es ? "Domina hacia su izquierda" : zh ? "主导左侧" : "Favors her left" },
             { value: "Balanced" as const, label: es ? "Ambas" : zh ? "双手均衡" : "Both sides", sub: es ? "Cómoda en los dos lados" : zh ? "两侧均衡" : "Comfortable both ways" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.isoDir === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.isoDir === o.value} testId={`quickscout-isoDir-${o.value}`}
               onSelect={() => setW(p => ({ ...p, isoDir: o.value }))} />
           ))}
         </div>
@@ -327,7 +330,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Shoot" as const, label: es ? "Tiradora" : zh ? "投手型" : "Shooter", sub: es ? "Prefiere el tiro" : zh ? "偏好投篮" : "Prefers the jumper" },
             { value: "Pass" as const, label: es ? "Creadora" : zh ? "组织型" : "Creator", sub: es ? "Busca a compañeras" : zh ? "寻求传球" : "Looks to pass out" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.isoDec === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.isoDec === o.value} testId={`quickscout-isoDec-${o.value}`}
               onSelect={() => setW(p => ({ ...p, isoDec: o.value }))} />
           ))}
         </div>
@@ -339,7 +342,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: 3 as const, label: es ? "Alta" : zh ? "高" : "High", sub: es ? "Atleta sólida" : zh ? "运动能力强" : "Solid athlete" },
             { value: 5 as const, label: es ? "Élite" : zh ? "顶级" : "Elite", sub: es ? "Explosividad diferencial" : zh ? "爆发力顶级" : "Explosive, elite level" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.isoAth === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.isoAth === o.value} testId={`quickscout-isoAth-${o.value}`}
               onSelect={() => setW(p => ({ ...p, isoAth: o.value }))} />
           ))}
         </div>
@@ -352,7 +355,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Attack Middle", label: es ? "Ataca por el medio" : zh ? "中路突破" : "Attack Middle", sub: es ? "Corta hacia el centro" : zh ? "向中路切入" : "Cuts to the middle" },
             { value: "Extra Pass", label: es ? "Pasa" : zh ? "传球" : "Extra Pass", sub: es ? "Busca la circulación" : zh ? "寻求传球" : "Kicks it out" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.isoCloseout === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.isoCloseout === o.value} testId={`quickscout-isoCloseout-${o.value}`}
               onSelect={() => setW(p => ({ ...p, isoCloseout: o.value }))} />
           ))}
         </div>
@@ -368,7 +371,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Left", label: es ? "Izquierda" : zh ? "左侧" : "Left", sub: es ? "Pide la pantalla hacia su izquierda" : zh ? "向左侧要挡拆" : "Screens on her left" },
             { value: "Balanced", label: es ? "Ambas" : zh ? "双侧" : "Both", sub: es ? "Usa los dos lados" : zh ? "两侧均用" : "Uses both sides" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.pnrDir === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.pnrDir === o.value} testId={`quickscout-pnrDir-${o.value}`}
               onSelect={() => setW(p => ({ ...p, pnrDir: o.value as any }))} />
           ))}
         </div>
@@ -380,7 +383,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Re-screen", label: es ? "Vuelve a pedir pantalla" : zh ? "重新要挡拆" : "Re-screens", sub: es ? "No tira, busca mejor ángulo" : zh ? "不投球，寻求更好角度" : "Doesn't shoot, resets" },
             { value: "Reject / Attack", label: es ? "Rechaza y ataca" : zh ? "拒绝掩护突破" : "Rejects & attacks", sub: es ? "Ignora la pantalla y va directa" : zh ? "忽视掩护直接突破" : "Ignores screen, drives" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.pnrVsUnder === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.pnrVsUnder === o.value} testId={`quickscout-pnrVsUnder-${o.value}`}
               onSelect={() => setW(p => ({ ...p, pnrVsUnder: o.value }))} />
           ))}
         </div>
@@ -392,7 +395,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Pass First", label: es ? "Primero distribuir" : zh ? "优先传球" : "Pass first", sub: es ? "Busca al rodador o al abierto" : zh ? "寻找跑位队友或空位" : "Finds the roll or open player" },
             { value: "Balanced", label: es ? "Equilibrada" : zh ? "均衡型" : "Balanced", sub: es ? "Lee la defensa y decide" : zh ? "根据防守判断" : "Reads the defense" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.pnrPriority === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.pnrPriority === o.value} testId={`quickscout-pnrPriority-${o.value}`}
               onSelect={() => setW(p => ({ ...p, pnrPriority: o.value }))} />
           ))}
         </div>
@@ -408,7 +411,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Pop" as const, label: "Pop", sub: es ? "Sale a la línea de 3" : zh ? "弹出至三分线" : "Pops to the 3-point line" },
             { value: "Slip" as const, label: "Slip", sub: es ? "Corta antes de completar la pantalla" : zh ? "提前切入" : "Slips before completing the screen" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.screenerAction === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.screenerAction === o.value} testId={`quickscout-screenerAction-${o.value}`}
               onSelect={() => setW(p => ({ ...p, screenerAction: o.value }))} />
           ))}
         </div>
@@ -419,7 +422,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: true, label: es ? "Amenaza real" : zh ? "真实威胁" : "Real threat", sub: es ? "Puede anotar sola, hay que seguirla" : zh ? "可以独立得分，需要跟防" : "Can score, must be followed" },
             { value: false, label: es ? "Solo distracción" : zh ? "仅作干扰" : "Distraction only", sub: es ? "Su rol es liberar a la manejadora" : zh ? "主要作用是为持球人创造空间" : "Her role is to free the handler" },
           ].map(o => (
-            <Opt key={String(o.value)} label={o.label} sub={o.sub} selected={w.screenerThreat === o.value}
+            <Opt key={String(o.value)} label={o.label} sub={o.sub} selected={w.screenerThreat === o.value} testId={`quickscout-screenerThreat-${String(o.value)}`}
               onSelect={() => setW(p => ({ ...p, screenerThreat: o.value }))} />
           ))}
         </div>
@@ -435,7 +438,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Right Block" as const, label: es ? "Bloque derecho" : zh ? "右侧低位" : "Right block", sub: es ? "Se sella a la derecha del aro" : zh ? "在篮下右侧建立位置" : "Seals on the right side" },
             { value: "Any" as const, label: es ? "Cualquier lado" : zh ? "两侧均可" : "Either side", sub: es ? "Cómoda en ambos bloques" : zh ? "两侧均可" : "Comfortable on both sides" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.postShoulder === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.postShoulder === o.value} testId={`quickscout-postShoulder-${o.value}`}
               onSelect={() => setW(p => ({ ...p, postShoulder: o.value }))} />
           ))}
         </div>
@@ -447,7 +450,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Face-Up", label: es ? "Cara al aro" : zh ? "面框" : "Face-up", sub: es ? "Se gira y ataca de cara" : zh ? "转身面对篮筐进攻" : "Turns and attacks face-up" },
             { value: "Mixed", label: es ? "Mixto" : zh ? "混合型" : "Mixed", sub: es ? "Combina las dos opciones" : zh ? "两种方式结合" : "Uses both approaches" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.postZone === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.postZone === o.value} testId={`quickscout-postZone-${o.value}`}
               onSelect={() => setW(p => ({ ...p, postZone: o.value }))} />
           ))}
         </div>
@@ -461,7 +464,7 @@ export default function QuickScout({ playerId }: Props) {
         return (
           <div className="grid grid-cols-2 gap-2">
             {moves.map(m => (
-              <MultiOpt key={m} label={m} selected={w.postMoves.includes(m)}
+              <MultiOpt key={m} label={m} selected={w.postMoves.includes(m)} testId={`quickscout-postMoves-${m}`}
                 onToggle={() => setW(p => ({
                   ...p,
                   postMoves: p.postMoves.includes(m)
@@ -489,7 +492,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Attack Middle", label: es ? "Ataca por el medio" : zh ? "中路突破" : "Attack middle", sub: es ? "Si le cierran, corta al centro" : zh ? "被封盖时中路切入" : "Drives middle on closeout" },
             { value: "Extra Pass", label: es ? "Pasa" : zh ? "传球" : "Extra pass", sub: es ? "Busca a la abierta" : zh ? "寻找空位队友" : "Finds the open player" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.spotReaction === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.spotReaction === o.value} testId={`quickscout-spotReaction-${o.value}`}
               onSelect={() => setW(p => ({ ...p, spotReaction: o.value }))} />
           ))}
         </div>
@@ -501,7 +504,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "wing", label: es ? "Alas" : zh ? "侧翼" : "Wings", sub: es ? "Principalmente en las alas" : zh ? "主要在侧翼" : "Mainly on the wings" },
             { value: "both", label: es ? "Toda la línea" : zh ? "全三分线" : "Full arc", sub: es ? "Amenaza en cualquier posición" : zh ? "全线威胁" : "Threat anywhere on the arc" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.spotZone === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.spotZone === o.value} testId={`quickscout-spotZone-${o.value}`}
               onSelect={() => setW(p => ({ ...p, spotZone: o.value }))} />
           ))}
         </div>
@@ -518,7 +521,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Trailer", label: "Trailer", sub: es ? "Viene detrás buscando el triple" : zh ? "跟进寻求三分" : "Trails for the three" },
             { value: "Outlet", label: "Outlet", sub: es ? "Inicia la transición con el pase" : zh ? "通过传球发动快攻" : "Initiates with the outlet pass" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.transRole === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.transRole === o.value} testId={`quickscout-transRole-${o.value}`}
               onSelect={() => setW(p => ({ ...p, transRole: o.value }))} />
           ))}
         </div>
@@ -530,7 +533,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "find", label: es ? "Busca a la 4/5" : zh ? "寻找内线" : "Finds 4/5", sub: es ? "Pasa al interior" : zh ? "传给内线球员" : "Passes to the big" },
             { value: "stabilize", label: es ? "Estabiliza" : zh ? "稳定进攻" : "Stabilizes", sub: es ? "Para el juego y organiza" : zh ? "停止快攻，重新组织" : "Stops the break, sets up" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.transPrimary === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.transPrimary === o.value} testId={`quickscout-transPrimary-${o.value}`}
               onSelect={() => setW(p => ({ ...p, transPrimary: o.value }))} />
           ))}
         </div>
@@ -546,7 +549,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "screener", label: es ? "Pantallera sin balón" : zh ? "无球掩护" : "Off-ball screener", sub: es ? "Pone pantallas para liberación" : zh ? "无球掩护释放队友" : "Sets screens to free teammates" },
             { value: "spot", label: es ? "Estática" : zh ? "定点站位" : "Static spot-up", sub: es ? "Se queda en posición esperando" : zh ? "定点等球" : "Stands in position waiting" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.offBallRole === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.offBallRole === o.value} testId={`quickscout-offBallRole-${o.value}`}
               onSelect={() => setW(p => ({ ...p, offBallRole: o.value }))} />
           ))}
         </div>
@@ -559,7 +562,7 @@ export default function QuickScout({ playerId }: Props) {
             { value: "Curl", label: "Curl", sub: es ? "Enrolla la pantalla buscando el tiro" : zh ? "绕过掩护寻求投篮" : "Curls off screens for the shot" },
             { value: "Basket", label: es ? "Canasta directa" : zh ? "直接切篮" : "Basket cut", sub: es ? "Corta directo al aro" : zh ? "直接切向篮下" : "Cuts straight to the basket" },
           ].map(o => (
-            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.offBallCut === o.value}
+            <Opt key={o.value} label={o.label} sub={o.sub} selected={w.offBallCut === o.value} testId={`quickscout-offBallCut-${o.value}`}
               onSelect={() => setW(p => ({ ...p, offBallCut: o.value }))} />
           ))}
         </div>
@@ -622,7 +625,7 @@ export default function QuickScout({ playerId }: Props) {
     <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
-        <button type="button" onClick={goBack} className="-ml-1 p-1 rounded-lg text-muted-foreground hover:text-foreground">
+        <button type="button" onClick={goBack} data-testid="quickscout-header-back" className="-ml-1 p-1 rounded-lg text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1 min-w-0">
@@ -637,6 +640,7 @@ export default function QuickScout({ playerId }: Props) {
         <button
           type="button"
           onClick={() => setLocation(`/coach/player/${playerId}`)}
+          data-testid="quickscout-full-editor-link"
           className="text-[11px] md:text-sm font-bold text-muted-foreground hover:text-foreground whitespace-nowrap"
         >
           {es ? "Editor completo →" : zh ? "完整编辑器 →" : "Full editor →"}
@@ -665,7 +669,7 @@ export default function QuickScout({ playerId }: Props) {
         {/* Navigation */}
         <div className="flex gap-3 pt-2">
           {step > 0 && (
-            <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold" onClick={goBack}>
+            <Button variant="outline" data-testid="quickscout-nav-back" className="flex-1 h-12 rounded-xl font-bold" onClick={goBack}>
               {es ? "← Atrás" : zh ? "← 返回" : "← Back"}
             </Button>
           )}
@@ -674,6 +678,7 @@ export default function QuickScout({ playerId }: Props) {
               className="flex-1 h-12 rounded-xl font-black text-sm"
               disabled={!canAdvance() || saving}
               onClick={handleFinish}
+              data-testid="quickscout-finish"
             >
               {saving
                 ? (es ? "Guardando..." : zh ? "保存中..." : "Saving...")
@@ -684,6 +689,7 @@ export default function QuickScout({ playerId }: Props) {
               className="flex-1 h-12 rounded-xl font-black text-sm"
               disabled={!canAdvance()}
               onClick={goNext}
+              data-testid="quickscout-next"
             >
               {es ? "Siguiente →" : zh ? "下一步 →" : "Next →"}
               <ArrowRight className="w-4 h-4 ml-1" />

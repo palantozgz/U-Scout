@@ -313,6 +313,7 @@ export default function MyScout() {
           <button
             type="button"
             onClick={() => setLocation("/coach")}
+            data-testid="myscout-header-back"
             className="-ml-1 p-3 rounded-lg text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -327,6 +328,7 @@ export default function MyScout() {
           variant="outline"
           className="text-xs font-bold h-9 rounded-lg"
           onClick={() => { setShowNewPlayer(true); setNewTeamId(teams[0]?.id ?? ""); }}
+          data-testid="myscout-add-player"
         >
           {L.add}
         </Button>
@@ -373,6 +375,7 @@ export default function MyScout() {
                 className="flex-1 h-10 rounded-lg text-sm"
                 autoFocus
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                data-testid="myscout-new-player-name"
               />
               <Input
                 placeholder={L.number}
@@ -381,6 +384,7 @@ export default function MyScout() {
                 className="w-16 h-10 rounded-lg text-sm text-center"
                 inputMode="numeric"
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                data-testid="myscout-new-player-number"
               />
             </div>
             {teams.length > 1 && (
@@ -388,6 +392,7 @@ export default function MyScout() {
                 value={newTeamId}
                 onChange={(e) => setNewTeamId(e.target.value)}
                 className="w-full h-10 rounded-lg border border-border bg-background text-sm px-3"
+                data-testid="myscout-new-player-team"
               >
                 {teams.map((t) => (
                   <option key={t.id} value={t.id}>{t.logo?.startsWith("http") ? "\u26f9\ufe0f" : (t.logo || "\ud83c\udfc0")} {t.name}</option>
@@ -395,10 +400,10 @@ export default function MyScout() {
               </select>
             )}
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="flex-1 rounded-lg" onClick={() => setShowNewPlayer(false)}>
+              <Button variant="ghost" size="sm" className="flex-1 rounded-lg" onClick={() => setShowNewPlayer(false)} data-testid="myscout-new-player-cancel">
                 {L.cancel}
               </Button>
-              <Button size="sm" className="flex-1 rounded-lg font-bold" onClick={handleCreate} disabled={createPlayerMutation.isPending}>
+              <Button size="sm" className="flex-1 rounded-lg font-bold" onClick={handleCreate} disabled={createPlayerMutation.isPending} data-testid="myscout-new-player-save">
                 {L.save}
               </Button>
             </div>
@@ -418,7 +423,7 @@ export default function MyScout() {
                    : "No official profiles yet — ask your head coach to add opponents in Personnel")}
             </p>
             {canAccessPersonnel && (
-              <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setLocation("/coach/personnel")}>
+              <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setLocation("/coach/personnel")} data-testid="myscout-go-personnel">
                 {locale === "es" ? "Ir a Plantilla" : locale === "zh" ? "前往球员档案" : "Go to Personnel"}
               </Button>
             )}
@@ -435,6 +440,7 @@ export default function MyScout() {
                   onClick={() =>
                     setExpandedByTeamId((prev) => ({ ...prev, [team.id]: !prev[team.id] }))
                   }
+                  data-testid={`myscout-team-toggle-${team.id}`}
                   className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
                 >
                   <span className="shrink-0" aria-hidden>
@@ -527,6 +533,7 @@ export default function MyScout() {
                                 if (!hasReportInputs(player)) setLocation(`/coach/quick-scout/${player.id}`);
                                 else setLocation(`/coach/player/${player.id}`);
                               }}
+                              data-testid={`myscout-player-edit-${player.id}`}
                               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                               title={L.editReport}
                             >
@@ -554,6 +561,7 @@ export default function MyScout() {
                                 type="button"
                                 className="w-full h-10 rounded-xl font-bold text-sm bg-primary text-primary-foreground shadow-sm flex items-center justify-between gap-2 pr-3"
                                 onClick={() => setLocation(`/coach/scout/${player.id}/review`)}
+                                data-testid={`myscout-player-report-${player.id}`}
                               >
                                 <span>{L.viewReport}</span>
                                 <ChevronRight className="w-5 h-5 shrink-0 opacity-90" />
@@ -564,6 +572,7 @@ export default function MyScout() {
                                 variant="outline"
                                 className="w-full h-9 rounded-xl text-xs font-bold border-border"
                                 onClick={() => setLocation(`/coach/player/${player.id}`)}
+                                data-testid={`myscout-player-fill-${player.id}`}
                               >
                                 {L.fillProfile}
                               </Button>
@@ -582,6 +591,7 @@ export default function MyScout() {
         <button
           type="button"
           onClick={() => setSandboxOpen(o => !o)}
+          data-testid="myscout-sandbox-toggle"
           className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20 text-left mt-2"
         >
           <span className="text-[11px] md:text-xs font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
@@ -645,6 +655,7 @@ export default function MyScout() {
                         if (!hasReportInputs(player)) setLocation(`/coach/quick-scout/${player.id}`);
                         else setLocation(`/coach/player/${player.id}`);
                       }}
+                      data-testid={`myscout-sandbox-edit-${player.id}`}
                       className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                       title={L.editReport}
                     >
@@ -658,6 +669,7 @@ export default function MyScout() {
                         type="button"
                         className="w-full h-10 rounded-xl font-bold text-sm bg-primary text-primary-foreground shadow-sm flex items-center justify-between gap-2 pr-3"
                         onClick={() => setLocation(`/coach/scout/${player.id}/review`)}
+                        data-testid={`myscout-sandbox-report-${player.id}`}
                       >
                         <span>{L.viewReport}</span>
                         <ChevronRight className="w-5 h-5 shrink-0 opacity-90" />
@@ -668,6 +680,7 @@ export default function MyScout() {
                         variant="outline"
                         className="w-full h-9 rounded-xl text-xs font-bold border-border"
                         onClick={() => setLocation(`/coach/player/${player.id}`)}
+                        data-testid={`myscout-sandbox-fill-${player.id}`}
                       >
                         {L.fillProfile}
                       </Button>
