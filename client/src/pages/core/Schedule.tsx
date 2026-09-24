@@ -3272,18 +3272,18 @@ function WellnessRow(props: {
 }) {
   const goodUp = props.goodUp ?? true;
   const COLOR_MAP_UP: Record<string, string> = {
-    "1": "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400 data-[state=on]:bg-red-500 data-[state=on]:text-white data-[state=on]:border-red-500",
-    "2": "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400 data-[state=on]:bg-orange-500 data-[state=on]:text-white data-[state=on]:border-orange-500",
-    "3": "border-yellow-500/40 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 data-[state=on]:bg-yellow-500 data-[state=on]:text-white data-[state=on]:border-yellow-500",
-    "4": "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 data-[state=on]:bg-emerald-500 data-[state=on]:text-white data-[state=on]:border-emerald-500",
-    "5": "border-emerald-600/50 bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 data-[state=on]:bg-emerald-600 data-[state=on]:text-white data-[state=on]:border-emerald-600",
+    "1": "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400 data-[state=on]:bg-red-700 data-[state=on]:text-white data-[state=on]:border-red-700",
+    "2": "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400 data-[state=on]:bg-orange-500 data-[state=on]:text-slate-950 data-[state=on]:border-orange-500",
+    "3": "border-yellow-500/40 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 data-[state=on]:bg-yellow-500 data-[state=on]:text-slate-950 data-[state=on]:border-yellow-500",
+    "4": "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 data-[state=on]:bg-emerald-700 data-[state=on]:text-white data-[state=on]:border-emerald-700",
+    "5": "border-emerald-600/50 bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 data-[state=on]:bg-emerald-800 data-[state=on]:text-white data-[state=on]:border-emerald-800",
   };
   const COLOR_MAP_DOWN: Record<string, string> = {
-    "1": "border-emerald-600/50 bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 data-[state=on]:bg-emerald-600 data-[state=on]:text-white data-[state=on]:border-emerald-600",
-    "2": "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 data-[state=on]:bg-emerald-500 data-[state=on]:text-white data-[state=on]:border-emerald-500",
-    "3": "border-yellow-500/40 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 data-[state=on]:bg-yellow-500 data-[state=on]:text-white data-[state=on]:border-yellow-500",
-    "4": "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400 data-[state=on]:bg-orange-500 data-[state=on]:text-white data-[state=on]:border-orange-500",
-    "5": "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400 data-[state=on]:bg-red-500 data-[state=on]:text-white data-[state=on]:border-red-500",
+    "1": "border-emerald-600/50 bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 data-[state=on]:bg-emerald-800 data-[state=on]:text-white data-[state=on]:border-emerald-800",
+    "2": "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 data-[state=on]:bg-emerald-700 data-[state=on]:text-white data-[state=on]:border-emerald-700",
+    "3": "border-yellow-500/40 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 data-[state=on]:bg-yellow-500 data-[state=on]:text-slate-950 data-[state=on]:border-yellow-500",
+    "4": "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400 data-[state=on]:bg-orange-500 data-[state=on]:text-slate-950 data-[state=on]:border-orange-500",
+    "5": "border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400 data-[state=on]:bg-red-700 data-[state=on]:text-white data-[state=on]:border-red-700",
   };
   const colorMap = goodUp ? COLOR_MAP_UP : COLOR_MAP_DOWN;
   return (
@@ -3313,7 +3313,7 @@ function WellnessRow(props: {
             size="sm"
             variant="outline"
             className={[
-              "h-10 w-10 px-0 text-sm font-black rounded-xl border transition-all duration-150",
+              "h-11 w-11 px-0 text-sm font-black rounded-xl border transition-all duration-150",
               colorMap[n],
             ].join(" ")}
           >

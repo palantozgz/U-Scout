@@ -202,7 +202,7 @@ export default function OnboardingFlow({
                   <div className="h-2 w-10 rounded bg-foreground/20" />
                   <div className="flex gap-0.5">
                     {[1,2,3,4,5].map((n) => (
-                      <div key={n} className={`h-4 w-4 rounded text-[8px] flex items-center justify-center font-black border ${n === sel ? "bg-primary border-primary text-white" : "bg-muted border-border"}`}>
+                      <div key={n} className={`h-4 w-4 rounded text-[8px] flex items-center justify-center font-black border ${n === sel ? "bg-primary border-primary text-primary-foreground" : "bg-muted border-border"}`}>
                         {n}
                       </div>
                     ))}
@@ -238,7 +238,7 @@ export default function OnboardingFlow({
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] overflow-y-auto bg-background text-foreground px-5 pt-10 pb-[calc(2rem+env(safe-area-inset-bottom))] max-w-md mx-auto w-full">
+    <div className="flex flex-col h-full min-h-0 overflow-y-auto bg-background text-foreground px-5 pt-8 pb-8 max-w-md mx-auto w-full">
       {step === "language" && (
         <>
           <p className="text-center text-xs text-muted-foreground mb-6 leading-relaxed">{t("onboarding_lang_prompt_trilingual")}</p>

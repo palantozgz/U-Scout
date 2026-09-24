@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import { initLocale } from "./lib/i18n-core";
+import { initVersionCheck } from "./lib/version-check";
 
 // Apply saved theme before first render (prevents flash)
 const _st = normalizeStoredTheme(
@@ -28,3 +29,5 @@ const localeReady = Promise.race([
 localeReady.then(() => {
   createRoot(document.getElementById("root")!).render(<App />);
 });
+
+initVersionCheck();

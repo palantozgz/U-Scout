@@ -24,15 +24,17 @@ Target audience: basketball coaching staffs (head coaches, assistant coaches) an
 
 3. Setup and access instructions
 
-Please use the demo account below for review access.
+For your own testing, please use the demo account below:
 
 Email: ucore.qa.headcoach@test.com
 Password: 12345678
-Role: Head Coach (full access to all modules, pre-populated with sample club/team data)
+Role: Head Coach (full access to all modules)
 
-Upon login, the app shows a brief onboarding flow (language selection, theme selection, feature tour) before reaching the main dashboard.
+Upon login, the app shows a brief onboarding flow (language selection, theme selection, feature tour) before reaching the main dashboard. This demo account currently holds only minimal placeholder data, since it exists for review/QA access rather than day-to-day use.
 
-Note: new-account self-registration as Head Coach is currently gated behind an allowlist while the paid-subscription flow is still in development (this prevents unpaid club creation before billing exists). Please use the demo account above rather than the in-app "Create account" option.
+The attached screen recording was captured using the developer's own production account instead, which holds the real data he has entered while using the app operationally as a coach this season (opponent scouting reports, training schedule, tactical playbook) — this gives a more representative view of the app in actual use than the demo account's placeholder data.
+
+Note: new-account self-registration as Head Coach is currently gated behind an allowlist while the paid-subscription flow is still in development (this prevents unpaid club creation before billing exists). Please use the demo account above for your own review rather than the in-app "Create account" option.
 
 ---
 

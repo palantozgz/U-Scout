@@ -419,7 +419,7 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
               onClick={onPrev ?? undefined}
               disabled={!onPrev}
               className={cn(
-                "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide transition-colors",
+                "flex items-center gap-1 min-h-11 px-3 rounded-lg text-xs font-black uppercase tracking-wide transition-colors",
                 onPrev ? "text-muted-foreground hover:text-foreground hover:bg-muted/30" : "invisible",
               )}
             >
@@ -429,16 +429,16 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
 
             <div className="flex items-center gap-3">
               {gamePosition && (
-                <span className="text-[9px] text-muted-foreground tabular-nums">
+                <span className="text-xs text-muted-foreground tabular-nums">
                   {gamePosition.current} / {gamePosition.total}
                 </span>
               )}
               <button
                 onClick={onClose}
-                className="flex items-center justify-center w-7 h-7 rounded-full bg-muted/40 hover:bg-muted/70 transition-colors"
+                className="flex items-center justify-center w-11 h-11 rounded-full bg-muted/40 hover:bg-muted/70 transition-colors"
                 aria-label="Cerrar"
               >
-                <X className="w-3.5 h-3.5 text-muted-foreground" />
+                <X className="w-5 h-5 text-foreground" />
               </button>
             </div>
 
@@ -446,7 +446,7 @@ export function GameBoxscoreSheet({ gameId, locale, onClose, onPrev, onNext, gam
               onClick={onNext ?? undefined}
               disabled={!onNext}
               className={cn(
-                "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide transition-colors",
+                "flex items-center gap-1 min-h-11 px-3 rounded-lg text-xs font-black uppercase tracking-wide transition-colors",
                 onNext ? "text-muted-foreground hover:text-foreground hover:bg-muted/30" : "invisible",
               )}
             >

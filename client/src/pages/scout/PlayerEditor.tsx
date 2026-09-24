@@ -349,7 +349,7 @@ function IntensitySelector({ label, value, onChange, tooltip }: {
         {(["Primary", "Secondary", "Rare", "Never"] as IntensityLevel[]).map(level => (
           <Button key={level} type="button" variant={value === level ? "default" : "outline"}
             style={{ minHeight: 44 }}
-            className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${value === level ? "bg-primary border-primary text-white" : "bg-transparent border-border text-muted-foreground"}`}
+            className={`h-auto min-h-11 min-w-11 flex-1 px-4 rounded-xl text-sm ${value === level ? "bg-primary border-primary text-primary-foreground" : "bg-transparent border-border text-muted-foreground"}`}
             onClick={() => onChange(level)}>
             {level === "Primary" ? t("freq_primary") : level === "Secondary" ? t("freq_secondary") : level === "Rare" ? t("freq_rare") : t("freq_never")}
           </Button>
@@ -790,7 +790,7 @@ export default function PlayerEditor() {
                     setLocation("/coach");
                     if (id && id !== "new") setTimeout(() => deletePlayerMutation.mutate(id), 150);
                   }}
-                  className="rounded-full h-8 px-3 font-bold bg-red-500 hover:bg-red-600 text-white text-xs"
+                  className="rounded-full min-h-11 px-3 font-bold bg-red-600 hover:bg-red-700 text-white text-xs"
                 >
                   {t("delete")}
                 </Button>
@@ -804,7 +804,7 @@ export default function PlayerEditor() {
           <Button
             size="sm"
             onClick={handleSave}
-            className="rounded-full px-5 font-bold bg-primary hover:bg-primary/90 text-white shadow-md"
+            className="rounded-full px-5 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md"
           >
             <Save className="w-4 h-4 mr-1.5" />
             {t("editor_save_inputs")}
@@ -900,7 +900,7 @@ export default function PlayerEditor() {
                       className={`h-auto min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${
                         (inputs.recentForm ?? null) === v
                           ? v === "hot"
-                            ? "bg-orange-500 border-orange-500 text-white hover:bg-orange-500 hover:text-white"
+                            ? "bg-orange-600 border-orange-600 text-white hover:bg-orange-600 hover:text-white"
                             : v === "cold"
                               ? "bg-sky-500 border-sky-500 text-white hover:bg-sky-500 hover:text-white"
                               : "bg-slate-600 border-slate-600 text-white hover:bg-slate-600 hover:text-white"
@@ -1082,7 +1082,7 @@ export default function PlayerEditor() {
                     <div className="flex flex-wrap" style={{ flexWrap: "wrap", gap: 12 }}>
                       {PERSONALITY_TRAITS.filter(pt => pt.tone === "negative").map(pt => {
                         const active = (inputs.personality ?? []).includes(pt.id);
-                        return <Button key={pt.id} type="button" variant={active ? "default" : "outline"} style={{ minHeight: 44 }} className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${active ? "bg-amber-500 border-amber-500 text-white hover:bg-amber-500" : "border-border"}`} onClick={() => { const list = inputs.personality ?? []; ui("personality", list.includes(pt.id) ? list.filter(x => x !== pt.id) || null : [...list, pt.id]); }}>{t(pt.i18nKey as never)}</Button>;
+                        return <Button key={pt.id} type="button" variant={active ? "default" : "outline"} style={{ minHeight: 44 }} className={`h-auto min-h-11 px-4 py-2 rounded-lg text-sm font-semibold ${active ? "bg-amber-500 border-amber-500 text-slate-950 hover:bg-amber-500 hover:text-slate-950" : "border-border"}`} onClick={() => { const list = inputs.personality ?? []; ui("personality", list.includes(pt.id) ? list.filter(x => x !== pt.id) || null : [...list, pt.id]); }}>{t(pt.i18nKey as never)}</Button>;
                       })}
                     </div>
                   </div>

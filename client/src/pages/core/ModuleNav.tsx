@@ -102,7 +102,7 @@ export function ModuleNav() {
               </span>
               <span className={cn(
                 "landscape:hidden leading-none",
-                isFive ? "text-[9px] font-semibold tracking-tight" : "text-[10px] font-semibold tracking-wide",
+                isFive ? "text-[11px] font-semibold tracking-tight" : "text-xs font-semibold tracking-wide",
               )}>
                 {it.label}
               </span>

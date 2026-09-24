@@ -1,10 +1,22 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Globe, Check, LogOut, User, Monitor, GraduationCap, LifeBuoy } from "lucide-react";
+import { ArrowLeft, Globe, Check, LogOut, Trash2, User, Monitor, GraduationCap, LifeBuoy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useLocale, type Locale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { useTheme, type Theme } from "@/lib/theme";
 import { resetOnboarding, resetModuleIntros } from "@/lib/onboarding-state";
+import { apiRequest } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 
 const LANGUAGES: { code: Locale; label: string; native: string; flag: string }[] = [
@@ -49,6 +61,23 @@ export default function Settings() {
   const handleSignOut = async () => {
     await signOut();
     setLocation("/login");
+  };
+
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      await apiRequest("DELETE", "/api/account");
+      await signOut();
+      setLocation("/login");
+    } catch (err) {
+      console.error("[settings] delete account failed:", err);
+      toast({ variant: "destructive", description: t("settings_delete_account_error") });
+      setDeletingAccount(false);
+      setDeleteAccountOpen(false);
+    }
   };
 
   const handleReplayTutorials = () => {
@@ -305,7 +334,35 @@ export default function Settings() {
             <LogOut className="w-4 h-4 text-destructive" />
             <span className="text-sm font-semibold text-destructive">{t("settings_sign_out")}</span>
           </button>
+          <button
+            type="button"
+            className="w-full flex items-center gap-3 px-5 py-4 border-t border-border hover:bg-destructive/10 transition-colors text-left"
+            onClick={() => setDeleteAccountOpen(true)}
+            data-testid="settings-delete-account"
+          >
+            <Trash2 className="w-4 h-4 text-destructive" />
+            <span className="text-sm font-semibold text-destructive">{t("settings_delete_account")}</span>
+          </button>
         </div>
+
+        <AlertDialog open={deleteAccountOpen} onOpenChange={(o) => { if (!deletingAccount) setDeleteAccountOpen(o); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("settings_delete_account_confirm_title")}</AlertDialogTitle>
+              <AlertDialogDescription>{t("settings_delete_account_confirm_body")}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingAccount}>{t("cancel")}</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={deletingAccount}
+                onClick={(e) => { e.preventDefault(); void handleDeleteAccount(); }}
+              >
+                {t("settings_delete_account_confirm_ok")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
       </main>
     </div>

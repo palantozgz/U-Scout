@@ -24,7 +24,9 @@ body::after {
   right: 0;
   height: env(safe-area-inset-bottom);
   background: hsl(var(--background));
-  z-index: 999;
+  /* Por debajo de nav (z-90), sheets y toasts. En 999 tapaba la tab bar y los botones del home indicator. */
+  z-index: 20;
+  pointer-events: none;
 }
 
 @custom-variant dark (&:is(.dark *));
@@ -74,7 +76,7 @@ body::after {
   --secondary: 222 50% 95%;
   --secondary-foreground: 225 12% 18%;
   --muted: 220 25% 93%;
-  --muted-foreground: 225 15% 50%;
+  --muted-foreground: 225 14% 36%;
   --accent: 222 80% 95%;
   --accent-foreground: 226 76% 40%;
   --destructive: 0 72% 51%;
@@ -98,13 +100,13 @@ body::after {
   --secondary: 228 15% 13%;
   --secondary-foreground: 0 0% 90%;
   --muted: 228 15% 12%;
-  --muted-foreground: 233 10% 47%;
+  --muted-foreground: 230 10% 74%;
+  --border: 228 12% 26%;
+  --input: 228 12% 26%;
   --accent: 38 92% 55%;
   --accent-foreground: 228 18% 8%;
   --destructive: 0 62% 48%;
   --destructive-foreground: 0 0% 98%;
-  --border: 228 20% 15%;
-  --input: 228 20% 15%;
   --ring: 38 92% 55%;
   --radius: 0.75rem;
 }
@@ -122,7 +124,7 @@ body::after {
   --secondary: 222 50% 95%;
   --secondary-foreground: 225 12% 18%;
   --muted: 220 25% 93%;
-  --muted-foreground: 225 15% 50%;
+  --muted-foreground: 225 14% 36%;
   --accent: 222 80% 95%;
   --accent-foreground: 226 76% 40%;
   --destructive: 0 72% 51%;
@@ -157,7 +159,7 @@ body::after {
   --secondary-foreground: 178 30% 90%;
 
   --muted: 30 40% 18%;
-  --muted-foreground: 36 30% 52%;   /* tostado medio */
+  --muted-foreground: 38 28% 74%;   /* tostado claro — antes 52% no llegaba a 4.5:1 sobre el caoba */
 
   --accent: 178 55% 28%;            /* teal como accent */
   --accent-foreground: 178 30% 90%;
@@ -187,6 +189,15 @@ body::after {
 .dark,
 .theme-oldschool {
   color-scheme: dark;
+}
+
+/* iOS hace zoom al enfocar un input con font-size < 16px y descentra la pantalla. */
+@supports (-webkit-touch-callout: none) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 input[type="time"]::-webkit-calendar-picker-indicator {
   cursor: pointer;

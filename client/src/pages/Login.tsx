@@ -145,7 +145,7 @@ export default function Login() {
             key={l.code}
             type="button"
             onClick={() => changeLocale(l.code)}
-            className={`h-8 px-2 rounded-lg text-xs font-bold transition-all ${
+            className={`min-h-11 px-2.5 rounded-lg text-xs font-bold transition-all ${
               locale === l.code
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:text-foreground"
@@ -159,7 +159,7 @@ export default function Login() {
       {/* Logo */}
       <div className="flex flex-col items-center gap-3">
         <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
-          <Shield className="w-8 h-8 text-white" />
+          <Shield className="w-8 h-8 text-primary-foreground" />
         </div>
         <h1 className="text-2xl font-extrabold tracking-tight">U Core</h1>
         <p className="text-muted-foreground text-sm">
@@ -217,7 +217,7 @@ export default function Login() {
           <div className="text-right -mt-1">
             <button
               type="button"
-              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+              className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2"
               onClick={() => { setMode("forgot"); setError(null); }}
             >
               {t("auth_forgot_password_link")}
@@ -233,7 +233,7 @@ export default function Login() {
                 onClick={() => setRole(r)}
                 className={`h-11 rounded-xl border text-sm font-semibold transition-all ${
                   role === r
-                    ? "bg-primary text-white border-primary"
+                    ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background border-border text-muted-foreground"
                 }`}
               >

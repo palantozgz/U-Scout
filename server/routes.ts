@@ -184,6 +184,12 @@ function isHeadCoachSignupAllowed(email: string | undefined | null): boolean {
   const allowlist = raw
     ? raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)
     : DEFAULT_HEAD_COACH_SIGNUP_ALLOWLIST;
+  // Comodin temporal para el review de Apple (19 sept 2026): si la variable
+  // de entorno es literalmente "*", se abre el registro de head_coach a
+  // cualquier email. Pablo: vuelve a poner tu email real en
+  // HEAD_COACH_SIGNUP_ALLOWLIST (o borra la variable, cae al default
+  // fail-closed) en cuanto la app este aprobada.
+  if (allowlist.includes("*")) return true;
   return allowlist.includes(email.toLowerCase().trim());
 }
 
@@ -331,6 +337,41 @@ export async function registerRoutes(
   // ─── Keepalive ping — Railway warm-up ───────────────────────────────────────
   app.get("/api/ping", (_req, res) => {
     res.json({ ok: true, ts: Date.now() });
+  });
+
+  // ─── Account deletion (Guideline 5.1.1(v)) ─────────────────────────────────
+  // Anadido 19 sept 2026 para el review de Apple: la app soporta creacion de
+  // cuenta (registro libre de coach + flujo de invitacion), asi que Apple
+  // exige un borrado de cuenta real iniciado desde dentro de la app.
+  // Borra los datos personales del usuario (club_members, wellness_entries)
+  // y la cuenta de auth.users. NO borra contenido compartido del club que
+  // haya creado (informes de scouting, planes de playbook, eventos de
+  // calendario) -- esas filas quedan con un user_id/coach_id que ya no
+  // resuelve a ningun usuario activo. No hay FK real hacia auth.users en
+  // ninguna tabla de la app (confirmado contra information_schema), asi que
+  // esto no dispara ningun cascade inesperado.
+  app.delete("/api/account", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const admin = getSupabaseAdmin();
+      if (!admin) {
+        return res.status(500).json({ error: "Server not configured for account deletion" });
+      }
+
+      const { error: cmErr } = await admin.from("club_members").delete().eq("user_id", userId);
+      if (cmErr) throw cmErr;
+
+      const { error: weErr } = await admin.from("wellness_entries").delete().eq("user_id", userId);
+      if (weErr) throw weErr;
+
+      const { error: authErr } = await admin.auth.admin.deleteUser(userId);
+      if (authErr) throw authErr;
+
+      res.status(204).send();
+    } catch (err) {
+      console.error("[account] delete failed:", err);
+      res.status(500).json({ error: "Failed to delete account" });
+    }
   });
 
   app.get("/api/club/invitations/:token", async (req, res) => {

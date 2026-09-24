@@ -67,8 +67,17 @@ export function computeCapabilities(input: {
   membership?: ClubMembership | null;
   badges?: CoachBadges | null;
 }): Capabilities {
-  const realRole = input.realRole;
-  const effectiveRole = input.effectiveRole;
+  const realRole =
+    input.realRole === "master"
+      ? "master"
+      : ((input.membership?.role as typeof input.realRole) ?? input.realRole);
+  // Si no hay preview activo (effectiveRole === realRole "en crudo" del auth), el rol
+  // efectivo debe seguir la correccion de arriba (membership por encima del metadato
+  // de auth, que puede quedarse desincronizado si el rol de alguien se cambio a mano
+  // en club_members sin tocar su user_metadata). Si SI hay un preview activo (un
+  // master probando la app como otro rol), respetamos ese override tal cual.
+  const previewActive = input.effectiveRole !== input.realRole;
+  const effectiveRole = previewActive ? input.effectiveRole : realRole;
   const m = input.membership ?? null;
   const badges = input.badges ?? null;
 
