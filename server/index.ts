@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { rateLimit } from "express-rate-limit";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { CURRENT_SEASON_ID } from "../shared/season";
 import { serveStatic } from "./static";
@@ -8,9 +9,22 @@ import { createServer } from "http";
 const app = express();
 const httpServer = createServer(app);
 
-// Railway sits behind its own edge proxy -- sin esto, express-rate-limit
+// Railway sits behind su propio edge proxy -- sin esto, express-rate-limit
 // no puede leer X-Forwarded-For correctamente (o lanza ERR_ERL_UNEXPECTED_X_FORWARDED_FOR).
 app.set("trust proxy", 1);
+
+// Cabeceras de seguridad HTTP basicas (hallazgo del audit de Cursor 2026-09-24).
+// CSP y crossOriginEmbedderPolicy APAGADOS a proposito: el cliente hace fetch
+// directo a Supabase (otro origen) y carga assets propios -- una CSP por
+// defecto (connect-src 'self') romperia esas llamadas y no se puede probar
+// visualmente desde aqui. Dejar CSP para una pasada aparte, mas cuidadosa,
+// con Pablo verificando en el simulador/navegador antes de desplegar.
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  }),
+);
 
 declare module "http" {
   interface IncomingMessage {
