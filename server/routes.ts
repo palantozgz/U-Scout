@@ -3987,6 +3987,9 @@ export async function registerRoutes(
   // Dispara el procesamiento de todos los partidos pendientes de possessions
   // Útil para re-sync histórico
   app.post("/api/stats/admin/process-possessions", requireAuth, async (req, res) => {
+    if (req.user!.role !== "master") {
+      return res.status(403).json({ error: "Master role required" });
+    }
     const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     // Fire and forget — puede tardar varios minutos
     processAllPendingPossessions(seasonId).catch((err: any) =>
@@ -3998,6 +4001,9 @@ export async function registerRoutes(
   // GET /api/stats/admin/possessions-status
   // Estado del procesamiento: cuántos partidos tienen possessions vs total
   app.get("/api/stats/admin/possessions-status", requireAuth, async (req, res) => {
+    if (req.user!.role !== "master") {
+      return res.status(403).json({ error: "Master role required" });
+    }
     const seasonId = Number(req.query.seasonId ?? CURRENT_SEASON_ID);
     try {
       const totalRes = await db.execute(sql`
