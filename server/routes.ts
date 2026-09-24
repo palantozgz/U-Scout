@@ -2101,6 +2101,16 @@ export async function registerRoutes(
     }
   });
 
+  // Validacion (hallazgo del audit de Cursor 2026-09-24): antes solo
+  // comprobaba presencia (rivalName/matchDate truthy), no forma -- una
+  // matchDate no parseable colaba como Invalid Date silenciosamente.
+  const clubMatchBodySchema = z.object({
+    rivalName: z.string().trim().min(1).max(200),
+    matchDate: z.string().refine((v) => !Number.isNaN(Date.parse(v)), { message: "matchDate invalida" }),
+    location: z.string().max(200).nullable().optional(),
+    matchType: z.string().max(50).optional(),
+  });
+
   app.post("/api/club/matches", requireAuth, async (req, res) => {
     try {
       const uid = req.user!.id;
@@ -2109,8 +2119,11 @@ export async function registerRoutes(
       if (!(await userCanManageClub(req, club.id))) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      const { rivalName, matchDate, location, matchType } = req.body;
-      if (!rivalName || !matchDate) return res.status(400).json({ error: "rivalName and matchDate required" });
+      const parsed = clubMatchBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+      }
+      const { rivalName, matchDate, location, matchType } = parsed.data;
       const match = await storage.createLeagueMatch({
         clubId: club.id,
         rivalName,
@@ -4592,12 +4605,35 @@ export async function registerRoutes(
     }
   });
 
+  // Validacion (hallazgo del audit de Cursor 2026-09-24): antes cualquier
+  // valor pasaba a insertRow sin comprobar tipo/enum -- type/visibility
+  // podian quedar con cualquier string, rompiendo el filtro por esos campos
+  // en el cliente (playbook-api.ts los tipa como union fija).
+  const playbookPlanBodySchema = z.object({
+    type: z.enum(["defensive", "offensive"]).optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+    answers: z.record(z.any()).optional(),
+    report: z.record(z.any()).optional(),
+    opponent_name: z.string().max(200).nullable().optional(),
+    opponentName: z.string().max(200).nullable().optional(),
+    game_id: z.union([z.string(), z.number()]).nullable().optional(),
+    gameId: z.union([z.string(), z.number()]).nullable().optional(),
+    season_label: z.string().max(100).nullable().optional(),
+    seasonLabel: z.string().max(100).nullable().optional(),
+    notes: z.string().max(5000).nullable().optional(),
+    visibility: z.enum(["draft", "staff", "players"]).optional(),
+  });
+
   app.post("/api/playbook/plans", requireAuth, async (req, res) => {
     try {
       const clubId = await playbookClubId(req, res);
       if (!clubId) return;
 
-      const body = req.body ?? {};
+      const parsed = playbookPlanBodySchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+      }
+      const body = parsed.data;
       const supabase = getSupabaseAdmin()!;
       const insertRow = {
         club_id: clubId,
