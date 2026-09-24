@@ -237,8 +237,14 @@ export default function OnboardingFlow({
     }
   };
 
+  // CORREGIDO 2026-09-24 (tarde): pt/pb ya NO suman su propio env(safe-area-inset-*) --
+  // el wrapper raiz de App.tsx (pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)])
+  // ya lo aplica una vez para toda la app; sumarlo aqui tambien dejaba un hueco en blanco
+  // de mas en las pantallas de idioma/tema (doble padding, no solape -- el commit f66dcc3
+  // de hoy por la manana probablemente iba contra un build de simulador con cache vieja,
+  // ver PROMPT_NUEVA_SESION_2026-09-24.md).
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-y-auto bg-background text-foreground px-5 pt-[calc(2rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))] max-w-md mx-auto w-full">
+    <div className="flex flex-col h-full min-h-0 overflow-y-auto bg-background text-foreground px-5 pt-8 pb-8 max-w-md mx-auto w-full">
       {step === "language" && (
         <>
           <p className="text-center text-xs text-muted-foreground mb-6 leading-relaxed">{t("onboarding_lang_prompt_trilingual")}</p>

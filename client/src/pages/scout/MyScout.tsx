@@ -308,7 +308,7 @@ export default function MyScout() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
-      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center justify-between" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             type="button"

@@ -45,7 +45,7 @@ export default function PlayerTeamList() {
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="sticky top-0 z-20 bg-card/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
         <h1 className="text-lg font-black tracking-tight">{title}</h1>
         <Button
           variant="ghost"

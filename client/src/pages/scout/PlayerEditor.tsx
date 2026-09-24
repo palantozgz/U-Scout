@@ -757,7 +757,7 @@ export default function PlayerEditor() {
         </div>
       )}
 
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between shadow-sm" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
           {/* Botón volver al review — solo para jugadoras existentes */}
           <Button
