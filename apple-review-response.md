@@ -4,7 +4,10 @@ RESPUESTA A APPLE — Guideline 2.1, envío de U Core v1.0
 ---
 
 1. Screen recording
-[Debes grabarlo tú en un iPhone físico — ver instrucciones aparte. No incluyo texto aquí porque es un archivo de vídeo.]
+
+Attached: https://u-scout-production.up.railway.app/apple-review-demo.mp4
+
+Recorded on a physical iPhone running the latest iOS, showing app launch, login, and the typical coach workflow across all five modules (Home, Schedule, Scout, Stats, Playbook). Note: account deletion (added in this same build, per Guideline 5.1.1(v) below) may not appear in this specific recording — it is available at Settings → Delete Account, and is described in section 2.
 
 ---
 
@@ -17,6 +20,8 @@ The app solves four operational problems for a basketball coaching staff:
 - Statistics: tracking league standings, team and player efficiency metrics for informed game planning.
 - Playbook: maintaining a digital reference of the team's defensive systems and tactics.
 - Schedule & Wellness: managing training/game schedules and collecting simple daily wellness check-ins from players.
+
+Account deletion (Guideline 5.1.1(v)): since the app supports account creation, users can permanently delete their own account and personal data at any time from Settings → Delete Account. This removes their login (Supabase auth user), club membership, and wellness entries. Content they contributed and shared with their club (scouting reports, playbook plans, schedule events) is not deleted, since it is shared club data rather than the deleting user's personal data — this mirrors how, e.g., a shared document survives one collaborator leaving.
 
 Target audience: basketball coaching staffs (head coaches, assistant coaches) and their players. Access to a given club's workspace is invite-only, issued by that club's head coach; there is no public browsing of other clubs' data.
 
