@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, FileText, ChevronRight, RotateCcw, CheckCircle2 } from "lucide-react";
@@ -11,6 +11,8 @@ import { isRealPhoto } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
+import { useClub } from "@/lib/club-api";
+import { useCapabilities } from "@/lib/capabilities";
 
 export default function GamePlan() {
   const [, setLocation] = useLocation();
@@ -18,7 +20,24 @@ export default function GamePlan() {
   const { profile } = useAuth();
   const qc = useQueryClient();
 
-  const isHeadCoach = profile?.role === "head_coach" || profile?.role === "master";
+  // CORREGIDO 2026-09-24: antes leia profile?.role (metadato de auth, puede
+  // desincronizarse de club_members.role si el rol de alguien se cambio a mano
+  // en el club sin tocar su user_metadata) -- mismo patron ya corregido hoy en
+  // capabilities.ts. Ahora se deriva de la membresia real del club.
+  const clubQ = useClub();
+  const myMembership = useMemo(() => {
+    const members = clubQ.data?.members ?? [];
+    const mine = members.find((m) => m.userId === profile?.id);
+    if (!mine) return null;
+    return {
+      clubId: mine.clubId,
+      userId: mine.userId,
+      role: mine.role as "head_coach" | "coach" | "player",
+      status: mine.status as "active" | "pending" | "banned",
+      operationsAccess: Boolean((mine as any).operationsAccess),
+    };
+  }, [clubQ.data?.members, profile?.id]);
+  const isHeadCoach = useCapabilities({ membership: myMembership }).canCreateCanonical;
 
   const { data: allPlayers = [], isLoading } = usePlayers();
   const { data: teams = [] } = useTeams();
@@ -66,7 +85,7 @@ export default function GamePlan() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
-      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
         <button
           type="button"
           onClick={() => setLocation("/coach")}

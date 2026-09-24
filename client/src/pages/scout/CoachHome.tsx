@@ -113,7 +113,9 @@ export default function CoachHome() {
   const [, setLocation] = useLocation();
   const { profile } = useAuth();
 
-  const isHeadCoach = profile?.role === "head_coach" || profile?.role === "master";
+  // isHeadCoach (CORREGIDO 2026-09-24): antes leia profile?.role (metadato de auth,
+  // puede desincronizarse de club_members.role) -- ahora se deriva de
+  // capsWithMembership.canCreateCanonical, calculado mas abajo con la membresia real.
   // canAccessPersonnel computed below with membership-aware capabilities
 
   // ── Localised strings ──────────────────────────────────────────────────────
@@ -322,7 +324,7 @@ export default function CoachHome() {
             <NavCard
               icon={<Users className="w-8 h-8" strokeWidth={2} />}
               title={L.personnel}
-              sub={isHeadCoach ? L.personnelSub : L.sandboxBanner}
+              sub={capsWithMembership.canCreateCanonical ? L.personnelSub : L.sandboxBanner}
               onClick={() => setLocation("/coach/personnel")}
               testId="coach-home-personnel"
             />

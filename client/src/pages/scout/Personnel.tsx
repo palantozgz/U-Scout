@@ -50,7 +50,10 @@ export default function Personnel() {
   const canCreateCanonical = caps.canCreateCanonical;
   const qc = useQueryClient();
 
-  const isHeadCoach = profile?.role === "head_coach" || profile?.role === "master";
+  // CORREGIDO 2026-09-24: antes leia profile?.role (metadato de auth, puede
+  // desincronizarse de club_members.role) -- ahora usa la misma capability
+  // membership-aware ya calculada arriba (mismo bug que capabilities.ts, spec del dia).
+  const isHeadCoach = canCreateCanonical;
 
   // operationsAccess viene de la membresía del club, no del perfil auth.
   // Solo head_coach y master pueden gestionar el roster desde el perfil.
@@ -549,7 +552,7 @@ export default function Personnel() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
-      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 space-y-3 max-w-5xl mx-auto w-full" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 space-y-3 max-w-5xl mx-auto w-full">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
