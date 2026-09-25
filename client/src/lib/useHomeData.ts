@@ -4,7 +4,7 @@ import { useLocale } from "@/lib/i18n";
 import { useAuth, type AppUserRole } from "@/lib/useAuth";
 import { computeCapabilities, readCoachBadges, useCapabilities } from "@/lib/capabilities";
 import { useQueryClient } from "@tanstack/react-query";
-import { clubQueryKey, useClub } from "@/lib/club-api";
+import { useClub } from "@/lib/club-api";
 import { getStoredRosterSignature, rosterSignature, setStoredRosterSignature } from "@/lib/clubRosterSeen";
 import { usePlayerTeams } from "@/lib/player-home";
 import { apiRequest } from "@/lib/queryClient";
@@ -32,18 +32,47 @@ export function useHomeData() {
   const { t, locale } = useLocale();
   const intlLocale = locale === "es" ? "es" : locale === "zh" ? "zh-CN" : "en";
   const [, setLocation] = useLocation();
-  const caps = useCapabilities();
-  const mode: HomeMode = caps.canUsePlayerUX ? "player" : "staff";
   const { profile, effectiveRole, previewRole } = useAuth();
   const queryClient = useQueryClient();
 
+  // Club data — se pide SIEMPRE, para todos los roles (CORREGIDO 2026-09-25).
+  // Antes: useClub({ enabled: watchesClubActivity }) donde watchesClubActivity
+  // dependía de realCaps.staffRole, que a su vez necesitaba la membresía real
+  // del club para no depender del metadato de auth (profile.role)
+  // desincronizable -- dependencia circular real: para decidir si pedir el
+  // club hacía falta saber si era head_coach, y para saberlo de forma fiable
+  // hacía falta el club. Mismo patrón ya aplicado en GamePlan.tsx (commit
+  // 7a44bcf): se quita el gate, se deriva la membresía real de members, y
+  // capabilities la consume. El coste de red no es nuevo -- el prefetch que
+  // había aquí antes ya llamaba a /api/club en cada mount de Home para TODOS
+  // los roles (staff y jugadora), solo que escribía en una query key
+  // (clubQueryKey a secas) distinta de la que useClub() lee
+  // ([...clubQueryKey, userId]) -- el mismo mismatch que ya advertía el
+  // comentario de cabecera de club-api.ts -- así que esa llamada de red no
+  // beneficiaba a nadie. Se elimina el prefetch duplicado.
+  const clubQuery = useClub();
+  const clubData = clubQuery.data;
+  const clubId = clubData?.club?.id;
+  const userId = profile?.id;
+
+  const myMembership = useMemo(() => {
+    const members = clubData?.members ?? [];
+    const mine = members.find((m) => m.userId === profile?.id);
+    if (!mine) return null;
+    return {
+      clubId: mine.clubId,
+      userId: mine.userId,
+      role: mine.role as "head_coach" | "coach" | "player",
+      status: mine.status as "active" | "pending" | "banned",
+      operationsAccess: Boolean((mine as any).operationsAccess),
+    };
+  }, [clubData?.members, profile?.id]);
+
+  const caps = useCapabilities({ membership: myMembership });
+  const mode: HomeMode = caps.canUsePlayerUX ? "player" : "staff";
+
   // Background prefetch on mount — scope heavy imports to staff only
   useEffect(() => {
-    void queryClient.prefetchQuery({
-      queryKey: clubQueryKey,
-      queryFn: async () => { const r = await apiRequest("GET", "/api/club"); return r.json(); },
-      staleTime: 5 * 60 * 1000,
-    });
     if (mode === "staff") {
       void import("@/lib/mock-data");
       // CORREGIDO 2026-09-14 (limpieza de arqueología, sección 24/25 de
@@ -67,10 +96,10 @@ export function useHomeData() {
     () => computeCapabilities({
       realRole: profile?.role ?? null,
       effectiveRole: profile?.role ?? null,
+      membership: myMembership,
       badges: readCoachBadges(profile ?? null),
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profile?.id, profile?.role],
+    [profile?.id, profile?.role, myMembership],
   );
 
   const displayName = profile?.username?.trim() || profile?.email || t("coach_home_name_fallback");
@@ -80,13 +109,6 @@ export function useHomeData() {
     : rawName.split(" ")[0]
   ) || t("coach_home_name_fallback");
   const roleLabel = effectiveRole ? t(ROLE_LABEL_KEY[effectiveRole]) : "";
-
-  // Club data — staff head_coach only
-  const watchesClubActivity = mode === "staff" && realCaps.staffRole === "head_coach";
-  const clubQuery = useClub({ enabled: watchesClubActivity });
-  const clubData = clubQuery.data;
-  const clubId = clubData?.club?.id;
-  const userId = profile?.id;
 
   // Schedule queries
   const todaySessionsQ    = useTodayScheduleEvents({ clubId });
