@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
 import { useUpdatePlayer, usePlayers } from "@/lib/mock-data";
-import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 
@@ -179,7 +178,6 @@ interface Props { playerId: string; }
 export default function QuickScout({ playerId }: Props) {
   const [, setLocation] = useLocation();
   const { locale } = useLocale();
-  const qc = useQueryClient();
   const updatePlayer = useUpdatePlayer();
   const { data: allPlayers = [] } = usePlayers();
   const player = allPlayers.find(p => p.id === playerId);
@@ -269,7 +267,10 @@ export default function QuickScout({ playerId }: Props) {
         id: playerId,
         updates: { inputs: mergedInputs } as any,
       });
-      await qc.invalidateQueries({ queryKey: ["/api/players"] });
+      // CORREGIDO 2026-09-25: antes habia aqui un `await qc.invalidateQueries(["/api/players"])`
+      // redundante (useUpdatePlayer.onSuccess ya invalida la lista y hace setQueryData de la
+      // ficha). Ese await ponia el refetch de TODA la lista en el camino critico: el boton
+      // quedaba en "Saving..." 2-10s en produccion antes de navegar (visto en e2e 07).
       setLocation(`/coach/player/${playerId}`);
     } catch (e) {
       console.error("QuickScout save error:", e);
