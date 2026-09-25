@@ -620,9 +620,52 @@ export async function registerRoutes(
   app.delete("/api/players/:id", requireAuth, async (req, res) => {
     try {
       const playerId = req.params.id as string;
-      // Auto-unpublish if published
+
+      // CORREGIDO 2026-09-25 (seguridad estructural, pasada post-audit de
+      // Cursor): este endpoint no tenia NINGUN control mas alla de estar
+      // autenticado -- cualquier cuenta, incluido un role "player", podia
+      // borrar la ficha de CUALQUIER jugadora de CUALQUIER club solo con
+      // adivinar/tener su UUID. Mismo patron de checks que ya usan
+      // PATCH /api/players/:id (linea ~571, ownership/ops-access) y
+      // POST /api/players/:id/canonical (linea ~828, scoping de club).
+      const role = req.user!.role;
+      if (role === "player") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
       const playerToDelete = await storage.getPlayer(playerId);
-      if (playerToDelete && (playerToDelete as any).published) {
+      if (!playerToDelete) return res.status(404).json({ error: "Player not found" });
+
+      if (role === "coach") {
+        const isOwner =
+          (playerToDelete as any).createdByUserId === req.user!.id ||
+          (playerToDelete as any).created_by_user_id === req.user!.id;
+        if (!isOwner) {
+          const club = await storage.getClubForUser(req.user!.id);
+          const membership = club
+            ? await storage.getClubMemberByClubAndUser(club.id, req.user!.id)
+            : null;
+          const hasOpsAccess = Boolean(membership?.operationsAccess);
+          if (!hasOpsAccess) {
+            return res.status(403).json({ error: "Cannot delete another coach's player" });
+          }
+        }
+      }
+
+      if (role !== "master") {
+        const club = await storage.getClubForUser(req.user!.id);
+        if (!club) return res.status(404).json({ error: "Club not found" });
+        const playerTeamId = (playerToDelete as any).teamId ?? (playerToDelete as any).team_id;
+        const playerTeam = playerTeamId
+          ? (await storage.getTeams(club.id)).find((t: any) => t.id === playerTeamId)
+          : null;
+        if (!playerTeam) {
+          return res.status(403).json({ error: "Player does not belong to your club" });
+        }
+      }
+
+      // Auto-unpublish if published
+      if ((playerToDelete as any).published) {
         await storage.unpublishPlayerReport(playerId);
       }
       await storage.deletePlayer(playerId);
