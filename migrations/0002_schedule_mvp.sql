@@ -1,6 +1,22 @@
 -- U Schedule MVP tables (Phase 1).
 -- RSVP model: schedule_participants only (no slot registrations for MVP).
--- Apply in Supabase SQL Editor. RLS intentionally disabled for MVP.
+-- Apply in Supabase SQL Editor.
+--
+-- NOTA 2026-09-25 (verificado contra produccion real, pg_class.relrowsecurity):
+-- el comentario original decia "RLS intentionally disabled for MVP" -- eso
+-- ya NO es cierto. RLS esta HABILITADA en produccion en schedule_events y
+-- schedule_participants, con politicas reales (club_members_read,
+-- staff_write/staff_manage con chequeo de operations_access,
+-- own_response_insert/update), anadidas directamente en el SQL Editor de
+-- Supabase en algun momento posterior sin actualizar esta migracion (mismo
+-- patron que el resto de cambios de schema del proyecto: nunca via
+-- drizzle-kit push). Esto SI importa de verdad: client/src/lib/schedule.ts
+-- consulta estas dos tablas directamente via supabase-js (no via Express),
+-- asi que RLS es aqui el limite de seguridad real, no decorativo.
+-- schedule_week_templates (migracion 0003) tambien tiene RLS habilitada
+-- pero CERO politicas -- inofensivo porque esa tabla nunca se consulta
+-- directo desde el cliente, solo via /api/schedule/week-templates
+-- (Express, con su propio chequeo de rol).
 
 create extension if not exists pgcrypto;
 

@@ -1,5 +1,8 @@
 -- U Schedule product alignment: sessions model columns.
--- Apply in Supabase SQL Editor. RLS intentionally disabled for MVP.
+-- Apply in Supabase SQL Editor.
+-- Ver nota 2026-09-25 en 0002_schedule_mvp.sql: RLS ya no esta deshabilitada,
+-- esta habilitada en produccion con politicas reales, anadidas fuera de
+-- estas migraciones. No se toca el DDL de este archivo, solo la nota.
 
 alter table public.schedule_events
   add column if not exists session_type text not null default 'training',
