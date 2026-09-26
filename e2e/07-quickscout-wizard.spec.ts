@@ -31,7 +31,7 @@ async function deleteAsSessionUser(page: Page, playerId: string): Promise<number
 }
 
 test("quick scout: crea ficha de práctica, completa el asistente ISO, verifica que persiste", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   await loginAsCoach(page);
   await gotoInApp(page, "/coach/my-scout");
 
@@ -70,6 +70,16 @@ test("quick scout: crea ficha de práctica, completa el asistente ISO, verifica 
     const finishRes = page.waitForResponse(
       (r) => r.url().endsWith(`/api/players/${playerId}`) && r.request().method() === "PATCH",
     );
+    // Refetch de la lista que dispara useUpdatePlayer.onSuccess (invalidate).
+    // Hay que dejar que termine ANTES de recargar la pagina: si page.goto lo
+    // aborta, la cache persistida en localStorage (throttle 1s, staleTime
+    // 10 min) conserva la lista vieja marcada como fresca y tras recargar
+    // no se vuelve a pedir -- visto en logs de Railway (GET 499 a ~150ms y
+    // ningun GET posterior en 60s).
+    const listRefetch = page.waitForResponse(
+      (r) => r.url().endsWith("/api/players") && r.request().method() === "GET" && r.status() === 200,
+      { timeout: 60_000 },
+    );
     await page.getByTestId("quickscout-finish").click();
     const finishResponse = await finishRes;
     expect(finishResponse.ok()).toBeTruthy();
@@ -77,6 +87,9 @@ test("quick scout: crea ficha de práctica, completa el asistente ISO, verifica 
     expect(updated.inputs?.isoFrequency).toBe("Primary");
 
     await page.waitForURL(`**/coach/player/${playerId}`, { timeout: 15_000 });
+    const listed = (await (await listRefetch).json()) as Array<{ id: string; inputs?: Record<string, unknown> }>;
+    expect(listed.find((p) => p.id === playerId)?.inputs?.isoFrequency).toBe("Primary");
+    await page.waitForTimeout(1_500); // throttle del persister (1s)
 
     // De vuelta en Mi Scout: la ficha de práctica debe pasar de "Fill profile"
     // a "View report" -- prueba de que el motor real (ensamblarReporte) ya
