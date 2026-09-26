@@ -61,8 +61,15 @@ export default function Personnel() {
 
   useEffect(() => {
     if (canManageRoster) return;
+    // CORREGIDO 2026-09-25: no expulsar mientras la membresia del club aun
+    // esta cargando. Sin esto, cuentas cuyo rol de auth metadata no coincide
+    // con club_members.role (ej. la cuenta demo de Apple: auth role null ->
+    // "coach", membresia head_coach) eran redirigidas fuera de Personnel en
+    // el primer render, antes de que llegara /api/club. Mismo criterio que
+    // ClubManagement.tsx (espera a q.data antes de decidir).
+    if (clubQ.isPending) return;
     setLocation("/coach");
-  }, [canManageRoster, setLocation]);
+  }, [canManageRoster, clubQ.isPending, setLocation]);
 
   if (!canManageRoster) return null;
 
