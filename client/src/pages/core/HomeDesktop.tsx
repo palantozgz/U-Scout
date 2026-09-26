@@ -304,7 +304,7 @@ export default function HomeDesktop() {
       ];
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col h-app bg-background text-foreground overflow-hidden">
       {mode === "player" && (
         <NotificationsPrimingCard scoutReportsTime={scoutReportsTime} wellnessTime={wellnessTime} />
       )}

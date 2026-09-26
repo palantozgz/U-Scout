@@ -64,7 +64,7 @@ export function ModulePageShell(
       : "/settings";
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col h-app bg-background text-foreground overflow-hidden">
 
       {/* ── Header ── */}
       {moduleHeader ? (
@@ -114,7 +114,7 @@ export function ModulePageShell(
       <div className="flex flex-1 min-h-0">
 
         {/* Main — scroll interno, padding para nav mobile */}
-        <main className="flex-1 min-h-0 overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-10 md:pt-4 lg:pt-6">
+        <main className="flex-1 min-h-0 overflow-y-auto pb-16 md:pb-10 md:pt-4 lg:pt-6">
           {children}
         </main>
 

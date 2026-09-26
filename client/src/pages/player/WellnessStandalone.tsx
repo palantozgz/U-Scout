@@ -85,7 +85,7 @@ export default function WellnessStandalone() {
   );
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background text-foreground pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+    <div className="flex flex-col h-app bg-background text-foreground pb-16 md:pb-0">
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
         <button
           type="button"

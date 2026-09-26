@@ -7,8 +7,28 @@
    El pseudo-elemento cubre esa franja con el color correcto.
    Referencias: https://dev.to/karmasakshi/make-your-pwas-look-handsome-on-ios-1o08 */
 html {
-  min-height: calc(100% + env(safe-area-inset-top));
+  height: 100%;
   background: hsl(var(--background));
+}
+/* CORREGIDO 2026-09-26: el truco min-height:calc(100% + inset-top) es solo para
+   PWA instalada (standalone + black-translucent). Aplicado siempre, hacia el
+   documento ~59pt mas alto que la pantalla en la app nativa (Capacitor,
+   contentInset never): iOS lo desplazaba al abrir el teclado (login) y la app
+   entera se quedaba subida bajo la barra de estado. Reproducido en simulador
+   y visto en capturas reales del iPhone. */
+@media (display-mode: standalone) {
+  html { min-height: calc(100% + env(safe-area-inset-top)); }
+}
+
+/* Altura real disponible para una pagina: el wrapper raiz de App.tsx ya es
+   h-[100dvh] con padding de safe-area arriba y abajo. Una pagina hija con
+   h-[100dvh] mide ~93pt de mas (iPhone con notch): se recortaba el final del
+   scroll bajo la nav (ultima fila de la clasificacion de Stats, etc). */
+@utility h-app {
+  height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+@utility min-h-app {
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 }
 body {
   background: hsl(var(--background));

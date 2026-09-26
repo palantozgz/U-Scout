@@ -1406,7 +1406,7 @@ export default function Playbook() {
 
   if (isPlayerUX) {
     return (
-      <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+      <div className="flex flex-col h-app bg-background text-foreground overflow-hidden pb-16 md:pb-0">
         <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 pb-6 max-w-5xl mx-auto w-full gap-3 overflow-y-auto min-h-0">
           <ModuleHeader module="playbook" tagline={tagline} />
           <div className="flex flex-col flex-1 min-h-0">
@@ -1421,7 +1421,7 @@ export default function Playbook() {
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+    <div className="flex flex-col h-app bg-background text-foreground overflow-hidden pb-16 md:pb-0">
       <main className="relative z-10 flex flex-col flex-1 px-4 md:px-8 pb-6 max-w-5xl mx-auto w-full gap-3 overflow-y-auto min-h-0">
         <ModuleHeader module="playbook" tagline={tagline} />
 

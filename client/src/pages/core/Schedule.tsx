@@ -1698,9 +1698,9 @@ export default function Schedule() {
                                       key={slot.key}
                                       className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-2"
                                     >
-                                      <p className="text-xs font-black tracking-widest uppercase text-muted-foreground">
+                                      <p className="w-24 shrink-0 text-xs font-black tracking-widest uppercase text-muted-foreground">
                                         {t(slot.labelKey as any)}
-                                        <span className="ml-1.5 font-semibold normal-case tracking-normal text-muted-foreground/60">
+                                        <span className="block font-semibold normal-case tracking-normal text-muted-foreground/60">
                                           {formatSlotHourRange(slot.startHour, slot.endHour)}
                                         </span>
                                       </p>
@@ -1743,14 +1743,14 @@ export default function Schedule() {
                                         <button
                                           type="button"
                                           onClick={() => openCreatePrefilled(d, slot.hour)}
-                                          className="w-full rounded-lg border border-dashed border-border bg-muted/20 px-2 py-4 text-left hover:bg-muted/30"
+                                          className="min-w-0 flex-1 rounded-lg border border-dashed border-border bg-muted/20 px-2 py-4 text-left hover:bg-muted/30"
                                         >
                                           <p className="text-xs font-semibold text-muted-foreground">
                                             {t("schedule_planner_add")}
                                           </p>
                                         </button>
                                       ) : (
-                                        <div className="w-full rounded-lg border border-dashed border-border/10 bg-muted/10 px-2 py-4" />
+                                        <div className="min-w-0 flex-1 rounded-lg border border-dashed border-border/10 bg-muted/10 px-2 py-4" />
                                       )}
                                     </div>
                                   );

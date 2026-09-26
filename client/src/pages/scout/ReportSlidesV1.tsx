@@ -426,7 +426,7 @@ export default function ReportSlidesV1({
       // viewport, el excedente queda recortado e invisible, no scrolleable
       // -- justo donde vive el botón de aprobar de la sección 27. Mismo
       // patrón ya correcto en Profile.tsx (h-[100dvh] + overflow-hidden).
-      className="flex flex-col h-[100dvh] bg-background overflow-hidden"
+      className="flex flex-col h-app bg-background overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onPointerDown={handlePointerDown}

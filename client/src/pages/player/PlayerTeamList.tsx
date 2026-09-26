@@ -35,7 +35,7 @@ export default function PlayerTeamList() {
     : "Your coaching staff will publish reports here before the game";
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background text-foreground pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+    <div className="flex flex-col h-app bg-background text-foreground pb-16 md:pb-0">
       {/* Logo */}
       <div className="flex flex-col items-center pt-5 pb-4 gap-1.5">
         <UScoutLogo size={100} animated={false} />

@@ -41,7 +41,7 @@ export function ModuleGate({
   // Avoid flashing the "disabled" screen before we actually know the club setting.
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+      <div className="flex items-center justify-center min-h-app bg-background">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -68,7 +68,7 @@ export function ModuleGate({
   const es = locale === "es";
   const zh = locale === "zh";
   return (
-    <div className="flex flex-col h-[100dvh] bg-background pb-16 md:pb-0">
+    <div className="flex flex-col h-app bg-background pb-16 md:pb-0">
       <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
         <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center">
           <Lock className="w-6 h-6 text-muted-foreground" />

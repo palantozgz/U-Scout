@@ -137,7 +137,7 @@ function AuthenticatedRoutes({ defaultPath }: { defaultPath: string }) {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+        <div className="flex items-center justify-center min-h-app bg-background">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       }
@@ -220,7 +220,7 @@ function AuthGate() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+      <div className="flex items-center justify-center min-h-app bg-background">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -228,7 +228,7 @@ function AuthGate() {
   if (!user || !profile) return <Login />;
   if (!onboardingReady) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+      <div className="flex items-center justify-center min-h-app bg-background">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -421,7 +421,7 @@ function ClubSecurityGate(props: { children: ReactNode }) {
     const es = locale === "es";
     const zh = locale === "zh";
     return (
-      <div className="flex flex-col items-center justify-center h-[100dvh] overflow-y-auto bg-background px-6 text-center gap-3">
+      <div className="flex flex-col items-center justify-center h-app overflow-y-auto bg-background px-6 text-center gap-3">
         <div className="w-14 h-14 rounded-2xl bg-muted/40 flex items-center justify-center">
           <Mail className="w-6 h-6 text-muted-foreground" />
         </div>
@@ -471,7 +471,7 @@ function ClubSecurityGate(props: { children: ReactNode }) {
     const es = locale === "es";
     const zh = locale === "zh";
     return (
-      <div className="flex flex-col items-center justify-center h-[100dvh] overflow-y-auto bg-background px-6 text-center gap-3">
+      <div className="flex flex-col items-center justify-center h-app overflow-y-auto bg-background px-6 text-center gap-3">
         <div className="w-14 h-14 rounded-2xl bg-muted/40 flex items-center justify-center">
           <Mail className="w-6 h-6 text-muted-foreground" />
         </div>
@@ -500,7 +500,7 @@ function ClubSecurityGate(props: { children: ReactNode }) {
     const es = locale === "es";
     const zh = locale === "zh";
     return (
-      <div className="flex flex-col items-center justify-center h-[100dvh] overflow-y-auto bg-background px-6 text-center gap-3">
+      <div className="flex flex-col items-center justify-center h-app overflow-y-auto bg-background px-6 text-center gap-3">
         <div className="w-14 h-14 rounded-2xl bg-muted/40 flex items-center justify-center">
           <Mail className="w-6 h-6 text-muted-foreground" />
         </div>
