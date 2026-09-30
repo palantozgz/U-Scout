@@ -46,12 +46,27 @@ function consumeOnboardingReplay(userId: string): boolean {
   }
 }
 
-export function shouldOfferOnboarding(userCreatedAt: string | undefined, userId: string): boolean {
+export function shouldOfferOnboarding(
+  userCreatedAt: string | undefined,
+  userId: string,
+  completedOnAccount = false,
+): boolean {
   // A deliberate replay request (Settings → "watch tutorials again") always wins,
   // even for accounts created before ONBOARDING_V2_LAUNCH_ISO — without this, the
   // date gate below would silently make the replay button a no-op for anyone with
   // a pre-launch (legacy) account.
   if (consumeOnboardingReplay(userId)) return true;
+  // AÑADIDO 2026-09-30: el onboarding completado también se guarda en la cuenta
+  // (user_metadata.onboarding_v2_done), no solo en localStorage: así no se repite al reinstalar
+  // la app ni al cambiar de móvil. Se recuerda también en local para no consultarlo cada vez.
+  if (completedOnAccount) {
+    try {
+      localStorage.setItem(LS_KEY(userId), "1");
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
   if (!userCreatedAt) return false;
   if (isOnboardingCompleted(userId)) return false;
   const created = new Date(userCreatedAt).getTime();

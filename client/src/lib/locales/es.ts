@@ -1290,6 +1290,10 @@ const es = {
   onboarding_tutorial_skip: "Saltar tour",
   onboarding_tutorial_next: "Siguiente",
   onboarding_tutorial_done: "Empezar",
+  onboarding_first_checkin_cta: "Hacer mi primer check-in",
+  onboarding_later: "Más tarde",
+  club_member_no_checkin: "Aún sin check-in",
+  club_member_last_checkin: "Último check-in: {date}",
   onboarding_slide_scout_title: "SCOUT — crea informes",
   onboarding_slide_scout_body:
     "Evalúa rivales con datos estructurados. El motor convierte tus apuntes en prioridades defensivas.",

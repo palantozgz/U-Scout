@@ -1329,6 +1329,10 @@ const en = {
   onboarding_tutorial_skip: "Skip tour",
   onboarding_tutorial_next: "Next",
   onboarding_tutorial_done: "Get started",
+  onboarding_first_checkin_cta: "Do my first check-in",
+  onboarding_later: "Later",
+  club_member_no_checkin: "No check-in yet",
+  club_member_last_checkin: "Last check-in: {date}",
   onboarding_slide_scout_title: "SCOUT — build reports",
   onboarding_slide_scout_body:
     "Evaluate opponents with structured inputs. The engine turns your notes into defensive priorities.",

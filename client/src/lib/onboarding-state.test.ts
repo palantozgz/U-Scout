@@ -68,6 +68,18 @@ describe("shouldOfferOnboarding", () => {
     expect(shouldOfferOnboarding(AFTER_LAUNCH, USER)).toBe(true);
   });
 
+  it("completado en la cuenta (otro movil o app reinstalada) -> false aunque localStorage este vacio, y se recuerda en local", () => {
+    expect(shouldOfferOnboarding(AFTER_LAUNCH, USER)).toBe(true);
+    expect(shouldOfferOnboarding(AFTER_LAUNCH, USER, true)).toBe(false);
+    // Ya recordado en local: sin el flag de cuenta tampoco se vuelve a ofrecer.
+    expect(shouldOfferOnboarding(AFTER_LAUNCH, USER)).toBe(false);
+  });
+
+  it("el replay pedido a mano gana sobre el flag de la cuenta", () => {
+    resetOnboarding(USER);
+    expect(shouldOfferOnboarding(AFTER_LAUNCH, USER, true)).toBe(true);
+  });
+
   it("ONBOARDING_V2_LAUNCH_ISO sigue siendo la fecha documentada (guarda contra un cambio accidental)", () => {
     expect(ONBOARDING_V2_LAUNCH_ISO).toBe("2026-04-12T00:00:00.000Z");
   });

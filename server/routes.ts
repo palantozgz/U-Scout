@@ -1582,6 +1582,33 @@ export async function registerRoutes(
       const invs = await storage.listActiveClubInvitations(club.id);
       const base = publicAppOrigin(req);
       const authByUserId = await lookupAuthBasicsByUserIds(members.map((m) => m.userId));
+      // AÑADIDO 2026-09-30: activación por jugadora (¿ha hecho ya su primer check-in? ¿cuándo fue el último?)
+      // solo para el staff que ya ve Wellness (head coach, o coach con acceso a operaciones, o master):
+      // una jugadora nunca recibe la actividad de sus compañeras.
+      const meMember = members.find((m) => m.userId === uid);
+      const canSeeActivation =
+        appRole === "master" ||
+        meMember?.role === "head_coach" ||
+        (meMember?.role === "coach" && Boolean(meMember.operationsAccess));
+      const wellnessByUser = new Map<string, { count: number; lastAt: string | null }>();
+      if (canSeeActivation) {
+        try {
+          const wRows = await db.execute(sql`
+            SELECT user_id::text AS user_id, COUNT(*)::int AS n, MAX(submitted_at) AS last_at
+            FROM wellness_entries
+            WHERE club_id::text = ${club.id}
+            GROUP BY user_id
+          `);
+          for (const r of ((wRows as any).rows ?? []) as Array<{ user_id: string; n: number; last_at: string | Date | null }>) {
+            wellnessByUser.set(r.user_id, {
+              count: Number(r.n) || 0,
+              lastAt: r.last_at ? new Date(r.last_at).toISOString() : null,
+            });
+          }
+        } catch (wErr) {
+          console.error("GET /api/club wellness activation failed", wErr);
+        }
+      }
 
       res.json({
         club: {
@@ -1618,6 +1645,10 @@ export async function registerRoutes(
             createdAt: m.createdAt.toISOString(),
             authFullName: auth.fullName,
             authEmail: auth.email,
+            wellness:
+              canSeeActivation && m.role === "player"
+                ? (wellnessByUser.get(m.userId) ?? { count: 0, lastAt: null })
+                : null,
           };
         }),
         pendingInvitations: invs.map((i) => ({

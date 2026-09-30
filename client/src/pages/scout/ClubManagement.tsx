@@ -1789,6 +1789,24 @@ function MemberRow({
             #{m.jerseyNumber || "—"} · {m.position || "—"}
           </p>
         )}
+        {variant === "player" && m.wellness ? (
+          <p
+            className={
+              m.wellness.count === 0
+                ? "text-xs font-semibold text-amber-600 dark:text-amber-400"
+                : "text-xs text-muted-foreground"
+            }
+          >
+            {m.wellness.count === 0
+              ? t("club_member_no_checkin" as any)
+              : (t("club_member_last_checkin" as any) as string).replace(
+                  "{date}",
+                  m.wellness.lastAt
+                    ? new Date(m.wellness.lastAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                    : "—",
+                )}
+          </p>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           {m.role === "head_coach" ? (
             <Badge variant="secondary" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] md:text-xs font-black uppercase tracking-wide">
@@ -1798,7 +1816,7 @@ function MemberRow({
           ) : (
             <Badge variant="secondary" className="h-5 px-2 gap-1 inline-flex items-center text-[10px] md:text-xs font-black uppercase tracking-wide">
               <Users className="w-3 h-3" />
-              {t("role_coach")}
+              {m.role === "player" ? t("role_player") : t("role_coach")}
             </Badge>
           )}
           {m.role === "coach" && opsEnabled ? (

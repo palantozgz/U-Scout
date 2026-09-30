@@ -1,7 +1,7 @@
 {
-  "name": "U Scout",
-  "short_name": "U Scout",
-  "description": "Basketball scouting & analytics for your team",
+  "name": "U Core",
+  "short_name": "U Core",
+  "description": "Basketball team operations: scouting, stats, schedule and wellness",
   "start_url": "/home",
   "display": "standalone",
   "orientation": "portrait",
@@ -9,13 +9,13 @@
   "theme_color": "#1a1a1a",
   "icons": [
     {
-      "src": "/favicon.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/favicon.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

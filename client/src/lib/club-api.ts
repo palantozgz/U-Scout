@@ -47,6 +47,8 @@ export interface ClubMemberDto {
   /** From Supabase Auth user_metadata.full_name when service role lookup succeeds */
   authFullName?: string | null;
   authEmail?: string | null;
+  /** Solo para el staff que ve Wellness y solo en jugadoras: activación (nº de check-ins y último). */
+  wellness?: { count: number; lastAt: string | null } | null;
 }
 
 export interface ClubInvitationDto {

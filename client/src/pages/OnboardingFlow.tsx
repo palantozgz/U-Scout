@@ -5,6 +5,8 @@ import { useLocale, type Locale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { applyThemeToDocument, type Theme } from "@/lib/theme";
 import { completeOnboarding } from "@/lib/onboarding-state";
+import { supabase } from "@/lib/supabase";
+import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 
 const THEMES: { id: Theme; emoji: string; labelKey: "theme_gamenight" | "theme_office" | "theme_oldschool"; previewBg: string; dot1: string; dot2: string }[] = [
@@ -71,6 +73,7 @@ export default function OnboardingFlow({
 }) {
   const { t, changeLocale, locale } = useLocale();
   const { profile } = useAuth();
+  const [, setLocation] = useLocation();
   const [step, setStep] = useState<Step>("language");
   const [theme, setThemeLocal] = useState<Theme>(() => {
     try {
@@ -100,6 +103,8 @@ export default function OnboardingFlow({
 
   const finish = useCallback(() => {
     completeOnboarding(userId);
+    // AÑADIDO 2026-09-30: recordarlo también en la cuenta (sobrevive a reinstalar o cambiar de móvil).
+    void supabase.auth.updateUser({ data: { onboarding_v2_done: true } }).catch(() => undefined);
     onDone();
   }, [userId, onDone]);
 
@@ -341,13 +346,29 @@ export default function OnboardingFlow({
             <Button
               className="flex-1 h-12 rounded-xl font-bold"
               onClick={() => {
-                if (tutorialIdx >= activeSlides.length - 1) finish();
-                else setTutorialIdx((i) => i + 1);
+                if (tutorialIdx >= activeSlides.length - 1) {
+                  // Jugadoras: el onboarding termina en su primer check-in real.
+                  if (isPlayer) setLocation("/player/wellness");
+                  finish();
+                } else setTutorialIdx((i) => i + 1);
               }}
             >
-              {tutorialIdx >= activeSlides.length - 1 ? t("onboarding_tutorial_done") : t("onboarding_tutorial_next")}
+              {tutorialIdx >= activeSlides.length - 1
+                ? isPlayer
+                  ? t("onboarding_first_checkin_cta" as never)
+                  : t("onboarding_tutorial_done")
+                : t("onboarding_tutorial_next")}
             </Button>
           </div>
+          {isPlayer && tutorialIdx >= activeSlides.length - 1 && (
+            <button
+              type="button"
+              onClick={finish}
+              className="mt-3 self-center text-sm font-semibold text-muted-foreground underline underline-offset-2"
+            >
+              {t("onboarding_later" as never)}
+            </button>
+          )}
         </>
       )}
     </div>

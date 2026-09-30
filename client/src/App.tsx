@@ -214,7 +214,9 @@ function AuthGate() {
       return;
     }
     migrateLegacyOnboarding(user.created_at, user.id);
-    setNeedsOnboarding(shouldOfferOnboarding(user.created_at, user.id));
+    setNeedsOnboarding(
+      shouldOfferOnboarding(user.created_at, user.id, user.user_metadata?.onboarding_v2_done === true),
+    );
     setOnboardingReady(true);
   }, [user?.id, user?.created_at, profile?.id]);
 
