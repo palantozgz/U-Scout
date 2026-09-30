@@ -25,7 +25,6 @@ export default function JoinClub() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [registerRole, setRegisterRole] = useState<"head_coach" | "coach" | "player">("coach");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [registerSuccess, setRegisterSuccess] = useState(false);
@@ -107,7 +106,15 @@ export default function JoinClub() {
       const { error: err } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName, role: registerRole } },
+        options: {
+          data: {
+            full_name: fullName,
+            // El rol real lo fija la invitación al aceptarla en el servidor; aquí solo "player" o "coach".
+            role: preview.data?.role === "player" ? "player" : "coach",
+            // Viaja en la cuenta (no en el dispositivo): la app reclama la invitación al iniciar sesión.
+            pending_club_invite: token,
+          },
+        },
       });
       if (err) setError(err.message);
       else setRegisterSuccess(true);
@@ -270,24 +277,6 @@ export default function JoinClub() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {mode === "register" && (
-                <div className="grid grid-cols-3 gap-2">
-                  {(["head_coach", "coach", "player"] as const).map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setRegisterRole(r)}
-                      className={`h-10 rounded-xl border text-[11px] font-semibold transition-all ${
-                        registerRole === r
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background border-border text-muted-foreground"
-                      }`}
-                    >
-                      {r === "head_coach" ? t("invite_role_head_coach") : r === "coach" ? t("role_coach") : t("role_player")}
-                    </button>
-                  ))}
-                </div>
-              )}
               {error && <p className="text-sm text-destructive text-center">{error}</p>}
               <Button className="w-full font-bold h-12 rounded-xl" onClick={handleAuth} disabled={loading}>
                 {loading ? t("saving") : mode === "login" ? t("sign_in") : t("sign_up")}

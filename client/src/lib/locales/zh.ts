@@ -1420,7 +1420,7 @@ const zh = {
   join_club_join_verb: "加入",
   join_club_accept_error: "加入俱乐部失败，请重试。",
   join_club_verify_title: "请查收邮件",
-  join_club_verify_body: "我们已发送确认链接。请先激活账户，再回到此处登录以完成加入。",
+  join_club_verify_body: "我们已发送确认链接。请先点击激活，然后下载 U Core 应用，并用同一个邮箱和密码登录，即可直接加入你的俱乐部。",
 
   dashboard_player_coaches_label: "位教练",
   dashboard_player_published_badge: "已发布 ✓",

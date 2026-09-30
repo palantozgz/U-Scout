@@ -1465,7 +1465,7 @@ const en = {
   join_club_accept_error: "Could not join the club. Try again.",
   join_club_verify_title: "Check your email",
   join_club_verify_body:
-    "We sent a confirmation link. Activate your account, then return here and sign in to join.",
+    "We sent a confirmation link. Activate it, download the U Core app and sign in with this same email and password: you will go straight into your club.",
 
   dashboard_player_coaches_label: "coaches",
   dashboard_player_published_badge: "Published ✓",

@@ -9,6 +9,7 @@ import { insertTeamSchema, insertPlayerSchema, type Club } from "@shared/schema"
 import { patchClubBodySchema } from "@shared/club-context";
 import { requireAuth, grantRole } from "./auth";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { acceptClubInvitationForUser, claimPendingClubInvitation } from "./clubInvitations";
 import { lookupAuthBasicsByUserIds, mergeAuthWithSession } from "./authUserLookup";
 import { registerStatsIngest } from "./stats-ingest";
 import { processAllPendingPossessions, processPossessions } from "./possessions";
@@ -1512,6 +1513,14 @@ export async function registerRoutes(
       const uid = req.user!.id;
       const appRole = req.user!.role;
       let club = await storage.getClubForUser(uid);
+      // AÑADIDO 2026-09-30: la jugadora se registra en la web con el enlace de invitación (el token
+      // queda en user_metadata.pending_club_invite) y luego inicia sesión en la app. Sin club todavía:
+      // reclamar aquí la invitación pendiente (ver server/clubInvitations.ts).
+      if (!club) {
+        if (await claimPendingClubInvitation(uid, req.user!.email || "")) {
+          club = await storage.getClubForUser(uid);
+        }
+      }
       // AÑADIDO 2026-09-15 (pasada de fricción/cosmética + preparación para
       // App Store, mandato directo de Pablo): sin sistema de pagos todavía,
       // cualquiera que se descargue la app y se registre como "Head Coach"
@@ -1939,66 +1948,13 @@ export async function registerRoutes(
   });
 
   app.post("/api/club/invitations/:token/accept", requireAuth, async (req, res) => {
-    try {
-      const token = req.params.token as string;
-      const inv = await storage.getClubInvitationByToken(token);
-      if (!inv) return res.status(404).json({ error: "Invalid invitation" });
-      const now = new Date();
-      if (inv.expiresAt < now) return res.status(410).json({ error: "Invitation expired" });
-
-      const userId = req.user!.id;
-      const email = req.user!.email || "";
-
-      const claimed = await storage.markClubInvitationUsedIfUnused(inv.id, userId);
-      if (!claimed) return res.status(409).json({ error: "Invitation already used" });
-      const existing = await storage.getClubMemberByClubAndUser(inv.clubId, userId);
-      if (!existing) {
-        await storage.createClubMember({
-          clubId: inv.clubId,
-          userId,
-          role: inv.role,
-          displayName: email.split("@")[0] || "",
-          jerseyNumber: "",
-          position: "",
-          status: "active",
-          invitedEmail: inv.invitedEmail,
-          joinedAt: new Date(),
-        });
-      } else if (existing.role !== inv.role) {
-        // Already a member (e.g. re-invited with a promotion/demotion): keep
-        // club_members.role in sync with what this invitation grants, so it
-        // doesn't drift from the auth role synced below.
-        await storage.updateClubMemberRole(existing.id, inv.role);
-      }
-
-      // Keep auth role in sync with the club role granted by this invitation.
-      // club_members.role alone is NOT enough: client-side capabilities
-      // (canCreateEvent, canViewClubManagement, canAccessPersonnel, etc.) read
-      // user_metadata.role, and server-side privileged checks (isHeadCoachOrMaster,
-      // canManageTeam) read req.user.role, which for head_coach/master requires a
-      // row in user_roles (see resolveRole() in auth.ts). Without this sync, an
-      // invited head_coach ends up with club_members.role="head_coach" but is
-      // still treated as a plain "coach" by the rest of the app.
-      try {
-        if (inv.role === "head_coach" || inv.role === "master") {
-          await grantRole(userId, inv.role, inv.createdBy);
-        }
-        const admin = getSupabaseAdmin();
-        if (admin) {
-          const { data: existingUser } = await admin.auth.admin.getUserById(userId);
-          const currentMeta = existingUser?.user?.user_metadata ?? {};
-          await admin.auth.admin.updateUserById(userId, {
-            user_metadata: { ...currentMeta, role: inv.role },
-          });
-        }
-      } catch (syncErr) {
-        console.log(`[club-invite] role sync failed for userId=${userId}, role=${inv.role}:`, syncErr);
-      }
-
-      res.json({ ok: true, clubId: inv.clubId, role: inv.role });
-    } catch (err) {
-      res.status(500).json({ error: "Failed to accept club invitation" });
-    }
+    // REESCRITO 2026-09-30: la lógica vive en server/clubInvitations.ts (compartida con el reclamo
+    // automático al iniciar sesión). Libera el enlace si falla crear la membresía y trata el reintento
+    // de la misma cuenta como éxito.
+    const token = req.params.token as string;
+    const result = await acceptClubInvitationForUser(token, req.user!.id, req.user!.email || "");
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
+    res.json({ ok: true, clubId: result.clubId, role: result.role });
   });
 
   app.delete("/api/club/members/:id", requireAuth, async (req, res) => {

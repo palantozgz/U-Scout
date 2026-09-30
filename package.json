@@ -15,6 +15,7 @@
     "check": "tsc",
     "check:tests": "tsc -p tsconfig.tests.json --noEmit",
     "test": "vitest run",
+    "test:server": "vitest run --root . server",
     "i18n:regen-gender-bundles": "node scripts/regenerate-spanish-gender-bundles.mjs",
     "motor:test": "tsx scripts/test-motor.ts",
     "motor:compare": "tsx scripts/compare-motors.ts",

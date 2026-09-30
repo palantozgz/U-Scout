@@ -155,6 +155,7 @@ export interface IStorage {
   listActiveClubInvitations(clubId: string): Promise<ClubInvitation[]>;
   markClubInvitationUsed(id: string, userId: string): Promise<void>;
   markClubInvitationUsedIfUnused(id: string, userId: string): Promise<boolean>;
+  releaseClubInvitation(id: string): Promise<void>;
   deleteClubInvitation(id: string): Promise<void>;
 
   getAssignmentStatsForUsers(userIds: string[]): Promise<Map<string, { count: number; lastAt: Date | null }>>;
@@ -801,6 +802,11 @@ export class DatabaseStorage implements IStorage {
     `);
     const arr = (rows as any).rows ?? ((rows as unknown) as any[]);
     return Array.isArray(arr) && arr.length > 0;
+  }
+
+  // AÑADIDO 2026-09-30: libera una invitación reclamada cuando la creación de la membresía falla.
+  async releaseClubInvitation(id: string): Promise<void> {
+    await db.update(clubInvitations).set({ usedBy: null }).where(eq(clubInvitations.id, id));
   }
 
   async deleteClubInvitation(id: string): Promise<void> {
