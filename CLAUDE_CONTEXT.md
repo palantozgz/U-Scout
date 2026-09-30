@@ -6,6 +6,31 @@
 
 ---
 
+## ESTADO ACTUAL — 2026-09-30 (verificado contra repo, Railway y Supabase; prevalece sobre cualquier sección fechada antes)
+
+> Este archivo llevaba sin actualizarse desde el 2026-09-07. Las secciones "Estado DB — 2026-06-12", "U Playbook — estado y plan (2026-06-12)" y "Notas técnicas críticas (iOS)" son históricas: contrastar con el código antes de fiarse.
+
+**Repo / deploy**
+- `main` == `origin/main` (0 commits sin pushear). HEAD `fb1e5cb`. Railway: deployment `ae3d1095` SUCCESS. Único archivo sin trackear: `PROMPT_NUEVA_SESION_2026-09-24.md` (obsoleto, ignorar o borrar).
+- `npm run check` (tsc) limpio · vitest 17 archivos / 241 tests OK · CI GitHub Actions (tsc + vitest en push/PR) · e2e Playwright 7 specs (`e2e/07-quickscout-wizard.spec.ts` pasa en chromium y mobile-chromium; requiere `E2E_CONFIRM_PROD=yes`).
+- Producción: `/api/ping` 200 (0.4–1.1 s en caliente; el primer hit tras inactividad tardó 5.8 s = arranque en frío). Cabeceras: helmet, HSTS, nosniff, `index.html` con no-cache. Endpoints `/api/club`, `/api/players`, `/api/stats/*` sin token → 401.
+- Tamaños (LOC): `server/routes.ts` 4.836 · `Stats.tsx` 4.761 · `Schedule.tsx` 3.686 · `motor-v2.1.ts` 2.802 · `ClubManagement.tsx` 2.066 · `PlayerEditor.tsx` 1.987.
+
+**Datos (Supabase `ybpzvkkxcmwwxrrouyhm`)**
+- 2 clubs: **JIANGXI (江西女篮)** = club real de Pablo (head_coach) y **"Club de Pruebas QA"** (cuentas QA coach / player / headcoach demo de Apple). Las cuentas QA YA NO están en el club real.
+- 309 `players`, 0 huérfanos `E2E%`. 224/224 partidos finalizados de la temporada 2092, 117.187 eventos PBP, 36.611 posesiones.
+- Integridad L1 (puntos de posesiones vs marcador oficial): 223 OK, 0 discrepancias (1 partido sin marcador comparable). `scripts/audit-precision.ts` no se pudo re-ejecutar hoy (ECONNRESET/timeout en osascript); L1 se verificó por SQL equivalente.
+- Último sync 2026-06-24 · último partido 2026-04-25 → pipeline inactivo (temporada terminada). La Pi (192.168.1.7) NO es alcanzable desde la red actual (dirección LAN) → estado de PM2/collector NO verificado.
+- Seguridad DB (advisors): RLS activa con políticas reales en `schedule_events`, `schedule_participants`, `wellness_entries`, `club_members`. ~40 tablas con RLS sin políticas = inertes (solo las toca Express con service-role). 3 funciones `SECURITY DEFINER` marcadas por el linter son `trigger`/`event_trigger` → falso positivo. 4 funciones sin `search_path` fijo (menor).
+
+**Bugs / riesgos abiertos (por gravedad)**
+1. **ALTO — `pbp_possessions.end_type='unknown'` en 11.391 de 36.611 posesiones (31,1 %); solo 132 `shot_missed`** (el boxscore implica ~16.600 fallos). Causa probable (lectura de `server/possessions.ts` ~L661-673, no probada con reproceso): al cambiar el equipo atacante se inspecciona `prev`; si el evento que cambia el ataque es el propio rebote defensivo, `prev` es el `shot_missed`/`shot_missed_3` y no está contemplado (solo se contempla `prev.event_type==='rebound'`). Los puntos (L1) no se ven afectados; sí cualquier métrica basada en `end_type` (PPP por tramo, tipos de fin de posesión). Arreglo = reconocer tiro fallado + rebote defensivo y reprocesar 224 partidos (`scripts/fast_reprocess.py`, ~15 min). NO aplicado: requiere OK explícito de Pablo.
+2. **MEDIO — `POST /api/players` tarda 12–17 s y el proxy de Railway reintenta, creando duplicados** (detectado 26 sept, sin resolver).
+3. **MEDIO — credenciales de cuentas QA/demo en archivos versionados** (`CLAUDE_CONTEXT.md`, `apple-review-response.md`, `appstore-listing-copy.md`). La demo de Apple es head_coach con contraseña trivial, pero aislada en el club QA (verificado). La contraseña antigua de Postgres sigue en el historial de git (ya rotada, inerte). Visibilidad del repo en GitHub: no verificada hoy.
+4. **BAJO — `STATS_INGEST_KEY` se compara con `!==`** (no timing-safe) en sync-status y 3 endpoints admin; `npm audit`: 1 vulnerabilidad high transitiva (`brace-expansion`, DoS) con `npm audit fix` disponible, no aplicada; contraseña de la app de Pablo (`8888`) pendiente de cambiar por una real (recordatorio pedido por él).
+
+**Verificado como correcto hoy:** 93 rutas Express; las 8 sin middleware son intencionales (`/api/ping`, 2 lookups de invitación por token, iCal por token, `sync-status` y 3 endpoints admin de stats con `STATS_INGEST_KEY` fail-closed). Rate-limit 600 req/15 min en `/api`. `DELETE /api/players/:id` ya con control de rol/club (`9641583`).
+
 ## Producción
 - URL: https://u-scout-production.up.railway.app
 - Deploy: Railway, auto-deploy en push a `main`
@@ -318,27 +343,36 @@ player_stats, invite_links
 
 ---
 
-## Pendientes ordenados por impacto
+## Pendientes ordenados por impacto (reescrito 2026-09-30; verificado contra el repo)
+
+### P0 — bloquea lanzamiento / temporada 2026-27
+1. **App Store**: la primera revisión fue rechazada (Guideline 2.1). Respuesta lista en `apple-review-response.md` + vídeo en `/apple-review-demo.mp4`. Pablo debe pegarla y enviarla en App Store Connect (no automatizable). Estado posterior al 24 sept: NO verificado. Quitar además la plataforma macOS del registro de la app (no hay build macOS).
+2. **Temporada 2026-27 (Grupo B)**: confirmar collector en la Pi (PM2), nuevo `seasonId`/fases WCBA (2093–2095 son solo etiquetas sin datos), y configurar UptimeRobot (5 min → `/api/ping`; hay arranque en frío de ~6 s tras inactividad).
+3. **`end_type='unknown'` 31 %** (ver Estado actual, bug 1): decidir si reprocesar los 224 partidos tras el arreglo.
 
 ### P1
-1. **Stats Phase 4** — popup/detail views de jugadora (card expand)
-2. **ReportViewV4 — formato 3 slides** — Slide 1: ¿Quién es? · Slide 2: ¿Qué hará? · Slide 3: ¿Qué hago yo?
-3. **U Playbook FASE 2** — Transición wizard + backend persistencia
-4. **Bundle optimization + Capacitor build** — Carga inicial ~191 KB OK. Schedule ya en 20.9 KB. Siguiente paso: Capacitor build → TestFlight.
+4. `POST /api/players` lento + duplicados por reintento del proxy.
+5. U Playbook: **wizard ofensivo** (no existe; `PlaybookView` solo tiene `wizard-defensive`). Necesita spec propia antes de construir. FASE 2 de persistencia de planes defensivos ya hecha.
+6. U Stats **Phase 4** (vistas de detalle): alcance sin aclarar por Pablo.
+7. U Stats **informe en vivo** para el staff (spec en Claude Docs, chat del 21 sept). Bloqueado por: ¿`cba.net.cn` actualiza durante el partido? + polling de alta frecuencia en la Pi para el `game_id` propio.
+8. e2e de Film Room (enviar → discrepancias → aprobar → publicar): faltan `data-testid` en el flujo `scout-version`.
+9. Higiene de secretos: sacar credenciales QA/demo de los `.md` versionados y `npm audit fix` (1 high transitiva).
+10. Cambiar la contraseña de la app de Pablo (`8888`).
 
 ### P2
-5. **Capacitor build + TestFlight** — `npx cap sync && npx cap open ios` → Xcode archive → TestFlight
-6. **player_stats UI** — `/coach/stats-entry`, tabla existe en Supabase, falta backend + frontend
-7. **hasReport fix en MyScout** — usa `createDefaultPlayer` inputs → siempre true
-8. **Schedule scroll re-centering** (List ↔ Planner toggle)
-9. **backup/motor-v2.1-pre-20260405** — merge o discard
+11. Refactor de `Schedule.tsx` (fases 0-1 de `docs/PLAN_refactor_schedule.md` hechas; faltan 2-4), `routes.ts` (4.836 líneas) y `Stats.tsx` (4.761).
+12. Linter Supabase: `search_path` fijo en 4 funciones; revocar EXECUTE a `anon` en las 3 funciones trigger (falso positivo, higiene).
+13. `STATS_INGEST_KEY` con `crypto.timingSafeEqual`.
+14. Tramos de prórroga (OT) en PBP sin tratamiento específico (documentado en `PBP_EVENTS.md`).
+15. Verificar hero card "Mis estadísticas" (depende de `profile.wcba_external_id`).
+16. TODOs vivos: `capabilities.ts:59` (badge physical_trainer), `Stats.tsx:634` (teamName del club).
 
 ### P3
-10. **Shot chart** — bloqueado Pi Fase 4
-11. **Hero card jugadoras** — requiere wcba_external_id en profiles
-12. **Recurring events** — ✅ implementado (crea N eventos en loop secuencial)
-13. **Favicon U Core** + logo real del club
-14. **OverridePanel** frontend integration
+17. Shot chart (coordenadas normalizadas 0–1, `shotZones.ts` calibrado) · favicon y logo real del club · modo "Simple vs Pro" · iconos de salida desde Figma · merge/descarte de `backup/motor-v2.1-pre-20260405` · app macOS (Mac Catalyst, aparcado).
+
+### Resuelto (comprobado en código/producción; NO volver a listarlo como pendiente)
+- ReportViewV4 en formato 3 slides · `OverridePanel` integrado · `hasReport` en MyScout · Schedule scroll re-centering + kebab · Playbook FASE 2 backend (planes defensivos) · shell de Stats en landscape · recurring events.
+- 2026-09-25/26: `useHomeData` sin dependencia circular (`90b873f`) · comentario RLS corregido (`a5fedc6`) · e2e 07 estable (`e4fe28c`, `e5c92e6`) · Personnel no expulsa mientras carga `/api/club` (`74f1302`) · `h-[100dvh]` anidado sustituido por `h-app` y `min-height` del `html` solo en PWA standalone (`fb1e5cb`, verificado en simulador iOS).
 
 ---
 
@@ -394,6 +428,23 @@ player_stats, invite_links
 ---
 
 ## Historial sesiones
+
+### 2026-09-30 — Revisión de estado + auditoría (solo lectura, sin cambios de código)
+Revisadas las conversaciones recientes y contrastado contra git, Railway, Supabase y producción. Resultado en "ESTADO ACTUAL" y "Pendientes" (arriba). Hallazgo principal: `end_type='unknown'` en el 31 % de las posesiones (bug abierto desde el 11 sept). Corregidos aquí varios datos de la memoria: los 8 commits del 24-25 sept ya están pusheados y desplegados; las 4 "decisiones abiertas" del 25 sept quedaron resueltas salvo el e2e de Film Room; las cuentas QA viven en "Club de Pruebas QA", no en JIANGXI.
+
+### 2026-09-26 — e2e QuickScout estable + layout `h-app`
+Causa raíz del fallo e2e 07: (1) `await qc.invalidateQueries()` bloqueaba el `setLocation` (`e4fe28c`); (2) limpieza sin Bearer devolvía 401 (fetch in-page con token de sesión); (3) caché persistida servía datos viejos antes del refetch (`e5c92e6`). Bug extra: `Personnel.tsx` redirigía antes de cargar `/api/club` (`74f1302`). Layout (`fb1e5cb`): utilidad `h-app`/`min-h-app` en 23 archivos (las páginas eran ~93 pt más altas que el espacio disponible), `html{min-height}` solo en standalone, columna de etiqueta fija en el planner móvil. Pendiente sin tocar: 12–17 s en `POST /api/players` y duplicados por reintento del proxy.
+
+### 2026-09-25 — Seguridad estructural + groundwork e2e
+8 commits pusheados y desplegados: master en endpoints admin de stats, `isHeadCoach` vía membership real, doble `safe-area-inset-top` eliminado en 14 pantallas, Zod en `POST /api/playbook/plans` y `/api/club/matches`, helmet, testids QuickScout/MyScout/FilmRoom, **`DELETE /api/players/:id` sin control de rol/club (cualquier cuenta podía borrar fichas de cualquier club) → corregido**, `useHomeData` sin dependencia circular, RLS de `schedule_*` verificada como ACTIVA en producción (comentarios de migraciones corregidos). Rotación de credenciales sigue diferida por decisión de Pablo.
+
+### 2026-09-07 → 2026-09-24 — Resumen consolidado (no estaba en este archivo)
+- 09-09/10: QA con 5 personas y suite Playwright (7 specs); Week Templates a base de datos; zona horaria Asia/Shanghai; módulos activables por club; Grupo A/B en Stats; Node 24 en Railway; botones 44 pt.
+- 09-11: auditorías completas de U Stats y U Scout (`docs/auditoria-*.md`), spec `docs/motor-1.0-spec.md`; detectado `end_type='unknown'`.
+- 09-15/19: re-auditoría, `express-rate-limit`, CI en GitHub Actions, `shared/season.ts`, privacidad con email real, alta de jefe de entrenadores restringida por `HEAD_COACH_SIGNUP_ALLOWLIST`.
+- 09-19/24: envío a App Store (bundle `com.ucorebasketball.app`), rechazo 2.1, borrado de cuenta (`DELETE /api/account`), `version-check.ts` + no-cache en `index.html` (WKWebView), rol efectivo desde `club_members.role`, safe-area en onboarding.
+- 09-21: spec del informe en vivo de U Stats (Claude Docs).
+
 
 ### 2026-09-06 (cont.) — Revisión módulo por módulo + QA fixes
 
