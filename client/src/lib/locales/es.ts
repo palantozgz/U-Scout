@@ -1321,6 +1321,9 @@ const es = {
   attendance_export_label: "Exportar asistencia (CSV)",
   attendance_export_empty: "No hay sesiones en los últimos 60 días",
   attendance_export_error: "No se pudo exportar la asistencia",
+  schedule_group_signups_title: "Elección de grupos",
+  schedule_group_signups_none: "Aún nadie ha elegido grupo",
+  schedule_group_signups_nogroup: "Confirmadas sin grupo",
   onboarding_slide_scout_title: "SCOUT — crea informes",
   onboarding_slide_scout_body:
     "Evalúa rivales con datos estructurados. El motor convierte tus apuntes en prioridades defensivas.",

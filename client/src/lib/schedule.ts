@@ -25,6 +25,8 @@ export type ScheduleParticipant = {
   user_id: string;
   status: "confirmed" | "declined" | "maybe";
   responded_at: string;
+  /** Grupo (A..F) elegido por la jugadora en sesiones con grupos y auto-apuntarse. */
+  group_label?: string | null;
 };
 
 /**
@@ -356,7 +358,7 @@ export function useScheduleParticipantsForUser(params: {
     queryFn: async (): Promise<ScheduleParticipant[]> => {
       const { data, error } = await supabase
         .from("schedule_participants")
-        .select("id, club_id, event_id, user_id, status, responded_at")
+        .select("id, club_id, event_id, user_id, status, responded_at, group_label")
         .eq("club_id", params.clubId!)
         .eq("user_id", params.userId!)
         .in("event_id", eventIds);
@@ -375,7 +377,7 @@ export function useScheduleParticipantsForEvents(params: { clubId?: string; even
     queryFn: async (): Promise<ScheduleParticipant[]> => {
       const { data, error } = await supabase
         .from("schedule_participants")
-        .select("id, club_id, event_id, user_id, status, responded_at")
+        .select("id, club_id, event_id, user_id, status, responded_at, group_label")
         .eq("club_id", params.clubId!)
         .in("event_id", eventIds);
       if (error) throw error;
@@ -395,7 +397,12 @@ export function useUpsertScheduleParticipant() {
       qc.setQueriesData<ScheduleParticipant[]>({ queryKey: prefix, exact: false }, (cur) => {
         const existing = (cur ?? []).find((p) => p.event_id === vars.event_id);
         const nextRow: ScheduleParticipant = existing
-          ? { ...existing, status: vars.status, responded_at: new Date().toISOString() }
+          ? {
+              ...existing,
+              status: vars.status,
+              responded_at: new Date().toISOString(),
+              ...(vars.group_label !== undefined ? { group_label: vars.group_label } : {}),
+            }
           : {
               id: `optimistic-${Math.random().toString(16).slice(2)}`,
               club_id: vars.club_id,
@@ -403,6 +410,7 @@ export function useUpsertScheduleParticipant() {
               user_id: vars.user_id,
               status: vars.status,
               responded_at: new Date().toISOString(),
+              group_label: vars.group_label ?? null,
             };
         const without = (cur ?? []).filter((p) => p.event_id !== vars.event_id);
         return [...without, nextRow];
@@ -415,6 +423,8 @@ export function useUpsertScheduleParticipant() {
       event_id: string;
       user_id: string;
       status: ScheduleParticipant["status"];
+      /** undefined = no tocar el grupo guardado; null = quitarlo. */
+      group_label?: string | null;
     }) => {
       const { data, error } = await supabase
         .from("schedule_participants")
@@ -425,10 +435,11 @@ export function useUpsertScheduleParticipant() {
             user_id: body.user_id,
             status: body.status,
             responded_at: new Date().toISOString(),
+            ...(body.group_label !== undefined ? { group_label: body.group_label } : {}),
           },
           { onConflict: "event_id,user_id" },
         )
-        .select("id, club_id, event_id, user_id, status, responded_at")
+        .select("id, club_id, event_id, user_id, status, responded_at, group_label")
         .single();
       if (error) throw error;
       return data as ScheduleParticipant;

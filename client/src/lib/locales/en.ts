@@ -1360,6 +1360,9 @@ const en = {
   attendance_export_label: "Export attendance (CSV)",
   attendance_export_empty: "No sessions in the last 60 days",
   attendance_export_error: "Couldn't export attendance",
+  schedule_group_signups_title: "Group choices",
+  schedule_group_signups_none: "Nobody has picked a group yet",
+  schedule_group_signups_nogroup: "Confirmed without a group",
   onboarding_slide_scout_title: "SCOUT — build reports",
   onboarding_slide_scout_body:
     "Evaluate opponents with structured inputs. The engine turns your notes into defensive priorities.",

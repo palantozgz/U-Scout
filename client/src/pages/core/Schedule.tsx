@@ -2,6 +2,7 @@ import { ModulePageShell } from "./ModulePage";
 import { useLocale, type I18nKey } from "@/lib/i18n";
 import { SkeletonSchedule } from "@/components/SkeletonLoaders";
 import { CalendarSyncButton } from "@/components/schedule/CalendarSyncButton";
+import { GroupSignupSummary } from "@/components/schedule/GroupSignupSummary";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { cn } from "@/lib/utils";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -1282,13 +1283,20 @@ export default function Schedule() {
                             : false;
                         // Ensure localStorage-backed actions re-render immediately after changes.
                         void playerActionsTick;
+                        // CORREGIDO 2026-10-01: el estado sale del servidor (schedule_participants); localStorage solo
+                        // sirve de respaldo para selecciones antiguas. Antes el grupo elegido no llegaba nunca al staff
+                        // y, en otro dispositivo, la jugadora volvía a ver el botón de apuntarse.
                         const isSignedUp =
                           mode === "signup" && clubId && userId
-                            ? Boolean(window.localStorage.getItem(playerSignupKey(clubId, ev.id, userId)))
+                            ? my
+                              ? my.status === "confirmed"
+                              : Boolean(window.localStorage.getItem(playerSignupKey(clubId, ev.id, userId)))
                             : false;
                         const chosenGroup =
                           mode === "groups" && att?.group_signup_mode === "auto_signup" && clubId && userId
-                            ? window.localStorage.getItem(playerGroupKey(clubId, ev.id, userId))
+                            ? my?.status === "declined"
+                              ? null
+                              : (my?.group_label ?? window.localStorage.getItem(playerGroupKey(clubId, ev.id, userId)))
                             : null;
                         const groupsN = Math.max(2, Math.min(6, Number(att?.groups_count) || 2));
                         const groupCap = Number(att?.group_capacity) || null;
@@ -1311,7 +1319,7 @@ export default function Schedule() {
                               attendanceRequired ? (
                                 <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
                                   {(() => {
-                                    const setParticipantStatus = (status: "confirmed" | "declined" | "maybe") => {
+                                    const setParticipantStatus = (status: "confirmed" | "declined" | "maybe", groupLabel?: string | null) => {
                                       if (!clubId || !userId) return;
                                       setPendingSessionIds((prev) => {
                                         const next = new Set(prev);
@@ -1324,6 +1332,7 @@ export default function Schedule() {
                                           event_id: ev.id,
                                           user_id: userId,
                                           status,
+                                          ...(groupLabel !== undefined ? { group_label: groupLabel } : {}),
                                         })
                                         .then(() => toast({ description: t("schedule_attendance_saved") }))
                                         .catch(() => toast({ variant: "destructive", description: t("schedule_attendance_error") }))
@@ -1418,7 +1427,7 @@ export default function Schedule() {
                                                       } catch {
                                                         // ignore
                                                       }
-                                                      setParticipantStatus("confirmed");
+                                                      setParticipantStatus("confirmed", label);
                                                       setPlayerActionsTick((x) => x + 1);
                                                     }}
                                                   >
@@ -1447,7 +1456,7 @@ export default function Schedule() {
                                                   } catch {
                                                     // ignore
                                                   }
-                                                  setParticipantStatus("declined");
+                                                  setParticipantStatus("declined", null);
                                                   setPlayerActionsTick((x) => x + 1);
                                                 }}
                                               >
@@ -3494,6 +3503,17 @@ function ScheduleSessionDetailBody(props: {
       {event.attendance_required !== false ? (
         <p className="text-xs text-muted-foreground">{t("schedule_session_attendance_required")}</p>
       ) : null}
+      {(() => {
+        const att = readConstraintsFromNotes(event.notes ?? null).constraints?.attendance as any;
+        return att?.mode === "groups" && att?.group_signup_mode === "auto_signup" ? (
+          <GroupSignupSummary
+            clubId={event.club_id}
+            eventId={event.id}
+            groupsCount={Math.max(2, Math.min(6, Number(att?.groups_count) || 2))}
+            t={t as any}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }
