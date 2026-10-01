@@ -1,6 +1,7 @@
 import { ModulePageShell } from "./ModulePage";
 import { useLocale, type I18nKey } from "@/lib/i18n";
 import { SkeletonSchedule } from "@/components/SkeletonLoaders";
+import { CalendarSyncButton } from "@/components/schedule/CalendarSyncButton";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { cn } from "@/lib/utils";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -1244,6 +1245,8 @@ export default function Schedule() {
                     )}
                   </div>
                 </div>
+
+                <CalendarSyncButton />
 
                 <div className="rounded-2xl border border-border bg-card p-4">
                   <p

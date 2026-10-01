@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLocale } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
+import { AttendanceExportButton } from "@/components/schedule/AttendanceExportButton";
 
 type Translate = ReturnType<typeof useLocale>["t"];
 import { useAuth } from "@/lib/useAuth";
@@ -979,6 +980,7 @@ export default function ClubManagement() {
                           ? "Copiar enlace de calendario"
                           : "Copy calendar link"}
                   </Button>
+                  <AttendanceExportButton clubId={q.data?.club?.id} members={q.data?.members ?? []} />
                 </section>
 
                 <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
