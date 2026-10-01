@@ -10,6 +10,7 @@ import { patchClubBodySchema } from "@shared/club-context";
 import { requireAuth, grantRole } from "./auth";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { acceptClubInvitationForUser, claimPendingClubInvitation } from "./clubInvitations";
+import { buildIcsCalendar } from "./ics";
 import { lookupAuthBasicsByUserIds, mergeAuthWithSession } from "./authUserLookup";
 import { registerStatsIngest } from "./stats-ingest";
 import { processAllPendingPossessions, processPossessions } from "./possessions";
@@ -44,66 +45,7 @@ function publicAppOrigin(req: Request): string {
 }
 
 // ── Calendar (.ics) export ─────────────────────────────────────────────────
-// Formato de fecha exigido por RFC5545 para instantes UTC: YYYYMMDDTHHMMSSZ.
-function icsUtcStamp(d: Date): string {
-  return d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-}
-// Escapado de texto libre segun RFC5545 (backslash, punto y coma, coma, salto de linea).
-function icsEscapeText(s: string): string {
-  return s
-    .replace(/\\/g, "\\\\")
-    .replace(/;/g, "\\;")
-    .replace(/,/g, "\\,")
-    .replace(/\r?\n/g, "\\n");
-}
-// `notes` guarda "<texto visible>\nOPS:<json de configuracion interna>" (ver
-// readConstraintsFromNotes en useSessionForm.ts) -- sin esto el JSON interno
-// (asistencia, subgrupos, etc.) se filtraba tal cual a la descripcion del
-// evento que ve el usuario en su calendario.
-function cleanNotesForExport(notes: string | null): string | null {
-  if (!notes) return null;
-  const marker = "\nOPS:";
-  const idx = notes.lastIndexOf(marker);
-  const clean = (idx === -1 ? notes : notes.slice(0, idx)).trim();
-  return clean || null;
-}
-function buildIcsCalendar(clubName: string, events: Array<{
-  id: string;
-  title: string;
-  session_type: string;
-  starts_at: string;
-  ends_at: string | null;
-  location: string | null;
-  notes: string | null;
-}>): string {
-  const now = icsUtcStamp(new Date());
-  const lines: string[] = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//U Core//Schedule Export//ES",
-    "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
-    `X-WR-CALNAME:${icsEscapeText(clubName)} \u2014 U Core`,
-  ];
-  for (const ev of events) {
-    const start = new Date(ev.starts_at);
-    const end = ev.ends_at ? new Date(ev.ends_at) : new Date(start.getTime() + 60 * 60000);
-    lines.push(
-      "BEGIN:VEVENT",
-      `UID:${ev.id}@ucore.app`,
-      `DTSTAMP:${now}`,
-      `DTSTART:${icsUtcStamp(start)}`,
-      `DTEND:${icsUtcStamp(end)}`,
-      `SUMMARY:${icsEscapeText(ev.title || ev.session_type)}`,
-    );
-    if (ev.location) lines.push(`LOCATION:${icsEscapeText(ev.location)}`);
-    const cleanNotes = cleanNotesForExport(ev.notes);
-    if (cleanNotes) lines.push(`DESCRIPTION:${icsEscapeText(cleanNotes)}`);
-    lines.push("END:VEVENT");
-  }
-  lines.push("END:VCALENDAR");
-  return lines.join("\r\n");
-}
+// Los helpers del feed iCalendar (buildIcsCalendar, escapado, plegado de líneas) viven en ./ics.ts.
 
 const createInvitationBodySchema = z.object({
   teamId: z.string().min(1),
@@ -1375,7 +1317,9 @@ export async function registerRoutes(
       );
       const club = ((clubRows as any).rows ?? [])[0];
       if (!club) return res.status(404).send("Not found");
-      const from = new Date().toISOString();
+      // CAMBIADO 2026-10-01: antes solo se exportaban las sesiones futuras, así que en el calendario de la
+      // jugadora desaparecían las sesiones en cuanto empezaban (incluida la de esta mañana). Ahora, 30 días atrás.
+      const from = new Date(Date.now() - 30 * 86400000).toISOString();
       const to = new Date(Date.now() + 90 * 86400000).toISOString();
       const evRows = await db.execute(sql`
         SELECT id, title, session_type, starts_at, ends_at, location, notes
