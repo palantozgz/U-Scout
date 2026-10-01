@@ -9,6 +9,11 @@
 html {
   height: 100%;
   background: hsl(var(--background));
+  /* AÑADIDO 2026-09-30: se quitó maximum-scale=1/user-scalable=no del viewport (WCAG 1.4.4: permitir
+     zoom). manipulation permite desplazar y hacer zoom con dos dedos pero evita el zoom por doble
+     toque, que sin el bloqueo de viewport rompería el uso normal de botones y tarjetas. La app no
+     tiene gestos de dos dedos propios; los inputs ya fuerzan 16px para evitar el zoom automático de iOS. */
+  touch-action: manipulation;
 }
 /* CORREGIDO 2026-09-26: el truco min-height:calc(100% + inset-top) es solo para
    PWA instalada (standalone + black-translucent). Aplicado siempre, hacia el
