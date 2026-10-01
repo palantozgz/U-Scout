@@ -12,6 +12,11 @@ import type { ScheduleEvent } from "@/lib/schedule";
 import type { ClubMemberDto } from "@/lib/club-api";
 import type { I18nKey } from "@/lib/i18n";
 import { WellnessTrendChart } from "@/components/schedule/WellnessTrendChart";
+import { SessionLoadCard } from "@/components/schedule/SessionLoadCard";
+import { Button } from "@/components/ui/button";
+import { Check } from "lucide-react";
+import { useAuth } from "@/lib/useAuth";
+import { useToggleWellnessReview, useWellnessReviewsForDate } from "@/lib/wellness-reviews";
 
 type Translate = (key: I18nKey) => string;
 
@@ -259,6 +264,13 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
   // weekEvents used in correlations below (replaces weekEventsQ.data)
   const weekEventsQ = { data: weekEvents };
 
+  // AÑADIDO 2026-10-01 (Fase 2): marca "revisado" por jugadora y día. No tiene ninguna consecuencia automática.
+  const { profile: staffProfile } = useAuth();
+  const staffUserId = staffProfile?.id;
+  const reviewsQ = useWellnessReviewsForDate({ clubId, entryDate, userIds: rosterPlayerUserIds });
+  const reviewedUserIds = useMemo(() => new Set((reviewsQ.data ?? []).map((r) => r.user_id)), [reviewsQ.data]);
+  const toggleReview = useToggleWellnessReview();
+
   return (
 <div className="mt-4 space-y-3">
   {(() => {
@@ -488,6 +500,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
               chips.push(t("wellness_vs_team" as any).replace("{metric}", t("wellness_metric_sleep" as any)).replace("{delta}", `${sl >= 0 ? "+" : ""}${(Math.round(sl * 10) / 10).toFixed(1)}`));
             }
           }
+          const reviewed = reviewedUserIds.has(p.userId);
           return (
             <div key={p.userId} className="rounded-xl border border-border bg-background/40 px-3 py-3 min-h-[56px]">
               <div className="flex items-center justify-between gap-2">
@@ -525,12 +538,38 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
                   </span>
                 ))}
               </div>
+              {p.entry ? (
+                <div className="mt-2">
+                  <Button
+                    size="sm"
+                    variant={reviewed ? "secondary" : "outline"}
+                    className="h-9 rounded-lg text-xs font-bold"
+                    disabled={toggleReview.isPending || !clubId || !staffUserId}
+                    data-testid={`wellness-review-${p.userId}`}
+                    onClick={() => {
+                      if (!clubId || !staffUserId) return;
+                      toggleReview.mutate({
+                        clubId,
+                        userId: p.userId,
+                        entryDate,
+                        reviewedBy: staffUserId,
+                        reviewed: !reviewed,
+                      });
+                    }}
+                  >
+                    {reviewed ? <Check className="mr-1 h-3.5 w-3.5" /> : null}
+                    {reviewed ? t("wellness_reviewed" as any) : t("wellness_mark_reviewed" as any)}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           );
         })
       )}
     </div>
   </div>
+
+  <SessionLoadCard clubId={clubId} rosterPlayers={rosterPlayers} weekEvents={weekEvents} t={t} />
 </div>
 
   );

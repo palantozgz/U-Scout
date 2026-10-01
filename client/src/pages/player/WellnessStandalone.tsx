@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Activity } from "lucide-react";
+import { ArrowLeft, Activity, CheckCircle2, Lock } from "lucide-react";
 import { ModuleNav } from "@/pages/core/ModuleNav";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -10,6 +10,8 @@ import { useClub } from "@/lib/club-api";
 import { todayKey, useUpsertWellnessEntry, useWellnessEntryToday } from "@/lib/wellness";
 import { FirstVisitBanner } from "@/components/FirstVisitBanner";
 import { toast } from "@/hooks/use-toast";
+import { SessionRpeCard } from "@/components/schedule/SessionRpeCard";
+import { useMyWellnessReviewToday } from "@/lib/wellness-reviews";
 
 function WellnessRow(props: {
   label: string;
@@ -62,6 +64,7 @@ export default function WellnessStandalone() {
   const entryDate = todayKey();
 
   const entryQ = useWellnessEntryToday({ clubId, userId });
+  const reviewQ = useMyWellnessReviewToday({ clubId, userId });
   const upsert = useUpsertWellnessEntry();
 
   const submittedToday = Boolean(entryQ.data);
@@ -117,6 +120,14 @@ export default function WellnessStandalone() {
             "Rate how you feel before each session (1–5). This helps your coaching staff adjust training load and keep you healthy."
           }
         />
+
+        <p className="flex items-center gap-1.5 text-[11px] md:text-xs font-semibold text-muted-foreground">
+          <Lock className="h-3 w-3 shrink-0" />
+          {t("wellness_privacy_note" as any)}
+        </p>
+
+        {clubId && userId ? <SessionRpeCard clubId={clubId} userId={userId} t={t} locale={locale} /> : null}
+
         {entryQ.isLoading ? (
           <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
             <p className="text-sm font-medium text-muted-foreground">{t("wellness_loading_today")}</p>
@@ -155,6 +166,15 @@ export default function WellnessStandalone() {
               })()}
             </div>
 
+            {reviewQ.data ? (
+              <p
+                className="flex items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200"
+                data-testid="wellness-reviewed-note"
+              >
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                {t("wellness_reviewed_by_staff" as any)}
+              </p>
+            ) : null}
             <Button
               variant="outline"
               className="w-full h-11 rounded-xl font-bold"
