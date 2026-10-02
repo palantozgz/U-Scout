@@ -491,6 +491,7 @@ const es = {
   wellness_reason_low_readiness: "Preparación baja",
   wellness_reason_high_soreness: "Dolor alto",
   wellness_reason_low_sleep: "Sueño bajo",
+  wellness_reason_low_energy: "Energía baja",
   wellness_sleep_quality: "Calidad de sueño",
   wellness_energy_level: "Nivel de energía",
   wellness_muscle_soreness: "Dolor muscular",

@@ -489,6 +489,7 @@ const zh = {
   wellness_reason_low_readiness: "状态低",
   wellness_reason_high_soreness: "酸痛高",
   wellness_reason_low_sleep: "睡眠差",
+  wellness_reason_low_energy: "精力低",
   wellness_sleep_quality: "睡眠质量",
   wellness_energy_level: "精力水平",
   wellness_muscle_soreness: "肌肉酸痛",

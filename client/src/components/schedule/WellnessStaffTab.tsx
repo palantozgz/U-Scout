@@ -13,6 +13,7 @@ import type { ClubMemberDto } from "@/lib/club-api";
 import type { I18nKey } from "@/lib/i18n";
 import { WellnessTrendChart } from "@/components/schedule/WellnessTrendChart";
 import { SessionLoadCard } from "@/components/schedule/SessionLoadCard";
+import { buildBaseline, compareRisk, computeWellnessRiskScore, pickPreviousEntry, type WellnessBaseline } from "@/lib/wellness-risk";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
@@ -20,57 +21,7 @@ import { useToggleWellnessReview, useWellnessReviewsForDate } from "@/lib/wellne
 
 type Translate = (key: I18nKey) => string;
 
-/**
- * Puntuación de riesgo de una jugadora para el día de hoy.
- *
- * Combina dos señales, siguiendo la práctica recomendada en monitorización
- * de wellness deportivo (comparar SIEMPRE contra la línea base propia de
- * cada atleta, no solo un umbral absoluto igual para todas -- una jugadora
- * que SIEMPRE duerme regular no debería saltar como alerta cada día si ese
- * es su patrón normal; lo que importa es la desviación respecto a sí misma):
- *
- * 1) Umbral absoluto (igual que antes): valores muy bajos (<=2 sobre 5) se
- *    marcan siempre, sea cual sea el historial -- un 1 en lucidez mental es
- *    una señal de atención en cualquier caso.
- * 2) Desviación personal: si la jugadora tiene suficiente historial (>=5
- *    registros en los últimos 30 días, sin contar hoy), se compara el valor
- *    de hoy contra SU media. Una caída de >=1.5 puntos respecto a su normal
- *    suma más que una caída de >=1.0, aunque el valor absoluto de hoy no
- *    fuera especialmente bajo.
- *
- * Sin datos suficientes de historial, el score se apoya solo en (1), como
- * hasta ahora -- esto es intencionadamente conservador: mejor no personalizar
- * que personalizar con poquísimos datos.
- */
-function personalDeviationBonus(todayValue: number, baselineAvg: number | null): number {
-  if (baselineAvg == null) return 0;
-  const worseningBy = baselineAvg - todayValue; // positivo = peor que su normal
-  if (worseningBy >= 1.5) return 20;
-  if (worseningBy >= 1.0) return 10;
-  return 0;
-}
-
-type WellnessBaseline = { sleep: number | null; readiness: number | null; soreness: number | null; n: number } | null;
-
-function computeWellnessRiskScore(
-  entry: { sleep_quality: number; energy_level: number; muscle_soreness: number; mental_readiness: number } | null | undefined,
-  baseline: WellnessBaseline,
-): { score: number; lowReadiness: boolean; highSoreness: boolean; lowSleep: boolean; missingSubmission: boolean } {
-  const missingSubmission = !entry;
-  if (!entry) return { score: 100, lowReadiness: false, highSoreness: false, lowSleep: false, missingSubmission };
-  const lowReadiness = entry.mental_readiness <= 2;
-  const highSoreness = entry.muscle_soreness <= 2;
-  const lowSleep = entry.sleep_quality <= 2;
-  const absoluteScore =
-    (lowReadiness ? 40 : entry.mental_readiness === 3 ? 15 : 0) + (highSoreness ? 25 : 0) + (lowSleep ? 20 : 0);
-  const deviationScore =
-    (baseline && baseline.n >= 5
-      ? personalDeviationBonus(entry.mental_readiness, baseline.readiness) +
-        personalDeviationBonus(entry.sleep_quality, baseline.sleep) +
-        personalDeviationBonus(entry.muscle_soreness, baseline.soreness)
-      : 0);
-  return { score: absoluteScore + deviationScore, lowReadiness, highSoreness, lowSleep, missingSubmission };
-}
+// La puntuación de riesgo (computeWellnessRiskScore) vive en @/lib/wellness-risk, con tests.
 
 function KpiCard(props: { title: string; value: string; subtitle?: string }) {
   return (
@@ -115,20 +66,20 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
   const baselineByUser = useMemo(() => {
     const entries = (staffRange30Q.data ?? []).filter((e) => e.entry_date !== entryDate);
     const byUser: Record<string, typeof entries> = {};
-    for (const e of entries) {
-      (byUser[e.user_id] ??= []).push(e);
-    }
+    for (const e of entries) (byUser[e.user_id] ??= []).push(e);
     const map: Record<string, WellnessBaseline> = {};
-    for (const uid of rosterPlayerUserIds) {
-      const list = byUser[uid] ?? [];
-      if (list.length === 0) {
-        map[uid] = null;
-        continue;
-      }
-      const avg = (field: "sleep_quality" | "muscle_soreness" | "mental_readiness") =>
-        list.reduce((acc, e) => acc + e[field], 0) / list.length;
-      map[uid] = { sleep: avg("sleep_quality"), readiness: avg("mental_readiness"), soreness: avg("muscle_soreness"), n: list.length };
-    }
+    for (const uid of rosterPlayerUserIds) map[uid] = buildBaseline(byUser[uid] ?? []);
+    return map;
+  }, [entryDate, rosterPlayerUserIds, staffRange30Q.data]);
+
+  /** Dato anterior más reciente de cada jugadora (últimos 3 días, sin contar hoy): la desviación personal exige persistencia. */
+  const previousByUser = useMemo(() => {
+    const oldest = dateKeyNDaysAgo(3);
+    const entries = staffRange30Q.data ?? [];
+    const byUser: Record<string, typeof entries> = {};
+    for (const e of entries) (byUser[e.user_id] ??= []).push(e);
+    const map: Record<string, ReturnType<typeof pickPreviousEntry>> = {};
+    for (const uid of rosterPlayerUserIds) map[uid] = pickPreviousEntry(byUser[uid] ?? [], entryDate, oldest);
     return map;
   }, [entryDate, rosterPlayerUserIds, staffRange30Q.data]);
 
@@ -146,7 +97,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
     const priority = rosterPlayerUserIds
       .map((uid) => {
         const e = byUser[uid];
-        const r = computeWellnessRiskScore(e, baselineByUser[uid] ?? null);
+        const r = computeWellnessRiskScore(e, baselineByUser[uid] ?? null, previousByUser[uid] ?? null);
         return {
           userId: uid,
           score: r.score,
@@ -154,11 +105,12 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
           lowReadiness: r.lowReadiness,
           highSoreness: r.highSoreness,
           lowSleep: r.lowSleep,
+          lowEnergy: r.lowEnergy,
           entry: e ?? null,
         };
       })
-      .filter((p) => p.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .filter((p) => p.score > 0 || p.missingSubmission)
+      .sort(compareRisk)
       .slice(0, 5);
 
     return {
@@ -170,7 +122,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
       belowNormalCount: belowNormalUserIds.size,
       priority,
     };
-  }, [baselineByUser, rosterPlayerUserIds, staffTodayEntriesQ.data]);
+  }, [baselineByUser, previousByUser, rosterPlayerUserIds, staffTodayEntriesQ.data]);
 
   const staffTrend = useMemo(() => {
     const entries = staffRange30Q.data ?? [];
@@ -233,7 +185,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
     for (const e of entries) byUser[e.user_id] = e;
     return rosterPlayerUserIds.map((uid) => {
       const e = byUser[uid];
-      const r = computeWellnessRiskScore(e, baselineByUser[uid] ?? null);
+      const r = computeWellnessRiskScore(e, baselineByUser[uid] ?? null, previousByUser[uid] ?? null);
       return {
         userId: uid,
         name: rosterLabelByUserId[uid] ?? uid,
@@ -242,10 +194,11 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
         lowReadiness: r.lowReadiness,
         highSoreness: r.highSoreness,
         lowSleep: r.lowSleep,
+          lowEnergy: r.lowEnergy,
         entry: e ?? null,
       };
     });
-  }, [baselineByUser, rosterLabelByUserId, rosterPlayerUserIds, staffTodayEntriesQ.data]);
+  }, [baselineByUser, previousByUser, rosterLabelByUserId, rosterPlayerUserIds, staffTodayEntriesQ.data]);
 
   const staffRiskRowsSorted = useMemo(() => {
     const rows = [...staffRiskRows];
@@ -256,7 +209,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
       if (staffRiskSort === "sleep") return (v(a, "sleep_quality") ?? 999) - (v(b, "sleep_quality") ?? 999) || b.score - a.score;
       if (staffRiskSort === "readiness") return (v(a, "mental_readiness") ?? 999) - (v(b, "mental_readiness") ?? 999) || b.score - a.score;
       if (staffRiskSort === "soreness") return (v(a, "muscle_soreness") ?? 999) - (v(b, "muscle_soreness") ?? 999) || b.score - a.score;
-      return b.score - a.score;
+      return compareRisk(a, b);
     });
     return rows;
   }, [staffRiskRows, staffRiskSort]);
@@ -274,7 +227,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
   return (
 <div className="mt-4 space-y-3">
   {(() => {
-    const top = staffRiskRowsSorted.find((p) => p.score > 0) ?? null;
+    const top = staffRiskRowsSorted.find((p) => p.score > 0 && !p.missingSubmission) ?? null;
     const missing = staffWellnessSummary.missing;
     return (
       <div className="rounded-2xl border border-border bg-card p-4">
@@ -474,13 +427,13 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
         <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
           <p className="text-sm font-medium text-muted-foreground">{t("wellness_loading_today")}</p>
         </div>
-      ) : staffRiskRowsSorted.filter((p) => p.score > 0).length === 0 ? (
+      ) : staffRiskRowsSorted.filter((p) => p.score > 0 || p.missingSubmission).length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
           <p className="text-sm font-medium text-muted-foreground">{t("wellness_staff_priority_empty" as any)}</p>
         </div>
       ) : (
         staffRiskRowsSorted
-          .filter((p) => p.score > 0)
+          .filter((p) => p.score > 0 || p.missingSubmission)
           .slice(0, 5)
           .map((p) => {
           const reasons: string[] = [];
@@ -488,6 +441,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
           if (p.lowReadiness) reasons.push(t("wellness_reason_low_readiness" as any));
           if (p.highSoreness) reasons.push(t("wellness_reason_high_soreness" as any));
           if (p.lowSleep) reasons.push(t("wellness_reason_low_sleep" as any));
+          if (p.lowEnergy) reasons.push(t("wellness_reason_low_energy" as any));
           const team = staffTeamAvgToday;
           const chips: string[] = [];
           if (team && p.entry) {
@@ -508,13 +462,15 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
                   <span
                     className={[
                       "h-2.5 w-2.5 shrink-0 rounded-full",
-                      p.score >= 40 ? "bg-rose-500" : p.score >= 15 ? "bg-amber-400" : "bg-emerald-500",
+                      p.missingSubmission ? "bg-sky-500" : p.score >= 40 ? "bg-rose-500" : p.score >= 15 ? "bg-amber-400" : "bg-emerald-500",
                     ].join(" ")}
                     aria-hidden
                   />
                   <p className="text-sm font-extrabold text-foreground truncate">{p.name}</p>
                 </div>
-                <p className="text-xs font-bold text-muted-foreground">{t("wellness_staff_priority_score" as any).replace("{score}", String(p.score))}</p>
+                {p.missingSubmission ? null : (
+                  <p className="text-xs font-bold text-muted-foreground">{t("wellness_staff_priority_score" as any).replace("{score}", String(p.score))}</p>
+                )}
               </div>
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {reasons.slice(0, 4).map((r) => (
