@@ -106,3 +106,65 @@ describe("buildIcsCalendar", () => {
     expect(out.endsWith("END:VCALENDAR\r\n")).toBe(true);
   });
 });
+
+
+describe("buildIcsCalendar: control de cambios y cancelaciones", () => {
+  const upd = "2026-10-01T12:00:00.000Z";
+  const base = { ...EV, revision: 3, updated_at: upd };
+  const cancelled = {
+    id: "ev9",
+    title: "Entreno cancelado",
+    session_type: "training",
+    starts_at: "2026-10-03T09:30:00.000Z",
+    ends_at: "2026-10-03T11:00:00.000Z",
+    location: "Pabellon",
+    revision: 2,
+    cancelled_at: "2026-10-02T01:00:00.000Z",
+  };
+
+  it("las sesiones con revisión llevan SEQUENCE y LAST-MODIFIED", () => {
+    const out = unfold(buildIcsCalendar("C", [base], { now: NOW }));
+    expect(out).toContain("SEQUENCE:3");
+    expect(out).toContain("LAST-MODIFIED:20261001T120000Z");
+  });
+
+  it("sin datos de revisión no se inventa SEQUENCE", () => {
+    const out = unfold(buildIcsCalendar("C", [EV], { now: NOW }));
+    expect(out).not.toContain("SEQUENCE:");
+    expect(out).not.toContain("LAST-MODIFIED:");
+  });
+
+  it("una sesión cancelada se emite como STATUS:CANCELLED con SEQUENCE mayor, mismo UID y título legible", () => {
+    const out = unfold(buildIcsCalendar("C", [], { now: NOW, cancelled: [cancelled] }));
+    expect(out).toContain("UID:ev9@ucore.app");
+    expect(out).toContain("STATUS:CANCELLED");
+    expect(out).toContain("SEQUENCE:3");
+    expect(out).toContain("LAST-MODIFIED:20261002T010000Z");
+    expect(out).toContain("SUMMARY:已取消 / Cancelada: Entreno cancelado");
+    expect(out).toContain("DTSTART:20261003T093000Z");
+    expect(out).toContain("LOCATION:Pabellon");
+  });
+
+  it("una sesión cancelada no lleva alarma", () => {
+    const out = unfold(buildIcsCalendar("C", [], { now: NOW, cancelled: [cancelled] }));
+    expect(out).not.toContain("BEGIN:VALARM");
+  });
+
+  it("conviven sesiones activas y canceladas, y el calendario sigue siendo válido", () => {
+    const out = buildIcsCalendar("C", [base], { now: NOW, cancelled: [cancelled] });
+    expect((out.match(/BEGIN:VEVENT/g) ?? []).length).toBe(2);
+    expect((out.match(/END:VEVENT/g) ?? []).length).toBe(2);
+    expect(out.endsWith("END:VCALENDAR\r\n")).toBe(true);
+    for (const phys of out.split("\r\n")) expect(new TextEncoder().encode(phys).length).toBeLessThanOrEqual(75);
+  });
+
+  it("acepta fechas como objeto Date (el driver de la base de datos las devuelve así)", () => {
+    const out = unfold(
+      buildIcsCalendar("C", [], {
+        now: NOW,
+        cancelled: [{ ...cancelled, starts_at: new Date(cancelled.starts_at), ends_at: null, cancelled_at: new Date(cancelled.cancelled_at) }],
+      }),
+    );
+    expect(out).toContain("DTEND:20261003T103000Z");
+  });
+});

@@ -68,6 +68,21 @@ export type IcsEvent = {
   ends_at: string | null;
   location: string | null;
   notes: string | null;
+  /** Control de cambios (schedule_events.revision / updated_at): permite a los calendarios detectar ediciones. */
+  revision?: number | null;
+  updated_at?: string | Date | null;
+};
+
+/** Sesión borrada hace poco (lápida de schedule_event_cancellations): se emite como STATUS:CANCELLED. */
+export type IcsCancelledEvent = {
+  id: string;
+  title: string;
+  session_type: string;
+  starts_at: string | Date;
+  ends_at: string | Date | null;
+  location: string | null;
+  revision: number;
+  cancelled_at: string | Date;
 };
 
 /** Minutos antes del inicio a los que avisa el calendario del móvil. */
@@ -76,7 +91,7 @@ export const ICS_ALARM_MINUTES = 60;
 export function buildIcsCalendar(
   clubName: string,
   events: IcsEvent[],
-  opts: { now?: Date; alarmMinutes?: number } = {},
+  opts: { now?: Date; alarmMinutes?: number; cancelled?: IcsCancelledEvent[] } = {},
 ): string {
   const now = icsUtcStamp(opts.now ?? new Date());
   const alarmMinutes = opts.alarmMinutes ?? ICS_ALARM_MINUTES;
@@ -102,6 +117,8 @@ export function buildIcsCalendar(
       `DTEND:${icsUtcStamp(end)}`,
       `SUMMARY:${summary}`,
     );
+    if (ev.revision != null) lines.push(`SEQUENCE:${ev.revision}`);
+    if (ev.updated_at) lines.push(`LAST-MODIFIED:${icsUtcStamp(new Date(ev.updated_at))}`);
     if (ev.location) lines.push(`LOCATION:${icsEscapeText(ev.location)}`);
     const cleanNotes = cleanNotesForExport(ev.notes);
     if (cleanNotes) lines.push(`DESCRIPTION:${icsEscapeText(cleanNotes)}`);
@@ -113,6 +130,26 @@ export function buildIcsCalendar(
       "END:VALARM",
       "END:VEVENT",
     );
+  }
+  // Sesiones canceladas (borradas) hace poco. Los calendarios suscritos no están obligados a quitar un evento que
+  // desaparece del feed; con STATUS:CANCELLED y un SEQUENCE mayor se ve como cancelada. El texto del título lo
+  // dice también en claro porque no todos los clientes dibujan el estado.
+  for (const c of opts.cancelled ?? []) {
+    const start = new Date(c.starts_at);
+    const end = c.ends_at ? new Date(c.ends_at) : new Date(start.getTime() + 60 * 60000);
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${c.id}@ucore.app`,
+      `DTSTAMP:${now}`,
+      `DTSTART:${icsUtcStamp(start)}`,
+      `DTEND:${icsUtcStamp(end)}`,
+      `SUMMARY:${icsEscapeText(`已取消 / Cancelada: ${c.title || c.session_type}`)}`,
+      "STATUS:CANCELLED",
+      `SEQUENCE:${c.revision + 1}`,
+      `LAST-MODIFIED:${icsUtcStamp(new Date(c.cancelled_at))}`,
+    );
+    if (c.location) lines.push(`LOCATION:${icsEscapeText(c.location)}`);
+    lines.push("END:VEVENT");
   }
   lines.push("END:VCALENDAR");
   return lines.map(foldIcsLine).join("\r\n") + "\r\n";

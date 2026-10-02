@@ -1322,7 +1322,7 @@ export async function registerRoutes(
       const from = new Date(Date.now() - 30 * 86400000).toISOString();
       const to = new Date(Date.now() + 90 * 86400000).toISOString();
       const evRows = await db.execute(sql`
-        SELECT id, title, session_type, starts_at, ends_at, location, notes
+        SELECT id, title, session_type, starts_at, ends_at, location, notes, updated_at, revision
         FROM schedule_events
         WHERE club_id = ${club.id} AND starts_at >= ${from} AND starts_at < ${to}
         ORDER BY starts_at ASC
@@ -1330,8 +1330,34 @@ export async function registerRoutes(
       const events = ((evRows as any).rows ?? []) as Array<{
         id: string; title: string; session_type: string;
         starts_at: string; ends_at: string | null; location: string | null; notes: string | null;
+        updated_at: string | null; revision: number | null;
       }>;
-      const ics = buildIcsCalendar(club.name, events);
+      // AÑADIDO 2026-10-02: sesiones borradas en los últimos 14 días (lápidas que guarda un disparador de la base de
+      // datos), para emitirlas como STATUS:CANCELLED. Se omiten las que solo se reemplazaron por otra idéntica
+      // (mismo club, hora y título), como pasa al aplicar una plantilla de semana en modo reemplazar.
+      let cancelled: any[] = [];
+      try {
+        const cRows = await db.execute(sql`
+          SELECT c.event_id AS id, c.title, c.session_type, c.starts_at, c.ends_at, c.location, c.revision, c.cancelled_at
+          FROM schedule_event_cancellations c
+          WHERE c.club_id = ${club.id}
+            AND c.cancelled_at >= now() - interval '14 days'
+            AND c.starts_at >= ${from} AND c.starts_at < ${to}
+            AND NOT EXISTS (
+              SELECT 1 FROM schedule_events e
+              WHERE e.club_id = c.club_id AND e.starts_at = c.starts_at AND e.title = c.title
+            )
+          ORDER BY c.starts_at ASC
+        `);
+        cancelled = (cRows as any).rows ?? [];
+        // Limpieza oportunista de lápidas antiguas (no bloquea la respuesta).
+        void db
+          .execute(sql`DELETE FROM schedule_event_cancellations WHERE cancelled_at < now() - interval '60 days'`)
+          .catch(() => undefined);
+      } catch (cErr) {
+        console.error("[ical] cancellations query failed", cErr);
+      }
+      const ics = buildIcsCalendar(club.name, events, { cancelled });
       res.setHeader("Content-Type", "text/calendar; charset=utf-8");
       res.setHeader("Content-Disposition", `inline; filename="${club.name.replace(/[^a-z0-9]+/gi, "-")}.ics"`);
       res.send(ics);
