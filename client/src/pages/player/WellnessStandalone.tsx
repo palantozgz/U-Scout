@@ -7,6 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useLocale } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { useClub } from "@/lib/club-api";
+import { MyAvailabilityBadge } from "@/components/schedule/MyAvailabilityBadge";
 import { todayKey, useUpsertWellnessEntry, useWellnessEntryToday } from "@/lib/wellness";
 import { FirstVisitBanner } from "@/components/FirstVisitBanner";
 import { toast } from "@/hooks/use-toast";
@@ -126,6 +127,7 @@ export default function WellnessStandalone() {
           {t("wellness_privacy_note" as any)}
         </p>
 
+        {clubId && userId ? <MyAvailabilityBadge clubId={clubId} userId={userId} t={t as any} /> : null}
         {clubId && userId ? <SessionRpeCard clubId={clubId} userId={userId} t={t} locale={locale} /> : null}
 
         {entryQ.isLoading ? (

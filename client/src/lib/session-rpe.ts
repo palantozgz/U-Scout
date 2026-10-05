@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { ScheduleEvent } from "@/lib/schedule";
 import { RPE_SESSION_TYPES, RPE_WINDOW_HOURS, pickPendingRpeEvent } from "@/lib/session-rpe-logic";
+import { shouldAnswerRpe } from "@/lib/session-attendance-logic";
 
 export type SessionRpeRow = {
   id: string;
@@ -40,9 +41,10 @@ export function usePendingRpeSession(params: { clubId?: string; userId?: string 
       if (events.length === 0) return null;
       const ids = events.map((e) => e.id);
 
-      const [mine, parts] = await Promise.all([
+      const [mine, parts, att] = await Promise.all([
         supabase.from("session_rpe").select("event_id").eq("user_id", params.userId!).in("event_id", ids),
         supabase.from("schedule_participants").select("event_id, status").eq("user_id", params.userId!).in("event_id", ids),
+        supabase.from("session_attendance").select("event_id, status").eq("user_id", params.userId!).in("event_id", ids),
       ]);
       if (mine.error) throw mine.error;
       if (parts.error) throw parts.error;
@@ -53,6 +55,13 @@ export function usePendingRpeSession(params: { clubId?: string; userId?: string 
           .filter((r: { status: string }) => r.status === "declined")
           .map((r: { event_id: string }) => r.event_id),
       );
+      // Asistencia real: quien el staff marcó como ausente tampoco debe responder al RPE de esa sesión.
+      // Si esta consulta falla no se rompe la tarjeta: se asume que participó.
+      for (const r of att.error ? [] : (att.data ?? [])) {
+        if (!shouldAnswerRpe({ status: (r as { status: "present" | "partial" | "absent" }).status })) {
+          declined.add((r as { event_id: string }).event_id);
+        }
+      }
       return pickPendingRpeEvent(events, answered, declined, now);
     },
   });

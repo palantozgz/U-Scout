@@ -13,6 +13,7 @@ import type { ClubMemberDto } from "@/lib/club-api";
 import type { I18nKey } from "@/lib/i18n";
 import { WellnessTrendChart } from "@/components/schedule/WellnessTrendChart";
 import { SessionLoadCard } from "@/components/schedule/SessionLoadCard";
+import { AvailabilityPanel } from "@/components/schedule/AvailabilityPanel";
 import { buildBaseline, compareRisk, computeWellnessRiskScore, pickPreviousEntry, type WellnessBaseline } from "@/lib/wellness-risk";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
@@ -525,6 +526,7 @@ export function WellnessStaffTab(props: WellnessStaffTabProps) {
     </div>
   </div>
 
+  <AvailabilityPanel clubId={clubId} rosterPlayers={rosterPlayers} t={t as any} />
   <SessionLoadCard clubId={clubId} rosterPlayers={rosterPlayers} weekEvents={weekEvents} t={t} />
 </div>
 

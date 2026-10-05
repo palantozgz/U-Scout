@@ -3,6 +3,7 @@ import { useLocale, type I18nKey } from "@/lib/i18n";
 import { SkeletonSchedule } from "@/components/SkeletonLoaders";
 import { CalendarSyncButton } from "@/components/schedule/CalendarSyncButton";
 import { GroupSignupSummary } from "@/components/schedule/GroupSignupSummary";
+import { AttendanceMarker } from "@/components/schedule/AttendanceMarker";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { cn } from "@/lib/utils";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -3514,6 +3515,7 @@ function ScheduleSessionDetailBody(props: {
           />
         ) : null;
       })()}
+      <AttendanceMarker event={event} t={t as any} />
     </div>
   );
 }
