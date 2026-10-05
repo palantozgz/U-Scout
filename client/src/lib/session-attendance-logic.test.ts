@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canMarkAttendance,
+  expectedRpeRespondents,
   normalizeAttendance,
   rsvpHint,
   shouldAnswerRpe,
@@ -70,5 +71,27 @@ describe("canMarkAttendance", () => {
   });
   it("una fecha inválida no se puede marcar", () => {
     expect(canMarkAttendance("no-es-fecha", now)).toBe(false);
+  });
+});
+
+describe("expectedRpeRespondents", () => {
+  const players = ["u1", "u2", "u3", "u4"];
+  it("sin asistencia marcada se espera a toda la plantilla", () => {
+    expect(expectedRpeRespondents(players, [], new Set())).toEqual({ expected: 4, absent: 0 });
+  });
+  it("las marcadas ausentes no se esperan", () => {
+    const att = [
+      { user_id: "u2", status: "absent" as const },
+      { user_id: "u3", status: "partial" as const },
+    ];
+    expect(expectedRpeRespondents(players, att, new Set())).toEqual({ expected: 3, absent: 1 });
+  });
+  it("una ausente que respondió igualmente sigue contando como esperada", () => {
+    const att = [{ user_id: "u2", status: "absent" as const }];
+    expect(expectedRpeRespondents(players, att, new Set(["u2"]))).toEqual({ expected: 4, absent: 0 });
+  });
+  it("ignora ausencias de quien ya no está en la plantilla", () => {
+    const att = [{ user_id: "u9", status: "absent" as const }];
+    expect(expectedRpeRespondents(players, att, new Set())).toEqual({ expected: 4, absent: 0 });
   });
 });

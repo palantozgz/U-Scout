@@ -1307,6 +1307,7 @@ const es = {
   rpe_staff_title: "Carga de las sesiones",
   rpe_staff_empty: "Aún no hay entrenamientos ni partidos terminados esta semana.",
   rpe_staff_row: "{n}/{total} respuestas",
+  rpe_staff_absent: "{a} marcadas ausentes",
   rpe_staff_mean: "RPE medio {mean}",
   rpe_staff_load: "Carga {load}",
   rpe_staff_no_answers: "Sin respuestas",

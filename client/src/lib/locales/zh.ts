@@ -1305,6 +1305,7 @@ const zh = {
   rpe_staff_title: "训练负荷",
   rpe_staff_empty: "本周还没有已结束的训练或比赛。",
   rpe_staff_row: "{n}/{total} 人已填写",
+  rpe_staff_absent: "{a} 人缺席",
   rpe_staff_mean: "平均 RPE {mean}",
   rpe_staff_load: "负荷 {load}",
   rpe_staff_no_answers: "暂无回复",

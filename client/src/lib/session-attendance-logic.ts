@@ -53,3 +53,20 @@ export function canMarkAttendance(startsAtIso: string, now: Date = new Date()): 
   const t = new Date(startsAtIso).getTime();
   return Number.isFinite(t) && t <= now.getTime();
 }
+
+/**
+ * Cuántas jugadoras deben responder al RPE de una sesión y cuántas fueron marcadas ausentes.
+ * Una jugadora marcada ausente que aun así respondió cuenta como esperada (su respuesta existe y no se descarta).
+ */
+export function expectedRpeRespondents(
+  playerIds: string[],
+  attendance: Pick<AttendanceRow, "user_id" | "status">[],
+  answeredUserIds: ReadonlySet<string>,
+): { expected: number; absent: number } {
+  const absentIds = new Set(attendance.filter((a) => !shouldAnswerRpe(a)).map((a) => a.user_id));
+  let absent = 0;
+  for (const id of playerIds) {
+    if (absentIds.has(id) && !answeredUserIds.has(id)) absent += 1;
+  }
+  return { expected: playerIds.length - absent, absent };
+}

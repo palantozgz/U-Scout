@@ -31,6 +31,24 @@ export function useSessionAttendance(params: { clubId?: string; eventId?: string
   });
 }
 
+/** Staff: asistencia marcada de varias sesiones a la vez (para la tarjeta de carga). */
+export function useSessionAttendanceForEvents(params: { clubId?: string; eventIds: string[] }) {
+  return useQuery({
+    queryKey: ["session-attendance", "events", params.clubId ?? null, params.eventIds],
+    enabled: Boolean(params.clubId) && params.eventIds.length > 0,
+    networkMode: "offlineFirst",
+    queryFn: async (): Promise<AttendanceRow[]> => {
+      const { data, error } = await supabase
+        .from("session_attendance")
+        .select(COLUMNS)
+        .eq("club_id", params.clubId!)
+        .in("event_id", params.eventIds);
+      if (error) throw error;
+      return (data ?? []) as AttendanceRow[];
+    },
+  });
+}
+
 /** Marca (o quita la marca, con status null) la asistencia de una jugadora en una sesión. */
 export function useSetSessionAttendance() {
   const qc = useQueryClient();

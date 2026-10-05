@@ -5,6 +5,8 @@ import { CLUB_TIME_ZONE, type ScheduleEvent } from "@/lib/schedule";
 import { ACTIVITY_TYPE_CONFIG } from "@/lib/scheduleActivityConfig";
 import type { ClubMemberDto } from "@/lib/club-api";
 import { useSessionRpeForEvents } from "@/lib/session-rpe";
+import { useSessionAttendanceForEvents } from "@/lib/session-attendance";
+import { expectedRpeRespondents } from "@/lib/session-attendance-logic";
 import { isRpeSessionType, sessionMinutes, summarizeSessionRpe } from "@/lib/session-rpe-logic";
 
 type Translate = (key: I18nKey) => string;
@@ -52,6 +54,7 @@ export function SessionLoadCard(props: {
   }, [weekEvents]);
 
   const rpeQ = useSessionRpeForEvents({ clubId, eventIds: finished.map((e) => e.id) });
+  const attQ = useSessionAttendanceForEvents({ clubId, eventIds: finished.map((e) => e.id) });
   const nameByUserId = useMemo(() => new Map(rosterPlayers.map((m) => [m.userId, memberName(m)])), [rosterPlayers]);
 
   const rows = useMemo(() => {
@@ -65,18 +68,25 @@ export function SessionLoadCard(props: {
     return finished.map((ev) => {
       const answers = (byEvent.get(ev.id) ?? []).sort((a, b) => b.rpe - a.rpe);
       const minutes = sessionMinutes(ev.starts_at, ev.ends_at);
+      // Asistencia real: las marcadas ausentes no deben responder, así que no cuentan en el total esperado.
+      const { expected, absent } = expectedRpeRespondents(
+        rosterPlayers.map((m) => m.userId),
+        (attQ.data ?? []).filter((r) => r.event_id === ev.id),
+        new Set(answers.map((a) => a.userId)),
+      );
       return {
         ev,
         minutes,
         answers,
         summary: summarizeSessionRpe(
           answers.map((a) => a.rpe),
-          rosterPlayers.length,
+          expected,
           minutes,
         ),
+        absent,
       };
     });
-  }, [finished, nameByUserId, rosterPlayers.length, rpeQ.data]);
+  }, [attQ.data, finished, nameByUserId, rosterPlayers, rpeQ.data]);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4" data-testid="session-load-card">
@@ -88,7 +98,7 @@ export function SessionLoadCard(props: {
         </div>
       ) : (
         <div className="mt-3 space-y-2">
-          {rows.map(({ ev, answers, summary }) => (
+          {rows.map(({ ev, answers, summary, absent }) => (
             <details key={ev.id} className="rounded-xl border border-border bg-background/40 px-3 py-3">
               <summary className="cursor-pointer list-none">
                 <div className="flex items-center justify-between gap-2">
@@ -103,6 +113,9 @@ export function SessionLoadCard(props: {
                       .replace("{n}", String(summary.responses))
                       .replace("{total}", String(summary.total))}
                   </span>
+                  {absent > 0 ? (
+                    <span>{(t("rpe_staff_absent" as any) as string).replace("{a}", String(absent))}</span>
+                  ) : null}
                   {summary.meanRpe != null ? (
                     <span>{(t("rpe_staff_mean" as any) as string).replace("{mean}", String(summary.meanRpe))}</span>
                   ) : (
