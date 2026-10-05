@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 import type { ClubMemberDto } from "@/lib/club-api";
-import { buildAttendanceCsv, type AttendanceEvent, type AttendanceResponse } from "@/lib/attendance-csv";
+import {
+  buildAttendanceCsv,
+  type AttendanceActual,
+  type AttendanceEvent,
+  type AttendanceResponse,
+} from "@/lib/attendance-csv";
 import { toast } from "@/hooks/use-toast";
 
 // AÑADIDO 2026-10-01 (Fase 2, Schedule): historial de asistencia exportable. Hasta ahora solo se podía
@@ -44,6 +49,7 @@ export function AttendanceExportButton(props: { clubId?: string; members: ClubMe
       }
 
       const responses: AttendanceResponse[] = [];
+      const actual: AttendanceActual[] = [];
       for (let i = 0; i < events.length; i += CHUNK) {
         const ids = events.slice(i, i + CHUNK).map((e) => e.id);
         const { data, error: pErr } = await supabase
@@ -53,13 +59,21 @@ export function AttendanceExportButton(props: { clubId?: string; members: ClubMe
           .in("event_id", ids);
         if (pErr) throw pErr;
         responses.push(...((data ?? []) as AttendanceResponse[]));
+        // Asistencia real marcada por el staff (RLS: solo la ve el staff que gestiona el club).
+        const { data: real, error: aErr } = await supabase
+          .from("session_attendance")
+          .select("event_id, user_id, status, reason")
+          .eq("club_id", props.clubId)
+          .in("event_id", ids);
+        if (aErr) throw aErr;
+        actual.push(...((real ?? []) as AttendanceActual[]));
       }
 
       const players = props.members
         .filter((m) => m.role === "player" && m.status === "active")
         .map((m) => ({ userId: m.userId, name: memberName(m) }));
 
-      const csv = buildAttendanceCsv({ events, players, responses });
+      const csv = buildAttendanceCsv({ events, players, responses, actual });
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

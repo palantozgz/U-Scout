@@ -1,5 +1,7 @@
 // Exportación de asistencia a CSV (lógica pura, probada con vitest). Una fila por sesión y jugadora.
-// El estado sale tal cual de schedule_participants: confirmed | declined | maybe; sin respuesta = pending.
+// "status" sale tal cual de schedule_participants (la intención): confirmed | declined | maybe; sin respuesta = pending.
+// "actual" y "reason" salen de session_attendance (lo que ocurrió, marcado por el staff): present | partial | absent;
+// sin marca = unmarked. Las dos columnas nuevas van al final para no romper hojas de cálculo que ya usen el formato.
 // Fechas y horas en la zona horaria del club (Asia/Shanghai), no en la del dispositivo.
 
 export type AttendanceEvent = {
@@ -11,10 +13,21 @@ export type AttendanceEvent = {
 };
 export type AttendancePlayer = { userId: string; name: string };
 export type AttendanceResponse = { event_id: string; user_id: string; status: string };
+export type AttendanceActual = { event_id: string; user_id: string; status: string; reason: string | null };
 
 const CLUB_TZ = "Asia/Shanghai";
 
-export const ATTENDANCE_CSV_HEADER = ["date", "time", "type", "title", "attendance_required", "player", "status"];
+export const ATTENDANCE_CSV_HEADER = [
+  "date",
+  "time",
+  "type",
+  "title",
+  "attendance_required",
+  "player",
+  "status",
+  "actual",
+  "reason",
+];
 
 /** Celda CSV segura: comillas dobles escapadas y neutraliza fórmulas (=, +, -, @) que Excel ejecutaría. */
 export function csvCell(value: string): string {
@@ -46,9 +59,13 @@ export function buildAttendanceCsv(params: {
   events: AttendanceEvent[];
   players: AttendancePlayer[];
   responses: AttendanceResponse[];
+  /** Asistencia real (opcional): si no se pasa, todas salen como unmarked. */
+  actual?: AttendanceActual[];
 }): string {
   const statusByKey = new Map<string, string>();
   for (const r of params.responses) statusByKey.set(`${r.event_id}::${r.user_id}`, r.status);
+  const actualByKey = new Map<string, AttendanceActual>();
+  for (const a of params.actual ?? []) actualByKey.set(`${a.event_id}::${a.user_id}`, a);
 
   const events = [...params.events].sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
   const players = [...params.players].sort((a, b) => a.name.localeCompare(b.name));
@@ -57,6 +74,7 @@ export function buildAttendanceCsv(params: {
   for (const ev of events) {
     for (const p of players) {
       const status = statusByKey.get(`${ev.id}::${p.userId}`) ?? "pending";
+      const real = actualByKey.get(`${ev.id}::${p.userId}`);
       lines.push(
         [
           dateInClubTz(ev.starts_at),
@@ -66,6 +84,8 @@ export function buildAttendanceCsv(params: {
           ev.attendance_required ? "yes" : "no",
           p.name,
           status,
+          real?.status ?? "unmarked",
+          real?.reason ?? "",
         ]
           .map(csvCell)
           .join(","),

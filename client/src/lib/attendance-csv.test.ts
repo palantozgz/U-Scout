@@ -62,9 +62,9 @@ describe("buildAttendanceCsv", () => {
   });
 
   it("sin respuesta = pending, y respeta el estado guardado", () => {
-    expect(lines[1].endsWith(",Aiyana,confirmed")).toBe(true);
-    expect(lines[2].endsWith(",Zhang,declined")).toBe(true);
-    expect(lines[3].endsWith(",Aiyana,pending")).toBe(true);
+    expect(lines[1]).toContain(",Aiyana,confirmed,");
+    expect(lines[2]).toContain(",Zhang,declined,");
+    expect(lines[3]).toContain(",Aiyana,pending,");
   });
 
   it("escapa el título con coma y marca asistencia requerida", () => {
@@ -75,5 +75,36 @@ describe("buildAttendanceCsv", () => {
   it("sin sesiones solo devuelve la cabecera", () => {
     const empty = buildAttendanceCsv({ events: [], players: PLAYERS, responses: [] });
     expect(empty.replace("\ufeff", "").trimEnd()).toBe(ATTENDANCE_CSV_HEADER.join(","));
+  });
+});
+
+describe("buildAttendanceCsv: asistencia real", () => {
+  const withActual = buildAttendanceCsv({
+    events: EVENTS,
+    players: PLAYERS,
+    responses: [{ event_id: "e1", user_id: "u1", status: "confirmed" }],
+    actual: [
+      { event_id: "e1", user_id: "u1", status: "partial", reason: "injury" },
+      { event_id: "e1", user_id: "u2", status: "absent", reason: null },
+      { event_id: "e2", user_id: "u1", status: "present", reason: null },
+    ],
+  });
+  const lines = withActual.replace("\ufeff", "").trimEnd().split("\r\n");
+
+  it("la cabecera termina en actual,reason (columnas nuevas al final)", () => {
+    expect(lines[0].endsWith(",status,actual,reason")).toBe(true);
+    expect(ATTENDANCE_CSV_HEADER.slice(0, 7)).toEqual(["date", "time", "type", "title", "attendance_required", "player", "status"]);
+  });
+  it("incluye lo que ocurrió y el motivo junto a la intención", () => {
+    expect(lines[1].endsWith(",Aiyana,confirmed,partial,injury")).toBe(true);
+    expect(lines[2].endsWith(",Zhang,pending,absent,")).toBe(true);
+    expect(lines[3].endsWith(",Aiyana,pending,present,")).toBe(true);
+  });
+  it("sin marca de asistencia = unmarked y motivo vacío", () => {
+    expect(lines[4].endsWith(",Zhang,pending,unmarked,")).toBe(true);
+  });
+  it("sin pasar asistencia real todo sale unmarked", () => {
+    const c = buildAttendanceCsv({ events: EVENTS, players: PLAYERS, responses: [] });
+    expect(c.replace("\ufeff", "").trimEnd().split("\r\n")[1].endsWith(",unmarked,")).toBe(true);
   });
 });
